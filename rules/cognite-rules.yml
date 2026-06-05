@@ -1,0 +1,117 @@
+extends: spectral:oas
+formats:
+  - oas3
+
+rules:
+  # Cognite uses POST for list operations with filter bodies
+  cognite-list-endpoints-use-post:
+    description: "Cognite list endpoints use POST with a filter body, not GET with query params"
+    message: "List/filter endpoints should use POST method per Cognite API conventions"
+    severity: info
+    given: "$.paths[*]"
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          type: object
+
+  # All resource types must have externalId support
+  cognite-external-id-in-create-body:
+    description: "Cognite resource create requests should support externalId"
+    message: "Create request body should include externalId property"
+    severity: warn
+    given: "$.components.schemas[*ExternalAsset,*ExternalEvent,*Post*].properties"
+    then:
+      field: externalId
+      function: truthy
+
+  # Timestamps use epoch milliseconds (int64)
+  cognite-timestamp-fields-are-epoch-ms:
+    description: "Timestamp fields (createdTime, lastUpdatedTime, startTime, endTime) must be int64 epoch milliseconds"
+    message: "Timestamp field '{{property}}' should be integer type with int64 format"
+    severity: warn
+    given: "$.components.schemas[*].properties[createdTime,lastUpdatedTime,startTime,endTime]"
+    then:
+      - field: type
+        function: enumeration
+        functionOptions:
+          values:
+            - integer
+      - field: format
+        function: enumeration
+        functionOptions:
+          values:
+            - int64
+
+  # Pagination uses nextCursor pattern
+  cognite-pagination-cursor-field:
+    description: "Cognite list responses use nextCursor for pagination"
+    message: "Paginated list response should include nextCursor field"
+    severity: info
+    given: "$.components.schemas[*Response*,*List*].properties"
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          type: object
+
+  # Internal IDs should be int64
+  cognite-internal-ids-are-int64:
+    description: "Internal IDs (id, parentId, assetId, rootId) must be int64"
+    message: "Internal ID field should be integer with int64 format"
+    severity: warn
+    given: "$.components.schemas[*].properties.id"
+    then:
+      - field: type
+        function: enumeration
+        functionOptions:
+          values:
+            - integer
+      - field: format
+        function: enumeration
+        functionOptions:
+          values:
+            - int64
+
+  # Metadata maps should be string->string only
+  cognite-metadata-string-values:
+    description: "Metadata fields in Cognite resources are string key -> string value maps"
+    message: "Metadata field should have additionalProperties of type string"
+    severity: info
+    given: "$.components.schemas[*].properties.metadata"
+    then:
+      field: additionalProperties
+      function: truthy
+
+  # ExternalId max length constraint
+  cognite-external-id-max-length:
+    description: "externalId fields must have maxLength of 255"
+    message: "externalId should have maxLength: 255"
+    severity: warn
+    given: "$.components.schemas[*].properties.externalId"
+    then:
+      field: maxLength
+      function: enumeration
+      functionOptions:
+        values:
+          - 255
+
+  # Operations should have operationId
+  cognite-operation-ids-required:
+    description: "All operations must have an operationId for SDK generation"
+    message: "Operation must have an operationId"
+    severity: error
+    given: "$.paths[*][get,post,put,patch,delete]"
+    then:
+      field: operationId
+      function: truthy
+
+  # Tags should be present on all operations
+  cognite-operations-have-tags:
+    description: "All operations should be tagged for API navigation"
+    message: "Operation should have at least one tag"
+    severity: warn
+    given: "$.paths[*][get,post,put,patch,delete]"
+    then:
+      field: tags
+      function: truthy
