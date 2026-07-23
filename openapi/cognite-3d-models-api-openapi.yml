@@ -1,0 +1,920 @@
+openapi: 3.1.0
+info:
+  title: Cognite 3D Asset Mapping 3D Models API
+  description: "# Introduction\nThis is the reference documentation for the Cognite API with\nan overview of all the available methods.\n\n# Postman\nSelect the **Download** button to download our OpenAPI specification to get started.\n\nTo import your data into Postman, select **Import**, and the Import modal opens.\nYou can import items by dragging or dropping files or folders. You can choose how to import your API and manage the import settings in **View Import Settings**.\n\nIn the Import Settings, set the **Folder organization** to **Tags**, select\n**Enable optional parameters** to turn off the settings, and select **Always inherit authentication** to turn on the settings. Select **Import**.\n\nSet the Authorization to **Oauth2.0**. By default, the settings are for Open Industrial Data. Navigate to [Cognite Hub](https://hub.cognite.com/open-industrial-data-211) to understand how to get the credentials for use in Postman.\n\nFor more information, see [Getting Started with Postman](https://developer.cognite.com/dev/guides/postman/).\n\n# Pagination\nMost resource types can be paginated, indicated by the field `nextCursor` in the response.\nBy passing the value of `nextCursor` as the cursor you will get the next page of `limit` results.\nNote that all parameters except `cursor` has to stay the same.\n\n# Parallel retrieval\nAs general guidance, Parallel Retrieval is a technique that should be used when due to query complexity, retrieval of data in a single request is significantly slower than it would otherwise be for a simple request.  Parallel retrieval does not act as a speed multiplier on optimally running queries.  By parallelizing such requests, data retrieval performance can be tuned to meet the client application needs. \n\nCDF supports parallel retrieval through the `partition` parameter, which has the format `m/n` where `n` is the amount of partitions you would like to split the entire data set into.\nIf you want to download the entire data set by splitting it into 10 partitions, do the following in parallel with `m` running from 1 to 10:\n  - Make a request to `/events` with `partition=m/10`.\n  - Paginate through the response by following the cursor as explained above. Note that the `partition` parameter needs to be passed to all subqueries.\n\nProcessing of parallel retrieval requests is subject to concurrency quota availability. The request returns the `429` response upon exceeding concurrency limits. See the Request throttling chapter below.\n\nTo prevent unexpected problems and to maximize read throughput, you should at most use 10 partitions. \nSome CDF resources will automatically enforce a maximum of 10 partitions.\nFor more specific and detailed information, please read the ```partition``` attribute documentation for the CDF resource you're using.  \n\n# Requests throttling\nCognite Data Fusion (CDF) returns the HTTP `429` (too many requests) response status code when project capacity exceeds the limit.\n\nThe throttling can happen:\n  - If a user or a project sends too many (more than allocated) concurrent requests.\n  - If a user or a project sends a too high (more than allocated) rate of requests in a given amount of time.\n\nCognite recommends using a retry strategy based on truncated exponential backoff to handle sessions with HTTP response codes 429.\n\nCognite recommends using a reasonable number (up to 10) of  `Parallel retrieval` partitions.\n\nFollowing these strategies lets you slow down the request frequency to maximize productivity without having to re-submit/retry failing requests.\n\nSee more [here](https://docs.cognite.com/dev/concepts/resource_throttling).\n\n# API versions\n## Version headers\nThis API uses calendar versioning, and version names follow the `YYYYMMDD` format.\nYou can find the versions currently available by using the version selector at the top of this page.\n\nTo use a specific API version, you can pass the `cdf-version: $version` header along with your requests to the API.\n\n## Beta versions\nThe beta versions provide a preview of what the stable version will look like in the future.\nBeta versions contain functionality that is reasonably mature, and highly likely to become a part of the stable API.\n\nBeta versions are indicated by a `-beta` suffix after the version name. For example, the beta version header for the\n2023-01-01 version is then `cdf-version: 20230101-beta`.\n\n## Alpha versions\nAlpha versions contain functionality that is new and experimental, and not guaranteed to ever become a part of the stable API.\nThis functionality presents no guarantee of service, so its use is subject to caution.\n\nAlpha versions are indicated by an `-alpha` suffix after the version name. For example, the alpha version header for\nthe 2023-01-01 version is then `cdf-version: 20230101-alpha`."
+  version: v1
+  contact:
+    name: Cognite Support
+    url: https://support.cognite.com
+    email: support@cognite.com
+servers:
+- url: https://{cluster}.cognitedata.com/api/v1/projects/{project}
+  description: The URL for the CDF cluster to connect to
+  variables:
+    cluster:
+      enum:
+      - api
+      - az-tyo-gp-001
+      - az-eastus-1
+      - az-power-no-northeurope
+      - westeurope-1
+      - asia-northeast1-1
+      - gc-dsm-gp-001
+      default: api
+      description: The CDF cluster to connect to
+    project:
+      default: publicdata
+      description: The CDF project name.
+security:
+- oidc-token:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-client-credentials:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-open-industrial-data:
+  - https://api.cognitedata.com/.default
+- oauth2-auth-code:
+  - https://{cluster}.cognitedata.com/.default
+tags:
+- name: 3D Models
+paths:
+  /3d/models:
+    get:
+      tags:
+      - 3D Models
+      summary: List 3D models
+      description: '
+
+
+        > **Required capabilities:** `threedAcl:READ`
+
+
+        Retrieves a list of all models in a project. This operation supports pagination. You can filter out all models without a published revision.'
+      operationId: get3DModels
+      parameters:
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+      - name: includeRevisionInfo
+        in: query
+        description: If true, return latest revision info as part of response
+        schema:
+          type: boolean
+          default: false
+      - name: published
+        in: query
+        description: Filter based on whether or not it has published revisions.
+        schema:
+          type: boolean
+      responses:
+        '200':
+          description: A list of models.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                - $ref: '#/components/schemas/Model3DWithCursorResponse'
+                - $ref: '#/components/schemas/Model3DWithRevisionInfoAndCursorResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-capability:
+      - threedAcl:READ
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: 'const models3D = await client.models3D.list({ published: true });'
+      - lang: Python
+        label: Python SDK
+        source: "three_d_model_list = client.three_d.models.list()\n\nfor three_d_model in client.three_d.models:\n    three_d_model # do something with the 3d model\n\nfor three_d_model in client.three_d.models(chunk_size=50):\n    three_d_model # do something with the 3d model\n"
+      - lang: Java
+        label: Java SDK
+        source: "List<ThreeDModel> listResults = new ArrayList<>(); \n client.threeD().models() \n          .list() \n          .forEachRemaining(model -> listResults.addAll(model)); \n\n"
+    post:
+      tags:
+      - 3D Models
+      summary: Create 3D models
+      operationId: create3DModels
+      requestBody:
+        description: The models to create.
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - $ref: '#/components/schemas/CreateModel3DClassicBody'
+              - $ref: '#/components/schemas/CreateModel3DDmsOnlyBody'
+        required: true
+      responses:
+        '201':
+          description: A list of the created models.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Model3DList'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-capability:
+      - threedAcl:CREATE
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: "const modelsToCreate = [\n  { name: 'Model 0' },\n  { name: 'Model 2' },\n];\nconst models3D = await client.models3D.create(modelsToCreate);"
+      - lang: Python
+        label: Python SDK
+        source: 'res = client.three_d.models.create(name="My Model", data_set_id=1, metadata={"key1": "value1", "key2": "value2"})
+
+
+          from cognite.client.data_classes import ThreeDModelWrite
+
+          my_model = ThreeDModelWrite(name="My Model", data_set_id=1, metadata={"key1": "value1", "key2": "value2"})
+
+          my_other_model = ThreeDModelWrite(name="My Other Model", data_set_id=1, metadata={"key1": "value1", "key2": "value2"})
+
+          res = client.three_d.models.create([my_model, my_other_model])
+
+          '
+      - lang: Java
+        label: Java SDK
+        source: "List<ThreeDModel> upsertThreeDModelsList = List.of( \n          ThreeDModel.newBuilder() \n          .setName(\"generated-\") \n          .setDataSetId(dataSetId) \n          .setCreatedTime(1552566113).build()); \nList<ThreeDModel> listUpsert = \n          client.threeD() \n          .models() \n          .upsert(upsertThreeDModelsList); \n\n"
+      description: '
+
+
+        > **Required capabilities:** `threedAcl:CREATE`
+
+        '
+  /3d/models/update:
+    post:
+      tags:
+      - 3D Models
+      summary: Update 3D models
+      operationId: update3DModels
+      requestBody:
+        description: List of changes.
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - $ref: '#/components/schemas/UpdateModel3DClassicBody'
+              - $ref: '#/components/schemas/UpdateModel3DDmsOnlyBody'
+        required: true
+      responses:
+        '200':
+          description: Corresponding models after applying the updates.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Model3DList'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-capability:
+      - threedAcl:UPDATE
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: "const modelsToUpdate = [\n  { id: 3744350296805509, update: { name: { set: 'Model 0 updated' }}},\n  { id: 8163365893677939, update: { name: { set: 'Model 2 updated' }}},\n];\nconst models3D = await client.models3D.update(modelsToUpdate);"
+      - lang: Python
+        label: Python SDK
+        source: 'three_d_model = client.three_d.models.retrieve(id=1)
+
+          three_d_model.name = "New Name"
+
+          res = client.three_d.models.update(three_d_model)
+
+
+          from cognite.client.data_classes import ThreeDModelUpdate
+
+          my_update = ThreeDModelUpdate(id=1).name.set("New Name")
+
+          res = client.three_d.models.update(my_update)
+
+          '
+      - lang: Java
+        label: Java SDK
+        source: "ThreeDModel update = upsertThreeDModelsList.get(0).toBuilder() \n          .setName(\"Update Test\").build(); \nList<ThreeDModel> listUpsert = \n          client.threeD() \n          .models() \n          .upsert(List.of(update)); \n\n"
+      description: '
+
+
+        > **Required capabilities:** `threedAcl:UPDATE`
+
+        '
+  /3d/models/delete:
+    post:
+      tags:
+      - 3D Models
+      summary: Delete 3D models
+      operationId: delete3DModels
+      requestBody:
+        description: List of models to delete.
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - $ref: '#/components/schemas/DataIdentifiers'
+              - $ref: '#/components/schemas/OneDataDmsIdentifier'
+        required: true
+      responses:
+        '200':
+          $ref: '#/components/responses/EmptyResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-capability:
+      - threedAcl:DELETE
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: 'await client.models3D.delete([{ id: 3744350296805509 }, { id: 8163365893677939 }]);'
+      - lang: Python
+        label: Python SDK
+        source: 'res = client.three_d.models.delete(id=1)
+
+          '
+      - lang: Java
+        label: Java SDK
+        source: "List<Item> deleteItemsResultsByExternalIds = \n          client.threeD() \n          .models() \n          .delete(List.of(Item.newBuilder().setExternalId(\"10\").build())); \n\nList<Item> deleteItemsResultsByInternalIds = \n          client.threeD() \n          .models() \n          .delete(List.of(Item.newBuilder().setId(10).build())); \n\n"
+      description: '
+
+
+        > **Required capabilities:** `threedAcl:DELETE`
+
+        '
+  /3d/models/{modelId}:
+    get:
+      tags:
+      - 3D Models
+      summary: Retrieve a 3D model
+      operationId: get3DModel
+      parameters:
+      - $ref: '#/components/parameters/ModelId'
+      responses:
+        '200':
+          description: A model object
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Model3D'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-capability:
+      - threedAcl:READ
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: await client.models3D.retrieve(3744350296805509);
+      - lang: Python
+        label: Python SDK
+        source: 'res = client.three_d.models.retrieve(id=1)
+
+          '
+      - lang: Java
+        label: Java SDK
+        source: "List<ThreeDModel> retrievedByInternalIds = \n          client.threeD() \n          .models() \n          .retrieve(List.of(Item.newBuilder().setId(10).build())); \n\nList<ThreeDModel> retrievedByExternalIds = \n          client.threeD() \n          .models() \n          .retrieve(List.of(Item.newBuilder().setExternalId(\"10\").build())); \n\n"
+      description: '
+
+
+        > **Required capabilities:** `threedAcl:READ`
+
+        '
+components:
+  schemas:
+    NextCursor:
+      type: string
+      description: Cursor to get the next page of results (if available).
+    RevisionStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+          - Queued
+          - Processing
+          - Done
+          - Failed
+          description: The status of the revision.
+          example: Done
+        revisionId:
+          type: integer
+          description: The ID of the revision model.
+          format: int64
+          example: 1000
+        createdTime:
+          $ref: '#/components/schemas/CreatedTime'
+        revisionCount:
+          type: integer
+          format: int32
+        types:
+          type: array
+          items:
+            type: string
+          example:
+          - ept-pointcloud:1
+    CreateModel3DDmsOnlyBody:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 1
+          items:
+            $ref: '#/components/schemas/CreateModel3DDmsOnly'
+    DataSetId:
+      description: The dataSet Id for the item.
+      type: integer
+      minimum: 1
+      maximum: 9007199254740991
+      format: int64
+    Model3DWithCursorResponse:
+      allOf:
+      - $ref: '#/components/schemas/Model3DList'
+      - $ref: '#/components/schemas/NextCursorData'
+    CreateModel3DDmsOnly:
+      type: object
+      required:
+      - name
+      - space
+      - type
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: The name of the model.
+          example: My Model
+        space:
+          $ref: '#/components/schemas/SpaceSpecification'
+        thumbnailReference:
+          $ref: '#/components/schemas/DirectRelationReference'
+        type:
+          $ref: '#/components/schemas/ModelType'
+    CogniteInstanceId:
+      description: The ID of an [instance in Cognite Data Models](https://docs.cognite.com/cdf/dm/dm_concepts/dm_spaces_instances#instance).
+      type: object
+      required:
+      - space
+      - externalId
+      properties:
+        space:
+          type: string
+          minLength: 1
+          maxLength: 43
+        externalId:
+          type: string
+          minLength: 1
+          maxLength: 255
+    SetModelNameField:
+      type: object
+      properties:
+        set:
+          type: string
+          minLength: 1
+          maxLength: 255
+    NextCursorData:
+      type: object
+      properties:
+        nextCursor:
+          $ref: '#/components/schemas/NextCursor'
+    CogniteInternalId:
+      description: A server-generated ID for the object.
+      type: integer
+      minimum: 1
+      maximum: 9007199254740991
+      format: int64
+    Model3DWithRevisionInfo:
+      allOf:
+      - $ref: '#/components/schemas/Model3D'
+      - type: object
+        properties:
+          lastRevisionInfo:
+            $ref: '#/components/schemas/RevisionStatus'
+    Model3D:
+      type: object
+      required:
+      - name
+      - id
+      - createdTime
+      properties:
+        name:
+          type: string
+          description: The name of the model.
+          example: My Model
+        id:
+          type: integer
+          description: The ID of the model.
+          format: int64
+          example: 1000
+        createdTime:
+          $ref: '#/components/schemas/CreatedTime'
+        dataSetId:
+          $ref: '#/components/schemas/DataSetId'
+        space:
+          $ref: '#/components/schemas/SpaceSpecification'
+        metadata:
+          $ref: '#/components/schemas/Metadata3D'
+    DataIdentifiers:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          uniqueItems: true
+          type: array
+          description: List of ID objects
+          items:
+            $ref: '#/components/schemas/DataIdentifier'
+          maxItems: 1000
+          minItems: 1
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
+    ObjectPatchSet:
+      title: set
+      type: object
+      required:
+      - set
+      properties:
+        set:
+          uniqueItems: true
+          type: object
+          description: Set the key-value pairs. All existing key-value pairs will be removed.
+          additionalProperties:
+            type: string
+          example:
+            key1: value1
+            key2: value2
+    UpdateModel3DClassicBody:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items:
+            $ref: '#/components/schemas/UpdateModel3D'
+    SetDataSetId:
+      type: object
+      required:
+      - set
+      properties:
+        set:
+          $ref: '#/components/schemas/DataSetId'
+    SpaceSpecification:
+      type: string
+      pattern: ^[a-zA-Z][a-zA-Z0-9_-]{0,41}[a-zA-Z0-9]?$
+      minLength: 1
+      maxLength: 43
+    SinglePatchDirectRelationReference:
+      title: set
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/SetDirectRelationReference'
+      - $ref: '#/components/schemas/RemoveField'
+    OneDataDmsIdentifier:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          uniqueItems: true
+          type: array
+          description: List of ID objects
+          items:
+            $ref: '#/components/schemas/InstanceReference'
+          maxItems: 1
+          minItems: 1
+    UpdateModel3DDmsOnly:
+      allOf:
+      - $ref: '#/components/schemas/InstanceReference'
+      - type: object
+        properties:
+          update:
+            type: object
+            properties:
+              name:
+                $ref: '#/components/schemas/SetModelNameField'
+              thumbnailReference:
+                $ref: '#/components/schemas/SinglePatchDirectRelationReference'
+    DirectRelationReference:
+      type: object
+      description: Reference to the node pointed to by the direct relation. The reference consists of a space and an external-id.
+      required:
+      - space
+      - externalId
+      properties:
+        space:
+          $ref: '#/components/schemas/SpaceSpecification'
+        externalId:
+          $ref: '#/components/schemas/NodeOrEdgeExternalId'
+    ModelType:
+      type: string
+      enum:
+      - CAD
+      - PointCloud
+      - Image360
+    ObjectPatch:
+      type: object
+      description: Custom, application specific metadata. String key -> String value.
+      oneOf:
+      - $ref: '#/components/schemas/ObjectPatchSet'
+      - $ref: '#/components/schemas/ObjectPatchAddRemove'
+    DataIdentifier:
+      type: object
+      required:
+      - id
+      properties:
+        id:
+          $ref: '#/components/schemas/CogniteInternalId'
+    CreatedTime:
+      type: integer
+      description: The creation time of the resource, in milliseconds since January 1, 1970 at 00:00 UTC.
+      format: int64
+      example: 0
+    Metadata3D:
+      type: object
+      description: 'Custom, application specific metadata. String key -> String value. Limits: Maximum length of key is 32 bytes, value 512 bytes, up to 16 key-value pairs.'
+      additionalProperties:
+        type: string
+    SinglePatchDataSetId:
+      title: set
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/SetDataSetId'
+      - $ref: '#/components/schemas/RemoveField'
+    CreateModel3D:
+      type: object
+      required:
+      - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: The name of the model.
+          example: My Model
+        dataSetId:
+          $ref: '#/components/schemas/DataSetId'
+        metadata:
+          $ref: '#/components/schemas/Metadata3D'
+    UpdateModel3D:
+      allOf:
+      - $ref: '#/components/schemas/DataIdentifier'
+      - type: object
+        properties:
+          update:
+            type: object
+            properties:
+              name:
+                $ref: '#/components/schemas/SetModelNameField'
+              dataSetId:
+                $ref: '#/components/schemas/SinglePatchDataSetId'
+              metadata:
+                allOf:
+                - description: 'Custom, application specific metadata. String key -> String value. Limits: Maximum length of key is 32 bytes, value 512 bytes, up to 16 key-value pairs.'
+                - $ref: '#/components/schemas/ObjectPatch'
+    CreateModel3DClassicBody:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items:
+            $ref: '#/components/schemas/CreateModel3D'
+    RemoveField:
+      title: remove
+      type: object
+      required:
+      - setNull
+      properties:
+        setNull:
+          type: boolean
+          example: true
+    InstanceReference:
+      type: object
+      required:
+      - instanceId
+      properties:
+        instanceId:
+          $ref: '#/components/schemas/CogniteInstanceId'
+    ObjectPatchAddRemove:
+      title: add/remove
+      type: object
+      properties:
+        add:
+          uniqueItems: true
+          type: object
+          description: Add the key-value pairs. Values for existing keys will be overwritten.
+          additionalProperties:
+            type: string
+          example:
+            key1: value1
+            key2: value2
+        remove:
+          uniqueItems: true
+          type: array
+          description: Remove the key-value pairs with the specified keys.
+          example:
+          - value1
+          - value2
+          items:
+            type: string
+    UpdateModel3DDmsOnlyBody:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 1
+          items:
+            $ref: '#/components/schemas/UpdateModel3DDmsOnly'
+    Model3DWithRevisionInfoAndCursorResponse:
+      allOf:
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
+            items:
+              $ref: '#/components/schemas/Model3DWithRevisionInfo'
+      - $ref: '#/components/schemas/NextCursorData'
+    NodeOrEdgeExternalId:
+      type: string
+      pattern: ^[^\\x00]{1,256}$
+      minLength: 1
+      maxLength: 256
+    Model3DList:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Model3D'
+    SetDirectRelationReference:
+      type: object
+      required:
+      - set
+      properties:
+        set:
+          $ref: '#/components/schemas/DirectRelationReference'
+  parameters:
+    ModelId:
+      name: modelId
+      in: path
+      description: Model ID.
+      required: true
+      schema:
+        type: integer
+        format: int64
+    Cursor:
+      name: cursor
+      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
+
+        property, it means that there may be more results, and you should pass that value as the
+
+        `cursor` parameter in the next request.
+
+
+        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
+
+        decoded. Its internal structure is not a part of the public API, and may change without
+
+        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
+
+        '
+      in: query
+      schema:
+        type: string
+        example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+    Limit:
+      name: limit
+      description: Limits the number of results to be returned. The maximum results returned by the server is 1000 even if you specify a higher limit.
+      in: query
+      schema:
+        type: integer
+        default: 100
+        minimum: 1
+        maximum: 1000
+  responses:
+    ErrorResponse:
+      description: The response for a failed request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+    EmptyResponse:
+      description: Empty response.
+      content:
+        application/json:
+          schema:
+            type: object
+  securitySchemes:
+    oidc-token:
+      type: http
+      scheme: bearer
+      bearerFormat: OpenID Connect or OAuth2 token
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+    oauth2-client-credentials:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        clientCredentials:
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-auth-code:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://your-idps.authorization.url/
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-open-industrial-data:
+      type: oauth2
+      description: Auth flow for Open Industrial Data. Get your client secret from https://hub.cognite.com/open-industrial-data-211.
+      flows:
+        clientCredentials:
+          tokenUrl: https://login.microsoftonline.com/48d5043c-cf70-4c49-881c-c638f5796997/oauth2/v2.0/token
+          scopes:
+            default: https://api.cognitedata.com/.default
+    org-oidc-token:
+      type: openIdConnect
+      openIdConnectUrl: https://auth.cognite.com/.well-known/openid-configuration
+      description: 'Access token issued by the Cognite authorization server, and valid for the target organization. The token must
+
+        be an OpenID Connect token, and it can be obtained by performing an OIDC login flow toward `auth.cognite.com`.
+
+        This is a single URL for all CDF organizations.'
+x-tagGroups:
+- name: Changelog
+  tags:
+  - Changelog
+- name: Organizations and projects
+  tags:
+  - Organizations
+  - Projects
+- name: Identity and access management
+  tags:
+  - Principals
+  - Groups
+  - Security categories
+  - Sessions
+  - Token
+  - User profiles
+  - Project Deletion Reporting
+- name: Data modeling
+  tags:
+  - Data Modeling
+  - Data models
+  - Spaces
+  - Views
+  - Containers
+  - Nodes
+  - Instances
+  - Statistics
+  - Streams
+  - Records
+- name: Asset-centric data model
+  tags:
+  - Assets
+  - Time series
+  - Synthetic Time Series
+  - Data point subscriptions
+  - Events
+  - Files
+  - Sequences
+  - Geospatial
+  - Seismic
+- name: 3D
+  tags:
+  - 3D Models
+  - 3D Model Revisions
+  - 3D Files
+  - 3D Asset Mapping
+  - 3D Contextualization
+  - 3D Jobs
+  - 3D Migration
+  - 3D Scenes
+- name: Contextualization
+  tags:
+  - Entity matching
+  - Entity matching pipelines
+  - Engineering diagrams
+  - Vision
+  - Advanced joins
+- name: Cognite AI
+  tags:
+  - Agents
+  - Skills
+  - Chat Completions
+  - Document AI
+  - Models
+- name: Documents
+  tags:
+  - Documents
+  - Document preview
+- name: Data ingestion
+  tags:
+  - Raw
+  - Extraction Pipelines
+  - Extraction Pipelines Runs
+  - Extraction Pipelines Config
+  - Extractors
+- name: Data organization
+  tags:
+  - Data sets
+  - Data domains
+  - Data products
+  - Rule sets
+  - Labels
+  - Relationships
+  - Annotations
+- name: Transformations
+  tags:
+  - Transformations
+  - Transformation Jobs
+  - Transformation Schedules
+  - Transformation Notifications
+  - Query
+  - Schema
+- name: Functions
+  tags:
+  - Functions
+  - Function calls
+  - Function schedules
+- name: Hosted Extractors
+  tags:
+  - Sources
+  - Jobs
+  - Destinations
+  - Mappings
+- name: PostgreSQL Gateway
+  tags:
+  - Postgres Gateway Users
+  - Postgres Gateway Tables
+- name: SAP Writeback
+  tags:
+  - SAP Instances
+  - SAP Endpoints
+  - Schema Mappings
+  - Writeback Requests
+- name: Data workflows
+  tags:
+  - Workflows
+  - Workflow versions
+  - Workflow executions
+  - Workflow triggers
+  - Tasks
+  - Workers
+- name: Simulators
+  tags:
+  - Simulators
+  - Simulator Integrations
+  - Simulator Models
+  - Simulator Routines
+  - Simulation Runs
+  - Simulator Logs
+- name: Units
+  tags:
+  - Units
+  - Unit Systems
+- name: ''
+  tags:
+  - ''

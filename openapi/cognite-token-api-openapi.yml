@@ -1,0 +1,1430 @@
+openapi: 3.1.0
+info:
+  title: Cognite 3D Asset Mapping Token API
+  description: "# Introduction\nThis is the reference documentation for the Cognite API with\nan overview of all the available methods.\n\n# Postman\nSelect the **Download** button to download our OpenAPI specification to get started.\n\nTo import your data into Postman, select **Import**, and the Import modal opens.\nYou can import items by dragging or dropping files or folders. You can choose how to import your API and manage the import settings in **View Import Settings**.\n\nIn the Import Settings, set the **Folder organization** to **Tags**, select\n**Enable optional parameters** to turn off the settings, and select **Always inherit authentication** to turn on the settings. Select **Import**.\n\nSet the Authorization to **Oauth2.0**. By default, the settings are for Open Industrial Data. Navigate to [Cognite Hub](https://hub.cognite.com/open-industrial-data-211) to understand how to get the credentials for use in Postman.\n\nFor more information, see [Getting Started with Postman](https://developer.cognite.com/dev/guides/postman/).\n\n# Pagination\nMost resource types can be paginated, indicated by the field `nextCursor` in the response.\nBy passing the value of `nextCursor` as the cursor you will get the next page of `limit` results.\nNote that all parameters except `cursor` has to stay the same.\n\n# Parallel retrieval\nAs general guidance, Parallel Retrieval is a technique that should be used when due to query complexity, retrieval of data in a single request is significantly slower than it would otherwise be for a simple request.  Parallel retrieval does not act as a speed multiplier on optimally running queries.  By parallelizing such requests, data retrieval performance can be tuned to meet the client application needs. \n\nCDF supports parallel retrieval through the `partition` parameter, which has the format `m/n` where `n` is the amount of partitions you would like to split the entire data set into.\nIf you want to download the entire data set by splitting it into 10 partitions, do the following in parallel with `m` running from 1 to 10:\n  - Make a request to `/events` with `partition=m/10`.\n  - Paginate through the response by following the cursor as explained above. Note that the `partition` parameter needs to be passed to all subqueries.\n\nProcessing of parallel retrieval requests is subject to concurrency quota availability. The request returns the `429` response upon exceeding concurrency limits. See the Request throttling chapter below.\n\nTo prevent unexpected problems and to maximize read throughput, you should at most use 10 partitions. \nSome CDF resources will automatically enforce a maximum of 10 partitions.\nFor more specific and detailed information, please read the ```partition``` attribute documentation for the CDF resource you're using.  \n\n# Requests throttling\nCognite Data Fusion (CDF) returns the HTTP `429` (too many requests) response status code when project capacity exceeds the limit.\n\nThe throttling can happen:\n  - If a user or a project sends too many (more than allocated) concurrent requests.\n  - If a user or a project sends a too high (more than allocated) rate of requests in a given amount of time.\n\nCognite recommends using a retry strategy based on truncated exponential backoff to handle sessions with HTTP response codes 429.\n\nCognite recommends using a reasonable number (up to 10) of  `Parallel retrieval` partitions.\n\nFollowing these strategies lets you slow down the request frequency to maximize productivity without having to re-submit/retry failing requests.\n\nSee more [here](https://docs.cognite.com/dev/concepts/resource_throttling).\n\n# API versions\n## Version headers\nThis API uses calendar versioning, and version names follow the `YYYYMMDD` format.\nYou can find the versions currently available by using the version selector at the top of this page.\n\nTo use a specific API version, you can pass the `cdf-version: $version` header along with your requests to the API.\n\n## Beta versions\nThe beta versions provide a preview of what the stable version will look like in the future.\nBeta versions contain functionality that is reasonably mature, and highly likely to become a part of the stable API.\n\nBeta versions are indicated by a `-beta` suffix after the version name. For example, the beta version header for the\n2023-01-01 version is then `cdf-version: 20230101-beta`.\n\n## Alpha versions\nAlpha versions contain functionality that is new and experimental, and not guaranteed to ever become a part of the stable API.\nThis functionality presents no guarantee of service, so its use is subject to caution.\n\nAlpha versions are indicated by an `-alpha` suffix after the version name. For example, the alpha version header for\nthe 2023-01-01 version is then `cdf-version: 20230101-alpha`."
+  version: v1
+  contact:
+    name: Cognite Support
+    url: https://support.cognite.com
+    email: support@cognite.com
+servers:
+- url: https://{cluster}.cognitedata.com/api/v1/projects/{project}
+  description: The URL for the CDF cluster to connect to
+  variables:
+    cluster:
+      enum:
+      - api
+      - az-tyo-gp-001
+      - az-eastus-1
+      - az-power-no-northeurope
+      - westeurope-1
+      - asia-northeast1-1
+      - gc-dsm-gp-001
+      default: api
+      description: The CDF cluster to connect to
+    project:
+      default: publicdata
+      description: The CDF project name.
+security:
+- oidc-token:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-client-credentials:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-open-industrial-data:
+  - https://api.cognitedata.com/.default
+- oauth2-auth-code:
+  - https://{cluster}.cognitedata.com/.default
+tags:
+- name: Token
+  description: 'Access tokens issued by an IdP (Azure AD, Google, etc.) are used to access CDF resources.
+
+    '
+paths:
+  /token/inspect:
+    get:
+      servers:
+      - url: https://{cluster}.cognitedata.com/api/v1
+        description: The URL for the CDF cluster to connect to
+        variables:
+          cluster:
+            description: The CDF cluster to connect to
+            default: api
+            enum:
+            - api
+            - az-tyo-gp-001
+            - az-eastus-1
+            - az-power-no-northeurope
+            - westeurope-1
+            - asia-northeast1-1
+            - gc-dsm-gp-001
+      x-capability:
+      - projectsAcl:LIST
+      - groupsAcl:LIST
+      tags:
+      - Token
+      summary: Inspect
+      description: '
+
+
+        > **Required capabilities:** `projectsAcl:LIST` `groupsAcl:LIST`
+
+
+        Inspect CDF access granted to an IdP issued token'
+      operationId: inspectToken
+      responses:
+        '200':
+          description: Ok response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenInspectionResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+components:
+  schemas:
+    cognitedatasets_aclAcl:
+      type: object
+      required:
+      - actions
+      - scope
+      properties:
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/cognitedatasets_aclAction'
+        scope:
+          $ref: '#/components/schemas/cognitedatasets_aclScope'
+      title: Acl:Datasets
+    extractionruns_aclAcl:
+      type: object
+      required:
+      - actions
+      - scope
+      properties:
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/extractionruns_aclAction'
+        scope:
+          $ref: '#/components/schemas/extractionruns_aclScope'
+      title: Acl:Extraction Pipelines Runs
+    cogniteprojects_aclAction:
+      type: string
+      enum:
+      - LIST
+      - READ
+      - CREATE
+      - UPDATE
+      default: LIST
+      title: Project:Action
+    cognitedigitaltwin_aclAcl:
+      type: object
+      required:
+      - actions
+      - scope
+      properties:
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/cognitedigitaltwin_aclAction'
+        scope:
+          $ref: '#/components/schemas/cognitedigitaltwin_aclScope'
+      title: Acl:DigitalTwin
+    cognitefiles_aclAcl:
+      type: object
+      required:
+      - actions
+      - scope
+      properties:
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/cognitefiles_aclAction'
+        scope:
+          $ref: '#/components/schemas/cognitefiles_aclScope'
+      title: Acl:File
+    cognitetimeseries_aclAcl:
+      type: object
+      required:
+      - actions
+      - scope
+      properties:
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/cognitetimeseries_aclAction'
+        scope:
+          $ref: '#/components/schemas/cognitetimeseries_aclScope'
+      title: Acl:Timeseries
+    cognitesecuritycategories_aclScope:
+      type: object
+      oneOf:
+      - title: all
+        properties:
+          all:
+            $ref: '#/components/schemas/generic_aclAllScope'
+      - title: idscope
+        properties:
+          idscope:
+            $ref: '#/components/schemas/cognitesecuritycategories_aclIdScope'
+      title: SecurityCategory:Scope
+    cognitelabels_aclAcl:
+      type: object
+      required:
+      - actions
+      - scope
+      properties:
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/cognitelabels_aclAction'
+        scope:
+          $ref: '#/components/schemas/cognitelabels_aclScope'
+      title: Acl:Labels
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
+    cognitedatamodels_aclSpaceIdScope:
+      type: object
+      properties:
+        spaceIds:
+          type: array
+          items:
+            type: string
+          title: Space IDs
+      title: Scope:SpaceIdScope
+    ProjectUrlName:
+      type: string
+      description: 'The URL name of the project. This is used as part of the request path in API calls.
+
+
+        Valid URL names contains between 3 and 32 characters, and may only contain
+
+        English letters, digits and hyphens, must contain at least one letter
+
+        and may not start or end with a hyphen.
+
+        '
+      minLength: 3
+      maxLength: 32
+      example: publicdata
+    cogniteprojects_aclAcl:
+      type: object
+      required:
+      - actions
+      - scope
+      properties:
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/cogniteprojects_aclAction'
+        scope:
+          $ref: '#/components/schemas/cogniteprojects_aclScope'
+      title: Acl:Project
+    cogniteanalytics_aclAction:
+      type: string
+      enum:
+      - READ
+      - EXECUTE
+      - LIST
+      default: READ
+      title: Analytics:Action
+    cognitelabels_aclAction:
+      type: string
+      enum:
+      - READ
+      - WRITE
+      default: READ
+      title: Labels:Action
+    streams_aclAction:
+      type: string
+      enum:
+      - READ
+      - CREATE
+      - DELETE
+      default: READ
+      title: Streams:Action
+    Capabilities:
+      type: array
+      items:
+        $ref: '#/components/schemas/Capability'
+    cognitegroups_aclScope:
+      type: object
+      oneOf:
+      - title: all
+        properties:
+          all:
+            allOf:
+            - $ref: '#/components/schemas/generic_aclAllScope'
+            title: all groups
+      - title: currentuserscope
+        properties:
+          currentuserscope:
+            allOf:
+            - $ref: '#/components/schemas/generic_aclCurrentUserScope'
+            title: groups the current principal is in
+      title: Group:Scope
+    cognitetimeseries_aclScope:
+      type: object
+      oneOf:
+      - title: all
+        properties:
+          all:
+            $ref: '#/components/schemas/generic_aclAllScope'
+      - title: idscope
+        properties:
+          idscope:
+            $ref: '#/components/schemas/cognitetimeseries_aclIdScope'
+      - title: assetRootIdScope
+        properties:
+          assetRootIdScope:
+            $ref: '#/components/schemas/cognitetimeseries_aclAssetRootIdScope'
+      - title: datasetScope
+        properties:
+          datasetScope:
+            $ref: '#/components/schemas/cognitedatasets_aclIdScope'
+      title: Timeseries:Scope
+    cognitesecuritycategories_aclAcl:
+      type: object
+      required:
+      - actions
+      - scope
+      properties:
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/cognitesecuritycategories_aclAction'
+        scope:
+          $ref: '#/components/schemas/cognitesecuritycategories_aclScope'
+      title: Acl:SecurityCategory
+    cognitesecuritycategories_aclAction:
+      type: string
+      enum:
+      - MEMBEROF
+      - LIST
+      - CREATE
+      - DELETE
+      - UPDATE
+      default: MEMBEROF
+      title: SecurityCategory:Action
+    cognitesecuritycategories_aclIdScope:
+      type: object
+      properties:
+        ids:
+          type: array
+          items:
+            type: string
+            format: uint64
+          title: security category IDs
+      title: Scope:SecurityCategoryIdScope
+    cognitesequences_aclAction:
+      type: string
+      enum:
+      - READ
+      - WRITE
+      default: READ
+      title: Sequences:Action
+    cognitelabels_aclScope:
+      type: object
+      oneOf:
+      - title: all
+        properties:
+          all:
+            $ref: '#/components/schemas/generic_aclAllScope'
+      - title: datasetScope
+        properties:
+          datasetScope:
+            $ref: '#/components/schemas/cognitedatasets_aclIdScope'
+      title: Labels:Scope
+    cognitethreed_aclAcl:
+      type: object
+      required:
+      - actions
+      - scope
+      properties:
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/cognitethreed_aclAction'
+        scope:
+          $ref: '#/components/schemas/cognitethreed_aclScope'
+      title: Acl:Threed
+    cognitedigitaltwin_aclScope:
+      type: object
+      properties:
+        all:
+          $ref: '#/components/schemas/generic_aclAllScope'
+      title: DigitalTwin:Scope
+    extractionpipelines_aclAction:
+      type: string
+      enum:
+      - READ
+      - WRITE
+      default: READ
+      title: Extraction Pipelines:Action
+    cognitethreed_aclAction:
+      type: string
+      enum:
+      - READ
+      - CREATE
+      - UPDATE
+      - DELETE
+      default: READ
+      title: Threed:Action
+    streamrecords_aclAcl:
+      type: object
+      required:
+      - actions
+      - scope
+      properties:
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/streamrecords_aclAction'
+        scope:
+          $ref: '#/components/schemas/streamrecords_aclScope'
+      title: Acl:StreamRecords
+    functions_aclAction:
+      type: string
+      enum:
+      - READ
+      - WRITE
+      - RUN
+      default: READ
+      title: Functions:Action
+    cogniteraw_aclDbsToTablesScope:
+      type: object
+      description: Scope access to certain tables within a database
+      example:
+        dbsToTables:
+          db1:
+          - table1
+          - table2
+          db2:
+          - table1
+          - table2
+      title: tableScope
+      properties:
+        dbsToTables:
+          type: object
+          title: dbtoTableScope
+          description: 'Scopes access to tables within a database. { database1: [table1, table2] } will give access to table1 and table2 within database1.'
+          additionalProperties:
+            x-additionalPropertiesName: databaseName
+            type: array
+            example:
+            - table1
+            - table2
+            description: List of table names within the database
+            items:
+              type: string
+              example: table1
+              description: Name of the table
+    cognitedatamodelinstances_aclAcl:
+      type: object
+      required:
+      - actions
+      - scope
+      properties:
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/cognitedatamodelInstances_aclAction'
+        scope:
+          $ref: '#/components/schemas/cognitedatamodels_aclScope'
+      title: Acl:DataModelInstances
+    cogniteraw_aclAction:
+      type: string
+      enum:
+      - READ
+      - WRITE
+      - LIST
+      default: READ
+      title: Raw:Action
+    cogniteseismic_aclAction:
+      type: string
+      enum:
+      - READ
+      - WRITE
+      default: READ
+      title: Seismic:Action
+    streamrecords_aclScope:
+      type: object
+      oneOf:
+      - title: all
+        properties:
+          all:
+            $ref: '#/components/schemas/generic_aclAllScope'
+      - title: spaceIdScope
+        properties:
+          spaceIdScope:
+            $ref: '#/components/schemas/cognitedatamodels_aclSpaceIdScope'
+      title: StreamRecords:Scope
+    cognitefiles_aclScope:
+      type: object
+      oneOf:
+      - title: all
+        properties:
+          all:
+            $ref: '#/components/schemas/generic_aclAllScope'
+      - title: datasetScope
+        properties:
+          datasetScope:
+            $ref: '#/components/schemas/cognitedatasets_aclIdScope'
+      title: File:Scope
+    cognitedatasets_aclScope:
+      type: object
+      oneOf:
+      - title: all
+        properties:
+          all:
+            $ref: '#/components/schemas/generic_aclAllScope'
+      - title: idscope
+        properties:
+          idscope:
+            $ref: '#/components/schemas/cognitedatasets_aclIdScope'
+      title: Datasets:Scope
+    cogniteevents_aclAction:
+      type: string
+      enum:
+      - READ
+      - WRITE
+      default: READ
+      title: Event:Action
+    streams_aclScope:
+      type: object
+      oneOf:
+      - title: all
+        properties:
+          all:
+            $ref: '#/components/schemas/generic_aclAllScope'
+      title: Streams:Scope
+    cogniteevents_aclScope:
+      type: object
+      oneOf:
+      - title: all
+        properties:
+          all:
+            $ref: '#/components/schemas/generic_aclAllScope'
+      - title: datasetScope
+        properties:
+          datasetScope:
+            $ref: '#/components/schemas/cognitedatasets_aclIdScope'
+      title: Event:Scope
+    cogunits_aclAcl:
+      type: object
+      required:
+      - actions
+      - scope
+      properties:
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/cogunits_aclAction'
+        scope:
+          $ref: '#/components/schemas/cogunits_aclScope'
+      title: Acl:CogUnits
+    cogniteassets_aclScope:
+      type: object
+      oneOf:
+      - title: all
+        properties:
+          all:
+            $ref: '#/components/schemas/generic_aclAllScope'
+      - title: datasetScope
+        properties:
+          datasetScope:
+            $ref: '#/components/schemas/cognitedatasets_aclIdScope'
+      title: Asset:Scope
+    cogunits_aclScope:
+      type: object
+      oneOf:
+      - title: all
+        properties:
+          all:
+            $ref: '#/components/schemas/generic_aclAllScope'
+      title: CogUnits:Scope
+    Capability:
+      type: object
+      oneOf:
+      - title: Groups Capability
+        properties:
+          groupsAcl:
+            $ref: '#/components/schemas/cognitegroups_aclAcl'
+          projectScope:
+            $ref: '#/components/schemas/ProjectScope'
+      - title: Assets Capability
+        properties:
+          assetsAcl:
+            $ref: '#/components/schemas/cogniteassets_aclAcl'
+          projectScope:
+            $ref: '#/components/schemas/ProjectScope'
+      - title: Events Capability
+        properties:
+          eventsAcl:
+            $ref: '#/components/schemas/cogniteevents_aclAcl'
+          projectScope:
+            $ref: '#/components/schemas/ProjectScope'
+      - title: Files Capability
+        properties:
+          filesAcl:
+            $ref: '#/components/schemas/cognitefiles_aclAcl'
+          projectScope:
+            $ref: '#/components/schemas/ProjectScope'
+      - title: Projects Capability
+        properties:
+          projectsAcl:
+            $ref: '#/components/schemas/cogniteprojects_aclAcl'
+          projectScope:
+            $ref: '#/components/schemas/ProjectScope'
+      - title: Security Category Capability
+        properties:
+          securityCategoriesAcl:
+            $ref: '#/components/schemas/cognitesecuritycategories_aclAcl'
+          projectScope:
+            $ref: '#/components/schemas/ProjectScope'
+      - title: Raw Capability
+        properties:
+          rawAcl:
+            $ref: '#/components/schemas/cogniteraw_aclAcl'
+          projectScope:
+            $ref: '#/components/schemas/ProjectScope'
+      - title: TimeSeries Capability
+        properties:
+          timeSeriesAcl:
+            $ref: '#/components/schemas/cognitetimeseries_aclAcl'
+          projectScope:
+            $ref: '#/components/schemas/ProjectScope'
+      - title: Threed Capability
+        properties:
+          threedAcl:
+            $ref: '#/components/schemas/cognitethreed_aclAcl'
+          projectScope:
+            $ref: '#/components/schemas/ProjectScope'
+      - title: Sequences Capability
+        properties:
+          sequencesAcl:
+            $ref: '#/components/schemas/cognitesequences_aclAcl'
+          projectScope:
+            $ref: '#/components/schemas/ProjectScope'
+      - title: Labels Capability
+        properties:
+          labelsAcl:
+            $ref: '#/components/schemas/cognitelabels_aclAcl'
+          projectScope:
+            $ref: '#/components/schemas/ProjectScope'
+      - title: Analytics Capability
+        properties:
+          analyticsAcl:
+            $ref: '#/components/schemas/cogniteanalytics_aclAcl'
+          projectScope:
+            $ref: '#/components/schemas/ProjectScope'
+      - title: Cognite Units Capability
+        properties:
+          cogUnitsAcl:
+            $ref: '#/components/schemas/cogunits_aclAcl'
+          projectScope:
+            $ref: '#/components/schemas/ProjectScope'
+      - title: Digital Twin Capability
+        properties:
+          digitalTwinAcl:
+            $ref: '#/components/schemas/cognitedigitaltwin_aclAcl'
+          projectScope:
+            $ref: '#/components/schemas/ProjectScope'
+      - title: Data Modeling Schema Capability
+        properties:
+          digitalTwinAcl:
+            $ref: '#/components/schemas/cognitedatamodels_aclAcl'
+          projectScope:
+            $ref: '#/components/schemas/ProjectScope'
+      - title: Data Modeling Instances Capability
+        properties:
+          digitalTwinAcl:
+            $ref: '#/components/schemas/cognitedatamodelinstances_aclAcl'
+          projectScope:
+            $ref: '#/components/schemas/ProjectScope'
+      - title: Stream Records Capability
+        properties:
+          streamRecordsAcl:
+            $ref: '#/components/schemas/streamrecords_aclAcl'
+          projectScope:
+            $ref: '#/components/schemas/ProjectScope'
+      - title: Streams Capability
+        properties:
+          streamsAcl:
+            $ref: '#/components/schemas/streams_aclAcl'
+          projectScope:
+            $ref: '#/components/schemas/ProjectScope'
+      - title: Relationships Capability
+        properties:
+          relationshipsAcl:
+            $ref: '#/components/schemas/cogniterelationships_aclAcl'
+          projectScope:
+            $ref: '#/components/schemas/ProjectScope'
+      - title: Datasets Capability
+        properties:
+          datasetsAcl:
+            $ref: '#/components/schemas/cognitedatasets_aclAcl'
+          projectScope:
+            $ref: '#/components/schemas/ProjectScope'
+      - title: Seismic Capability
+        properties:
+          seismicAcl:
+            $ref: '#/components/schemas/cogniteseismic_aclAcl'
+          projectScope:
+            $ref: '#/components/schemas/ProjectScope'
+      - title: Types Capability
+        properties:
+          typesAcl:
+            $ref: '#/components/schemas/cognitetypes_aclAcl'
+          projectScope:
+            $ref: '#/components/schemas/ProjectScope'
+      - title: Functions Capability
+        properties:
+          functionsAcl:
+            $ref: '#/components/schemas/functions_aclAcl'
+          projectScope:
+            $ref: '#/components/schemas/ProjectScope'
+      - title: Extraction Pipelines Capability
+        properties:
+          extractionpipelinesAcl:
+            $ref: '#/components/schemas/extractionpipelines_aclAcl'
+          projectScope:
+            $ref: '#/components/schemas/ProjectScope'
+      - title: Extraction Pipeline Runs Capability
+        properties:
+          extractionrunsAcl:
+            $ref: '#/components/schemas/extractionruns_aclAcl'
+          projectScope:
+            $ref: '#/components/schemas/ProjectScope'
+      - title: Limits Capability
+        properties:
+          limitsAcl:
+            $ref: '#/components/schemas/limits_aclAcl'
+          projectScope:
+            $ref: '#/components/schemas/ProjectScope'
+    cognitetimeseries_aclAssetRootIdScope:
+      type: object
+      properties:
+        rootIds:
+          type: array
+          items:
+            type: integer
+            format: uint64
+          title: asset root IDs
+      title: Scope:TimeSeriesAssetRootIdScope*
+    cogniteanalytics_aclAcl:
+      type: object
+      required:
+      - actions
+      - scope
+      properties:
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/cogniteanalytics_aclAction'
+        scope:
+          $ref: '#/components/schemas/cogniteanalytics_aclScope'
+      title: Acl:Analytics
+    cogniteseismic_aclAcl:
+      type: object
+      required:
+      - actions
+      - scope
+      properties:
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/cogniteseismic_aclAction'
+        scope:
+          $ref: '#/components/schemas/cogniteseismic_aclScope'
+      title: Acl:Seismic
+    cogniterelationships_aclScope:
+      type: object
+      oneOf:
+      - title: all
+        properties:
+          all:
+            $ref: '#/components/schemas/generic_aclAllScope'
+      - title: datasetScope
+        properties:
+          datasetScope:
+            $ref: '#/components/schemas/cognitedatasets_aclIdScope'
+      title: Relationships:Scope
+    cogniteevents_aclAcl:
+      type: object
+      required:
+      - actions
+      - scope
+      properties:
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/cogniteevents_aclAction'
+        scope:
+          $ref: '#/components/schemas/cogniteevents_aclScope'
+      title: Acl:Event
+    Projects:
+      type: array
+      title: projects
+      items:
+        type: object
+        required:
+        - projectUrlName
+        - groups
+        properties:
+          projectUrlName:
+            type: string
+            description: Project url name
+          groups:
+            type: array
+            description: Group IDs
+            items:
+              type: integer
+              description: group ids
+              format: int64
+    streamrecords_aclAction:
+      type: string
+      enum:
+      - READ
+      - WRITE
+      default: READ
+      title: StreamRecords:Action
+    cogniteanalytics_aclScope:
+      type: object
+      properties:
+        all:
+          $ref: '#/components/schemas/generic_aclAllScope'
+      title: Analytics:Scope
+    extractionpipelines_aclScope:
+      type: object
+      oneOf:
+      - title: all
+        properties:
+          all:
+            $ref: '#/components/schemas/generic_aclAllScope'
+      - title: idscope
+        properties:
+          idscope:
+            $ref: '#/components/schemas/extractionpipelines_aclIdScope'
+      - title: datasetScope
+        properties:
+          datasetScope:
+            $ref: '#/components/schemas/cognitedatasets_aclIdScope'
+      title: Extraction Pipelines:Scope
+    extractionruns_aclScope:
+      type: object
+      oneOf:
+      - title: all
+        properties:
+          all:
+            $ref: '#/components/schemas/generic_aclAllScope'
+      - title: extractionpipelinescope
+        properties:
+          extractionpipelinescope:
+            $ref: '#/components/schemas/extractionpipelines_aclIdScope'
+      - title: datasetScope
+        properties:
+          datasetScope:
+            $ref: '#/components/schemas/cognitedatasets_aclIdScope'
+      title: Extraction Pipelines Runs:Scope
+    limits_aclScope:
+      type: object
+      properties:
+        all:
+          $ref: '#/components/schemas/generic_aclAllScope'
+      title: Limits:Scope
+    cognitegroups_aclAcl:
+      type: object
+      required:
+      - actions
+      - scope
+      properties:
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/cognitegroups_aclAction'
+        scope:
+          $ref: '#/components/schemas/cognitegroups_aclScope'
+      title: Acl:Group
+    functions_aclScope:
+      type: object
+      properties:
+        all:
+          $ref: '#/components/schemas/generic_aclAllScope'
+      title: Functions:Scope
+    TokenInspectionResponse:
+      type: object
+      required:
+      - subject
+      - projects
+      - capabilities
+      properties:
+        subject:
+          type: string
+          description: Subject (sub claim) of JWT
+        projects:
+          $ref: '#/components/schemas/Projects'
+        capabilities:
+          $ref: '#/components/schemas/Capabilities'
+    cogniteassets_aclAcl:
+      type: object
+      required:
+      - actions
+      - scope
+      properties:
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/cogniteassets_aclAction'
+        scope:
+          $ref: '#/components/schemas/cogniteassets_aclScope'
+      title: Acl:Asset
+    cognitesequences_aclScope:
+      type: object
+      oneOf:
+      - title: all
+        properties:
+          all:
+            $ref: '#/components/schemas/generic_aclAllScope'
+      - title: datasetScope
+        properties:
+          datasetScope:
+            $ref: '#/components/schemas/cognitedatasets_aclIdScope'
+      title: Sequences:Scope
+    generic_aclAllScope:
+      type: object
+      title: Scope:All
+    cognitedatasets_aclIdScope:
+      type: object
+      properties:
+        ids:
+          type: array
+          items:
+            type: integer
+            format: uint64
+          title: DataSet IDs
+      title: Scope:DataSetsIdScope
+    cognitedatamodels_aclAction:
+      type: string
+      enum:
+      - READ
+      - WRITE
+      default: READ
+      title: DataModels:Action
+    ProjectScope:
+      oneOf:
+      - type: object
+        title: allProjects
+        required:
+        - allProjects
+        properties:
+          allProjects:
+            type: object
+            description: All projects
+      - type: object
+        title: projectsList
+        required:
+        - projects
+        properties:
+          projects:
+            type: array
+            title: projectUrlNames
+            items:
+              $ref: '#/components/schemas/ProjectUrlName'
+    extractionpipelines_aclIdScope:
+      type: object
+      properties:
+        ids:
+          type: array
+          items:
+            type: integer
+            format: uint64
+          title: extraction pipeline IDs
+      title: Scope:ExtractionPipelinesIdScope
+    limits_aclAcl:
+      type: object
+      required:
+      - actions
+      - scope
+      properties:
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/limits_aclAction'
+        scope:
+          $ref: '#/components/schemas/limits_aclScope'
+      title: Acl:Limits
+    cognitetypes_aclAcl:
+      type: object
+      required:
+      - actions
+      - scope
+      properties:
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/cognitetypes_aclAction'
+        scope:
+          $ref: '#/components/schemas/cognitetypes_aclScope'
+      title: Acl:Types
+    cognitegroups_aclAction:
+      type: string
+      enum:
+      - LIST
+      - READ
+      - CREATE
+      - UPDATE
+      - DELETE
+      default: LIST
+      title: Group:Action
+    cogunits_aclAction:
+      type: string
+      enum:
+      - READ
+      default: READ
+      title: CogUnits:Action
+    functions_aclAcl:
+      type: object
+      required:
+      - actions
+      - scope
+      properties:
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/functions_aclAction'
+        scope:
+          $ref: '#/components/schemas/functions_aclScope'
+      title: Acl:Functions
+    cogniteraw_aclScope:
+      type: object
+      oneOf:
+      - title: all
+        properties:
+          all:
+            $ref: '#/components/schemas/generic_aclAllScope'
+      - title: tableScope
+        properties:
+          tableScope:
+            $ref: '#/components/schemas/cogniteraw_aclDbsToTablesScope'
+      title: Raw:Scope
+    cognitefiles_aclAction:
+      type: string
+      enum:
+      - READ
+      - WRITE
+      default: READ
+      title: File:Action
+    extractionpipelines_aclAcl:
+      type: object
+      required:
+      - actions
+      - scope
+      properties:
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/extractionpipelines_aclAction'
+        scope:
+          $ref: '#/components/schemas/extractionpipelines_aclScope'
+      title: Acl:Extraction Pipelines
+    cognitetypes_aclScope:
+      type: object
+      properties:
+        all:
+          $ref: '#/components/schemas/generic_aclAllScope'
+      title: Types:Scope
+    cogniteprojects_aclScope:
+      type: object
+      properties:
+        all:
+          $ref: '#/components/schemas/generic_aclAllScope'
+      title: Project:Scope
+    cognitesequences_aclAcl:
+      type: object
+      required:
+      - actions
+      - scope
+      properties:
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/cognitesequences_aclAction'
+        scope:
+          $ref: '#/components/schemas/cognitesequences_aclScope'
+      title: Acl:Sequences
+    generic_aclCurrentUserScope:
+      type: object
+      title: Scope:CurrentUser
+    cognitethreed_aclScope:
+      type: object
+      oneOf:
+      - title: all
+        properties:
+          all:
+            $ref: '#/components/schemas/generic_aclAllScope'
+      - title: datasetScope
+        properties:
+          datasetScope:
+            $ref: '#/components/schemas/cognitedatasets_aclIdScope'
+    cognitedatamodels_aclScope:
+      type: object
+      oneOf:
+      - title: all
+        properties:
+          all:
+            $ref: '#/components/schemas/generic_aclAllScope'
+      - title: spaceIdScope
+        properties:
+          spaceIdScope:
+            $ref: '#/components/schemas/cognitedatamodels_aclSpaceIdScope'
+      title: DataModels:Scope
+    limits_aclAction:
+      type: string
+      enum:
+      - READ
+      - WRITE
+      default: READ
+      title: Limits:Action
+    cogniterelationships_aclAcl:
+      type: object
+      required:
+      - actions
+      - scope
+      properties:
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/cogniterelationships_aclAction'
+        scope:
+          $ref: '#/components/schemas/cogniterelationships_aclScope'
+      title: Acl:Relationships
+    extractionruns_aclAction:
+      type: string
+      enum:
+      - READ
+      - WRITE
+      default: READ
+      title: Extraction Pipelines Runs:Action
+    cognitetimeseries_aclIdScope:
+      type: object
+      properties:
+        ids:
+          type: array
+          items:
+            type: integer
+            format: uint64
+          title: time series IDs
+      title: Scope:TimeSeriesIdScope
+    cognitedigitaltwin_aclAction:
+      type: string
+      enum:
+      - READ
+      - WRITE
+      default: READ
+      title: DigitalTwin:Action
+    cogniteassets_aclAction:
+      type: string
+      enum:
+      - READ
+      - WRITE
+      default: READ
+      title: Asset:Action
+    streams_aclAcl:
+      type: object
+      required:
+      - actions
+      - scope
+      properties:
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/streams_aclAction'
+        scope:
+          $ref: '#/components/schemas/streams_aclScope'
+      title: Acl:Streams
+    cogniteraw_aclAcl:
+      type: object
+      description: Set access control on RAW
+      required:
+      - actions
+      - scope
+      properties:
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/cogniteraw_aclAction'
+        scope:
+          $ref: '#/components/schemas/cogniteraw_aclScope'
+      title: Acl:Raw
+    cogniterelationships_aclAction:
+      type: string
+      enum:
+      - READ
+      - WRITE
+      default: READ
+      title: Relationships:Action
+    cognitedatamodels_aclAcl:
+      type: object
+      required:
+      - actions
+      - scope
+      properties:
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/cognitedatamodels_aclAction'
+        scope:
+          $ref: '#/components/schemas/cognitedatamodels_aclScope'
+      title: Acl:DataModels
+    cogniteseismic_aclScope:
+      type: object
+      properties:
+        all:
+          $ref: '#/components/schemas/generic_aclAllScope'
+      title: Seismic:Scope
+    cognitetimeseries_aclAction:
+      type: string
+      enum:
+      - READ
+      - WRITE
+      default: READ
+      title: Timeseries:Action
+    cognitetypes_aclAction:
+      type: string
+      enum:
+      - READ
+      - WRITE
+      default: READ
+      title: Types:Action
+    cognitedatasets_aclAction:
+      type: string
+      enum:
+      - READ
+      - WRITE
+      - OWNER
+      default: READ
+      title: Datasets:Action
+    cognitedatamodelInstances_aclAction:
+      type: string
+      enum:
+      - READ
+      - WRITE
+      - WRITE_PROPERTIES
+      default: READ
+      title: DataModelInstances:Action
+  responses:
+    ErrorResponse:
+      description: The response for a failed request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+  securitySchemes:
+    oidc-token:
+      type: http
+      scheme: bearer
+      bearerFormat: OpenID Connect or OAuth2 token
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+    oauth2-client-credentials:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        clientCredentials:
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-auth-code:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://your-idps.authorization.url/
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-open-industrial-data:
+      type: oauth2
+      description: Auth flow for Open Industrial Data. Get your client secret from https://hub.cognite.com/open-industrial-data-211.
+      flows:
+        clientCredentials:
+          tokenUrl: https://login.microsoftonline.com/48d5043c-cf70-4c49-881c-c638f5796997/oauth2/v2.0/token
+          scopes:
+            default: https://api.cognitedata.com/.default
+    org-oidc-token:
+      type: openIdConnect
+      openIdConnectUrl: https://auth.cognite.com/.well-known/openid-configuration
+      description: 'Access token issued by the Cognite authorization server, and valid for the target organization. The token must
+
+        be an OpenID Connect token, and it can be obtained by performing an OIDC login flow toward `auth.cognite.com`.
+
+        This is a single URL for all CDF organizations.'
+x-tagGroups:
+- name: Changelog
+  tags:
+  - Changelog
+- name: Organizations and projects
+  tags:
+  - Organizations
+  - Projects
+- name: Identity and access management
+  tags:
+  - Principals
+  - Groups
+  - Security categories
+  - Sessions
+  - Token
+  - User profiles
+  - Project Deletion Reporting
+- name: Data modeling
+  tags:
+  - Data Modeling
+  - Data models
+  - Spaces
+  - Views
+  - Containers
+  - Nodes
+  - Instances
+  - Statistics
+  - Streams
+  - Records
+- name: Asset-centric data model
+  tags:
+  - Assets
+  - Time series
+  - Synthetic Time Series
+  - Data point subscriptions
+  - Events
+  - Files
+  - Sequences
+  - Geospatial
+  - Seismic
+- name: 3D
+  tags:
+  - 3D Models
+  - 3D Model Revisions
+  - 3D Files
+  - 3D Asset Mapping
+  - 3D Contextualization
+  - 3D Jobs
+  - 3D Migration
+  - 3D Scenes
+- name: Contextualization
+  tags:
+  - Entity matching
+  - Entity matching pipelines
+  - Engineering diagrams
+  - Vision
+  - Advanced joins
+- name: Cognite AI
+  tags:
+  - Agents
+  - Skills
+  - Chat Completions
+  - Document AI
+  - Models
+- name: Documents
+  tags:
+  - Documents
+  - Document preview
+- name: Data ingestion
+  tags:
+  - Raw
+  - Extraction Pipelines
+  - Extraction Pipelines Runs
+  - Extraction Pipelines Config
+  - Extractors
+- name: Data organization
+  tags:
+  - Data sets
+  - Data domains
+  - Data products
+  - Rule sets
+  - Labels
+  - Relationships
+  - Annotations
+- name: Transformations
+  tags:
+  - Transformations
+  - Transformation Jobs
+  - Transformation Schedules
+  - Transformation Notifications
+  - Query
+  - Schema
+- name: Functions
+  tags:
+  - Functions
+  - Function calls
+  - Function schedules
+- name: Hosted Extractors
+  tags:
+  - Sources
+  - Jobs
+  - Destinations
+  - Mappings
+- name: PostgreSQL Gateway
+  tags:
+  - Postgres Gateway Users
+  - Postgres Gateway Tables
+- name: SAP Writeback
+  tags:
+  - SAP Instances
+  - SAP Endpoints
+  - Schema Mappings
+  - Writeback Requests
+- name: Data workflows
+  tags:
+  - Workflows
+  - Workflow versions
+  - Workflow executions
+  - Workflow triggers
+  - Tasks
+  - Workers
+- name: Simulators
+  tags:
+  - Simulators
+  - Simulator Integrations
+  - Simulator Models
+  - Simulator Routines
+  - Simulation Runs
+  - Simulator Logs
+- name: Units
+  tags:
+  - Units
+  - Unit Systems
+- name: ''
+  tags:
+  - ''

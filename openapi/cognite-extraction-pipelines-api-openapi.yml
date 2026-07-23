@@ -1,0 +1,1157 @@
+openapi: 3.1.0
+info:
+  title: Cognite 3D Asset Mapping Extraction Pipelines API
+  description: "# Introduction\nThis is the reference documentation for the Cognite API with\nan overview of all the available methods.\n\n# Postman\nSelect the **Download** button to download our OpenAPI specification to get started.\n\nTo import your data into Postman, select **Import**, and the Import modal opens.\nYou can import items by dragging or dropping files or folders. You can choose how to import your API and manage the import settings in **View Import Settings**.\n\nIn the Import Settings, set the **Folder organization** to **Tags**, select\n**Enable optional parameters** to turn off the settings, and select **Always inherit authentication** to turn on the settings. Select **Import**.\n\nSet the Authorization to **Oauth2.0**. By default, the settings are for Open Industrial Data. Navigate to [Cognite Hub](https://hub.cognite.com/open-industrial-data-211) to understand how to get the credentials for use in Postman.\n\nFor more information, see [Getting Started with Postman](https://developer.cognite.com/dev/guides/postman/).\n\n# Pagination\nMost resource types can be paginated, indicated by the field `nextCursor` in the response.\nBy passing the value of `nextCursor` as the cursor you will get the next page of `limit` results.\nNote that all parameters except `cursor` has to stay the same.\n\n# Parallel retrieval\nAs general guidance, Parallel Retrieval is a technique that should be used when due to query complexity, retrieval of data in a single request is significantly slower than it would otherwise be for a simple request.  Parallel retrieval does not act as a speed multiplier on optimally running queries.  By parallelizing such requests, data retrieval performance can be tuned to meet the client application needs. \n\nCDF supports parallel retrieval through the `partition` parameter, which has the format `m/n` where `n` is the amount of partitions you would like to split the entire data set into.\nIf you want to download the entire data set by splitting it into 10 partitions, do the following in parallel with `m` running from 1 to 10:\n  - Make a request to `/events` with `partition=m/10`.\n  - Paginate through the response by following the cursor as explained above. Note that the `partition` parameter needs to be passed to all subqueries.\n\nProcessing of parallel retrieval requests is subject to concurrency quota availability. The request returns the `429` response upon exceeding concurrency limits. See the Request throttling chapter below.\n\nTo prevent unexpected problems and to maximize read throughput, you should at most use 10 partitions. \nSome CDF resources will automatically enforce a maximum of 10 partitions.\nFor more specific and detailed information, please read the ```partition``` attribute documentation for the CDF resource you're using.  \n\n# Requests throttling\nCognite Data Fusion (CDF) returns the HTTP `429` (too many requests) response status code when project capacity exceeds the limit.\n\nThe throttling can happen:\n  - If a user or a project sends too many (more than allocated) concurrent requests.\n  - If a user or a project sends a too high (more than allocated) rate of requests in a given amount of time.\n\nCognite recommends using a retry strategy based on truncated exponential backoff to handle sessions with HTTP response codes 429.\n\nCognite recommends using a reasonable number (up to 10) of  `Parallel retrieval` partitions.\n\nFollowing these strategies lets you slow down the request frequency to maximize productivity without having to re-submit/retry failing requests.\n\nSee more [here](https://docs.cognite.com/dev/concepts/resource_throttling).\n\n# API versions\n## Version headers\nThis API uses calendar versioning, and version names follow the `YYYYMMDD` format.\nYou can find the versions currently available by using the version selector at the top of this page.\n\nTo use a specific API version, you can pass the `cdf-version: $version` header along with your requests to the API.\n\n## Beta versions\nThe beta versions provide a preview of what the stable version will look like in the future.\nBeta versions contain functionality that is reasonably mature, and highly likely to become a part of the stable API.\n\nBeta versions are indicated by a `-beta` suffix after the version name. For example, the beta version header for the\n2023-01-01 version is then `cdf-version: 20230101-beta`.\n\n## Alpha versions\nAlpha versions contain functionality that is new and experimental, and not guaranteed to ever become a part of the stable API.\nThis functionality presents no guarantee of service, so its use is subject to caution.\n\nAlpha versions are indicated by an `-alpha` suffix after the version name. For example, the alpha version header for\nthe 2023-01-01 version is then `cdf-version: 20230101-alpha`."
+  version: v1
+  contact:
+    name: Cognite Support
+    url: https://support.cognite.com
+    email: support@cognite.com
+servers:
+- url: https://{cluster}.cognitedata.com/api/v1/projects/{project}
+  description: The URL for the CDF cluster to connect to
+  variables:
+    cluster:
+      enum:
+      - api
+      - az-tyo-gp-001
+      - az-eastus-1
+      - az-power-no-northeurope
+      - westeurope-1
+      - asia-northeast1-1
+      - gc-dsm-gp-001
+      default: api
+      description: The CDF cluster to connect to
+    project:
+      default: publicdata
+      description: The CDF project name.
+security:
+- oidc-token:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-client-credentials:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-open-industrial-data:
+  - https://api.cognitedata.com/.default
+- oauth2-auth-code:
+  - https://{cluster}.cognitedata.com/.default
+tags:
+- name: Extraction Pipelines
+  description: Extraction Pipeline objects represent the applications and software that are deployed to ingest operational data into CDF.  An extraction pipeline can consist of a number of different software components between the source system and CDF. The extraction pipeline object represents the software component that actually sends the data to CDF. Two examples are Cognite extractors and third party ETL tools such as Microsoft Azure or Informatica PowerCenter
+paths:
+  /extpipes:
+    get:
+      tags:
+      - Extraction Pipelines
+      summary: List extraction pipelines
+      description: '
+
+
+        > **Required capabilities:** `extractionpipelinesAcl:READ`
+
+
+        Returns a list of all extraction pipelines for a given project'
+      operationId: listExtPipes
+      parameters:
+      - $ref: '#/components/parameters/Limit'
+      - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Response with the list of extraction pipelines
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExtPipesWithCursor'
+      x-capability:
+      - extractionpipelinesAcl:READ
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: 'ep_list = client.extraction_pipelines.list(limit=5)
+
+          '
+    post:
+      tags:
+      - Extraction Pipelines
+      summary: Create extraction pipelines
+      description: '
+
+
+        > **Required capabilities:** `extractionpipelinesAcl:WRITE` `datasetsAcl:READ`
+
+
+        Creates multiple new extraction pipelines. A maximum of 1000 extraction pipelines can be created per request.'
+      operationId: createExtPipes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ItemsRequest_CreateExtPipe_'
+        required: true
+      responses:
+        '200':
+          description: Response with the list of extraction pipelines
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExtPipesWithCursor'
+        '400':
+          description: Response for a failed request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DefaultError'
+      x-capability:
+      - extractionpipelinesAcl:WRITE
+      - datasetsAcl:READ
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: 'from cognite.client.data_classes import ExtractionPipelineWrite
+
+          extpipes = [ExtractionPipelineWrite(name="extPipe1",...), ExtractionPipelineWrite(name="extPipe2",...)]
+
+          res = client.extraction_pipelines.create(extpipes)
+
+          '
+      - lang: Java
+        label: Java SDK
+        source: "List<ExtractionPipeline> upsertPipelinesList = List.of(ExtractionPipeline.newBuilder() \n          .setExternalId(\"10\") \n          .setName(\"generated-\") \n          .setDescription(\"Generated description\") \n          .setDataSetId(dataSetId) \n          .setSource(\"sdk-data-generator\") \n          .putMetadata(\"type\", \"sdk-data-generator\") \n          .addContacts(ExtractionPipeline.Contact.newBuilder() \n               .setName(\"generated-\") \n               .setRole(\"generated\") \n               .build()) \n          .build()); \n\nclient.extractionPipelines().upsert(upsertPipelinesList); \n\n"
+  /extpipes/delete:
+    post:
+      tags:
+      - Extraction Pipelines
+      summary: Delete extraction pipelines
+      description: '
+
+
+        > **Required capabilities:** `extractionpipelinesAcl:WRITE` `datasetsAcl:READ`
+
+
+        Delete extraction pipelines for given list of ids and externalIds. When the extraction pipeline is deleted, all extraction pipeline runs related to the extraction pipeline are automatically deleted.'
+      operationId: deleteExtPipes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExtendedItemsRequest_ExtPipeId_'
+        required: true
+      responses:
+        '200':
+          $ref: '#/components/responses/EmptyResponse'
+        '400':
+          description: Response for a failed request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DefaultError'
+      x-capability:
+      - extractionpipelinesAcl:WRITE
+      - datasetsAcl:READ
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: 'client.extraction_pipelines.delete(id=[1,2,3], external_id="3")
+
+          '
+      - lang: Java
+        label: Java SDK
+        source: "List<Item> deleteByExternalIds = List.of(Item.newBuilder() \n          .setExternalId(\"10\") \n          .build()); \nList<Item> deleteItemsResults =  \n          client.extractionPipelines().delete(deleteByExternalIds); \n\nList<Item> deleteByInternalIds = List.of(Item.newBuilder()\n          .setId(10) \n          .build()); \nList<Item> deleteItemsResults =  \n          client.extractionPipelines().delete(deleteByInternalIds); \n\n"
+  /extpipes/update:
+    post:
+      tags:
+      - Extraction Pipelines
+      summary: Update extraction pipelines
+      description: '
+
+
+        > **Required capabilities:** `extractionpipelinesAcl:WRITE` `datasetsAcl:READ`
+
+
+        Update information for a list of extraction pipelines. Fields that are not included in the request, are not changed.'
+      operationId: updateExtPipes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ItemsRequest_ExtPipeUpdate_'
+        required: true
+      responses:
+        '200':
+          description: Response with the list of updated extraction pipelines
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExtPipes'
+        '400':
+          description: Response for a failed request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DefaultError'
+      x-capability:
+      - extractionpipelinesAcl:WRITE
+      - datasetsAcl:READ
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: 'from cognite.client.data_classes import ExtractionPipelineUpdate
+
+          update = ExtractionPipelineUpdate(id=1)
+
+          update.description.set("Another new extpipe")
+
+          res = client.extraction_pipelines.update(update)
+
+          '
+      - lang: Java
+        label: Java SDK
+        source: "List<ExtractionPipeline> upsertPipelinesList = //list of ExtractionPipeline \nclient.extractionPipelines().upsert(upsertPipelinesList); \n\n"
+  /extpipes/{id}:
+    get:
+      tags:
+      - Extraction Pipelines
+      summary: Retrieve an extraction pipeline by its ID.
+      description: '
+
+
+        > **Required capabilities:** `extractionpipelinesAcl:READ`
+
+
+        Retrieve an extraction pipeline by its ID. If you want to retrieve extraction pipelines by externalIds, use Retrieve extraction pipelines instead.'
+      operationId: showExtPipe
+      parameters:
+      - $ref: '#/components/parameters/CogniteInternalId'
+      responses:
+        '200':
+          description: Single extraction pipeline response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExtPipe'
+        '400':
+          description: Response for a failed request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DefaultError'
+      x-capability:
+      - extractionpipelinesAcl:READ
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: 'res = client.extraction_pipelines.retrieve(id=1)
+
+
+          res = client.extraction_pipelines.retrieve(external_id="1")
+
+          '
+  /extpipes/byids:
+    post:
+      tags:
+      - Extraction Pipelines
+      summary: Retrieve extraction pipelines
+      description: '
+
+
+        > **Required capabilities:** `extractionpipelinesAcl:READ`
+
+
+        Retrieves information about multiple extraction pipelines in the same project. All ids and externalIds must be unique.'
+      operationId: byidsExtPipes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExtendedItemsRequest_ExtPipeId_'
+        required: true
+      responses:
+        '200':
+          description: Response with the list of extraction pipelines
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExtPipes'
+        '400':
+          description: Response for a failed request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DefaultError'
+      x-capability:
+      - extractionpipelinesAcl:READ
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: 'res = client.extraction_pipelines.retrieve_multiple(ids=[1, 2, 3])
+
+
+          res = client.extraction_pipelines.retrieve_multiple(external_ids=["abc", "def"], ignore_unknown_ids=True)
+
+          '
+      - lang: Java
+        label: Java SDK
+        source: "List<Item> itemsByExternalIds = List.of(Item.newBuilder() \n          .setExternalId(\"10\") \n          .build()); \nList<ExtractionPipeline> retrievedEvents = \n          client.extractionPipelines().retrieve(itemsByExternalIds);//by list of items \nList<ExtractionPipeline> retrievedEvents = \n          client.extractionPipelines().retrieve(\"10\");//by varargs of String \n\nList<Item> itemsByInternalIds = List.of(Item.newBuilder() \n          .setId(10) \n          .build()); \nList<ExtractionPipeline> retrievedEvents = \n          client.extractionPipelines().retrieve(itemsByInternalIds); \n List<ExtractionPipeline> retrievedEvents = \n          client.extractionPipelines().retrieve(10);//by varargs of Long \n\n"
+  /extpipes/list:
+    post:
+      tags:
+      - Extraction Pipelines
+      summary: Filter extraction pipelines
+      description: '
+
+
+        > **Required capabilities:** `extractionpipelinesAcl:READ`
+
+
+        Use advanced filtering options to find extraction pipelines.'
+      operationId: filterExtPipes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExtPipesFilterRequest'
+        required: true
+      responses:
+        '200':
+          description: Response with the list of extraction pipelines
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExtPipes'
+        '400':
+          description: Response for a failed request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DefaultError'
+      x-capability:
+      - extractionpipelinesAcl:READ
+      x-code-samples:
+      - lang: Java
+        label: Java SDK
+        source: "List<ExtractionPipeline> listPipelinesResults = new ArrayList<>(); \nclient.extractionPipelines() \n          .list(Request.create() \n               .withFilterParameter(\"source\", \"source\")) \n          .forEachRemaining(events -> listPipelinesResults.addAll(events)); \n\n"
+components:
+  schemas:
+    CogniteExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
+      type: string
+      maxLength: 255
+      example: my.known.id
+    MapUpdateAddRemove:
+      type: object
+      properties:
+        add:
+          type: object
+          additionalProperties:
+            type: string
+          description: Add the key-value pairs. Values for existing keys will be overwritten.
+          nullable: true
+          example:
+            property1: string
+            property2: string
+        remove:
+          type: array
+          description: Remove the key-value pairs with the specified keys.
+          nullable: true
+          items:
+            type: string
+    ItemsRequest_CreateExtPipe_:
+      required:
+      - items
+      type: object
+      properties:
+        items:
+          maxItems: 1000
+          minItems: 1
+          type: array
+          items:
+            $ref: '#/components/schemas/CreateExtPipe'
+    CreateExtPipe:
+      required:
+      - dataSetId
+      - externalId
+      - name
+      type: object
+      properties:
+        externalId:
+          maxLength: 255
+          minLength: 1
+          required:
+          - 'true'
+          type: string
+          description: External Id provided by client. Should be unique within the project.
+        name:
+          maxLength: 140
+          minLength: 1
+          required:
+          - 'true'
+          type: string
+          description: Name of Extraction Pipeline
+        description:
+          maxLength: 500
+          type: string
+          description: Description of Extraction Pipeline
+          nullable: true
+        dataSetId:
+          maximum: 9007199254740991
+          minimum: 0
+          required:
+          - 'true'
+          type: integer
+          description: DataSet ID
+          format: int64
+        rawTables:
+          type: array
+          description: Raw tables
+          nullable: true
+          items:
+            $ref: '#/components/schemas/RawTable'
+        schedule:
+          pattern: ^(On trigger|Continuous)|(@(annually|yearly|monthly|weekly|daily|hourly|reboot))|(@every (\d+(ns|us|Âµs|ms|s|m|h))+)|((((\d+,)+\d+|(\d+([/\-])\d+)|\d+|\*(/\d+)?) ?){5,7})$
+          type: string
+          description: "Possible values: â\x80\x9COn triggerâ\x80\x9D, â\x80\x9CContinuousâ\x80\x9D or cron expression. If empty then null"
+          nullable: true
+        contacts:
+          type: array
+          description: Contacts list.
+          nullable: true
+          items:
+            $ref: '#/components/schemas/Contact'
+        metadata:
+          type: object
+          additionalProperties:
+            type: string
+          description: 'Custom, application specific metadata. String key -> String value. Limits: Key are at most 128 bytes. Values are at most 10240 bytes. Up to 256 key-value pairs. Total size is at most 10240.'
+          example:
+            property1: string
+            property2: string
+        source:
+          maxLength: 255
+          type: string
+          description: Source for Extraction Pipeline
+          nullable: true
+        documentation:
+          maxLength: 10000
+          type: string
+          description: Documentation text field, supports Markdown for text formatting.
+          nullable: true
+        notificationConfig:
+          $ref: '#/components/schemas/ExtPipeNotificationConfiguration'
+        createdBy:
+          maxLength: 255
+          type: string
+          description: Extraction Pipeline creator. Usually user email is expected here
+          nullable: true
+    CogniteInternalId:
+      description: A server-generated ID for the object.
+      type: integer
+      minimum: 1
+      maximum: 9007199254740991
+      format: int64
+    DataSetExternalId:
+      type: object
+      title: DataSetExternalId
+      required:
+      - externalId
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+    DescriptionUpdateField:
+      type: object
+      properties:
+        set:
+          maxLength: 500
+          type: string
+          description: Description of Extraction Pipeline
+          nullable: true
+      description: Set a new value for description.
+    ExtPipeUpdate:
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/ExtPipeUpdateById'
+      - $ref: '#/components/schemas/ExtPipeUpdateByExternalId'
+    RawTablesUpdateSet:
+      type: object
+      properties:
+        set:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/RawTable'
+    ExtPipeUpdateById:
+      type: object
+      properties:
+        id:
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+          description: A server-generated ID for the object.
+          format: int64
+        update:
+          $ref: '#/components/schemas/ExtPipeUpdateData'
+    RawTablesUpdate:
+      type: object
+      description: 'Updates the resource''s assigned rawTables. RawTables can be added, removed or replaced (set). '
+      oneOf:
+      - $ref: '#/components/schemas/RawTablesUpdateSet'
+      - $ref: '#/components/schemas/RawTablesUpdateAddRemove'
+    ExtPipeId:
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/ExtPipeInternalId'
+      - $ref: '#/components/schemas/ExtPipeExternalId'
+    ExtPipes:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExtPipe'
+      description: List of extraction pipelines
+    ExtPipeUpdateData:
+      type: object
+      properties:
+        externalId:
+          $ref: '#/components/schemas/ExternalIdUpdateField'
+        name:
+          $ref: '#/components/schemas/NameUpdateField'
+        description:
+          $ref: '#/components/schemas/DescriptionUpdateField'
+        dataSetId:
+          $ref: '#/components/schemas/DataSetIdUpdateField'
+        schedule:
+          $ref: '#/components/schemas/ScheduleUpdateField'
+        rawTables:
+          $ref: '#/components/schemas/RawTablesUpdate'
+        contacts:
+          $ref: '#/components/schemas/ContactsUpdate'
+        metadata:
+          $ref: '#/components/schemas/MapUpdate'
+        source:
+          $ref: '#/components/schemas/SourceUpdateField'
+        documentation:
+          $ref: '#/components/schemas/DocumentationUpdateField'
+        notificationConfig:
+          $ref: '#/components/schemas/ConfigurationUpdateSet'
+      description: List of updates for Extraction Pipeline
+    ExtPipeInternalId:
+      required:
+      - id
+      type: object
+      properties:
+        id:
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+          description: A server-generated ID for the object.
+          format: int64
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    SourceUpdateField:
+      type: object
+      properties:
+        set:
+          maxLength: 255
+          type: string
+          description: Source for Extraction Pipeline
+          nullable: true
+      description: Set a new value for source.
+    DataSetIdEither:
+      oneOf:
+      - $ref: '#/components/schemas/DataSetInternalId'
+      - $ref: '#/components/schemas/DataSetExternalId'
+    ExternalIdUpdateField:
+      required:
+      - set
+      type: object
+      properties:
+        set:
+          maxLength: 255
+          minLength: 1
+          type: string
+          description: External Id provided by client. Should be unique within the project.
+      description: Set a new value for the externalId. Must be unique for the resource type.
+    NameUpdateField:
+      required:
+      - set
+      type: object
+      properties:
+        set:
+          maxLength: 140
+          minLength: 1
+          type: string
+          description: Name of Extraction Pipeline
+      description: Set a new value for name.
+    ExtPipesFilterRequest:
+      type: object
+      properties:
+        filter:
+          $ref: '#/components/schemas/ExtPipesFilter'
+        limit:
+          maximum: 1000
+          minimum: 1
+          type: integer
+          description: Limits the number of results to return.
+          format: int32
+          default: 100
+        cursor:
+          type: string
+    EpochTimestampRange:
+      description: Range between two timestamps (inclusive).
+      type: object
+      properties:
+        max:
+          description: Maximum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+          type: integer
+          minimum: 0
+          format: int64
+        min:
+          description: Minimum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+          type: integer
+          minimum: 0
+          format: int64
+    MapUpdate:
+      type: object
+      description: 'Custom, application specific metadata. String key -> String value. Limits of updated extraction pipeline: Maximum length of key is 128 bytes, value 10240 bytes, up to 256 key-value pairs, of total size at most 10240.'
+      oneOf:
+      - $ref: '#/components/schemas/MapUpdateSet'
+      - $ref: '#/components/schemas/MapUpdateAddRemove'
+    ExtendedItemsRequest_ExtPipeId_:
+      required:
+      - items
+      type: object
+      properties:
+        items:
+          maxItems: 1000
+          minItems: 1
+          type: array
+          items:
+            $ref: '#/components/schemas/ExtPipeId'
+        ignoreUnknownIds:
+          type: boolean
+          description: Ignore IDs and external IDs that are not found
+          default: false
+    ExtPipe:
+      allOf:
+      - $ref: '#/components/schemas/CreateExtPipe'
+      - type: object
+        properties:
+          id:
+            maximum: 9007199254740991
+            minimum: 0
+            type: integer
+            description: A server-generated ID for the object.
+            format: int64
+          lastSuccess:
+            type: integer
+            description: Time of last successful run. The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+            format: int64
+          lastFailure:
+            type: integer
+            description: Time of last failure run. The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+            format: int64
+          lastMessage:
+            type: string
+            description: Last failure message.
+          lastSeen:
+            type: integer
+            description: Last seen time. The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+            format: int64
+          createdTime:
+            $ref: '#/components/schemas/EpochTimestamp'
+          lastUpdatedTime:
+            $ref: '#/components/schemas/EpochTimestamp'
+          createdBy:
+            type: string
+            description: Extraction Pipeline creator. Usually user email is expected here
+    ContactsUpdateAddRemove:
+      type: object
+      properties:
+        add:
+          type: array
+          description: Contacts to add
+          items:
+            $ref: '#/components/schemas/Contact'
+        remove:
+          type: array
+          description: Contacts to remove
+          items:
+            $ref: '#/components/schemas/Contact'
+    Contact:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Contact name
+          nullable: true
+        email:
+          maxLength: 254
+          minLength: 1
+          type: string
+          description: Contact email
+          format: email
+          nullable: true
+        role:
+          type: string
+          description: Contact role
+          nullable: true
+        sendNotification:
+          type: boolean
+          description: True, if contact receives email notifications
+          nullable: true
+    ExtPipeUpdateByExternalId:
+      type: object
+      properties:
+        externalId:
+          maxLength: 255
+          type: string
+          description: External Id provided by client. Should be unique within the project.
+          nullable: true
+        update:
+          $ref: '#/components/schemas/ExtPipeUpdateData'
+    ItemsRequest_ExtPipeUpdate_:
+      required:
+      - items
+      type: object
+      properties:
+        items:
+          maxItems: 1000
+          minItems: 1
+          type: array
+          items:
+            $ref: '#/components/schemas/ExtPipeUpdate'
+    ContactsUpdateSet:
+      type: object
+      properties:
+        set:
+          type: array
+          description: New contacts list
+          items:
+            $ref: '#/components/schemas/Contact'
+    DefaultError:
+      type: object
+      properties:
+        code:
+          required:
+          - 'true'
+          type: integer
+          description: HTTP status code
+          format: int32
+        message:
+          required:
+          - 'true'
+          type: string
+          description: Error message
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+      description: Cognite API error
+    ExtPipesWithCursor:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExtPipe'
+        nextCursor:
+          type: string
+          description: The cursor to get the next page of results (if available).
+      description: List of extraction pipelines
+    DocumentationUpdateField:
+      type: object
+      properties:
+        set:
+          maxLength: 10000
+          type: string
+          description: Documentation text field
+          nullable: true
+      description: Set a new value for documentation.
+    ScheduleUpdateField:
+      type: object
+      properties:
+        set:
+          pattern: ^(On trigger|Continuous)|(@(annually|yearly|monthly|weekly|daily|hourly|reboot))|(@every (\d+(ns|us|Âµs|ms|s|m|h))+)|((((\d+,)+\d+|(\d+([/\-])\d+)|\d+|\*(/\d+)?) ?){5,7})$
+          type: string
+          description: "Possible values: â\x80\x9COn triggerâ\x80\x9D, â\x80\x9CContinuousâ\x80\x9D or cron expression. If empty then null"
+          nullable: true
+      description: Set a new value for schedule.
+    ExtPipesFilter:
+      type: object
+      properties:
+        externalIdPrefix:
+          maxLength: 255
+          minLength: 1
+          type: string
+          description: Filter by this (case-sensitive) prefix for the external ID.
+        name:
+          maxLength: 140
+          minLength: 1
+          type: string
+          description: Name of Extraction Pipeline
+        description:
+          maxLength: 500
+          type: string
+          description: Description of Extraction Pipeline
+        dataSetIds:
+          maxItems: 100
+          minItems: 1
+          type: array
+          description: DataSetId list
+          items:
+            $ref: '#/components/schemas/DataSetIdEither'
+        schedule:
+          pattern: ^(On trigger|Continuous|Null)|(@(annually|yearly|monthly|weekly|daily|hourly|reboot))|(@every (\d+(ns|us|Âµs|ms|s|m|h))+)|((((\d+,)+\d+|(\d+([/\-])\d+)|\d+|\*(/\d+)?) ?){5,7})$
+          type: string
+          description: "Possible values: â\x80\x9COn triggerâ\x80\x9D, â\x80\x9CContinuousâ\x80\x9D or cron expression. If empty then â\x80\x9CNullâ\x80\x9C"
+        contacts:
+          type: array
+          description: Contacts list.
+          items:
+            $ref: '#/components/schemas/Contact'
+        rawTables:
+          type: array
+          description: Raw tables
+          items:
+            $ref: '#/components/schemas/RawTable'
+        metadata:
+          type: object
+          additionalProperties:
+            type: string
+          description: 'Custom, application specific metadata. String key -> String value. Limits: Key are at most 128 bytes. Values are at most 10240 bytes. Up to 256 key-value pairs. Total size is at most 10240.'
+          example:
+            property1: string
+            property2: string
+        source:
+          maxLength: 255
+          minLength: 1
+          type: string
+          description: Source for Extraction Pipeline
+        documentation:
+          maxLength: 10000
+          minLength: 1
+          type: string
+          description: Documentation text field
+        createdBy:
+          maxLength: 255
+          minLength: 1
+          type: string
+          description: Extraction Pipeline creator. Usually user email is expected here
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestampRange'
+        lastUpdatedTime:
+          $ref: '#/components/schemas/EpochTimestampRange'
+    RawTable:
+      required:
+      - dbName
+      - tableName
+      type: object
+      properties:
+        dbName:
+          minLength: 1
+          type: string
+          description: Database name
+        tableName:
+          minLength: 1
+          type: string
+          description: Table name
+    ContactsUpdate:
+      type: object
+      description: 'Updates the resource''s assigned contacts. Contacts can be added, removed or replaced (set). '
+      oneOf:
+      - $ref: '#/components/schemas/ContactsUpdateSet'
+      - $ref: '#/components/schemas/ContactsUpdateAddRemove'
+    ExtPipeExternalId:
+      required:
+      - externalId
+      type: object
+      properties:
+        externalId:
+          maxLength: 255
+          minLength: 1
+          type: string
+          description: External Id provided by client. Should be unique within the project.
+    RawTablesUpdateAddRemove:
+      type: object
+      properties:
+        add:
+          type: array
+          items:
+            $ref: '#/components/schemas/RawTable'
+        remove:
+          type: array
+          items:
+            $ref: '#/components/schemas/RawTable'
+    ConfigurationUpdateSet:
+      type: object
+      properties:
+        set:
+          $ref: '#/components/schemas/ExtPipeNotificationConfiguration'
+    ExtPipeNotificationConfiguration:
+      type: object
+      properties:
+        allowedNotSeenRangeInMinutes:
+          minimum: 0
+          type: integer
+          description: Notifications configuration value. Time in minutes to pass without any Run. Null if extraction pipeline is not checked.
+          format: int64
+          nullable: true
+    DataSetIdUpdateField:
+      type: object
+      properties:
+        set:
+          maximum: 9007199254740991
+          minimum: 0
+          required:
+          - 'true'
+          type: integer
+          description: DataSet ID
+          format: int64
+      description: Set a new value for dataSetId.
+    MapUpdateSet:
+      type: object
+      properties:
+        set:
+          type: object
+          additionalProperties:
+            type: string
+          description: 'Custom, application specific metadata. String key -> String value. Limits: Key are at most 128 bytes. Values are at most 10240 bytes. Up to 256 key-value pairs. Total size is at most 10240.'
+          nullable: true
+          example:
+            property1: string
+            property2: string
+    DataSetInternalId:
+      type: object
+      title: DataSetInternalId
+      required:
+      - id
+      properties:
+        id:
+          $ref: '#/components/schemas/CogniteInternalId'
+  parameters:
+    CogniteInternalId:
+      in: path
+      name: id
+      required: true
+      schema:
+        $ref: '#/components/schemas/CogniteInternalId'
+    Cursor:
+      name: cursor
+      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
+
+        property, it means that there may be more results, and you should pass that value as the
+
+        `cursor` parameter in the next request.
+
+
+        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
+
+        decoded. Its internal structure is not a part of the public API, and may change without
+
+        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
+
+        '
+      in: query
+      schema:
+        type: string
+        example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+    Limit:
+      name: limit
+      description: Limits the number of results to be returned. The maximum results returned by the server is 1000 even if you specify a higher limit.
+      in: query
+      schema:
+        type: integer
+        default: 100
+        minimum: 1
+        maximum: 1000
+  responses:
+    EmptyResponse:
+      description: Empty response.
+      content:
+        application/json:
+          schema:
+            type: object
+  securitySchemes:
+    oidc-token:
+      type: http
+      scheme: bearer
+      bearerFormat: OpenID Connect or OAuth2 token
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+    oauth2-client-credentials:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        clientCredentials:
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-auth-code:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://your-idps.authorization.url/
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-open-industrial-data:
+      type: oauth2
+      description: Auth flow for Open Industrial Data. Get your client secret from https://hub.cognite.com/open-industrial-data-211.
+      flows:
+        clientCredentials:
+          tokenUrl: https://login.microsoftonline.com/48d5043c-cf70-4c49-881c-c638f5796997/oauth2/v2.0/token
+          scopes:
+            default: https://api.cognitedata.com/.default
+    org-oidc-token:
+      type: openIdConnect
+      openIdConnectUrl: https://auth.cognite.com/.well-known/openid-configuration
+      description: 'Access token issued by the Cognite authorization server, and valid for the target organization. The token must
+
+        be an OpenID Connect token, and it can be obtained by performing an OIDC login flow toward `auth.cognite.com`.
+
+        This is a single URL for all CDF organizations.'
+x-tagGroups:
+- name: Changelog
+  tags:
+  - Changelog
+- name: Organizations and projects
+  tags:
+  - Organizations
+  - Projects
+- name: Identity and access management
+  tags:
+  - Principals
+  - Groups
+  - Security categories
+  - Sessions
+  - Token
+  - User profiles
+  - Project Deletion Reporting
+- name: Data modeling
+  tags:
+  - Data Modeling
+  - Data models
+  - Spaces
+  - Views
+  - Containers
+  - Nodes
+  - Instances
+  - Statistics
+  - Streams
+  - Records
+- name: Asset-centric data model
+  tags:
+  - Assets
+  - Time series
+  - Synthetic Time Series
+  - Data point subscriptions
+  - Events
+  - Files
+  - Sequences
+  - Geospatial
+  - Seismic
+- name: 3D
+  tags:
+  - 3D Models
+  - 3D Model Revisions
+  - 3D Files
+  - 3D Asset Mapping
+  - 3D Contextualization
+  - 3D Jobs
+  - 3D Migration
+  - 3D Scenes
+- name: Contextualization
+  tags:
+  - Entity matching
+  - Entity matching pipelines
+  - Engineering diagrams
+  - Vision
+  - Advanced joins
+- name: Cognite AI
+  tags:
+  - Agents
+  - Skills
+  - Chat Completions
+  - Document AI
+  - Models
+- name: Documents
+  tags:
+  - Documents
+  - Document preview
+- name: Data ingestion
+  tags:
+  - Raw
+  - Extraction Pipelines
+  - Extraction Pipelines Runs
+  - Extraction Pipelines Config
+  - Extractors
+- name: Data organization
+  tags:
+  - Data sets
+  - Data domains
+  - Data products
+  - Rule sets
+  - Labels
+  - Relationships
+  - Annotations
+- name: Transformations
+  tags:
+  - Transformations
+  - Transformation Jobs
+  - Transformation Schedules
+  - Transformation Notifications
+  - Query
+  - Schema
+- name: Functions
+  tags:
+  - Functions
+  - Function calls
+  - Function schedules
+- name: Hosted Extractors
+  tags:
+  - Sources
+  - Jobs
+  - Destinations
+  - Mappings
+- name: PostgreSQL Gateway
+  tags:
+  - Postgres Gateway Users
+  - Postgres Gateway Tables
+- name: SAP Writeback
+  tags:
+  - SAP Instances
+  - SAP Endpoints
+  - Schema Mappings
+  - Writeback Requests
+- name: Data workflows
+  tags:
+  - Workflows
+  - Workflow versions
+  - Workflow executions
+  - Workflow triggers
+  - Tasks
+  - Workers
+- name: Simulators
+  tags:
+  - Simulators
+  - Simulator Integrations
+  - Simulator Models
+  - Simulator Routines
+  - Simulation Runs
+  - Simulator Logs
+- name: Units
+  tags:
+  - Units
+  - Unit Systems
+- name: ''
+  tags:
+  - ''

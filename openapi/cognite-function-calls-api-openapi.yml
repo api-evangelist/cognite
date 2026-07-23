@@ -1,0 +1,827 @@
+openapi: 3.1.0
+info:
+  title: Cognite 3D Asset Mapping Function calls API
+  description: "# Introduction\nThis is the reference documentation for the Cognite API with\nan overview of all the available methods.\n\n# Postman\nSelect the **Download** button to download our OpenAPI specification to get started.\n\nTo import your data into Postman, select **Import**, and the Import modal opens.\nYou can import items by dragging or dropping files or folders. You can choose how to import your API and manage the import settings in **View Import Settings**.\n\nIn the Import Settings, set the **Folder organization** to **Tags**, select\n**Enable optional parameters** to turn off the settings, and select **Always inherit authentication** to turn on the settings. Select **Import**.\n\nSet the Authorization to **Oauth2.0**. By default, the settings are for Open Industrial Data. Navigate to [Cognite Hub](https://hub.cognite.com/open-industrial-data-211) to understand how to get the credentials for use in Postman.\n\nFor more information, see [Getting Started with Postman](https://developer.cognite.com/dev/guides/postman/).\n\n# Pagination\nMost resource types can be paginated, indicated by the field `nextCursor` in the response.\nBy passing the value of `nextCursor` as the cursor you will get the next page of `limit` results.\nNote that all parameters except `cursor` has to stay the same.\n\n# Parallel retrieval\nAs general guidance, Parallel Retrieval is a technique that should be used when due to query complexity, retrieval of data in a single request is significantly slower than it would otherwise be for a simple request.  Parallel retrieval does not act as a speed multiplier on optimally running queries.  By parallelizing such requests, data retrieval performance can be tuned to meet the client application needs. \n\nCDF supports parallel retrieval through the `partition` parameter, which has the format `m/n` where `n` is the amount of partitions you would like to split the entire data set into.\nIf you want to download the entire data set by splitting it into 10 partitions, do the following in parallel with `m` running from 1 to 10:\n  - Make a request to `/events` with `partition=m/10`.\n  - Paginate through the response by following the cursor as explained above. Note that the `partition` parameter needs to be passed to all subqueries.\n\nProcessing of parallel retrieval requests is subject to concurrency quota availability. The request returns the `429` response upon exceeding concurrency limits. See the Request throttling chapter below.\n\nTo prevent unexpected problems and to maximize read throughput, you should at most use 10 partitions. \nSome CDF resources will automatically enforce a maximum of 10 partitions.\nFor more specific and detailed information, please read the ```partition``` attribute documentation for the CDF resource you're using.  \n\n# Requests throttling\nCognite Data Fusion (CDF) returns the HTTP `429` (too many requests) response status code when project capacity exceeds the limit.\n\nThe throttling can happen:\n  - If a user or a project sends too many (more than allocated) concurrent requests.\n  - If a user or a project sends a too high (more than allocated) rate of requests in a given amount of time.\n\nCognite recommends using a retry strategy based on truncated exponential backoff to handle sessions with HTTP response codes 429.\n\nCognite recommends using a reasonable number (up to 10) of  `Parallel retrieval` partitions.\n\nFollowing these strategies lets you slow down the request frequency to maximize productivity without having to re-submit/retry failing requests.\n\nSee more [here](https://docs.cognite.com/dev/concepts/resource_throttling).\n\n# API versions\n## Version headers\nThis API uses calendar versioning, and version names follow the `YYYYMMDD` format.\nYou can find the versions currently available by using the version selector at the top of this page.\n\nTo use a specific API version, you can pass the `cdf-version: $version` header along with your requests to the API.\n\n## Beta versions\nThe beta versions provide a preview of what the stable version will look like in the future.\nBeta versions contain functionality that is reasonably mature, and highly likely to become a part of the stable API.\n\nBeta versions are indicated by a `-beta` suffix after the version name. For example, the beta version header for the\n2023-01-01 version is then `cdf-version: 20230101-beta`.\n\n## Alpha versions\nAlpha versions contain functionality that is new and experimental, and not guaranteed to ever become a part of the stable API.\nThis functionality presents no guarantee of service, so its use is subject to caution.\n\nAlpha versions are indicated by an `-alpha` suffix after the version name. For example, the alpha version header for\nthe 2023-01-01 version is then `cdf-version: 20230101-alpha`."
+  version: v1
+  contact:
+    name: Cognite Support
+    url: https://support.cognite.com
+    email: support@cognite.com
+servers:
+- url: https://{cluster}.cognitedata.com/api/v1/projects/{project}
+  description: The URL for the CDF cluster to connect to
+  variables:
+    cluster:
+      enum:
+      - api
+      - az-tyo-gp-001
+      - az-eastus-1
+      - az-power-no-northeurope
+      - westeurope-1
+      - asia-northeast1-1
+      - gc-dsm-gp-001
+      default: api
+      description: The CDF cluster to connect to
+    project:
+      default: publicdata
+      description: The CDF project name.
+security:
+- oidc-token:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-client-credentials:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-open-industrial-data:
+  - https://api.cognitedata.com/.default
+- oauth2-auth-code:
+  - https://{cluster}.cognitedata.com/.default
+tags:
+- name: Function calls
+  description: Function calls let you execute functions asynchronously with a timeout of 15 minutes.
+paths:
+  /functions/{functionId}/call:
+    parameters:
+    - $ref: '#/components/parameters/functionId'
+    post:
+      tags:
+      - Function calls
+      x-capability:
+      - functionsAcl:RUN
+      summary: Call a function asynchronously
+      operationId: postFunctionsCall
+      responses:
+        '201':
+          $ref: '#/components/responses/FunctionCalled'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '429':
+          description: The response for too many requests (concurrency or rate throttling).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/responses/429ErrorResponse/content/application~1json/schema'
+              example:
+                error:
+                  code: 429
+                  message: Function {function_id} has reached maximum number of concurrent calls. Limit is 100.
+      description: '
+
+
+        > **Required capabilities:** `functionsAcl:RUN`
+
+
+        Perform a function call. To provide input data to the function, add the data in an object called `data` in the request body. It will be available as the `data` argument into the function. Info about the function call at runtime can be obtained through the `function_call_info` argument if added in the function handle. **WARNING:** Secrets or other confidential information should not be passed via the `data` object. There is a dedicated `secrets` object in the request body to "Create functions" for this purpose.'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FunctionCallRequest'
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: 'call = client.functions.call(id=1)
+
+
+          func = client.functions.retrieve(id=1)
+
+          call = func.call()
+
+          '
+  /functions/{functionId}/calls:
+    parameters:
+    - $ref: '#/components/parameters/functionId'
+    - $ref: '#/components/parameters/LimitQuery'
+    - $ref: '#/components/parameters/Cursor'
+    get:
+      summary: List function calls
+      responses:
+        '200':
+          $ref: '#/components/responses/FunctionCallListWithCursor'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      operationId: getFunctionCalls
+      description: '
+
+
+        > **Required capabilities:** `functionsAcl:READ`
+
+
+        List function calls.'
+      tags:
+      - Function calls
+      x-capability:
+      - functionsAcl:READ
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: 'logs = client.functions.calls.get_logs(call_id=2, function_id=1)
+
+
+          call = client.functions.calls.retrieve(call_id=2, function_id=1)
+
+          logs = call.get_logs()
+
+          '
+  /functions/{functionId}/calls/byids:
+    parameters:
+    - $ref: '#/components/parameters/functionId'
+    post:
+      summary: Retrieve calls
+      requestBody:
+        description: List of IDs of calls to retrieve. Must be up to a maximum of 10000 items and all of them must be unique.
+        content:
+          application/json:
+            schema:
+              type: object
+              allOf:
+              - $ref: '#/components/schemas/FunctionCallIds'
+              - $ref: '#/components/schemas/IgnoreUnknownIdsField'
+      responses:
+        '200':
+          $ref: '#/components/responses/FunctionCallList'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      operationId: byIdsFunctionCalls
+      description: '
+
+
+        > **Required capabilities:** `functionsAcl:READ`
+
+
+        Retrieve function calls by call ids.'
+      tags:
+      - Function calls
+      x-capability:
+      - functionsAcl:READ
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: 'call = client.functions.calls.retrieve(call_id=2, function_id=1)
+
+
+          func = client.functions.retrieve(id=1)
+
+          call = func.retrieve_call(id=2)
+
+          '
+  /functions/{functionId}/calls/{callId}:
+    parameters:
+    - $ref: '#/components/parameters/callId'
+    - $ref: '#/components/parameters/functionId'
+    get:
+      operationId: getFunctionCall
+      description: '
+
+
+        > **Required capabilities:** `functionsAcl:READ`
+
+
+        Retrieve function calls.'
+      tags:
+      - Function calls
+      x-capability:
+      - functionsAcl:READ
+      summary: Retrieve a function call by its id
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FunctionCall'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+  /functions/{functionId}/calls/{callId}/logs:
+    parameters:
+    - $ref: '#/components/parameters/callId'
+    - $ref: '#/components/parameters/functionId'
+    get:
+      tags:
+      - Function calls
+      x-capability:
+      - functionsAcl:READ
+      summary: Retrieve logs for function call
+      responses:
+        '200':
+          $ref: '#/components/responses/FunctionCallLog'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      operationId: getFunctionCallLogs
+      description: '
+
+
+        > **Required capabilities:** `functionsAcl:READ`
+
+
+        Get logs from a function call.'
+  /functions/{functionId}/calls/{callId}/response:
+    parameters:
+    - $ref: '#/components/parameters/callId'
+    - $ref: '#/components/parameters/functionId'
+    get:
+      summary: Retrieve response for function call
+      tags:
+      - Function calls
+      responses:
+        '200':
+          $ref: '#/components/responses/FunctionCallResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      operationId: getFunctionCallResponse
+      parameters: []
+      description: '
+
+
+        > **Required capabilities:** `functionsAcl:READ`
+
+
+        Retrieve response from a function call.'
+      x-capability:
+      - functionsAcl:READ
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: 'response = client.functions.calls.get_response(call_id=2, function_id=1)
+
+
+          call = client.functions.calls.retrieve(call_id=2, function_id=1)
+
+          response = call.get_response()
+
+          '
+  /functions/{functionId}/calls/list:
+    parameters:
+    - $ref: '#/components/parameters/functionId'
+    post:
+      summary: Filter function calls
+      operationId: listFunctionCalls
+      responses:
+        '200':
+          $ref: '#/components/responses/FunctionCallListWithCursor'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      description: Use advanced filtering options to find function calls.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FunctionCallListScope'
+            examples:
+              Filter by status:
+                value:
+                  filter:
+                    status: Running
+                    scheduleId: 123
+                    startTime:
+                      min: 1234
+                      max: 5678
+                  limit: 10
+      tags:
+      - Function calls
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: 'calls = client.functions.calls.list(function_id=1)
+
+
+          func = client.functions.retrieve(id=1)
+
+          calls = func.list_calls()
+
+          '
+components:
+  responses:
+    429ErrorResponse:
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/429Error'
+    FunctionCalled:
+      description: Created
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/FunctionCall'
+    FunctionCallList:
+      description: List of function calls.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/FunctionCalls'
+    FunctionCallResponse:
+      description: OK
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - functionId
+            - callId
+            description: The function response.
+            properties:
+              response:
+                type: object
+              functionId:
+                $ref: '#/components/schemas/CogniteInternalId'
+              callId:
+                $ref: '#/components/schemas/CogniteInternalId'
+          examples:
+            Function response example:
+              value:
+                response:
+                  numAssets: 1234
+                  someCalculation: 3.14
+    ErrorResponse:
+      description: The response for a failed request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+    FunctionCallLog:
+      description: OK
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            properties:
+              items:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FunctionCallLogEntry'
+          examples:
+            Example response:
+              value:
+                items:
+                - timestamp: 1585350274000
+                  message: Did do fancy thing
+                - timestamp: 1585350276000
+                  message: Did do another fancy thing
+    FunctionCallListWithCursor:
+      description: Paged response with list of function calls.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/FunctionCallsWithCursor'
+  schemas:
+    IgnoreUnknownIdsField:
+      type: object
+      properties:
+        ignoreUnknownIds:
+          description: Ignore IDs and external IDs that are not found
+          type: boolean
+          default: false
+    CogniteInternalId:
+      description: A server-generated ID for the object.
+      type: integer
+      minimum: 1
+      maximum: 9007199254740991
+      format: int64
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
+    FunctionCalls:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FunctionCall'
+    FunctionCallLogEntry:
+      title: FunctionCallLogEntry
+      type: object
+      properties:
+        timestamp:
+          $ref: '#/components/schemas/EpochTimestamp'
+        message:
+          type: string
+          description: Single line from stdout / stderr.
+          example: Did something great
+    data:
+      type: object
+      description: Input data to the function (only present if provided on the schedule). This data is passed deserialized into the function through one of the arguments called `data`. **WARNING:** Secrets or other confidential information should not be passed via the `data` object. There is a dedicated `secrets` object in the request body to "Create functions" for this purpose.'
+      example:
+        timeSeriesId1: 13435351
+        maxValue: 4
+    FunctionCallRequest:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/data'
+        nonce:
+          $ref: '#/components/schemas/nonce'
+      required:
+      - nonce
+    FunctionCallStatus:
+      type: string
+      description: Status of the function call.
+      enum:
+      - Running
+      - Completed
+      - Failed
+      - Timeout
+      example: Running
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    429Error:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API throttling.
+      properties:
+        code:
+          type: integer
+          description: 429 HTTP status code.
+          format: int32
+          example: 429
+        message:
+          type: string
+          description: "The error message specifies which kind of throttling happened:\n  - Too many concurrent requests for a single project or an identity.\n  - Too high rate of requests for a single project or an identity.\n\nSee more [here](https://docs.cognite.com/dev/concepts/request_throttling/ \"requests throttling\")."
+          example: Project exceeded maximum number='50' of concurrent requests. Please try again later.
+    FunctionCallIds:
+      type: object
+      allOf:
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
+            items:
+              $ref: '#/components/schemas/FunctionCallId'
+            maxItems: 10000
+            minItems: 1
+    EpochTimestampRange:
+      description: Range between two timestamps (inclusive).
+      type: object
+      properties:
+        max:
+          description: Maximum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+          type: integer
+          minimum: 0
+          format: int64
+        min:
+          description: Minimum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+          type: integer
+          minimum: 0
+          format: int64
+    nonce:
+      type: string
+      description: Nonce retrieved from sessions API when creating a session. This will be used to bind the session before executing the function. The corresponding access token will be passed to the function and used to instantiate the client of the handle() function. You can create a session via the [Sessions API](#tag/Sessions/operation/createSessions). When using the Python SDK, the session will be created behind the scenes when creating the schedule.
+      writeOnly: true
+    LimitList:
+      type: object
+      properties:
+        limit:
+          description: Limits the number of results to be returned.
+          type: integer
+          format: int32
+          minimum: 1
+          default: 100
+    FunctionCallListScope:
+      allOf:
+      - $ref: '#/components/schemas/FunctionCallFilter'
+      - $ref: '#/components/schemas/LimitList'
+      - $ref: '#/components/schemas/Cursor'
+    FunctionCall:
+      title: FunctionCall
+      type: object
+      required:
+      - id
+      - status
+      - startTime
+      - functionId
+      properties:
+        id:
+          $ref: '#/components/schemas/CogniteInternalId'
+        status:
+          $ref: '#/components/schemas/FunctionCallStatus'
+        startTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        endTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        error:
+          type: string
+          description: Error message when the call status is Failed or Timeout.
+          example: 'ZeroDivisionError: division by zero'
+        scheduleId:
+          $ref: '#/components/schemas/CogniteInternalId'
+        functionId:
+          $ref: '#/components/schemas/CogniteInternalId'
+        scheduledTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+    FunctionCallId:
+      type: object
+      required:
+      - id
+      properties:
+        id:
+          $ref: '#/components/schemas/CogniteInternalId'
+    FunctionCallsWithCursor:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FunctionCall'
+        nextCursor:
+          type: string
+          description: Cursor to get the next page of results (if available).
+    FunctionCallFilter:
+      type: object
+      properties:
+        filter:
+          title: FunctionCallFilter
+          type: object
+          properties:
+            scheduleId:
+              $ref: '#/components/schemas/CogniteInternalId'
+            status:
+              $ref: '#/components/schemas/FunctionCallStatus'
+            startTime:
+              $ref: '#/components/schemas/EpochTimestampRange'
+            endTime:
+              $ref: '#/components/schemas/EpochTimestampRange'
+          description: ''
+    Cursor:
+      type: object
+      properties:
+        cursor:
+          type: string
+          example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
+
+        property, it means that there may be more results, and you should pass that value as the
+
+        `cursor` parameter in the next request.
+
+
+        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
+
+        decoded. Its internal structure is not a part of the public API, and may change without
+
+        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
+
+        '
+  parameters:
+    functionId:
+      schema:
+        type: integer
+      name: functionId
+      in: path
+      required: true
+      description: The function id.
+    LimitQuery:
+      name: limit
+      description: Limits the number of results to be returned.
+      in: query
+      schema:
+        type: integer
+        default: 100
+        minimum: 1
+    callId:
+      schema:
+        type: integer
+      name: callId
+      in: path
+      required: true
+      description: The function call id.
+    Cursor:
+      name: cursor
+      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
+
+        property, it means that there may be more results, and you should pass that value as the
+
+        `cursor` parameter in the next request.
+
+
+        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
+
+        decoded. Its internal structure is not a part of the public API, and may change without
+
+        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
+
+        '
+      in: query
+      schema:
+        type: string
+        example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+  securitySchemes:
+    oidc-token:
+      type: http
+      scheme: bearer
+      bearerFormat: OpenID Connect or OAuth2 token
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+    oauth2-client-credentials:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        clientCredentials:
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-auth-code:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://your-idps.authorization.url/
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-open-industrial-data:
+      type: oauth2
+      description: Auth flow for Open Industrial Data. Get your client secret from https://hub.cognite.com/open-industrial-data-211.
+      flows:
+        clientCredentials:
+          tokenUrl: https://login.microsoftonline.com/48d5043c-cf70-4c49-881c-c638f5796997/oauth2/v2.0/token
+          scopes:
+            default: https://api.cognitedata.com/.default
+    org-oidc-token:
+      type: openIdConnect
+      openIdConnectUrl: https://auth.cognite.com/.well-known/openid-configuration
+      description: 'Access token issued by the Cognite authorization server, and valid for the target organization. The token must
+
+        be an OpenID Connect token, and it can be obtained by performing an OIDC login flow toward `auth.cognite.com`.
+
+        This is a single URL for all CDF organizations.'
+x-tagGroups:
+- name: Changelog
+  tags:
+  - Changelog
+- name: Organizations and projects
+  tags:
+  - Organizations
+  - Projects
+- name: Identity and access management
+  tags:
+  - Principals
+  - Groups
+  - Security categories
+  - Sessions
+  - Token
+  - User profiles
+  - Project Deletion Reporting
+- name: Data modeling
+  tags:
+  - Data Modeling
+  - Data models
+  - Spaces
+  - Views
+  - Containers
+  - Nodes
+  - Instances
+  - Statistics
+  - Streams
+  - Records
+- name: Asset-centric data model
+  tags:
+  - Assets
+  - Time series
+  - Synthetic Time Series
+  - Data point subscriptions
+  - Events
+  - Files
+  - Sequences
+  - Geospatial
+  - Seismic
+- name: 3D
+  tags:
+  - 3D Models
+  - 3D Model Revisions
+  - 3D Files
+  - 3D Asset Mapping
+  - 3D Contextualization
+  - 3D Jobs
+  - 3D Migration
+  - 3D Scenes
+- name: Contextualization
+  tags:
+  - Entity matching
+  - Entity matching pipelines
+  - Engineering diagrams
+  - Vision
+  - Advanced joins
+- name: Cognite AI
+  tags:
+  - Agents
+  - Skills
+  - Chat Completions
+  - Document AI
+  - Models
+- name: Documents
+  tags:
+  - Documents
+  - Document preview
+- name: Data ingestion
+  tags:
+  - Raw
+  - Extraction Pipelines
+  - Extraction Pipelines Runs
+  - Extraction Pipelines Config
+  - Extractors
+- name: Data organization
+  tags:
+  - Data sets
+  - Data domains
+  - Data products
+  - Rule sets
+  - Labels
+  - Relationships
+  - Annotations
+- name: Transformations
+  tags:
+  - Transformations
+  - Transformation Jobs
+  - Transformation Schedules
+  - Transformation Notifications
+  - Query
+  - Schema
+- name: Functions
+  tags:
+  - Functions
+  - Function calls
+  - Function schedules
+- name: Hosted Extractors
+  tags:
+  - Sources
+  - Jobs
+  - Destinations
+  - Mappings
+- name: PostgreSQL Gateway
+  tags:
+  - Postgres Gateway Users
+  - Postgres Gateway Tables
+- name: SAP Writeback
+  tags:
+  - SAP Instances
+  - SAP Endpoints
+  - Schema Mappings
+  - Writeback Requests
+- name: Data workflows
+  tags:
+  - Workflows
+  - Workflow versions
+  - Workflow executions
+  - Workflow triggers
+  - Tasks
+  - Workers
+- name: Simulators
+  tags:
+  - Simulators
+  - Simulator Integrations
+  - Simulator Models
+  - Simulator Routines
+  - Simulation Runs
+  - Simulator Logs
+- name: Units
+  tags:
+  - Units
+  - Unit Systems
+- name: ''
+  tags:
+  - ''

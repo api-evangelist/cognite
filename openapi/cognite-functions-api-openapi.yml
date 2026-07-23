@@ -1,0 +1,999 @@
+openapi: 3.1.0
+info:
+  title: Cognite 3D Asset Mapping Functions API
+  description: "# Introduction\nThis is the reference documentation for the Cognite API with\nan overview of all the available methods.\n\n# Postman\nSelect the **Download** button to download our OpenAPI specification to get started.\n\nTo import your data into Postman, select **Import**, and the Import modal opens.\nYou can import items by dragging or dropping files or folders. You can choose how to import your API and manage the import settings in **View Import Settings**.\n\nIn the Import Settings, set the **Folder organization** to **Tags**, select\n**Enable optional parameters** to turn off the settings, and select **Always inherit authentication** to turn on the settings. Select **Import**.\n\nSet the Authorization to **Oauth2.0**. By default, the settings are for Open Industrial Data. Navigate to [Cognite Hub](https://hub.cognite.com/open-industrial-data-211) to understand how to get the credentials for use in Postman.\n\nFor more information, see [Getting Started with Postman](https://developer.cognite.com/dev/guides/postman/).\n\n# Pagination\nMost resource types can be paginated, indicated by the field `nextCursor` in the response.\nBy passing the value of `nextCursor` as the cursor you will get the next page of `limit` results.\nNote that all parameters except `cursor` has to stay the same.\n\n# Parallel retrieval\nAs general guidance, Parallel Retrieval is a technique that should be used when due to query complexity, retrieval of data in a single request is significantly slower than it would otherwise be for a simple request.  Parallel retrieval does not act as a speed multiplier on optimally running queries.  By parallelizing such requests, data retrieval performance can be tuned to meet the client application needs. \n\nCDF supports parallel retrieval through the `partition` parameter, which has the format `m/n` where `n` is the amount of partitions you would like to split the entire data set into.\nIf you want to download the entire data set by splitting it into 10 partitions, do the following in parallel with `m` running from 1 to 10:\n  - Make a request to `/events` with `partition=m/10`.\n  - Paginate through the response by following the cursor as explained above. Note that the `partition` parameter needs to be passed to all subqueries.\n\nProcessing of parallel retrieval requests is subject to concurrency quota availability. The request returns the `429` response upon exceeding concurrency limits. See the Request throttling chapter below.\n\nTo prevent unexpected problems and to maximize read throughput, you should at most use 10 partitions. \nSome CDF resources will automatically enforce a maximum of 10 partitions.\nFor more specific and detailed information, please read the ```partition``` attribute documentation for the CDF resource you're using.  \n\n# Requests throttling\nCognite Data Fusion (CDF) returns the HTTP `429` (too many requests) response status code when project capacity exceeds the limit.\n\nThe throttling can happen:\n  - If a user or a project sends too many (more than allocated) concurrent requests.\n  - If a user or a project sends a too high (more than allocated) rate of requests in a given amount of time.\n\nCognite recommends using a retry strategy based on truncated exponential backoff to handle sessions with HTTP response codes 429.\n\nCognite recommends using a reasonable number (up to 10) of  `Parallel retrieval` partitions.\n\nFollowing these strategies lets you slow down the request frequency to maximize productivity without having to re-submit/retry failing requests.\n\nSee more [here](https://docs.cognite.com/dev/concepts/resource_throttling).\n\n# API versions\n## Version headers\nThis API uses calendar versioning, and version names follow the `YYYYMMDD` format.\nYou can find the versions currently available by using the version selector at the top of this page.\n\nTo use a specific API version, you can pass the `cdf-version: $version` header along with your requests to the API.\n\n## Beta versions\nThe beta versions provide a preview of what the stable version will look like in the future.\nBeta versions contain functionality that is reasonably mature, and highly likely to become a part of the stable API.\n\nBeta versions are indicated by a `-beta` suffix after the version name. For example, the beta version header for the\n2023-01-01 version is then `cdf-version: 20230101-beta`.\n\n## Alpha versions\nAlpha versions contain functionality that is new and experimental, and not guaranteed to ever become a part of the stable API.\nThis functionality presents no guarantee of service, so its use is subject to caution.\n\nAlpha versions are indicated by an `-alpha` suffix after the version name. For example, the alpha version header for\nthe 2023-01-01 version is then `cdf-version: 20230101-alpha`."
+  version: v1
+  contact:
+    name: Cognite Support
+    url: https://support.cognite.com
+    email: support@cognite.com
+servers:
+- url: https://{cluster}.cognitedata.com/api/v1/projects/{project}
+  description: The URL for the CDF cluster to connect to
+  variables:
+    cluster:
+      enum:
+      - api
+      - az-tyo-gp-001
+      - az-eastus-1
+      - az-power-no-northeurope
+      - westeurope-1
+      - asia-northeast1-1
+      - gc-dsm-gp-001
+      default: api
+      description: The CDF cluster to connect to
+    project:
+      default: publicdata
+      description: The CDF project name.
+security:
+- oidc-token:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-client-credentials:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-open-industrial-data:
+  - https://api.cognitedata.com/.default
+- oauth2-auth-code:
+  - https://{cluster}.cognitedata.com/.default
+tags:
+- name: Functions
+  description: "Functions enables Python code to be hosted and executed in the cloud, on demand or by using a schedule. Execution, status and logs are available through the API. A function is uploaded to the Files API as a zip file with at least a Python file called `handler.py` (unless specified otherwise through the `functionPath`-argument) that must contain a function named `handle` with any of the following arguments: `data`, `client`, `secrets`, or 'function_call_info', which are passed into the function. \nThe latest version of Cognite SDK's are available, and additional python packages and version specifications can be defined in a `requirements.txt` in the root of the zip."
+paths:
+  /functions:
+    get:
+      tags:
+      - Functions
+      summary: List functions
+      operationId: getFunctions
+      parameters:
+      - $ref: '#/components/parameters/LimitQuery'
+      responses:
+        '200':
+          $ref: '#/components/responses/FunctionList'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      description: '
+
+
+        > **Required capabilities:** `functionsAcl:READ`
+
+
+        List functions.'
+      x-capability:
+      - functionsAcl:READ
+    post:
+      summary: Create functions
+      operationId: postFunctions
+      responses:
+        '201':
+          $ref: '#/components/responses/FunctionList'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      description: '
+
+
+        > **Required capabilities:** `functionsAcl:WRITE`
+
+
+        You can only create one function per request.'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                items:
+                  type: array
+                  description: Array of functions to create.
+                  maxItems: 1
+                  minItems: 1
+                  items:
+                    $ref: '#/components/schemas/Function'
+              required:
+              - items
+            examples:
+              Minimal function:
+                value:
+                  items:
+                  - name: My awesome function
+                    fileId: 5467347282343
+              With secrets:
+                value:
+                  items:
+                  - name: My awesome function
+                    fileId: 5467347282343
+                    secrets:
+                      key1: secret1
+                      key2: secret2
+              Full example:
+                value:
+                  items:
+                  - name: My awesome function
+                    description: This function does some things
+                    owner: user@cognite.com
+                    fileId: 5467347282343
+                    externalId: my-function
+                    metadata:
+                      key1: value1
+                      key2: value2
+                    secrets:
+                      key1: secret1
+                      key2: secret2
+                    functionPath: myfunction/handler.py
+                    envVars:
+                      ENV_VAR: value
+                    cpu: 0.2
+                    memory: 0.4
+                    runtime: py313
+                    indexUrl: https://pypi.org
+                    extraIndexUrls:
+                    - https://user:password@some.index.org
+        description: ''
+      tags:
+      - Functions
+      x-capability:
+      - functionsAcl:WRITE
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: "function = client.functions.create(\n    name=\"myfunction\",\n    folder=\"path/to/code\",\n    function_path=\"path/to/function.py\")\n\nfunction = client.functions.create(\n    name=\"myfunction\", file_id=123, function_path=\"path/to/function.py\")\n\nfunction = client.functions.create(name=\"myfunction\", function_handle=handle)\n\ndef handle(client, data):\n    \"\"\"\n    [requirements]\n    numpy\n    [/requirements]\n    \"\"\"\n    pass\nfunction = client.functions.create(name=\"myfunction\", function_handle=handle)\n"
+  /functions/limits:
+    get:
+      tags:
+      - Functions
+      summary: Functions limits
+      description: '
+
+
+        > **Required capabilities:** `functionsAcl:READ`
+
+
+        Service limits for the associated project.'
+      operationId: functionsLimits
+      responses:
+        '200':
+          $ref: '#/components/responses/FunctionsLimits'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-capability:
+      - functionsAcl:READ
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: 'limits = client.functions.limits()
+
+          '
+  /functions/list:
+    post:
+      summary: Filter functions
+      operationId: listFunctions
+      responses:
+        '200':
+          $ref: '#/components/responses/FunctionList'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      description: Use advanced filtering options to find functions.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FunctionListScope'
+            examples:
+              Filter by status:
+                value:
+                  filter:
+                    status: Queued
+                    createdTime:
+                      min: 10
+                      max: 199
+      tags:
+      - Functions
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: 'functions_list = client.functions.list()
+
+          '
+  /functions/delete:
+    post:
+      summary: Delete functions
+      operationId: deleteFunctions
+      responses:
+        '200':
+          $ref: '#/components/responses/EmptyResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      description: '
+
+
+        > **Required capabilities:** `functionsAcl:WRITE`
+
+
+        Delete functions. You can delete a maximum of 10 functions per request. Function source files stored in the Files API must be deleted separately.'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FunctionDeleteRequest'
+      tags:
+      - Functions
+      x-capability:
+      - functionsAcl:WRITE
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: 'client.functions.delete(id=[1,2,3], external_id="function3")
+
+          '
+  /functions/{functionId}:
+    parameters:
+    - $ref: '#/components/parameters/functionId'
+    get:
+      operationId: getFunction
+      description: '
+
+
+        > **Required capabilities:** `functionsAcl:READ`
+
+
+        Retrieve a function by its id. If you want to retrieve functions by names, use Retrieve functions instead.'
+      x-capability:
+      - functionsAcl:READ
+      summary: Retrieve a function by its id
+      tags:
+      - Functions
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Function'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+  /functions/byids:
+    post:
+      tags:
+      - Functions
+      x-capability:
+      - functionsAcl:READ
+      description: '
+
+
+        > **Required capabilities:** `functionsAcl:READ`
+
+
+        Retrieve functions by ids.'
+      summary: Retrieve functions
+      operationId: byIdsFunctions
+      responses:
+        '200':
+          $ref: '#/components/responses/FunctionList'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FunctionIdEitherList'
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: 'res = client.functions.retrieve(id=1)
+
+
+          res = client.functions.retrieve(external_id="abc")
+
+          res = client.functions.retrieve_multiple(ids=[1, 2, 3])
+
+
+          res = client.functions.retrieve_multiple(external_ids=["func1", "func2"])
+
+          '
+  /functions/status:
+    post:
+      summary: Activate Functions
+      responses:
+        '202':
+          $ref: '#/components/responses/FunctionsActivation'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      operationId: postFunctionsStatus
+      description: '
+
+
+        > **Required capabilities:** `functionsAcl:WRITE`
+
+
+        Activate Cognite Functions. This will create the necessary backend infrastructure for Cognite Functions.'
+      tags:
+      - Functions
+      x-capability:
+      - functionsAcl:WRITE
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: 'status = client.functions.activate()
+
+          '
+    get:
+      summary: Get activation status
+      responses:
+        '200':
+          $ref: '#/components/responses/FunctionsActivation'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      operationId: getFunctionsStatus
+      description: '
+
+
+        > **Required capabilities:** `functionsAcl:READ`
+
+
+        Get activation status'
+      tags:
+      - Functions
+      x-capability:
+      - functionsAcl:READ
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: 'status = client.functions.status()
+
+          '
+components:
+  schemas:
+    FunctionOwner:
+      type: string
+      example: user@cognite.com
+      maxLength: 128
+      description: Owner of this function. Typically used to know who created it. If omitted or blank on creation, the server automatically sets this field to `user_identifier:<hash>` derived from the caller's authentication token. A client-supplied value that does not start with the reserved prefix `user_identifier:` is always preserved as-is. Values that start with `user_identifier:` are overwritten by the server to prevent spoofing. The hash can be resolved to a display name via the IAM Principals API.
+    FunctionName:
+      type: string
+      description: The name of the function.
+      example: myfunction
+      minLength: 1
+      maxLength: 140
+    CogniteExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
+      type: string
+      maxLength: 255
+      example: my.known.id
+    IgnoreUnknownIdsField:
+      type: object
+      properties:
+        ignoreUnknownIds:
+          description: Ignore IDs and external IDs that are not found
+          type: boolean
+          default: false
+    MemoryRange:
+      type: object
+      description: The amount of available memory in GB per function execution (i.e. function call).
+      required:
+      - min
+      - max
+      - default
+      properties:
+        min:
+          type: number
+          example: 1.5
+          description: The minimum value you can request when creating a function.
+        max:
+          type: number
+          example: 1.5
+          description: The maximum value you can request when creating a function.
+        default:
+          type: number
+          example: 1.5
+          description: The default value when creating a function.
+    CogniteInternalId:
+      description: A server-generated ID for the object.
+      type: integer
+      minimum: 1
+      maximum: 9007199254740991
+      format: int64
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
+    FunctionFileId:
+      description: 'The file ID to a file uploaded to Cognite''s Files API. This file must be a zip file and contain a file called `handler.py` in the root folder (unless otherwise specified in the `functionPath` argument). This file must contain a function named `handle` with any of the following arguments: `data`, `client`, `secrets` and `function_call_info`, which are passed into the function. The zip file can contain other files as well (model binary data, libraries etc).
+
+
+        Custom packages can be pip installed by providing a requirements.txt file in the root of the zip file. The latest version of the Cognite Python SDK is automatically installed. If a specific version is needed, please specify this in the requirements.txt file.'
+      allOf:
+      - $ref: '#/components/schemas/CogniteInternalId'
+    FunctionListScope:
+      allOf:
+      - $ref: '#/components/schemas/FunctionFilter'
+      - $ref: '#/components/schemas/LimitList'
+    FunctionFilter:
+      type: object
+      properties:
+        filter:
+          title: FunctionFilter
+          type: object
+          properties:
+            name:
+              $ref: '#/components/schemas/FunctionName'
+            owner:
+              $ref: '#/components/schemas/FunctionOwner'
+            fileId:
+              $ref: '#/components/schemas/FunctionFileId'
+            status:
+              $ref: '#/components/schemas/FunctionStatus'
+            externalIdPrefix:
+              $ref: '#/components/schemas/CogniteExternalId'
+            createdTime:
+              $ref: '#/components/schemas/EpochTimestampRange'
+            metadata:
+              $ref: '#/components/schemas/MetaData'
+    FunctionType:
+      type: string
+      enum:
+      - classic
+      - functionApp
+      example: classic
+      description: Type of the function. Determines whether the function is a classic function with basic capabilities or a function app.
+    FunctionDeleteRequest:
+      type: object
+      allOf:
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
+            maxItems: 10
+            minItems: 1
+            items:
+              $ref: '#/components/schemas/FunctionIdEither'
+      - $ref: '#/components/schemas/IgnoreUnknownIdsField'
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    FunctionStatus:
+      type: string
+      enum:
+      - Queued
+      - Deploying
+      - Ready
+      - Failed
+      example: Queued
+      description: Status of the function. It starts in a Queued state, is then Deploying before it is either Ready or Failed. If the function is Ready, it can be called.
+    EpochTimestampRange:
+      description: Range between two timestamps (inclusive).
+      type: object
+      properties:
+        max:
+          description: Maximum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+          type: integer
+          minimum: 0
+          format: int64
+        min:
+          description: Minimum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+          type: integer
+          minimum: 0
+          format: int64
+    CPURange:
+      type: object
+      description: The number of CPU cores per function exectuion (i.e. function call).
+      required:
+      - min
+      - max
+      - default
+      properties:
+        min:
+          type: number
+          example: 1
+          description: The minimum value you can request when creating a function.
+        max:
+          type: number
+          example: 1
+          description: The maximum value you can request when creating a function.
+        default:
+          type: number
+          example: 1
+          description: The default value when creating a function.
+    FunctionBuildError:
+      type: object
+      required:
+      - message
+      - trace
+      description: Cognite Function API error.
+      properties:
+        message:
+          type: string
+          description: Error message.
+          example: Function deployment failed.
+        trace:
+          type:
+          - string
+          - 'null'
+          description: 'Raw build output from the deployment process, truncated to 2000 characters. Contains the tail of the build log, typically showing the cause of the failure (e.g., a pip install error).
+
+            '
+          example: 'ERROR: Could not find a version that satisfies the requirement pandas==99.0.0
+
+            ERROR: No matching distribution found for pandas==99.0.0'
+    Function:
+      type: object
+      required:
+      - id
+      - createdTime
+      - status
+      - name
+      - fileId
+      - functionType
+      properties:
+        id:
+          allOf:
+          - $ref: '#/components/schemas/CogniteInternalId'
+          readOnly: true
+        createdTime:
+          allOf:
+          - $ref: '#/components/schemas/EpochTimestamp'
+          readOnly: true
+          example: 123455234
+        status:
+          allOf:
+          - $ref: '#/components/schemas/FunctionStatus'
+          readOnly: true
+        name:
+          $ref: '#/components/schemas/FunctionName'
+        fileId:
+          $ref: '#/components/schemas/FunctionFileId'
+        functionType:
+          allOf:
+          - $ref: '#/components/schemas/FunctionType'
+          readOnly: true
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        owner:
+          $ref: '#/components/schemas/FunctionOwner'
+        description:
+          type: string
+          example: My fantastic function with advanced ML
+          maxLength: 500
+          description: Description of the function.
+        metadata:
+          $ref: '#/components/schemas/MetaData'
+        secrets:
+          type: object
+          description: Object with additional secrets as key/value pairs. These can e.g. password to simulators or other data sources. Keys must be lowercase characters, numbers or dashes (-) and at most 15 characters. You can create at most 30 secrets, all keys must be unique, and cannot be `token`, `indexUrl`, or `extraIndexUrls`. For each secret, the combined size of the secret name and secret value is limited by 25 kB. The secrets are returned scrambled if set.
+          maxProperties: 30
+          additionalProperties:
+            type: string
+          example:
+            MySecret: '***'
+        functionPath:
+          type: string
+          example: myfunction/handler.py
+          maxLength: 500
+          description: Relative path from the root folder to the file containing the `handle` function. Defaults to `handler.py`. Must be on POSIX path format.
+        envVars:
+          type: object
+          description: Object with environment variables as key/value pairs. Keys can contain only letters, numbers or the underscore character. You can create at most 100 environment variables.
+          maxProperties: 100
+          additionalProperties:
+            type: string
+          example:
+            MyKey: MyValue
+        cpu:
+          type: number
+          format: float
+          example: 1
+          description: Number of CPU cores per function. Allowed range and default value are given by the [limits endpoint](https://developer.cognite.com/api#tag/Functions/operation/functionsLimits). On Azure, only the default value is used.
+        memory:
+          type: number
+          format: float
+          example: 1.5
+          description: Memory per function measured in GB. Allowed range and default value are given by the [limits endpoint](https://developer.cognite.com/api#tag/Functions/operation/functionsLimits). On Azure, only the default value is used.
+        runtime:
+          type: string
+          example: py313
+          default: py313
+          enum:
+          - py310
+          - py311
+          - py312
+          - py313
+          description: The runtime of the function. For example, runtime "py313" translates to the latest version of the Python 3.13 series.
+        runtimeVersion:
+          type: string
+          example: Python 3.11.10
+          readOnly: true
+          description: The complete specification of the function runtime with major, minor and patch version numbers.
+        error:
+          allOf:
+          - $ref: '#/components/schemas/FunctionBuildError'
+          readOnly: true
+        lastCalled:
+          allOf:
+          - $ref: '#/components/schemas/EpochTimestamp'
+          readOnly: true
+          description: The last time the function was called, in milliseconds since epoch. Not present if the function has never been called.
+        indexUrl:
+          description: 'Specify a different python package index, allowing for packages published in private repositories.
+
+            Supports basic HTTP authentication as described in [pip basic authentication](https://pip.pypa.io/en/stable/topics/authentication/#basic-http-authentication).
+
+            See the
+
+            [documentation](https://docs.cognite.com/cdf/functions/#additional-arguments)
+
+            for additional information related to the security risks of using this
+
+            option.'
+          example: https://username:password@pypi.company.com/simple
+          type: string
+          writeOnly: true
+        extraIndexUrls:
+          description: 'Extra package index URLs to use when building the function, allowing for packages published in private repositories.
+
+            Supports basic HTTP authentication as described in [pip basic
+
+            authentication](https://pip.pypa.io/en/stable/topics/authentication/#basic-http-authentication).
+
+            See the
+
+            [documentation](https://docs.cognite.com/cdf/functions/#additional-arguments)
+
+            for additional information related to the security risks of using this
+
+            option.'
+          example:
+          - https://username:password@pypi.company.com/simple
+          - https://token@pypi.company.com/simple
+          - https://pypi.company.com/simple
+          type: array
+          items:
+            type: string
+          writeOnly: true
+    LimitList:
+      type: object
+      properties:
+        limit:
+          description: Limits the number of results to be returned.
+          type: integer
+          format: int32
+          minimum: 1
+          default: 100
+    FunctionIdEitherList:
+      type: object
+      allOf:
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
+            maxItems: 10
+            minItems: 1
+            items:
+              $ref: '#/components/schemas/FunctionIdEither'
+      - $ref: '#/components/schemas/IgnoreUnknownIdsField'
+    FunctionIdEither:
+      oneOf:
+      - $ref: '#/components/schemas/FunctionId'
+      - $ref: '#/components/schemas/FunctionExternalId'
+    FunctionExternalId:
+      type: object
+      required:
+      - externalId
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+      description: The external ID of the function. Should be unique for the project.
+    MetaData:
+      type: object
+      additionalProperties:
+        type: string
+      description: 'Custom, application specific metadata. String key -> String value. Limits: Maximum length of key is 32, value 512 characters, up to 16 key-value pairs. Maximum size of entire metadata is 4096 bytes.'
+    FunctionId:
+      type: object
+      required:
+      - id
+      properties:
+        id:
+          $ref: '#/components/schemas/CogniteInternalId'
+      description: The ID of the function.
+  responses:
+    FunctionList:
+      description: List of functions.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            properties:
+              items:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Function'
+    FunctionsActivation:
+      description: Functions activation status
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - status
+            properties:
+              status:
+                type: string
+                description: Signifies whether Cognite Functions have been requested or activated for the project. Set to inactive by default.
+                enum:
+                - inactive
+                - requested
+                - activated
+    ErrorResponse:
+      description: The response for a failed request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+    EmptyResponse:
+      description: Empty response.
+      content:
+        application/json:
+          schema:
+            type: object
+    FunctionsLimits:
+      description: Limits
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - timeoutMinutes
+            - cpuCores
+            - memoryGb
+            - runtimes
+            - responseSizeMb
+            properties:
+              timeoutMinutes:
+                type: integer
+                description: Timeout of each function call.
+                example: 9
+              cpuCores:
+                $ref: '#/components/schemas/CPURange'
+              memoryGb:
+                $ref: '#/components/schemas/MemoryRange'
+              runtimes:
+                type: array
+                description: Available runtimes. For example, runtime "py313" translates to the latest version of the Python 3.13 series.
+                items:
+                  type: string
+                example:
+                - py310
+                - py311
+                - py312
+                - py313
+              responseSizeMb:
+                type: integer
+                description: Maximum response size of function calls.
+                example: 1
+  parameters:
+    functionId:
+      schema:
+        type: integer
+      name: functionId
+      in: path
+      required: true
+      description: The function id.
+    LimitQuery:
+      name: limit
+      description: Limits the number of results to be returned.
+      in: query
+      schema:
+        type: integer
+        default: 100
+        minimum: 1
+  securitySchemes:
+    oidc-token:
+      type: http
+      scheme: bearer
+      bearerFormat: OpenID Connect or OAuth2 token
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+    oauth2-client-credentials:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        clientCredentials:
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-auth-code:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://your-idps.authorization.url/
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-open-industrial-data:
+      type: oauth2
+      description: Auth flow for Open Industrial Data. Get your client secret from https://hub.cognite.com/open-industrial-data-211.
+      flows:
+        clientCredentials:
+          tokenUrl: https://login.microsoftonline.com/48d5043c-cf70-4c49-881c-c638f5796997/oauth2/v2.0/token
+          scopes:
+            default: https://api.cognitedata.com/.default
+    org-oidc-token:
+      type: openIdConnect
+      openIdConnectUrl: https://auth.cognite.com/.well-known/openid-configuration
+      description: 'Access token issued by the Cognite authorization server, and valid for the target organization. The token must
+
+        be an OpenID Connect token, and it can be obtained by performing an OIDC login flow toward `auth.cognite.com`.
+
+        This is a single URL for all CDF organizations.'
+x-tagGroups:
+- name: Changelog
+  tags:
+  - Changelog
+- name: Organizations and projects
+  tags:
+  - Organizations
+  - Projects
+- name: Identity and access management
+  tags:
+  - Principals
+  - Groups
+  - Security categories
+  - Sessions
+  - Token
+  - User profiles
+  - Project Deletion Reporting
+- name: Data modeling
+  tags:
+  - Data Modeling
+  - Data models
+  - Spaces
+  - Views
+  - Containers
+  - Nodes
+  - Instances
+  - Statistics
+  - Streams
+  - Records
+- name: Asset-centric data model
+  tags:
+  - Assets
+  - Time series
+  - Synthetic Time Series
+  - Data point subscriptions
+  - Events
+  - Files
+  - Sequences
+  - Geospatial
+  - Seismic
+- name: 3D
+  tags:
+  - 3D Models
+  - 3D Model Revisions
+  - 3D Files
+  - 3D Asset Mapping
+  - 3D Contextualization
+  - 3D Jobs
+  - 3D Migration
+  - 3D Scenes
+- name: Contextualization
+  tags:
+  - Entity matching
+  - Entity matching pipelines
+  - Engineering diagrams
+  - Vision
+  - Advanced joins
+- name: Cognite AI
+  tags:
+  - Agents
+  - Skills
+  - Chat Completions
+  - Document AI
+  - Models
+- name: Documents
+  tags:
+  - Documents
+  - Document preview
+- name: Data ingestion
+  tags:
+  - Raw
+  - Extraction Pipelines
+  - Extraction Pipelines Runs
+  - Extraction Pipelines Config
+  - Extractors
+- name: Data organization
+  tags:
+  - Data sets
+  - Data domains
+  - Data products
+  - Rule sets
+  - Labels
+  - Relationships
+  - Annotations
+- name: Transformations
+  tags:
+  - Transformations
+  - Transformation Jobs
+  - Transformation Schedules
+  - Transformation Notifications
+  - Query
+  - Schema
+- name: Functions
+  tags:
+  - Functions
+  - Function calls
+  - Function schedules
+- name: Hosted Extractors
+  tags:
+  - Sources
+  - Jobs
+  - Destinations
+  - Mappings
+- name: PostgreSQL Gateway
+  tags:
+  - Postgres Gateway Users
+  - Postgres Gateway Tables
+- name: SAP Writeback
+  tags:
+  - SAP Instances
+  - SAP Endpoints
+  - Schema Mappings
+  - Writeback Requests
+- name: Data workflows
+  tags:
+  - Workflows
+  - Workflow versions
+  - Workflow executions
+  - Workflow triggers
+  - Tasks
+  - Workers
+- name: Simulators
+  tags:
+  - Simulators
+  - Simulator Integrations
+  - Simulator Models
+  - Simulator Routines
+  - Simulation Runs
+  - Simulator Logs
+- name: Units
+  tags:
+  - Units
+  - Unit Systems
+- name: ''
+  tags:
+  - ''

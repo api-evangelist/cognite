@@ -1,0 +1,718 @@
+openapi: 3.1.0
+info:
+  title: Cognite 3D Asset Mapping Function schedules API
+  description: "# Introduction\nThis is the reference documentation for the Cognite API with\nan overview of all the available methods.\n\n# Postman\nSelect the **Download** button to download our OpenAPI specification to get started.\n\nTo import your data into Postman, select **Import**, and the Import modal opens.\nYou can import items by dragging or dropping files or folders. You can choose how to import your API and manage the import settings in **View Import Settings**.\n\nIn the Import Settings, set the **Folder organization** to **Tags**, select\n**Enable optional parameters** to turn off the settings, and select **Always inherit authentication** to turn on the settings. Select **Import**.\n\nSet the Authorization to **Oauth2.0**. By default, the settings are for Open Industrial Data. Navigate to [Cognite Hub](https://hub.cognite.com/open-industrial-data-211) to understand how to get the credentials for use in Postman.\n\nFor more information, see [Getting Started with Postman](https://developer.cognite.com/dev/guides/postman/).\n\n# Pagination\nMost resource types can be paginated, indicated by the field `nextCursor` in the response.\nBy passing the value of `nextCursor` as the cursor you will get the next page of `limit` results.\nNote that all parameters except `cursor` has to stay the same.\n\n# Parallel retrieval\nAs general guidance, Parallel Retrieval is a technique that should be used when due to query complexity, retrieval of data in a single request is significantly slower than it would otherwise be for a simple request.  Parallel retrieval does not act as a speed multiplier on optimally running queries.  By parallelizing such requests, data retrieval performance can be tuned to meet the client application needs. \n\nCDF supports parallel retrieval through the `partition` parameter, which has the format `m/n` where `n` is the amount of partitions you would like to split the entire data set into.\nIf you want to download the entire data set by splitting it into 10 partitions, do the following in parallel with `m` running from 1 to 10:\n  - Make a request to `/events` with `partition=m/10`.\n  - Paginate through the response by following the cursor as explained above. Note that the `partition` parameter needs to be passed to all subqueries.\n\nProcessing of parallel retrieval requests is subject to concurrency quota availability. The request returns the `429` response upon exceeding concurrency limits. See the Request throttling chapter below.\n\nTo prevent unexpected problems and to maximize read throughput, you should at most use 10 partitions. \nSome CDF resources will automatically enforce a maximum of 10 partitions.\nFor more specific and detailed information, please read the ```partition``` attribute documentation for the CDF resource you're using.  \n\n# Requests throttling\nCognite Data Fusion (CDF) returns the HTTP `429` (too many requests) response status code when project capacity exceeds the limit.\n\nThe throttling can happen:\n  - If a user or a project sends too many (more than allocated) concurrent requests.\n  - If a user or a project sends a too high (more than allocated) rate of requests in a given amount of time.\n\nCognite recommends using a retry strategy based on truncated exponential backoff to handle sessions with HTTP response codes 429.\n\nCognite recommends using a reasonable number (up to 10) of  `Parallel retrieval` partitions.\n\nFollowing these strategies lets you slow down the request frequency to maximize productivity without having to re-submit/retry failing requests.\n\nSee more [here](https://docs.cognite.com/dev/concepts/resource_throttling).\n\n# API versions\n## Version headers\nThis API uses calendar versioning, and version names follow the `YYYYMMDD` format.\nYou can find the versions currently available by using the version selector at the top of this page.\n\nTo use a specific API version, you can pass the `cdf-version: $version` header along with your requests to the API.\n\n## Beta versions\nThe beta versions provide a preview of what the stable version will look like in the future.\nBeta versions contain functionality that is reasonably mature, and highly likely to become a part of the stable API.\n\nBeta versions are indicated by a `-beta` suffix after the version name. For example, the beta version header for the\n2023-01-01 version is then `cdf-version: 20230101-beta`.\n\n## Alpha versions\nAlpha versions contain functionality that is new and experimental, and not guaranteed to ever become a part of the stable API.\nThis functionality presents no guarantee of service, so its use is subject to caution.\n\nAlpha versions are indicated by an `-alpha` suffix after the version name. For example, the alpha version header for\nthe 2023-01-01 version is then `cdf-version: 20230101-alpha`."
+  version: v1
+  contact:
+    name: Cognite Support
+    url: https://support.cognite.com
+    email: support@cognite.com
+servers:
+- url: https://{cluster}.cognitedata.com/api/v1/projects/{project}
+  description: The URL for the CDF cluster to connect to
+  variables:
+    cluster:
+      enum:
+      - api
+      - az-tyo-gp-001
+      - az-eastus-1
+      - az-power-no-northeurope
+      - westeurope-1
+      - asia-northeast1-1
+      - gc-dsm-gp-001
+      default: api
+      description: The CDF cluster to connect to
+    project:
+      default: publicdata
+      description: The CDF project name.
+security:
+- oidc-token:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-client-credentials:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-open-industrial-data:
+  - https://api.cognitedata.com/.default
+- oauth2-auth-code:
+  - https://{cluster}.cognitedata.com/.default
+tags:
+- name: Function schedules
+  description: Function schedules allow you to run functions with a specific input at intervals defined by a cron expression. These function calls will be asynchronous and show up in the function call list. Visit http://www.cronmaker.com to generate a cron expression with a UI.
+paths:
+  /functions/schedules:
+    get:
+      parameters:
+      - $ref: '#/components/parameters/LimitQuery'
+      operationId: getFunctionSchedules
+      description: '
+
+
+        > **Required capabilities:** `functionsAcl:READ`
+
+
+        List function schedules in project.'
+      tags:
+      - Function schedules
+      x-capability:
+      - functionsAcl:READ
+      summary: List schedules
+      responses:
+        '200':
+          $ref: '#/components/responses/FunctionScheduleList'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+    post:
+      description: '
+
+
+        > **Required capabilities:** `functionsAcl:WRITE`
+
+
+        Create function schedules. Function schedules trigger asynchronous calls with specific input data, based on a cron expression that determines when these triggers should be fired. Use e.g. http://www.cronmaker.com to be guided on how to generate a cron expression. One of `FunctionId` or `FunctionExternalId` (deprecated) must be set (but not both). When creating a schedule with a session, i.e. with a `nonce`, `FunctionId` must be used. The `nonce` will be used to bind the session before function execution, and the session will be kept alive for the lifetime of the schedule. **WARNING:** Secrets or other confidential information should not be passed via the `data` object. There is a dedicated `secrets` object in the request body to "Create functions" for this purpose.'
+      tags:
+      - Function schedules
+      x-capability:
+      - functionsAcl:WRITE
+      summary: Create schedules
+      operationId: postFunctionSchedules
+      responses:
+        '201':
+          $ref: '#/components/responses/FunctionScheduleCreated'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - items
+              properties:
+                items:
+                  type: array
+                  maxItems: 1
+                  minItems: 1
+                  items:
+                    $ref: '#/components/schemas/FunctionSchedule'
+        description: ''
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: "import os\nfrom cognite.client.data_classes import ClientCredentials\nschedule = client.functions.schedules.create(\n    name=\"My schedule\",\n    function_id=123,\n    cron_expression=\"*/5 * * * *\",\n    client_credentials=ClientCredentials(\"my-client-id\", os.environ[\"MY_CLIENT_SECRET\"]),\n    description=\"This schedule does magic stuff.\",\n    data={\"magic\": \"stuff\"},\n)\n\nschedule = client.functions.schedules.create(\n    name=\"My schedule\",\n    function_id=456,\n    cron_expression=\"*/5 * * * *\",\n    description=\"A schedule just used for some temporary testing.\",\n)\n"
+  /functions/schedules/list:
+    post:
+      summary: Filter function schedules
+      operationId: listFunctionSchedules
+      responses:
+        '200':
+          $ref: '#/components/responses/FunctionScheduleList'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      description: Use advanced filtering options to find function schedules.  At most one of `FunctionId` or `FunctionExternalId` can be specified.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FunctionScheduleScope'
+            examples:
+              Filter by status:
+                value:
+                  filter:
+                    name: MySchedule
+                    cronExpression: 5 4 * * *
+      tags:
+      - Function schedules
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: 'schedules = client.functions.schedules.list()
+
+
+          func = client.functions.retrieve(id=1)
+
+          schedules = func.list_schedules(limit=None)
+
+          '
+  /functions/schedules/{scheduleId}:
+    parameters:
+    - $ref: '#/components/parameters/scheduleId'
+    get:
+      operationId: getFunctionSchedule
+      description: '
+
+
+        > **Required capabilities:** `functionsAcl:READ`
+
+
+        Retrieve a function schedule by its id.'
+      tags:
+      - Function schedules
+      x-capability:
+      - functionsAcl:READ
+      summary: Retrieve a function schedule by its id
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FunctionSchedule'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+  /functions/schedules/byids:
+    post:
+      summary: Retrieve schedules
+      requestBody:
+        description: List of IDs of schedules to retrieve. Must be up to a maximum of 10000 items and all of them must be unique.
+        content:
+          application/json:
+            schema:
+              type: object
+              allOf:
+              - $ref: '#/components/schemas/FunctionScheduleIds'
+              - $ref: '#/components/schemas/IgnoreUnknownIdsField'
+      responses:
+        '200':
+          $ref: '#/components/responses/FunctionScheduleList'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      operationId: byIdsFunctionSchedules
+      description: '
+
+
+        > **Required capabilities:** `functionsAcl:READ`
+
+
+        Retrieve function schedules by schedule ids.'
+      tags:
+      - Function schedules
+      x-capability:
+      - functionsAcl:READ
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: 'res = client.functions.schedules.retrieve(id=1)
+
+          '
+  /functions/schedules/delete:
+    post:
+      tags:
+      - Function schedules
+      x-capability:
+      - functionsAcl:WRITE
+      summary: Delete schedules
+      operationId: deleteFunctionSchedules
+      responses:
+        '200':
+          $ref: '#/components/responses/EmptyResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      description: '
+
+
+        > **Required capabilities:** `functionsAcl:WRITE`
+
+
+        Delete function schedules.'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FunctionScheduleIdArray'
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: 'client.functions.schedules.delete(id = 123)
+
+          '
+  /functions/schedules/{scheduleId}/input_data:
+    parameters:
+    - $ref: '#/components/parameters/scheduleId'
+    get:
+      operationId: getFunctionScheduleInputData
+      description: '
+
+
+        > **Required capabilities:** `functionsAcl:READ`
+
+
+        Retrieve the input data to the associated function.'
+      summary: Retrieve function input data
+      tags:
+      - Function schedules
+      x-capability:
+      - functionsAcl:READ
+      responses:
+        '200':
+          $ref: '#/components/responses/FunctionScheduleDataResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: 'client.functions.schedules.get_input_data(id=123)
+
+          '
+components:
+  responses:
+    FunctionScheduleList:
+      description: OK
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            properties:
+              items:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FunctionSchedule'
+    FunctionScheduleDataResponse:
+      description: Input data to the associated function.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - id
+            properties:
+              id:
+                $ref: '#/components/schemas/CogniteInternalId'
+              data:
+                $ref: '#/components/schemas/data'
+    FunctionScheduleCreated:
+      description: Created
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            properties:
+              items:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FunctionSchedule'
+    ErrorResponse:
+      description: The response for a failed request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+    EmptyResponse:
+      description: Empty response.
+      content:
+        application/json:
+          schema:
+            type: object
+  schemas:
+    CogniteExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
+      type: string
+      maxLength: 255
+      example: my.known.id
+    FunctionScheduleIds:
+      type: object
+      allOf:
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
+            items:
+              type: object
+              required:
+              - id
+              properties:
+                id:
+                  allOf:
+                  - $ref: '#/components/schemas/CogniteInternalId'
+            maxItems: 10000
+            minItems: 1
+    IgnoreUnknownIdsField:
+      type: object
+      properties:
+        ignoreUnknownIds:
+          description: Ignore IDs and external IDs that are not found
+          type: boolean
+          default: false
+    FunctionScheduleId:
+      type: object
+      required:
+      - id
+      properties:
+        id:
+          $ref: '#/components/schemas/CogniteInternalId'
+      description: The ID of the function schedule.
+    CogniteInternalId:
+      description: A server-generated ID for the object.
+      type: integer
+      minimum: 1
+      maximum: 9007199254740991
+      format: int64
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
+    data:
+      type: object
+      description: Input data to the function (only present if provided on the schedule). This data is passed deserialized into the function through one of the arguments called `data`. **WARNING:** Secrets or other confidential information should not be passed via the `data` object. There is a dedicated `secrets` object in the request body to "Create functions" for this purpose.'
+      example:
+        timeSeriesId1: 13435351
+        maxValue: 4
+    FunctionScheduleScope:
+      allOf:
+      - $ref: '#/components/schemas/FunctionScheduleFilter'
+      - $ref: '#/components/schemas/LimitList'
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    FunctionScheduleName:
+      type: string
+      description: Name of function schedule.
+      example: My schedule
+      minLength: 1
+      maxLength: 140
+    FunctionScheduleCronExpression:
+      type: string
+      example: '* * * * *'
+      maxLength: 1024
+      description: Cron expression describes when the function should be called. Use http://www.cronmaker.com to create a cron expression.
+    EpochTimestampRange:
+      description: Range between two timestamps (inclusive).
+      type: object
+      properties:
+        max:
+          description: Maximum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+          type: integer
+          minimum: 0
+          format: int64
+        min:
+          description: Minimum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+          type: integer
+          minimum: 0
+          format: int64
+    FunctionScheduleDescription:
+      type: string
+      example: This is a nice schedule
+      maxLength: 500
+      description: Description of function schedule.
+    nonce:
+      type: string
+      description: Nonce retrieved from sessions API when creating a session. This will be used to bind the session before executing the function. The corresponding access token will be passed to the function and used to instantiate the client of the handle() function. You can create a session via the [Sessions API](#tag/Sessions/operation/createSessions). When using the Python SDK, the session will be created behind the scenes when creating the schedule.
+      writeOnly: true
+    LimitList:
+      type: object
+      properties:
+        limit:
+          description: Limits the number of results to be returned.
+          type: integer
+          format: int32
+          minimum: 1
+          default: 100
+    FunctionScheduleFilter:
+      type: object
+      properties:
+        filter:
+          title: FunctionScheduleFilter
+          type: object
+          properties:
+            name:
+              $ref: '#/components/schemas/FunctionScheduleName'
+            FunctionId:
+              $ref: '#/components/schemas/CogniteInternalId'
+            FunctionExternalId:
+              $ref: '#/components/schemas/CogniteExternalId'
+            createdTime:
+              $ref: '#/components/schemas/EpochTimestampRange'
+            cronExpression:
+              $ref: '#/components/schemas/FunctionScheduleCronExpression'
+          description: ''
+    FunctionSchedule:
+      allOf:
+      - title: Funtion Schedule
+        type: object
+        description: ''
+        properties:
+          id:
+            allOf:
+            - $ref: '#/components/schemas/CogniteInternalId'
+            readOnly: true
+          name:
+            $ref: '#/components/schemas/FunctionScheduleName'
+          createdTime:
+            allOf:
+            - $ref: '#/components/schemas/EpochTimestamp'
+            readOnly: true
+          description:
+            $ref: '#/components/schemas/FunctionScheduleDescription'
+          cronExpression:
+            $ref: '#/components/schemas/FunctionScheduleCronExpression'
+          when:
+            allOf:
+            - $ref: '#/components/schemas/FunctionScheduleWhen'
+            readOnly: true
+          functionId:
+            $ref: '#/components/schemas/CogniteInternalId'
+          functionExternalId:
+            $ref: '#/components/schemas/CogniteExternalId'
+          sessionId:
+            allOf:
+            - $ref: '#/components/schemas/SessionId'
+            readOnly: true
+          data:
+            allOf:
+            - $ref: '#/components/schemas/data'
+            writeOnly: true
+          nonce:
+            $ref: '#/components/schemas/nonce'
+      required:
+      - id
+      - name
+      - createdTime
+      - cronExpression
+      - when
+      - sessionId
+      - nonce
+    FunctionScheduleWhen:
+      type: string
+      description: When the schedule will trigger, in human readable text.
+      example: Every hour
+    SessionId:
+      description: Id of the session.
+      type: string
+    FunctionScheduleIdArray:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          maxItems: 10000
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/FunctionScheduleId'
+  parameters:
+    scheduleId:
+      schema:
+        type: integer
+      name: scheduleId
+      in: path
+      required: true
+      description: The function schedule id.
+    LimitQuery:
+      name: limit
+      description: Limits the number of results to be returned.
+      in: query
+      schema:
+        type: integer
+        default: 100
+        minimum: 1
+  securitySchemes:
+    oidc-token:
+      type: http
+      scheme: bearer
+      bearerFormat: OpenID Connect or OAuth2 token
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+    oauth2-client-credentials:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        clientCredentials:
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-auth-code:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://your-idps.authorization.url/
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-open-industrial-data:
+      type: oauth2
+      description: Auth flow for Open Industrial Data. Get your client secret from https://hub.cognite.com/open-industrial-data-211.
+      flows:
+        clientCredentials:
+          tokenUrl: https://login.microsoftonline.com/48d5043c-cf70-4c49-881c-c638f5796997/oauth2/v2.0/token
+          scopes:
+            default: https://api.cognitedata.com/.default
+    org-oidc-token:
+      type: openIdConnect
+      openIdConnectUrl: https://auth.cognite.com/.well-known/openid-configuration
+      description: 'Access token issued by the Cognite authorization server, and valid for the target organization. The token must
+
+        be an OpenID Connect token, and it can be obtained by performing an OIDC login flow toward `auth.cognite.com`.
+
+        This is a single URL for all CDF organizations.'
+x-tagGroups:
+- name: Changelog
+  tags:
+  - Changelog
+- name: Organizations and projects
+  tags:
+  - Organizations
+  - Projects
+- name: Identity and access management
+  tags:
+  - Principals
+  - Groups
+  - Security categories
+  - Sessions
+  - Token
+  - User profiles
+  - Project Deletion Reporting
+- name: Data modeling
+  tags:
+  - Data Modeling
+  - Data models
+  - Spaces
+  - Views
+  - Containers
+  - Nodes
+  - Instances
+  - Statistics
+  - Streams
+  - Records
+- name: Asset-centric data model
+  tags:
+  - Assets
+  - Time series
+  - Synthetic Time Series
+  - Data point subscriptions
+  - Events
+  - Files
+  - Sequences
+  - Geospatial
+  - Seismic
+- name: 3D
+  tags:
+  - 3D Models
+  - 3D Model Revisions
+  - 3D Files
+  - 3D Asset Mapping
+  - 3D Contextualization
+  - 3D Jobs
+  - 3D Migration
+  - 3D Scenes
+- name: Contextualization
+  tags:
+  - Entity matching
+  - Entity matching pipelines
+  - Engineering diagrams
+  - Vision
+  - Advanced joins
+- name: Cognite AI
+  tags:
+  - Agents
+  - Skills
+  - Chat Completions
+  - Document AI
+  - Models
+- name: Documents
+  tags:
+  - Documents
+  - Document preview
+- name: Data ingestion
+  tags:
+  - Raw
+  - Extraction Pipelines
+  - Extraction Pipelines Runs
+  - Extraction Pipelines Config
+  - Extractors
+- name: Data organization
+  tags:
+  - Data sets
+  - Data domains
+  - Data products
+  - Rule sets
+  - Labels
+  - Relationships
+  - Annotations
+- name: Transformations
+  tags:
+  - Transformations
+  - Transformation Jobs
+  - Transformation Schedules
+  - Transformation Notifications
+  - Query
+  - Schema
+- name: Functions
+  tags:
+  - Functions
+  - Function calls
+  - Function schedules
+- name: Hosted Extractors
+  tags:
+  - Sources
+  - Jobs
+  - Destinations
+  - Mappings
+- name: PostgreSQL Gateway
+  tags:
+  - Postgres Gateway Users
+  - Postgres Gateway Tables
+- name: SAP Writeback
+  tags:
+  - SAP Instances
+  - SAP Endpoints
+  - Schema Mappings
+  - Writeback Requests
+- name: Data workflows
+  tags:
+  - Workflows
+  - Workflow versions
+  - Workflow executions
+  - Workflow triggers
+  - Tasks
+  - Workers
+- name: Simulators
+  tags:
+  - Simulators
+  - Simulator Integrations
+  - Simulator Models
+  - Simulator Routines
+  - Simulation Runs
+  - Simulator Logs
+- name: Units
+  tags:
+  - Units
+  - Unit Systems
+- name: ''
+  tags:
+  - ''

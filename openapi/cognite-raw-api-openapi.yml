@@ -1,0 +1,1089 @@
+openapi: 3.1.0
+info:
+  title: Cognite 3D Asset Mapping Raw API
+  description: "# Introduction\nThis is the reference documentation for the Cognite API with\nan overview of all the available methods.\n\n# Postman\nSelect the **Download** button to download our OpenAPI specification to get started.\n\nTo import your data into Postman, select **Import**, and the Import modal opens.\nYou can import items by dragging or dropping files or folders. You can choose how to import your API and manage the import settings in **View Import Settings**.\n\nIn the Import Settings, set the **Folder organization** to **Tags**, select\n**Enable optional parameters** to turn off the settings, and select **Always inherit authentication** to turn on the settings. Select **Import**.\n\nSet the Authorization to **Oauth2.0**. By default, the settings are for Open Industrial Data. Navigate to [Cognite Hub](https://hub.cognite.com/open-industrial-data-211) to understand how to get the credentials for use in Postman.\n\nFor more information, see [Getting Started with Postman](https://developer.cognite.com/dev/guides/postman/).\n\n# Pagination\nMost resource types can be paginated, indicated by the field `nextCursor` in the response.\nBy passing the value of `nextCursor` as the cursor you will get the next page of `limit` results.\nNote that all parameters except `cursor` has to stay the same.\n\n# Parallel retrieval\nAs general guidance, Parallel Retrieval is a technique that should be used when due to query complexity, retrieval of data in a single request is significantly slower than it would otherwise be for a simple request.  Parallel retrieval does not act as a speed multiplier on optimally running queries.  By parallelizing such requests, data retrieval performance can be tuned to meet the client application needs. \n\nCDF supports parallel retrieval through the `partition` parameter, which has the format `m/n` where `n` is the amount of partitions you would like to split the entire data set into.\nIf you want to download the entire data set by splitting it into 10 partitions, do the following in parallel with `m` running from 1 to 10:\n  - Make a request to `/events` with `partition=m/10`.\n  - Paginate through the response by following the cursor as explained above. Note that the `partition` parameter needs to be passed to all subqueries.\n\nProcessing of parallel retrieval requests is subject to concurrency quota availability. The request returns the `429` response upon exceeding concurrency limits. See the Request throttling chapter below.\n\nTo prevent unexpected problems and to maximize read throughput, you should at most use 10 partitions. \nSome CDF resources will automatically enforce a maximum of 10 partitions.\nFor more specific and detailed information, please read the ```partition``` attribute documentation for the CDF resource you're using.  \n\n# Requests throttling\nCognite Data Fusion (CDF) returns the HTTP `429` (too many requests) response status code when project capacity exceeds the limit.\n\nThe throttling can happen:\n  - If a user or a project sends too many (more than allocated) concurrent requests.\n  - If a user or a project sends a too high (more than allocated) rate of requests in a given amount of time.\n\nCognite recommends using a retry strategy based on truncated exponential backoff to handle sessions with HTTP response codes 429.\n\nCognite recommends using a reasonable number (up to 10) of  `Parallel retrieval` partitions.\n\nFollowing these strategies lets you slow down the request frequency to maximize productivity without having to re-submit/retry failing requests.\n\nSee more [here](https://docs.cognite.com/dev/concepts/resource_throttling).\n\n# API versions\n## Version headers\nThis API uses calendar versioning, and version names follow the `YYYYMMDD` format.\nYou can find the versions currently available by using the version selector at the top of this page.\n\nTo use a specific API version, you can pass the `cdf-version: $version` header along with your requests to the API.\n\n## Beta versions\nThe beta versions provide a preview of what the stable version will look like in the future.\nBeta versions contain functionality that is reasonably mature, and highly likely to become a part of the stable API.\n\nBeta versions are indicated by a `-beta` suffix after the version name. For example, the beta version header for the\n2023-01-01 version is then `cdf-version: 20230101-beta`.\n\n## Alpha versions\nAlpha versions contain functionality that is new and experimental, and not guaranteed to ever become a part of the stable API.\nThis functionality presents no guarantee of service, so its use is subject to caution.\n\nAlpha versions are indicated by an `-alpha` suffix after the version name. For example, the alpha version header for\nthe 2023-01-01 version is then `cdf-version: 20230101-alpha`."
+  version: v1
+  contact:
+    name: Cognite Support
+    url: https://support.cognite.com
+    email: support@cognite.com
+servers:
+- url: https://{cluster}.cognitedata.com/api/v1/projects/{project}
+  description: The URL for the CDF cluster to connect to
+  variables:
+    cluster:
+      enum:
+      - api
+      - az-tyo-gp-001
+      - az-eastus-1
+      - az-power-no-northeurope
+      - westeurope-1
+      - asia-northeast1-1
+      - gc-dsm-gp-001
+      default: api
+      description: The CDF cluster to connect to
+    project:
+      default: publicdata
+      description: The CDF project name.
+security:
+- oidc-token:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-client-credentials:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-open-industrial-data:
+  - https://api.cognitedata.com/.default
+- oauth2-auth-code:
+  - https://{cluster}.cognitedata.com/.default
+tags:
+- name: Raw
+  description: 'Manage data in the raw NoSQL database.
+
+    Each project will have a variable number of raw databases, each of which will have a variable number of tables, each of which will have a variable number of key-value objects.
+
+    Only queries on key are supported through this API.\
+
+
+    ### Request and concurrency limits
+
+
+    Both the rate of requests and the number of concurrent (parallel) requests are governed by limits,
+
+    for all CDF API endpoints.  If a request exceeds one of the limits,
+
+    it will be throttled with a `429: Too Many Requests` response. More on limit types
+
+    and how to avoid being throttled is described
+
+    [here](https://docs.cognite.com/dev/concepts/resource_throttling).
+
+
+    The limits for the Raw service are described in the table below. Note that under high load,
+
+    some deviation from the limits might occur for short periods of time as the service is scaling up.
+
+    The `/rows` endpoints for inserting and retrieving data are governed by specific data rate limits.
+
+
+    | Limit                 | Per project           | Per user (identity) |
+
+    |-----------------------|-----------------------|---------------------|
+
+    | Concurrency           | 64 parallel requests  | 48 parallel requests|
+
+    | Data rate (retrieve)  | 8.3 GB / 10 minutes   | 6.6 GB / 10 minutes |
+
+    | Data rate (insert)    | 1.6 GB / 10 minutes   | 1.3 GB / 10 minutes |'
+  x-uri-format-fragments: []
+paths:
+  /raw/dbs:
+    get:
+      tags:
+      - Raw
+      summary: List databases
+      operationId: getDBs
+      parameters:
+      - name: limit
+        in: query
+        description: Limit on the number of databases to be returned.
+        schema:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 1000
+          default: 25
+      - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: A list of databases.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataWithCursorRawDB'
+      x-capability:
+      - rawAcl:LIST
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: const databases = await client.raw.listDatabases();
+      - lang: Python
+        label: Python SDK
+        source: "db_list = client.raw.databases.list(limit=5)\n\nfor db in client.raw.databases:\n    db # do something with the db\n\nfor db_list in client.raw.databases(chunk_size=2500):\n    db_list # do something with the dbs\n"
+      - lang: Java
+        label: Java SDK
+        source: "List<String> listDatabaseResults = new ArrayList<>(); \nclient.raw() \n          .databases() \n          .list() \n          .forEachRemaining(listDatabaseResults::addAll); \n\n"
+      description: '
+
+
+        > **Required capabilities:** `rawAcl:LIST`
+
+        '
+    post:
+      tags:
+      - Raw
+      summary: Create databases
+      description: '
+
+
+        > **Required capabilities:** `rawAcl:WRITE`
+
+
+        Create databases in a project. It is possible to post a maximum of 1000 databases per request.'
+      operationId: createDBs
+      requestBody:
+        description: List of names of databases to be created.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DataRawDB'
+        required: true
+      responses:
+        '201':
+          description: The created databases.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataRawDB'
+      x-capability:
+      - rawAcl:WRITE
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: 'const databases = await client.raw.createDatabases([{ name: ''My company'' }]);'
+      - lang: Python
+        label: Python SDK
+        source: 'res = client.raw.databases.create("db1")
+
+          '
+      - lang: Java
+        label: Java SDK
+        source: "List<String> createDatabasesList = \n          List.of(StringValue.of(\"dbName\").getValue()); \nclient.raw().databases().create(createDatabasesList);"
+  /raw/dbs/delete:
+    post:
+      tags:
+      - Raw
+      summary: Delete databases
+      description: '
+
+
+        > **Required capabilities:** `rawAcl:WRITE`
+
+
+        It deletes a database, but fails if the database is not empty and recursive is set to false (default).'
+      operationId: deleteDBs
+      requestBody:
+        description: List of names of the databases to be deleted.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteRawDB'
+        required: true
+      responses:
+        '200':
+          $ref: '#/components/responses/EmptyResponse'
+      x-capability:
+      - rawAcl:WRITE
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: 'await client.raw.deleteDatabases([{ name: ''My company'' }]);'
+      - lang: Python
+        label: Python SDK
+        source: 'client.raw.databases.delete(["db1", "db2"])
+
+          '
+      - lang: Java
+        label: Java SDK
+        source: "List<String> createDatabasesList = \n          List.of(StringValue.of(\"dbName\").getValue()); \nList<String> deleteItemsResults = \n          client.raw().databases().delete(createDatabasesList); \n\n //Allows to recursively \nclient.raw().databases().delete(createDatabasesList, true); \n\n"
+  /raw/dbs/{dbName}/tables:
+    get:
+      tags:
+      - Raw
+      summary: List tables in a database
+      operationId: getTables
+      parameters:
+      - name: dbName
+        in: path
+        description: The name of a database to retrieve tables from.
+        required: true
+        schema:
+          type: string
+      - name: limit
+        in: query
+        description: Limit on the number of tables to be returned.
+        schema:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 1000
+          default: 25
+      - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: A list of tables in the database
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataWithCursorRawDBTable'
+      x-capability:
+      - rawAcl:LIST
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: const tables = await client.raw.listTables('My company');
+      - lang: Python
+        label: Python SDK
+        source: "table_list = client.raw.tables.list(\"db1\", limit=5)\n\nfor table in client.raw.tables(db_name=\"db1\"):\n    table # do something with the table\n\nfor table_list in client.raw.tables(db_name=\"db1\", chunk_size=2500):\n    table_list # do something with the tables\n"
+      - lang: Java
+        label: Java SDK
+        source: "List<String> tablesResults = new ArrayList<>(); \nclient.raw().tables() \n          .list(\"dbName\") \n          .forEachRemaining(tablesResults::addAll); \n\n"
+      description: '
+
+
+        > **Required capabilities:** `rawAcl:LIST`
+
+        '
+    post:
+      tags:
+      - Raw
+      summary: Create tables in a database
+      description: '
+
+
+        > **Required capabilities:** `rawAcl:WRITE`
+
+
+        Create tables in a database. It is possible to post a maximum of 1000 tables per request.'
+      operationId: createTables
+      parameters:
+      - name: dbName
+        in: path
+        description: Name of the database to create tables in.
+        required: true
+        schema:
+          type: string
+      - name: ensureParent
+        in: query
+        description: Create database if it doesn't exist already
+        schema:
+          type: boolean
+          default: false
+      requestBody:
+        description: List of tables to create.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DataRawDBTable'
+        required: true
+      responses:
+        '201':
+          description: The created tables.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataRawDBTable'
+        '400':
+          $ref: '#/components/responses/MissingField'
+      x-capability:
+      - rawAcl:WRITE
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: 'const tables = await client.raw.createTables(''My company'', [{ name: ''Customers'' }]);'
+      - lang: Python
+        label: Python SDK
+        source: 'res = client.raw.tables.create("db1", "table1")
+
+          '
+      - lang: Java
+        label: Java SDK
+        source: "List<String> createTablesLists = \n          List.of(StringValue.of(\"tableName\").getValue()); \nclient.raw().tables().create(\"dbName\", createTablesLists, false); \n\n"
+  /raw/dbs/{dbName}/tables/delete:
+    post:
+      tags:
+      - Raw
+      summary: Delete tables in a database
+      operationId: deleteTables
+      parameters:
+      - name: dbName
+        in: path
+        description: Name of the database to delete tables in.
+        required: true
+        schema:
+          type: string
+      requestBody:
+        description: List of tables to delete.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DataRawDBTable'
+        required: true
+      responses:
+        '200':
+          $ref: '#/components/responses/EmptyResponse'
+        '400':
+          $ref: '#/components/responses/MissingField'
+      x-capability:
+      - rawAcl:WRITE
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: 'await client.raw.deleteTables(''My company'', [{ name: ''Customers'' }]);'
+      - lang: Python
+        label: Python SDK
+        source: 'res = client.raw.tables.delete("db1", ["table1", "table2"])
+
+          '
+      - lang: Java
+        label: Java SDK
+        source: "List<String> listDeleted = \n          client.raw().tables().delete(\"dbName\", List.of(\"TablesName\")); \n\n"
+      description: '
+
+
+        > **Required capabilities:** `rawAcl:WRITE`
+
+        '
+  /raw/dbs/{dbName}/tables/{tableName}/cursors:
+    get:
+      tags:
+      - Raw
+      summary: Retrieve cursors for parallel reads
+      description: '
+
+
+        > **Required capabilities:** `rawAcl:READ`
+
+
+        Retrieve cursors based on the last updated time range. Normally this endpoint is used for reading in parallel.
+
+
+        Each cursor should be supplied as the ''cursor'' query parameter on GET requests to [Read Rows](#operation/getRows).
+
+        **Note** that the ''minLastUpdatedTime'' and the ''maxLastUpdatedTime'' query parameter on [Read Rows](#operation/getRows) are ignored when a cursor is specified.
+
+        '
+      operationId: getCursors
+      parameters:
+      - name: dbName
+        in: path
+        description: Name of the database.
+        required: true
+        schema:
+          type: string
+      - name: tableName
+        in: path
+        description: Name of the table.
+        required: true
+        schema:
+          type: string
+      - name: minLastUpdatedTime
+        in: query
+        description: An exclusive filter, specified as the number of milliseconds that have elapsed since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+        schema:
+          $ref: '#/components/schemas/EpochTimestamp'
+      - name: maxLastUpdatedTime
+        in: query
+        description: An inclusive filter, specified as the number of milliseconds that have elapsed since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+        schema:
+          $ref: '#/components/schemas/EpochTimestamp'
+      - name: numberOfCursors
+        in: query
+        description: The number of cursors to return, by default it's 10.
+        schema:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 10000
+      responses:
+        '200':
+          description: Response with cursors
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataRawDBTableCursors'
+      x-capability:
+      - rawAcl:READ
+  /raw/dbs/{dbName}/tables/{tableName}/rows:
+    get:
+      tags:
+      - Raw
+      summary: Retrieve rows from a table
+      operationId: getRows
+      parameters:
+      - name: dbName
+        in: path
+        description: Name of the database.
+        required: true
+        schema:
+          type: string
+      - name: tableName
+        in: path
+        description: Name of the table.
+        required: true
+        schema:
+          type: string
+      - name: limit
+        in: query
+        description: Limit the number of results. The API may return fewer than the specified limit.
+        schema:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 10000
+          default: 25
+      - name: columns
+        in: query
+        description: Ordered list of column keys, separated by commas. Leave empty for all, use single comma to retrieve only row keys.
+        schema:
+          type: string
+          example: column1,column2
+      - $ref: '#/components/parameters/Cursor'
+      - name: minLastUpdatedTime
+        in: query
+        description: An exclusive filter, specified as the number of milliseconds that have elapsed since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+        schema:
+          $ref: '#/components/schemas/EpochTimestamp'
+      - name: maxLastUpdatedTime
+        in: query
+        description: An inclusive filter, specified as the number of milliseconds that have elapsed since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+        schema:
+          $ref: '#/components/schemas/EpochTimestamp'
+      responses:
+        '200':
+          description: Rows returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataWithCursorRawDBRow'
+            text/csv:
+              schema:
+                $ref: '#/components/schemas/RawRowCSV'
+      x-capability:
+      - rawAcl:READ
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: 'await client.raw.listRows(''My company'', ''Employees'', { columns: [''last_name''] });'
+      - lang: Python
+        label: Python SDK
+        source: "row_list = client.raw.rows.list(\"db1\", \"tbl1\", limit=5)\n\nrow_list = client.raw.rows.list(\"db1\", \"tbl1\", limit=None)\n\nfor row in client.raw.rows(\"db1\", \"t1\", columns=[\"col1\",\"col2\"]):\n    val1 = row[\"col1\"]  # You may access the data directly\n    val2 = row.get(\"col2\")  # ...or use '.get' when keys can be missing\n\nfor row_list in client.raw.rows(\"db1\", \"t1\", chunk_size=2500):\n    row_list  # Do something with the rows\n\nrows_iterator = client.raw.rows(\n    db_name=\"db1\", table_name=\"t1\", partitions=5, chunk_size=5000, limit=1_000_000\n)\nfor row_list in rows_iterator:\n    row_list  # Do something with the rows\ndf = client.raw.rows.retrieve_dataframe(\"db1\", \"t1\", limit=5)\n"
+      - lang: Java
+        label: Java SDK
+        source: "List<RawRow> listRowsResults = new ArrayList<>(); \nclient.raw().rows().list(\"dbName\", \"TablesName\") \n          .forEachRemaining(listRowsResults::addAll); \n\n"
+      description: '
+
+
+        > **Required capabilities:** `rawAcl:READ`
+
+        '
+    post:
+      tags:
+      - Raw
+      summary: Insert rows into a table
+      description: '
+
+
+        > **Required capabilities:** `rawAcl:WRITE`
+
+
+        Insert rows into a table. It is possible to post a maximum of 10000 rows per request.
+
+        It will replace the columns of an existing row if the rowKey already exists.
+
+
+        The rowKey is limited to 1024 characters which also includes Unicode characters.
+
+        The maximum size of columns are 5 MiB, however the maximum size of one column name and value is 2621440 characters each.
+
+        If you want to store huge amount of data per row or column we recommend using the Files API to upload blobs, then reference it from the Raw row.
+
+
+        The columns object is a key value object, where the key corresponds to the column name while the value is the column value.
+
+        It supports all the valid types of values in JSON, so number, string, array, and even nested JSON structure (see payload example to the right).
+
+
+        If an error occurs during the write, partial data may be written as there is no rollback. However, it''s safe to retry the request, since this endpoint supports both update and insert (upsert).
+
+
+        A row''s last updated timestamp will only be updated if the new column contents are considered different to the old one. An identical JSON string should always be counted as the same contents.
+
+        '
+      operationId: postRows
+      parameters:
+      - name: dbName
+        in: path
+        description: Name of the database.
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 32
+      - name: tableName
+        in: path
+        description: Name of the table.
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 64
+      - name: ensureParent
+        in: query
+        description: Create database/table if it doesn't exist already
+        schema:
+          type: boolean
+          default: false
+      requestBody:
+        description: List of rows to create.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DataRawDBRow'
+            example:
+              items:
+              - key: some rowKey
+                columns:
+                  some int-col: 10
+                  some string-col: string example
+                  some json-col:
+                    test:
+                      foo: nested
+                  some array-col:
+                  - 0
+                  - 1
+                  - 3
+                  - 4
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: object
+        required: true
+      responses:
+        '200':
+          $ref: '#/components/responses/EmptyResponse'
+        '400':
+          $ref: '#/components/responses/MissingField'
+      x-capability:
+      - rawAcl:WRITE
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: 'await client.raw.insertRows(''My company'', ''Customers'', [{ key: ''customer1'', columns: { ''First name'': ''Steve'', ''Last name'': ''Jobs'' } }]);'
+      - lang: Python
+        label: Python SDK
+        source: "from cognite.client.data_classes import RowWrite\nrows = [RowWrite(key=\"r1\", columns={\"col1\": \"val1\", \"col2\": \"val1\"}),\n        RowWrite(key=\"r2\", columns={\"col1\": \"val2\", \"col2\": \"val2\"})]\nclient.raw.rows.insert(\"db1\", \"table1\", rows)\n\nrows = {\n    \"key-1\": {\"col1\": 1, \"col2\": 2},\n    \"key-2\": {\"col1\": 3, \"col2\": 4, \"col3\": \"high five\"},\n}\nclient.raw.rows.insert(\"db1\", \"table1\", rows)\nimport pandas as pd\ndf = pd.DataFrame(\n    {\"col-a\": [1, 3, None], \"col-b\": [2, -1, 9]},\n    index=[\"r1\", \"r2\", \"r3\"])\nres = client.raw.rows.insert_dataframe(\n    \"db1\", \"table1\", df, dropna=True)\n"
+      - lang: Java
+        label: Java SDK
+        source: "List<RawRow> createRowsList = List.of(RawRow.newBuilder() \n          .setDbName(\"dbName\") \n          .setTableName(\"tableName\") \n          .setKey(\"key\") \n          .setColumns(Struct.newBuilder() \n               .putFields(\"string\", Values.of(\"VAL\")) \n               .putFields(\"numeric\", Values.of(\"VAL\")) \n               .putFields(\"bool\", Values.of(ThreadLocalRandom.current().nextBoolean()))  \n               .putFields(\"null_value\", Values.ofNull())  \n               .putFields(\"array\", Values.of(ListValue.newBuilder()  \n                    .addValues(Values.of(ThreadLocalRandom.current().nextDouble(10000d)))  \n                    .build())) \n               .putFields(\"struct\", Values.of(Structs.of(\"nestedString\", Values.of(\"myTrickyStringValue\") \n               ))) \n          ).build()); \n\nList<RawRow> createRowsResults = client.raw().rows().upsert(createRowsList, false); \n\n"
+  /raw/dbs/{dbName}/tables/{tableName}/rows/{rowKey}:
+    get:
+      tags:
+      - Raw
+      summary: Retrieve row by key
+      operationId: getRow
+      parameters:
+      - name: dbName
+        in: path
+        description: Name of the database to retrieve the row from.
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 32
+      - name: tableName
+        in: path
+        description: Name of the table to retrieve the row from.
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 64
+      - name: rowKey
+        in: path
+        description: Row key of the row to retrieve.
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Single row from the raw database table with the specified rowKey.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RawDBRow'
+      x-capability:
+      - rawAcl:READ
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: await client.raw.retrieveRow('My company', 'Customers', 'customer1');
+      - lang: Python
+        label: Python SDK
+        source: 'row = client.raw.rows.retrieve("db1", "t1", "k1")
+
+
+          val1 = row["col1"]
+
+          val2 = row.get("col2")
+
+          '
+      - lang: Java
+        label: Java SDK
+        source: "List<String> rowsToRetrieve = createRowsList.stream() \n          .filter(row -> ThreadLocalRandom.current().nextBoolean()) \n          .map(row -> row.getKey()) \n          .collect(Collectors.toList()); \n\nList<RawRow> rowsRetrieved = \n          client.raw().rows().retrieve(\"dbName\", \"tableName\", rowsToRetrieve); \n\n"
+      description: '
+
+
+        > **Required capabilities:** `rawAcl:READ`
+
+        '
+  /raw/dbs/{dbName}/tables/{tableName}/rows/delete:
+    post:
+      tags:
+      - Raw
+      summary: Delete rows in a table
+      operationId: deleteRows
+      parameters:
+      - name: dbName
+        in: path
+        description: Name of the database containing the rows.
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 32
+      - name: tableName
+        in: path
+        description: Name of the table containing the rows.
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 64
+      requestBody:
+        description: Keys to the rows to delete.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DataRawDBRowKey'
+        required: true
+      responses:
+        '200':
+          $ref: '#/components/responses/EmptyResponse'
+      x-capability:
+      - rawAcl:WRITE
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: 'await client.raw.deleteRows(''My company'', ''Customers'', [{key: ''customer1''}]);'
+      - lang: Python
+        label: Python SDK
+        source: 'keys_to_delete = ["k1", "k2", "k3"]
+
+          client.raw.rows.delete("db1", "table1", keys_to_delete)
+
+          '
+      - lang: Java
+        label: Java SDK
+        source: "List<RawRow> rowsToDelete = //list of RawRow; \nList<RawRow> deleteRowResults = client.raw().rows().delete(rowsToDelete); \n\n"
+      description: '
+
+
+        > **Required capabilities:** `rawAcl:WRITE`
+
+        '
+components:
+  schemas:
+    DataWithCursorRawDB:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/RawDB'
+        nextCursor:
+          type: string
+          description: Cursor to get the next page of results (if available).
+      description: A list of objects along with possible cursors to get the next, or previous, page of results
+    RawDBTable:
+      required:
+      - name
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 64
+          description: Unique name of the table
+      description: A NoSQL database table to store customer data
+    DataRawDBTableCursors:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: string
+      description: A list of cursors
+    DataRawDBTable:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/RawDBTable'
+    DataWithCursorRawDBTable:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/RawDBTable'
+        nextCursor:
+          type: string
+          description: Cursor to get the next page of results (if available).
+      description: A list of objects along with possible cursors to get the next, or previous, page of results
+    RawDB:
+      required:
+      - name
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 32
+          description: Unique name of a database.
+      description: A NoSQL database to store customer data.
+    RawDBRowInsert:
+      required:
+      - columns
+      - key
+      type: object
+      properties:
+        key:
+          type: string
+          description: Unique row key
+        columns:
+          type: object
+          description: Row data stored as a JSON object.
+    DataRawDBRowKey:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/RawDBRowKey'
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    DataRawDBRow:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/RawDBRowInsert'
+    DeleteRawDB:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/RawDB'
+        recursive:
+          type: boolean
+          description: When true, tables of this database are deleted with the database.
+          default: false
+    DataWithCursorRawDBRow:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/RawDBRow'
+        nextCursor:
+          type: string
+          description: Cursor to get the next page of results (if available).
+      description: A list of objects along with possible cursors to get the next, or previous, page of results
+    RawDBRow:
+      required:
+      - columns
+      - key
+      - lastUpdatedTime
+      type: object
+      properties:
+        key:
+          type: string
+          description: Unique row key
+        columns:
+          type: object
+          description: Row data stored as a JSON object.
+        lastUpdatedTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+    DataRawDB:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/RawDB'
+    RawDBRowKey:
+      required:
+      - key
+      type: object
+      properties:
+        key:
+          type: string
+          description: Unique row key
+      description: A row key
+    RawRowCSV:
+      type: object
+      properties:
+        columnHeaders:
+          type: array
+          description: Headers for the different columns in the response.
+          items:
+            type: string
+            description: Headers for the different columns in the response.
+        rows:
+          type: array
+          description: Rows of column values, in same order as columnHeaders.
+          items:
+            type: array
+            description: Rows of column values, in same order as columnHeaders.
+            items:
+              type: object
+              description: Rows of column values, in same order as columnHeaders.
+      description: Raw row result written in CSV format, with column columnHeaders.
+  responses:
+    MissingField:
+      description: Missing required fields.
+      content:
+        application/json:
+          schema:
+            type: object
+            description: Some required fields are missing.
+            required:
+            - code
+            - message
+            - missingFields
+            properties:
+              code:
+                type: integer
+                description: HTTP status code.
+                format: int32
+                example: 400
+              message:
+                type: string
+                description: Error message.
+              missingFields:
+                uniqueItems: true
+                type: array
+                description: Fields that are missing.
+                items:
+                  type: object
+                  description: Fields that are missing.
+    EmptyResponse:
+      description: Empty response.
+      content:
+        application/json:
+          schema:
+            type: object
+  parameters:
+    Cursor:
+      name: cursor
+      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
+
+        property, it means that there may be more results, and you should pass that value as the
+
+        `cursor` parameter in the next request.
+
+
+        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
+
+        decoded. Its internal structure is not a part of the public API, and may change without
+
+        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
+
+        '
+      in: query
+      schema:
+        type: string
+        example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+  securitySchemes:
+    oidc-token:
+      type: http
+      scheme: bearer
+      bearerFormat: OpenID Connect or OAuth2 token
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+    oauth2-client-credentials:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        clientCredentials:
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-auth-code:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://your-idps.authorization.url/
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-open-industrial-data:
+      type: oauth2
+      description: Auth flow for Open Industrial Data. Get your client secret from https://hub.cognite.com/open-industrial-data-211.
+      flows:
+        clientCredentials:
+          tokenUrl: https://login.microsoftonline.com/48d5043c-cf70-4c49-881c-c638f5796997/oauth2/v2.0/token
+          scopes:
+            default: https://api.cognitedata.com/.default
+    org-oidc-token:
+      type: openIdConnect
+      openIdConnectUrl: https://auth.cognite.com/.well-known/openid-configuration
+      description: 'Access token issued by the Cognite authorization server, and valid for the target organization. The token must
+
+        be an OpenID Connect token, and it can be obtained by performing an OIDC login flow toward `auth.cognite.com`.
+
+        This is a single URL for all CDF organizations.'
+x-tagGroups:
+- name: Changelog
+  tags:
+  - Changelog
+- name: Organizations and projects
+  tags:
+  - Organizations
+  - Projects
+- name: Identity and access management
+  tags:
+  - Principals
+  - Groups
+  - Security categories
+  - Sessions
+  - Token
+  - User profiles
+  - Project Deletion Reporting
+- name: Data modeling
+  tags:
+  - Data Modeling
+  - Data models
+  - Spaces
+  - Views
+  - Containers
+  - Nodes
+  - Instances
+  - Statistics
+  - Streams
+  - Records
+- name: Asset-centric data model
+  tags:
+  - Assets
+  - Time series
+  - Synthetic Time Series
+  - Data point subscriptions
+  - Events
+  - Files
+  - Sequences
+  - Geospatial
+  - Seismic
+- name: 3D
+  tags:
+  - 3D Models
+  - 3D Model Revisions
+  - 3D Files
+  - 3D Asset Mapping
+  - 3D Contextualization
+  - 3D Jobs
+  - 3D Migration
+  - 3D Scenes
+- name: Contextualization
+  tags:
+  - Entity matching
+  - Entity matching pipelines
+  - Engineering diagrams
+  - Vision
+  - Advanced joins
+- name: Cognite AI
+  tags:
+  - Agents
+  - Skills
+  - Chat Completions
+  - Document AI
+  - Models
+- name: Documents
+  tags:
+  - Documents
+  - Document preview
+- name: Data ingestion
+  tags:
+  - Raw
+  - Extraction Pipelines
+  - Extraction Pipelines Runs
+  - Extraction Pipelines Config
+  - Extractors
+- name: Data organization
+  tags:
+  - Data sets
+  - Data domains
+  - Data products
+  - Rule sets
+  - Labels
+  - Relationships
+  - Annotations
+- name: Transformations
+  tags:
+  - Transformations
+  - Transformation Jobs
+  - Transformation Schedules
+  - Transformation Notifications
+  - Query
+  - Schema
+- name: Functions
+  tags:
+  - Functions
+  - Function calls
+  - Function schedules
+- name: Hosted Extractors
+  tags:
+  - Sources
+  - Jobs
+  - Destinations
+  - Mappings
+- name: PostgreSQL Gateway
+  tags:
+  - Postgres Gateway Users
+  - Postgres Gateway Tables
+- name: SAP Writeback
+  tags:
+  - SAP Instances
+  - SAP Endpoints
+  - Schema Mappings
+  - Writeback Requests
+- name: Data workflows
+  tags:
+  - Workflows
+  - Workflow versions
+  - Workflow executions
+  - Workflow triggers
+  - Tasks
+  - Workers
+- name: Simulators
+  tags:
+  - Simulators
+  - Simulator Integrations
+  - Simulator Models
+  - Simulator Routines
+  - Simulation Runs
+  - Simulator Logs
+- name: Units
+  tags:
+  - Units
+  - Unit Systems
+- name: ''
+  tags:
+  - ''

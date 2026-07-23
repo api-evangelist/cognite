@@ -1,0 +1,1991 @@
+openapi: 3.1.0
+info:
+  title: Cognite 3D Asset Mapping Relationships API
+  description: "# Introduction\nThis is the reference documentation for the Cognite API with\nan overview of all the available methods.\n\n# Postman\nSelect the **Download** button to download our OpenAPI specification to get started.\n\nTo import your data into Postman, select **Import**, and the Import modal opens.\nYou can import items by dragging or dropping files or folders. You can choose how to import your API and manage the import settings in **View Import Settings**.\n\nIn the Import Settings, set the **Folder organization** to **Tags**, select\n**Enable optional parameters** to turn off the settings, and select **Always inherit authentication** to turn on the settings. Select **Import**.\n\nSet the Authorization to **Oauth2.0**. By default, the settings are for Open Industrial Data. Navigate to [Cognite Hub](https://hub.cognite.com/open-industrial-data-211) to understand how to get the credentials for use in Postman.\n\nFor more information, see [Getting Started with Postman](https://developer.cognite.com/dev/guides/postman/).\n\n# Pagination\nMost resource types can be paginated, indicated by the field `nextCursor` in the response.\nBy passing the value of `nextCursor` as the cursor you will get the next page of `limit` results.\nNote that all parameters except `cursor` has to stay the same.\n\n# Parallel retrieval\nAs general guidance, Parallel Retrieval is a technique that should be used when due to query complexity, retrieval of data in a single request is significantly slower than it would otherwise be for a simple request.  Parallel retrieval does not act as a speed multiplier on optimally running queries.  By parallelizing such requests, data retrieval performance can be tuned to meet the client application needs. \n\nCDF supports parallel retrieval through the `partition` parameter, which has the format `m/n` where `n` is the amount of partitions you would like to split the entire data set into.\nIf you want to download the entire data set by splitting it into 10 partitions, do the following in parallel with `m` running from 1 to 10:\n  - Make a request to `/events` with `partition=m/10`.\n  - Paginate through the response by following the cursor as explained above. Note that the `partition` parameter needs to be passed to all subqueries.\n\nProcessing of parallel retrieval requests is subject to concurrency quota availability. The request returns the `429` response upon exceeding concurrency limits. See the Request throttling chapter below.\n\nTo prevent unexpected problems and to maximize read throughput, you should at most use 10 partitions. \nSome CDF resources will automatically enforce a maximum of 10 partitions.\nFor more specific and detailed information, please read the ```partition``` attribute documentation for the CDF resource you're using.  \n\n# Requests throttling\nCognite Data Fusion (CDF) returns the HTTP `429` (too many requests) response status code when project capacity exceeds the limit.\n\nThe throttling can happen:\n  - If a user or a project sends too many (more than allocated) concurrent requests.\n  - If a user or a project sends a too high (more than allocated) rate of requests in a given amount of time.\n\nCognite recommends using a retry strategy based on truncated exponential backoff to handle sessions with HTTP response codes 429.\n\nCognite recommends using a reasonable number (up to 10) of  `Parallel retrieval` partitions.\n\nFollowing these strategies lets you slow down the request frequency to maximize productivity without having to re-submit/retry failing requests.\n\nSee more [here](https://docs.cognite.com/dev/concepts/resource_throttling).\n\n# API versions\n## Version headers\nThis API uses calendar versioning, and version names follow the `YYYYMMDD` format.\nYou can find the versions currently available by using the version selector at the top of this page.\n\nTo use a specific API version, you can pass the `cdf-version: $version` header along with your requests to the API.\n\n## Beta versions\nThe beta versions provide a preview of what the stable version will look like in the future.\nBeta versions contain functionality that is reasonably mature, and highly likely to become a part of the stable API.\n\nBeta versions are indicated by a `-beta` suffix after the version name. For example, the beta version header for the\n2023-01-01 version is then `cdf-version: 20230101-beta`.\n\n## Alpha versions\nAlpha versions contain functionality that is new and experimental, and not guaranteed to ever become a part of the stable API.\nThis functionality presents no guarantee of service, so its use is subject to caution.\n\nAlpha versions are indicated by an `-alpha` suffix after the version name. For example, the alpha version header for\nthe 2023-01-01 version is then `cdf-version: 20230101-alpha`."
+  version: v1
+  contact:
+    name: Cognite Support
+    url: https://support.cognite.com
+    email: support@cognite.com
+servers:
+- url: https://{cluster}.cognitedata.com/api/v1/projects/{project}
+  description: The URL for the CDF cluster to connect to
+  variables:
+    cluster:
+      enum:
+      - api
+      - az-tyo-gp-001
+      - az-eastus-1
+      - az-power-no-northeurope
+      - westeurope-1
+      - asia-northeast1-1
+      - gc-dsm-gp-001
+      default: api
+      description: The CDF cluster to connect to
+    project:
+      default: publicdata
+      description: The CDF project name.
+security:
+- oidc-token:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-client-credentials:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-open-industrial-data:
+  - https://api.cognitedata.com/.default
+- oauth2-auth-code:
+  - https://{cluster}.cognitedata.com/.default
+tags:
+- name: Relationships
+  description: 'The relationships resource type represents connections between resource objects in CDF. Relationships allow you to organize assets in other structures in addition to the standard hierarchical asset structure.
+
+    Each relationship is between a source and a target object and is defined by a relationship type and the external IDs and resource types of the source and target objects. Optionally, a relationship can be time-constrained with a start and end time.
+
+    To define and manage the available relationship types, use the labels resource type.
+
+    The externalId field uniquely identifies each relationship.'
+paths:
+  /relationships:
+    post:
+      summary: Create relationships
+      tags:
+      - Relationships
+      description: '
+
+
+        > **Required capabilities:** `relationshipsAcl:WRITE`
+
+
+        List of the relationships to create. You can create a maximum of 1000 relationships per request. Relationships should be unique, but CDF does not prevent you from creating duplicates where only the externalId differs.
+
+
+        Relationships are uniquely identified by their externalId. Non-unique relationships will not be created.
+
+
+        The order of relationships in the response equals the order in the request.'
+      operationId: createRelationships
+      responses:
+        '201':
+          $ref: '#/components/responses/persistedRelationships'
+        '400':
+          $ref: '#/components/responses/400GeneralError'
+        '409':
+          $ref: '#/components/responses/409GeneralError'
+        '500':
+          $ref: '#/components/responses/generalError'
+      requestBody:
+        $ref: '#/components/requestBodies/newRelationship'
+      deprecated: false
+      x-capability:
+      - relationshipsAcl:WRITE
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: "const relationships = [\n  {\n     externalId: 'some_relationship',\n     sourceExternalId: 'some_source_external_id',\n     sourceType: 'asset' as const,\n     targetExternalId: 'some_target_external_id',\n     targetType: 'event' as const\n  }\n];\nconst createdRelationships = await client.relationships.create(relationships);"
+      - lang: Python
+        label: Python SDK
+        source: "from cognite.client.data_classes import Relationship\nflowrel1 = Relationship(\n    external_id=\"flow_1\",\n    source_external_id=\"source_ext_id\",\n    source_type=\"asset\",\n    target_external_id=\"target_ext_id\",\n    target_type=\"event\",\n    confidence=0.1,\n    data_set_id=1234\n)\nflowrel2 = Relationship(\n    external_id=\"flow_2\",\n    source_external_id=\"source_ext_id\",\n    source_type=\"asset\",\n    target_external_id=\"target_ext_id\",\n    target_type=\"event\",\n    confidence=0.1,\n    data_set_id=1234\n)\nres = client.relationships.create([flowrel1,flowrel2])\n"
+      - lang: Java
+        label: Java SDK
+        source: "List<Asset> assetUpsertList = //list of Asset; \nList<Event> eventUpsertList = //list of Event; \nList<TimeseriesMetadata> timseriesUpsertList = //list of TimeseriesMetadata; \nList<SequenceMetadata> sequenceUpsertList = // list of SequenceMetadata; \n\nList<Relationship> relationshipList = new ArrayList<>(); \n\n//EVENT AND ASSET \nrelationshipList.add( \n     Relationship.newBuilder() \n          .setStartTime(Instant.now().toEpochMilli()) \n          .setEndTime(Instant.now().toEpochMilli()) \n          .setSourceType(Relationship.ResourceType.EVENT) \n          .setSourceExternalId(eventUpsertList.get(0).getExternalId()) \n          .setTargetType(Relationship.ResourceType.ASSET) \n          .setTargetExternalId(assetUpsertList.get(0).getExternalId()) \n          .setConfidence(ThreadLocalRandom.current().nextFloat()) \n          .build()); \n\n//TIME_SERIES AND ASSET \nrelationshipList.add( \n     Relationship.newBuilder() \n          .setStartTime(Instant.now().toEpochMilli()) \n          .setEndTime(Instant.now().toEpochMilli()) \n          .setSourceType(Relationship.ResourceType.TIME_SERIES) \n          .setSourceExternalId(timseriesUpsertList.get(1).getExternalId()) \n          .setTargetType(Relationship.ResourceType.ASSET) \n          .setTargetExternalId(assetUpsertList.get(1).getExternalId()) \n          .setConfidence(ThreadLocalRandom.current().nextFloat()) \n          .build()); \n\n//SEQUENCE AND EVENT \nrelationshipList.add( \n     Relationship.newBuilder() \n          .setStartTime(Instant.now().toEpochMilli()) \n          .setEndTime(Instant.now().toEpochMilli()) \n          .setSourceType(Relationship.ResourceType.SEQUENCE) \n          .setSourceExternalId(sequenceUpsertList.get(2).getExternalId()) \n          .setTargetType(Relationship.ResourceType.EVENT) \n          .setTargetExternalId(eventUpsertList.get(2).getExternalId()) \n          .setConfidence(ThreadLocalRandom.current().nextFloat()) \n          .build()); \n\nList<Relationship> upsertRelationshipsList = client.relationships() \n          .upsert(relationshipList); \n\n"
+    get:
+      summary: List relationships
+      tags:
+      - Relationships
+      description: '
+
+
+        > **Required capabilities:** `relationshipsAcl:READ`
+
+
+        Lists all relationships. The order of retrieved objects may change for two calls with the same parameters.
+
+        The endpoint supports pagination. The initial call to this endpoint should not contain a cursor, but the cursor parameter should be used to retrieve further pages of results.'
+      operationId: getRelationships
+      parameters:
+      - $ref: '#/components/parameters/Limit'
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/partition'
+      responses:
+        '200':
+          $ref: '#/components/responses/pagedPersistedRelationships'
+        '500':
+          $ref: '#/components/responses/generalError'
+      deprecated: false
+      x-capability:
+      - relationshipsAcl:READ
+  /relationships/update:
+    post:
+      summary: Update relationships
+      tags:
+      - Relationships
+      description: '
+
+
+        > **Required capabilities:** `relationshipsAcl:WRITE` `relationshipsAcl:READ`
+
+
+        Update relationships between resources according to the partial definitions of the relationships given in the payload of the request. This means that fields not mentioned in the payload will remain unchanged. Up to 1000 relationships can be updated in one operation.
+
+        To delete a value from an optional value the `setNull` field should be set to `true`.
+
+        The order of the updated relationships in the response equals the order in the request.'
+      operationId: updateRelationships
+      requestBody:
+        $ref: '#/components/requestBodies/updateObject'
+      responses:
+        '200':
+          $ref: '#/components/responses/persistedRelationships'
+        '400':
+          $ref: '#/components/responses/generalError'
+        '409':
+          $ref: '#/components/responses/409GeneralError'
+      x-capability:
+      - relationshipsAcl:WRITE
+      - relationshipsAcl:READ
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: 'rel = client.relationships.retrieve(external_id="flow1")
+
+          rel.confidence = 0.75
+
+          res = client.relationships.update(rel)
+
+
+          from cognite.client.data_classes import RelationshipUpdate
+
+          my_update = RelationshipUpdate(external_id="flow_1").source_external_id.set("alternate_source").confidence.set(0.97)
+
+          res1 = client.relationships.update(my_update)
+
+          another_update = RelationshipUpdate(external_id="flow_1").confidence.set(None)
+
+          res2 = client.relationships.update(another_update)
+
+
+          from cognite.client.data_classes import RelationshipUpdate
+
+          my_update = RelationshipUpdate(external_id="flow_1").labels.add(["PUMP", "VERIFIED"])
+
+          res = client.relationships.update(my_update)
+
+
+          from cognite.client.data_classes import RelationshipUpdate
+
+          my_update = RelationshipUpdate(external_id="flow_1").labels.remove("PUMP")
+
+          res = client.relationships.update(my_update)
+
+          '
+      - lang: Java
+        label: Java SDK
+        source: "List<Relationship> relationshipList = // list of Relationship for update; \nList<Relationship> upsertRelationshipsList = \n          client.relationships().upsert(relationshipList); \n\n"
+  /relationships/delete:
+    post:
+      summary: Delete relationships
+      tags:
+      - Relationships
+      description: '
+
+
+        > **Required capabilities:** `relationshipsAcl:WRITE`
+
+
+        Delete the relationships between resources identified by the external IDs in the request. You can delete a maximum of 1000 relationships per request.'
+      operationId: deleteRelationships
+      requestBody:
+        $ref: '#/components/requestBodies/delete'
+      responses:
+        '202':
+          $ref: '#/components/responses/emptyDeleteResponse'
+        '409':
+          $ref: '#/components/responses/409GeneralError'
+        '500':
+          $ref: '#/components/responses/generalError'
+      x-capability:
+      - relationshipsAcl:WRITE
+      deprecated: false
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: 'await client.relationships.delete([{externalId: ''abc''}, {externalId: ''def''}]);'
+      - lang: Python
+        label: Python SDK
+        source: 'client.relationships.delete(external_id=["a","b"])
+
+          '
+      - lang: Java
+        label: Java SDK
+        source: "List<Item> deleteItemsInput = List.of(Item.newBuilder() \n          .setExternalId(\"10\") \n          .build()); \nList<Item> deleteItemsResults = \n          client.relationships().delete(deleteItemsInput); \n\n"
+  /relationships/byids:
+    post:
+      summary: Retrieve relationships
+      tags:
+      - Relationships
+      description: '
+
+
+        > **Required capabilities:** `relationshipsAcl:READ`
+
+
+        Retrieve relationships by external IDs. You can retrieve a maximum of 1000 relationships per request.
+
+        The order of the relationships in the response equals the order in the request.'
+      operationId: byidsRelationships
+      requestBody:
+        $ref: '#/components/requestBodies/listOfExternalIds'
+      responses:
+        '200':
+          $ref: '#/components/responses/enrichedPersistedRelationships'
+        '400':
+          $ref: '#/components/responses/generalError'
+        '409':
+          $ref: '#/components/responses/409GeneralError'
+      x-capability:
+      - relationshipsAcl:READ
+      deprecated: false
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: 'const relationships = await client.relationships.retrieve([{externalId: ''abc''}, {externalId: ''def''}]);'
+      - lang: Python
+        label: Python SDK
+        source: 'res = client.relationships.retrieve_multiple(external_ids=["abc", "def"])
+
+          '
+      - lang: Java
+        label: Java SDK
+        source: "List<Item> byExternalIds = List.of(Item.newBuilder() \n          .setExternalId(\"10\") \n          .build()); \nList<Relationship> list = \n          client.relationships().retrieve(byExternalIds);//by list of items \nList<Relationship> list = \n          client.relationships().retrieve(\"10\", \"20\");//by varargs of String \n\nList<Item> byInternalIds = List.of(Item.newBuilder() \n          .setId(10) \n          .build()); \nList<Relationship> list = \n          client.relationships().retrieve(byInternalIds, true);//by list of items \nList<Relationship> list1 = \n          client.relationships().retrieve(10,20);//by varargs of Long \n\n"
+  /relationships/list:
+    post:
+      summary: Filter relationships
+      tags:
+      - Relationships
+      description: '
+
+
+        > **Required capabilities:** `relationshipsAcl:READ`
+
+
+        Lists relationships matching the query filter in the request. You can retrieve a maximum of 1000 relationships per request.'
+      operationId: listRelationships
+      requestBody:
+        $ref: '#/components/requestBodies/advancedList'
+      responses:
+        '200':
+          $ref: '#/components/responses/filteredRelationships'
+        '400':
+          $ref: '#/components/responses/generalError'
+        '409':
+          $ref: '#/components/responses/409GeneralError'
+      x-capability:
+      - relationshipsAcl:READ
+      deprecated: false
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: 'const relationships = await client.relationships.list({ filter: { createdTime: { min: new Date(''1 jan 2018''), max: new Date(''1 jan 2019'') }}});'
+      - lang: Python
+        label: Python SDK
+        source: "relationship_list = client.relationships.list(limit=5)\n\nfor relationship in client.relationships:\n    relationship # do something with the relationship\n"
+      - lang: Java
+        label: Java SDK
+        source: "List<Relationship> listRelationshipsResults = new ArrayList<>(); \nclient.relationships() \n          .list() \n          .forEachRemaining(listRelationshipsResults::addAll); \n\nclient.relationships() \n          .list(Request.create() \n               .withRootParameter(\"fetchResources\", true)) \n          .forEachRemaining(listRelationshipsResults::addAll); \n\n"
+components:
+  schemas:
+    GetTimeSeriesMetadataDTO:
+      required:
+      - id
+      - isString
+      - isStep
+      - type
+      - createdTime
+      - lastUpdatedTime
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/CogniteInternalId'
+        externalId:
+          maxLength: 255
+          type: string
+          description: The externally supplied ID for the time series.
+        instanceId:
+          $ref: '#/components/schemas/CogniteInstanceId'
+        name:
+          maxLength: 255
+          type: string
+          description: The display short name of the time series.
+        isString:
+          type: boolean
+          description: 'True if the time series contains string values; false if it contains numeric values.
+
+            '
+        type:
+          $ref: '#/components/schemas/TimeSeriesType'
+        metadata:
+          $ref: '#/components/schemas/TimeSeriesMetadata'
+        unit:
+          maxLength: 32
+          type: string
+          description: The physical unit of the time series (free-text field)
+        unitExternalId:
+          maxLength: 64
+          type: string
+          description: The physical unit of the time series as [represented in the unit catalog](<https://docs.cognite.com/dev/concepts/resource_types/units/>).
+        assetId:
+          description: Asset ID of equipment linked to this time series.
+          allOf:
+          - $ref: '#/components/schemas/CogniteInternalId'
+        isStep:
+          type: boolean
+          description: Defines whether the time series is a step series or not.
+        description:
+          maxLength: 1000
+          type: string
+          description: Description of the time series.
+        securityCategories:
+          type: array
+          description: The required security categories to access this time series.
+          items:
+            type: integer
+            description: Security categories required to access this time series.
+            format: int64
+        dataSetId:
+          $ref: '#/components/schemas/DataSetId'
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        lastUpdatedTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+    sourceType:
+      description: The resource type of the relationship source. Must be one of the specified values.
+      allOf:
+      - $ref: '#/components/schemas/resourceType'
+    LineString:
+      type: object
+      required:
+      - type
+      - coordinates
+      properties:
+        type:
+          type: string
+          enum:
+          - LineString
+        coordinates:
+          $ref: '#/components/schemas/LineStringCoordinates'
+    resourceType:
+      type: string
+      enum:
+      - asset
+      - timeSeries
+      - file
+      - event
+      - sequence
+    CogniteInternalId:
+      description: A server-generated ID for the object.
+      type: integer
+      minimum: 1
+      maximum: 9007199254740991
+      format: int64
+    LabelsAddRemove:
+      type: object
+      properties:
+        add:
+          type: array
+          description: A list of the labels to add to a resource.
+          minItems: 0
+          maxItems: 10
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/Label'
+        remove:
+          type: array
+          description: A list of the labels to remove from a resource.
+          minItems: 0
+          maxItems: 10
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/Label'
+    InternalId:
+      type: object
+      required:
+      - id
+      properties:
+        id:
+          $ref: '#/components/schemas/CogniteInternalId'
+    relationshipResponseWrapper:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          minItems: 1
+          maxItems: 1000
+          type: array
+          items:
+            $ref: '#/components/schemas/relationshipResponse'
+    relationshipRequestWrapper:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items:
+            $ref: '#/components/schemas/relationship'
+    resourceExternalId:
+      type: string
+      minLength: 1
+      maxLength: 255
+    resourceReferenceWithExternalId:
+      type: object
+      required:
+      - resource
+      - resourceId
+      properties:
+        type:
+          $ref: '#/components/schemas/resourceType'
+        externalId:
+          $ref: '#/components/schemas/resourceExternalId'
+    GetSequenceColumnDTO:
+      type: object
+      required:
+      - id
+      - valueType
+      - createdTime
+      - lastUpdatedTime
+      description: Information about a column stored in the database.
+      properties:
+        name:
+          type: string
+          example: depth
+          description: Human readable name of the column.
+        externalId:
+          type: string
+          example: DPS1
+          description: User provided column identifier (unique for a given sequence).
+        description:
+          type: string
+          example: Optional description
+          description: Description of the column.
+        valueType:
+          $ref: '#/components/schemas/SequenceValueTypeEnum'
+        metadata:
+          type: object
+          example:
+            extracted-by: cognite
+          description: Custom, application specific metadata. String key -> String value.
+          additionalProperties:
+            type: string
+        createdTime:
+          type: integer
+          example: 100000000000
+          description: Time when this asset was created in CDF in milliseconds since Jan 1, 1970.
+          format: int64
+          readOnly: true
+        lastUpdatedTime:
+          type: integer
+          example: 100000000000
+          description: The last time this asset was updated in CDF, in milliseconds since Jan 1, 1970.
+          format: int64
+          readOnly: true
+    GetSequenceDTO:
+      type: object
+      required:
+      - id
+      - columns
+      - createdTime
+      - lastUpdatedTime
+      description: Information about the sequence stored in the database.
+      properties:
+        id:
+          type: integer
+          description: Unique Cognite-provided identifier for the sequence.
+          example: 1
+          format: int64
+          readOnly: true
+        name:
+          type: string
+          example: Any relevant name
+          description: Name of the sequence.
+        description:
+          type: string
+          example: Optional description
+          description: Description of the sequence.
+        assetId:
+          type: integer
+          example: 1221123111
+          description: Optional asset this sequence is associated with.
+          format: int64
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        metadata:
+          type: object
+          example:
+            extracted-by: cognite
+          description: Custom, application specific metadata. String key -> String value. Maximum length of key is 128 bytes, up to 256 key-value pairs, up to a total size of 10000 bytes across all keys and values.
+          additionalProperties:
+            type: string
+        columns:
+          type: array
+          description: List of column definitions.
+          items:
+            $ref: '#/components/schemas/GetSequenceColumnDTO'
+        createdTime:
+          type: integer
+          example: 100000000000
+          description: Time when this sequence was created in CDF in milliseconds since Jan 1, 1970.
+          format: int64
+          readOnly: true
+        lastUpdatedTime:
+          type: integer
+          example: 100000000000
+          description: The last time this sequence was updated in CDF, in milliseconds since Jan 1, 1970.
+          format: int64
+          readOnly: true
+        dataSetId:
+          type: integer
+          format: int64
+          description: Data set this sequence belongs to.
+          example: 2718281828459
+    updateDataSetId:
+      title: updateDataSetId
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/setDataSetId'
+      - $ref: '#/components/schemas/RemoveField'
+      description: Set a new value for the dataSet Ids, or remove the value.
+    AssetSource:
+      type: string
+      maxLength: 128
+      description: The source of the asset.
+    cursorObject:
+      type: object
+      properties:
+        nextCursor:
+          type: string
+          description: The cursor to get the next page of results (if available).
+    FileSource:
+      maxLength: 128
+      type: string
+      description: The source of the file.
+    endTime:
+      description: The time, in milliseconds since Jan. 1, 1970, when the relationship became inactive. If there is no endTime, the relationship is active from startTime until the present or any point in the future. If endTime and startTime are set, the endTime must be greater than startTime.
+      allOf:
+      - $ref: '#/components/schemas/EpochTimestamp'
+    AssetName:
+      type: string
+      description: The name of the asset.
+      minLength: 1
+      maxLength: 140
+    updateRelationshipWrapper:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items:
+            $ref: '#/components/schemas/relationshipUpdate'
+    GeoLocation:
+      description: Geographic metadata.
+      required:
+      - type
+      - geometry
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+          - Feature
+          description: One of the GeoJSON types. Currently only the 'Feature' type is supported.
+        geometry:
+          $ref: '#/components/schemas/GeoLocationGeometry'
+        properties:
+          type: object
+          description: Additional properties in a String key -> Object value format.
+    updateEndTime:
+      title: updateEndTime
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/setEndTime'
+      - $ref: '#/components/schemas/RemoveField'
+    Event:
+      allOf:
+      - $ref: '#/components/schemas/InternalEvent'
+      - $ref: '#/components/schemas/InternalId'
+      - type: object
+        required:
+        - createdTime
+        - lastUpdatedTime
+        properties:
+          lastUpdatedTime:
+            $ref: '#/components/schemas/EpochTimestamp'
+          createdTime:
+            $ref: '#/components/schemas/EpochTimestamp'
+    Partition:
+      description: 'Splits the data set into `N` partitions.
+
+        The attribute is specified as a "M/N" string, where `M` is a natural number in the interval of `[1, N]`.
+
+        You need to follow the cursors within each partition in order to receive all the data.
+
+
+        To prevent unexpected problems and maximize read throughput, you should at most use 10 (N <= 10) partitions.
+
+
+        When using more than 10 partitions, CDF may reduce the number of partitions silently.
+
+        For example, CDF may reduce the number of partitions to `K = 10` so if you specify an `X/N` `partition` value where `X = 8` and `N = 20` - i.e. `"partition": "8/20"`- then
+
+        CDF will change `N` to `N = K = 10` and process the request.
+
+        But if you  specify the `X/N` `partition` value where `X = 11` (`X > K`) and `N = 20` - i.e. `"partition": "11/20"`- then
+
+        CDF will reply with an empty result list and no cursor in the response.\
+
+
+        In future releases of the resource APIs, Cognite may reject requests if you specify more than 10 partitions.
+
+        When Cognite enforces this behavior, the requests will result in a 400 Bad Request status.
+
+        '
+      type: string
+      example: 1/10
+    updateSourceType:
+      type: object
+      required:
+      - set
+      properties:
+        set:
+          $ref: '#/components/schemas/sourceType'
+      description: Set a new value for the relationship source type.
+    GeoLocationGeometry:
+      type: object
+      required:
+      - type
+      description: Represents the points, curves and surfaces in the coordinate space.
+      oneOf:
+      - $ref: '#/components/schemas/Point'
+      - $ref: '#/components/schemas/LineString'
+      - $ref: '#/components/schemas/Polygon'
+      - $ref: '#/components/schemas/MultiPoint'
+      - $ref: '#/components/schemas/MultiLineString'
+      - $ref: '#/components/schemas/MultiPolygon'
+      discriminator:
+        propertyName: type
+    updateConfidence:
+      title: updateConfidence
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/setConfidence'
+      - $ref: '#/components/schemas/RemoveField'
+      description: Set a new value for the confidence, or remove the value.
+    LabelContainsAllFilter:
+      type: object
+      required:
+      - containsAll
+      properties:
+        containsAll:
+          description: The resource item contains at least all the listed labels.
+          type: array
+          minItems: 1
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/Label'
+    updateTargetType:
+      type: object
+      required:
+      - set
+      properties:
+        set:
+          $ref: '#/components/schemas/targetType'
+      description: Set a new value for the relationship target type.
+    byIdsRequest:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          $ref: '#/components/schemas/itemsArray'
+        ignoreUnknownIds:
+          $ref: '#/components/schemas/ignoreUnknownIds'
+        fetchResources:
+          $ref: '#/components/schemas/fetchResources'
+    LabelList:
+      type: array
+      description: A list of the labels associated with this resource item.
+      minItems: 0
+      maxItems: 10
+      uniqueItems: true
+      items:
+        $ref: '#/components/schemas/Label'
+    DataSetId:
+      description: The dataSet Id for the item.
+      type: integer
+      minimum: 1
+      maximum: 9007199254740991
+      format: int64
+    AssetDescription:
+      type: string
+      description: The description of the asset.
+      maxLength: 500
+    InstanceExternalId:
+      type: string
+      pattern: ^[a-zA-Z]([a-zA-Z0-9_]{0,253}[a-zA-Z0-9])?$
+      minLength: 1
+      maxLength: 255
+    PolygonCoordinates:
+      description: 'List of one or more linear rings representing a shape.
+
+
+        A linear ring is the boundary of a surface or the boundary of a hole in a surface. It is defined as a list consisting of 4 or more Points, where the first and last Point is equivalent.
+
+
+        Each Point is defined as an array of 2 numbers, representing coordinates of a point in 2D space.
+
+
+        Example: `[[[35, 10], [45, 45], [15, 40], [10, 20], [35, 10]], [[20, 30], [35, 35], [30, 20], [20, 30]]]`
+
+        '
+      type: array
+      minItems: 2
+      items:
+        $ref: '#/components/schemas/LineStringCoordinates'
+    relationshipUpdateContent:
+      type: object
+      properties:
+        sourceType:
+          $ref: '#/components/schemas/updateSourceType'
+        sourceExternalId:
+          $ref: '#/components/schemas/updateSourceExternalId'
+        targetType:
+          $ref: '#/components/schemas/updateTargetType'
+        targetExternalId:
+          $ref: '#/components/schemas/updateTargetExternalId'
+        confidence:
+          $ref: '#/components/schemas/updateConfidence'
+        startTime:
+          $ref: '#/components/schemas/updateStartTime'
+        endTime:
+          $ref: '#/components/schemas/updateEndTime'
+        dataSetId:
+          $ref: '#/components/schemas/updateDataSetId'
+        labels:
+          $ref: '#/components/schemas/LabelsPatch'
+    InternalEvent:
+      type: object
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        dataSetId:
+          description: The id of the dataset this event belongs to.
+          allOf:
+          - $ref: '#/components/schemas/CogniteInternalId'
+        startTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        endTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        type:
+          $ref: '#/components/schemas/EventType'
+        subtype:
+          $ref: '#/components/schemas/EventSubType'
+        description:
+          maxLength: 500
+          type: string
+          description: Textual description of the event.
+        metadata:
+          $ref: '#/components/schemas/EventMetadata'
+        assetIds:
+          type: array
+          uniqueItems: true
+          description: Asset IDs of equipment that this event relates to.
+          items:
+            $ref: '#/components/schemas/CogniteInternalId'
+        source:
+          maxLength: 128
+          type: string
+          description: The source of this event.
+      description: An event represents something that happened at a given interval in time, for example, a failure, a work order, etc.
+    LabelContainsAnyFilter:
+      type: object
+      required:
+      - containsAny
+      properties:
+        containsAny:
+          description: The resource item contains at least one of the listed labels.
+          type: array
+          minItems: 1
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/Label'
+    PointCoordinates:
+      description: 'Coordinates of a point in 2D space, described as an array of 2 numbers.
+
+
+        Example: `[4.306640625, 60.205710352530346]`
+
+        '
+      type: array
+      minItems: 2
+      maxItems: 2
+      items:
+        type: number
+    relationshipResponse:
+      type: object
+      allOf:
+      - $ref: '#/components/schemas/relationship'
+      - $ref: '#/components/schemas/persistedObject'
+    updateSourceExternalId:
+      type: object
+      required:
+      - set
+      properties:
+        set:
+          $ref: '#/components/schemas/sourceExternalId'
+      description: Set a new value for the relationship source external ID.
+    enrichedRelationshipResponseWrapper:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          minItems: 1
+          maxItems: 1000
+          type: array
+          items:
+            $ref: '#/components/schemas/enrichedRelationshipResponse'
+    targetType:
+      description: The resource type of the relationship target. Must be one of the specified values.
+      allOf:
+      - $ref: '#/components/schemas/resourceType'
+    setEndTime:
+      type: object
+      title: set
+      required:
+      - set
+      properties:
+        set:
+          $ref: '#/components/schemas/endTime'
+    SequenceValueTypeEnum:
+      type: string
+      description: What type the datapoints in a column will have. DOUBLE is restricted to the range [-1E100, 1E100]
+      default: DOUBLE
+      enum:
+      - STRING
+      - DOUBLE
+      - LONG
+    InstanceId:
+      type: object
+      required:
+      - space
+      - externalId
+      properties:
+        space:
+          $ref: '#/components/schemas/InstanceSpace'
+        externalId:
+          $ref: '#/components/schemas/InstanceExternalId'
+    Asset:
+      allOf:
+      - type: object
+        required:
+        - rootId
+        - createdTime
+        - lastUpdatedTime
+        properties:
+          createdTime:
+            $ref: '#/components/schemas/EpochTimestamp'
+          lastUpdatedTime:
+            $ref: '#/components/schemas/EpochTimestamp'
+          rootId:
+            description: The ID of the root asset. The root asset is the asset spanning the entire asset hierarchy that this asset belongs to.
+            allOf:
+            - $ref: '#/components/schemas/CogniteInternalId'
+          aggregates:
+            $ref: '#/components/schemas/AggregateResultItem'
+          parentId:
+            description: The ID of the parent of this node, null if it is the root node.
+            allOf:
+            - $ref: '#/components/schemas/CogniteInternalId'
+          parentExternalId:
+            description: The external ID of the parent. The property is omitted if the asset doesn't have a parent or if the parent doesn't have externalId.
+            allOf:
+            - $ref: '#/components/schemas/CogniteExternalId'
+      - $ref: '#/components/schemas/ExternalAsset'
+      - $ref: '#/components/schemas/AssetInternalId'
+    pagedRelationshipResponseWrapper:
+      type: object
+      allOf:
+      - $ref: '#/components/schemas/relationshipResponseWrapper'
+      - $ref: '#/components/schemas/cursorObject'
+    ExternalFilesMetadata:
+      type: object
+      required:
+      - name
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        name:
+          $ref: '#/components/schemas/FileName'
+        directory:
+          $ref: '#/components/schemas/FileDirectory'
+        source:
+          $ref: '#/components/schemas/FileSource'
+        mimeType:
+          $ref: '#/components/schemas/MimeType'
+        metadata:
+          $ref: '#/components/schemas/FilesMetadataField'
+        assetIds:
+          type: array
+          items:
+            $ref: '#/components/schemas/CogniteInternalId'
+          maxItems: 1000
+          minItems: 1
+        dataSetId:
+          $ref: '#/components/schemas/DataSetId'
+        sourceCreatedTime:
+          allOf:
+          - description: The timestamp for when the file was originally created in the source system, specified in milliseconds since the epoch.
+          - $ref: '#/components/schemas/EpochTimestamp'
+        sourceModifiedTime:
+          allOf:
+          - description: The timestamp for when the file was last modified in the source system, specified in milliseconds since the epoch.
+          - $ref: '#/components/schemas/EpochTimestamp'
+        securityCategories:
+          type: array
+          description: The security category IDs required to access this file.
+          items:
+            $ref: '#/components/schemas/CogniteInternalId'
+          maxItems: 100
+          minItems: 0
+        labels:
+          $ref: '#/components/schemas/LabelList'
+        geoLocation:
+          $ref: '#/components/schemas/GeoLocation'
+    Cursor:
+      properties:
+        cursor:
+          type: string
+          example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+    floatRange:
+      type: object
+      description: Range to filter the field for (inclusive).
+      properties:
+        min:
+          type: number
+        max:
+          type: number
+    AssetIdentifier:
+      type: object
+      required:
+      - id
+      properties:
+        id:
+          $ref: '#/components/schemas/CogniteInternalId'
+    EventType:
+      maxLength: 64
+      type: string
+      description: Type of the event, e.g 'failure'.
+    updateTargetExternalId:
+      type: object
+      required:
+      - set
+      properties:
+        set:
+          $ref: '#/components/schemas/targetExternalId'
+      description: Set a new value for the relationship target external ID.
+    FilesMetadata:
+      allOf:
+      - $ref: '#/components/schemas/ExternalFilesMetadata'
+      - type: object
+        required:
+        - id
+        - uploaded
+        - createdTime
+        - lastUpdatedTime
+        properties:
+          id:
+            $ref: '#/components/schemas/CogniteInternalId'
+          uploaded:
+            type: boolean
+            description: Whether or not the actual file is uploaded. This field is returned only by the API, it has no effect in a post body.
+            example: true
+          uploadedTime:
+            $ref: '#/components/schemas/EpochTimestamp'
+          createdTime:
+            $ref: '#/components/schemas/EpochTimestamp'
+          lastUpdatedTime:
+            $ref: '#/components/schemas/EpochTimestamp'
+          instanceId:
+            $ref: '#/components/schemas/InstanceId'
+    EventSubType:
+      maxLength: 64
+      type: string
+      description: SubType of the event, e.g 'electrical'.
+    confidence:
+      description: Confidence value of the existence of the relationship. Generated relationships provide a score of the likelihood of the relationship existing. Relationships without a confidence value can be interpreted at the discretion of each project.
+      type: number
+      format: float
+      minimum: 0
+      maximum: 1
+    generalErrorWrapper:
+      type: object
+      required:
+      - error
+      description: Error wrapper Error message
+      properties:
+        error:
+          $ref: '#/components/schemas/generalError'
+    LineStringCoordinates:
+      description: 'Coordinates of a line described by a list of two or more points.
+
+        Each point is defined as a pair of two numbers in an array, representing coordinates of a point in 2D space.
+
+
+        Example: `[[30, 10], [10, 30], [40, 40]]`
+
+        '
+      type: array
+      minItems: 2
+      items:
+        $ref: '#/components/schemas/PointCoordinates'
+    FilesMetadataField:
+      type: object
+      description: 'Custom, application specific metadata. String key -> String value. Limits: Maximum length of key is 128 bytes, value 10240 bytes, up to 256 key-value pairs, of total size at most 10240.'
+      additionalProperties:
+        type: string
+    DataSetInternalId:
+      type: object
+      title: DataSetInternalId
+      required:
+      - id
+      properties:
+        id:
+          $ref: '#/components/schemas/CogniteInternalId'
+    LabelsSet:
+      type: object
+      properties:
+        set:
+          type: array
+          description: A list of the labels to replace (set) to a resource.
+          minItems: 0
+          maxItems: 10
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/Label'
+    generalError:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error
+      properties:
+        code:
+          type: integer
+          description: HTTP status code
+          format: int32
+          example: 409
+        message:
+          type: string
+          description: Error message
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
+    CogniteExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
+      type: string
+      maxLength: 255
+      example: my.known.id
+    relationship:
+      description: The representation of a relationship consists of a source and a target and additional parameters.
+      type: object
+      required:
+      - externalId
+      - sourceExternalId
+      - sourceType
+      - targetExternalId
+      - targetType
+      properties:
+        externalId:
+          description: External ID of the relationship, must be unique within the project.
+          allOf:
+          - $ref: '#/components/schemas/relationshipExternalId'
+        sourceExternalId:
+          $ref: '#/components/schemas/sourceExternalId'
+        sourceType:
+          $ref: '#/components/schemas/sourceType'
+        targetExternalId:
+          $ref: '#/components/schemas/targetExternalId'
+        targetType:
+          $ref: '#/components/schemas/targetType'
+        startTime:
+          $ref: '#/components/schemas/startTime'
+        endTime:
+          $ref: '#/components/schemas/endTime'
+        confidence:
+          $ref: '#/components/schemas/confidence'
+        dataSetId:
+          $ref: '#/components/schemas/dataSetId'
+        labels:
+          $ref: '#/components/schemas/LabelList'
+    targetExternalId:
+      description: The external ID of the resource that is the relationship target.
+      allOf:
+      - $ref: '#/components/schemas/relationshipExternalId'
+    MultiPolygonCoordinates:
+      description: 'List of multiple polygons.
+
+
+        Each polygon is defined as a list of one or more linear rings representing a shape.
+
+
+        A linear ring is the boundary of a surface or the boundary of a hole in a surface. It is defined as a list consisting of 4 or more Points, where the first and last Point is equivalent.
+
+
+        Each Point is defined as an array of 2 numbers, representing coordinates of a point in 2D space.
+
+
+        Example: `[[[[30, 20], [45, 40], [10, 40], [30, 20]]], [[[15, 5], [40, 10], [10, 20], [5, 10], [15, 5]]]]`
+
+        '
+      type: array
+      items:
+        $ref: '#/components/schemas/PolygonCoordinates'
+    fetchResources:
+      description: 'If true,
+
+        will try to fetch the resources referred to in the relationship,
+
+        based on the users access rights.
+
+        Will silently fail to attatch the resources if the user lacks access to some of them.
+
+        '
+      type: boolean
+      default: false
+    Polygon:
+      type: object
+      required:
+      - type
+      - coordinates
+      properties:
+        type:
+          type: string
+          enum:
+          - Polygon
+        coordinates:
+          $ref: '#/components/schemas/PolygonCoordinates'
+    relationshipExternalId:
+      type: string
+      minLength: 1
+      maxLength: 255
+      description: The external ID of the relationship.
+    MultiPointCoordinates:
+      description: 'List of Points. Each Point is defined as an array of 2 numbers, representing coordinates of a point in 2D space.
+
+
+        Example: `[[35, 10], [45, 45]]`
+
+        '
+      type: array
+      items:
+        $ref: '#/components/schemas/PointCoordinates'
+    AssetInternalId:
+      type: object
+      required:
+      - id
+      properties:
+        id:
+          $ref: '#/components/schemas/CogniteInternalId'
+    FileDirectory:
+      type: string
+      description: Directory containing the file. Must be an absolute, unix-style path.
+      maxLength: 512
+    ignoreUnknownIds:
+      description: Ignore external IDs that are not found.
+      type: boolean
+      default: false
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    itemsArray:
+      type: array
+      minItems: 1
+      maxItems: 1000
+      items:
+        $ref: '#/components/schemas/externalIdObject'
+    enrichedRelationshipResponse:
+      type: object
+      allOf:
+      - $ref: '#/components/schemas/relationship'
+      - $ref: '#/components/schemas/persistedObject'
+      - $ref: '#/components/schemas/enrichedRelationship'
+    DataSetIdEither:
+      oneOf:
+      - $ref: '#/components/schemas/DataSetInternalId'
+      - $ref: '#/components/schemas/DataSetExternalId'
+    EventMetadata:
+      type: object
+      description: 'Custom, application specific metadata. String key -> String value. Limits: Maximum length of key is 128 bytes, value 128000 bytes, up to 256 key-value pairs, of total size at most 200000.'
+      additionalProperties:
+        type: string
+        maxLength: 128000
+      x-maxKeyLength: 128
+      x-maxTotalSize: 200000
+      maxProperties: 256
+    Limit:
+      properties:
+        limit:
+          description: Limits the number of results to return.
+          type: integer
+          default: 100
+          minimum: 1
+          maximum: 1000
+    MimeType:
+      maxLength: 256
+      type: string
+      example: image/jpeg
+      description: File type. E.g. text/plain, application/pdf, ..
+    EpochTimestampRange:
+      description: Range between two timestamps (inclusive).
+      type: object
+      properties:
+        max:
+          description: Maximum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+          type: integer
+          minimum: 0
+          format: int64
+        min:
+          description: Minimum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+          type: integer
+          minimum: 0
+          format: int64
+    TimeSeriesMetadata:
+      type: object
+      description: Custom, application specific metadata. String key -> String value. Maximum length of key is 128 bytes, up to 256 key-value pairs, of total size of at most 10000 bytes across all keys and values.
+      additionalProperties:
+        type: string
+    LabelFilter:
+      description: Return only the resource matching the specified label constraints.
+      oneOf:
+      - $ref: '#/components/schemas/LabelContainsAnyFilter'
+      - $ref: '#/components/schemas/LabelContainsAllFilter'
+    Point:
+      type: object
+      required:
+      - type
+      - coordinates
+      properties:
+        type:
+          type: string
+          enum:
+          - Point
+        coordinates:
+          $ref: '#/components/schemas/PointCoordinates'
+    Label:
+      type: object
+      title: Label
+      required:
+      - externalId
+      description: A label assigned to a resource.
+      properties:
+        externalId:
+          description: An external ID to a predefined label definition.
+          allOf:
+          - $ref: '#/components/schemas/CogniteExternalId'
+    setDataSetId:
+      type: object
+      title: set
+      required:
+      - set
+      properties:
+        set:
+          $ref: '#/components/schemas/dataSetId'
+    deleteRequest:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          $ref: '#/components/schemas/itemsArray'
+        ignoreUnknownIds:
+          $ref: '#/components/schemas/ignoreUnknownIds'
+    AggregateResultItem:
+      description: Aggregated metrics of the asset.
+      type: object
+      properties:
+        childCount:
+          type: integer
+          description: Number of direct descendants for the asset.
+          format: int32
+          minimum: 0
+        depth:
+          type: integer
+          description: Asset path depth (number of levels below root node).
+          format: int32
+          minimum: 0
+        path:
+          description: IDs of assets on the path to the asset.
+          type: array
+          items:
+            $ref: '#/components/schemas/AssetIdentifier'
+    MultiLineStringCoordinates:
+      description: 'List of lines where each line (LineString) is defined as a list of two or more points.
+
+        Each point is defined as a pair of two numbers in an array, representing coordinates of a point in 2D space.
+
+
+        Example: `[[[30, 10], [10, 30]], [[35, 10], [10, 30], [40, 40]]]`
+
+        '
+      type: array
+      items:
+        $ref: '#/components/schemas/LineStringCoordinates'
+    FileName:
+      type: string
+      description: Name of the file.
+      maxLength: 256
+    enrichedRelationship:
+      type: object
+      properties:
+        source:
+          oneOf:
+          - $ref: '#/components/schemas/Asset'
+          - $ref: '#/components/schemas/GetTimeSeriesMetadataDTO'
+          - $ref: '#/components/schemas/Event'
+          - $ref: '#/components/schemas/FilesMetadata'
+          - $ref: '#/components/schemas/GetSequenceDTO'
+        target:
+          oneOf:
+          - $ref: '#/components/schemas/Asset'
+          - $ref: '#/components/schemas/GetTimeSeriesMetadataDTO'
+          - $ref: '#/components/schemas/Event'
+          - $ref: '#/components/schemas/FilesMetadata'
+          - $ref: '#/components/schemas/GetSequenceDTO'
+    LabelsPatch:
+      description: 'Updates the resource''s assigned labels.
+
+
+        Labels can be added, removed or replaced (set). Adding an already attached label is an idempotent operation. Removing a label with no matching externalId is silently ignored.'
+      oneOf:
+      - $ref: '#/components/schemas/LabelsAddRemove'
+      - $ref: '#/components/schemas/LabelsSet'
+    CogniteInstanceId:
+      description: The ID of an [instance in Cognite Data Models](https://docs.cognite.com/cdf/dm/dm_concepts/dm_spaces_instances#instance).
+      type: object
+      required:
+      - space
+      - externalId
+      properties:
+        space:
+          type: string
+          minLength: 1
+          maxLength: 43
+        externalId:
+          type: string
+          minLength: 1
+          maxLength: 255
+    externalIdObject:
+      type: object
+      properties:
+        externalId:
+          $ref: '#/components/schemas/relationshipExternalId'
+      required:
+      - externalId
+    MultiPoint:
+      type: object
+      required:
+      - type
+      - coordinates
+      properties:
+        type:
+          type: string
+          enum:
+          - MultiPoint
+        coordinates:
+          $ref: '#/components/schemas/MultiPointCoordinates'
+    DataSetExternalId:
+      type: object
+      title: DataSetExternalId
+      required:
+      - externalId
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+    updateStartTime:
+      title: updateStartTime
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/setStartTime'
+      - $ref: '#/components/schemas/RemoveField'
+      description: Set a new value for the start time, or remove the value.
+    dataSetId:
+      description: The ID of the dataset the relationship belongs to.
+      allOf:
+      - $ref: '#/components/schemas/CogniteInternalId'
+    startTime:
+      description: The time, in milliseconds since Jan. 1, 1970, when the relationship became active. If there is no startTime, the relationship is active from the beginning of time until endTime.
+      allOf:
+      - $ref: '#/components/schemas/EpochTimestamp'
+    relationshipUpdate:
+      type: object
+      required:
+      - externalId
+      - update
+      properties:
+        externalId:
+          $ref: '#/components/schemas/relationshipExternalId'
+        update:
+          $ref: '#/components/schemas/relationshipUpdateContent'
+    MultiLineString:
+      type: object
+      required:
+      - type
+      - coordinates
+      properties:
+        type:
+          type: string
+          enum:
+          - MultiLineString
+        coordinates:
+          $ref: '#/components/schemas/MultiLineStringCoordinates'
+    setStartTime:
+      type: object
+      title: set
+      required:
+      - set
+      properties:
+        set:
+          $ref: '#/components/schemas/startTime'
+    TimeSeriesType:
+      type: string
+      description: 'The type of the time series. Currently, time series can either be of type `numeric` or `string`. ** The available types of time series may be extended in the future. **
+
+        '
+    setConfidence:
+      type: object
+      title: set
+      required:
+      - set
+      properties:
+        set:
+          $ref: '#/components/schemas/confidence'
+    RemoveField:
+      title: remove
+      type: object
+      required:
+      - setNull
+      properties:
+        setNull:
+          type: boolean
+          example: true
+    ExternalAsset:
+      type: object
+      required:
+      - name
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        name:
+          $ref: '#/components/schemas/AssetName'
+        parentId:
+          description: 'The parent node''s ID used to specify parent-child relationship.
+
+
+            You should not use this field in combination with the parentExternalId field.
+
+            '
+          allOf:
+          - $ref: '#/components/schemas/CogniteInternalId'
+        parentExternalId:
+          description: 'The parent node''s external ID used to specify the parent-child relationship.
+
+            When specifying this field, the API will resolve the external ID into an internal ID and use the internal ID to store the parent-child relation.
+
+            As a result, a later change to update the parent''s external ID will not affect this parent-child relationship as it is based on internal ID.
+
+
+            You should not use this field in combination with the parentId field.
+
+            '
+          allOf:
+          - $ref: '#/components/schemas/CogniteExternalId'
+        description:
+          $ref: '#/components/schemas/AssetDescription'
+        dataSetId:
+          description: The id of the dataset this asset belongs to.
+          allOf:
+          - $ref: '#/components/schemas/CogniteInternalId'
+        metadata:
+          $ref: '#/components/schemas/AssetMetadata'
+        source:
+          $ref: '#/components/schemas/AssetSource'
+        labels:
+          $ref: '#/components/schemas/LabelList'
+        geoLocation:
+          $ref: '#/components/schemas/GeoLocation'
+      description: A representation of a physical asset, for example a factory or a piece of equipment.
+    pagedEnrichedRelationshipResponseWrapper:
+      type: object
+      allOf:
+      - $ref: '#/components/schemas/enrichedRelationshipResponseWrapper'
+      - $ref: '#/components/schemas/cursorObject'
+    persistedObject:
+      type: object
+      properties:
+        externalId:
+          $ref: '#/components/schemas/relationshipExternalId'
+        createdTime:
+          description: The time, in milliseconds since Jan. 1, 1970, when the relationship was created.
+          allOf:
+          - $ref: '#/components/schemas/EpochTimestamp'
+        lastUpdatedTime:
+          description: The time, in milliseconds since Jan. 1, 1970, when the relationship was last updated.
+          allOf:
+          - $ref: '#/components/schemas/EpochTimestamp'
+      required:
+      - externalId
+      - createdTime
+      - lastUpdatedTime
+    sourceExternalId:
+      description: The external ID of the resource that is the relationship source.
+      allOf:
+      - $ref: '#/components/schemas/resourceExternalId'
+    advancedListFilter:
+      type: object
+      description: 'Filter on relationships with exact match. Multiple filter elements in one property, for example `sourceExternalIds: [ "a", "b" ], returns all relationships where the sourceExternalId field is either `a` or `b`. Filters in multiple properties return relationships that match all criteria. If the filter is not specified, it defaults to an empty filter.'
+      properties:
+        sourceExternalIds:
+          type: array
+          description: Include relationships that have any of these values in their `sourceExternalId` field
+          items:
+            $ref: '#/components/schemas/resourceExternalId'
+          minItems: 1
+          maxItems: 1000
+        sourceTypes:
+          type: array
+          description: Include relationships that have any of these values in their `sourceType` field
+          items:
+            $ref: '#/components/schemas/resourceType'
+          minItems: 1
+          maxItems: 1000
+        targetExternalIds:
+          type: array
+          description: Include relationships that have any of these values in their `targetExternalId` field
+          items:
+            $ref: '#/components/schemas/resourceExternalId'
+          minItems: 1
+          maxItems: 1000
+        targetTypes:
+          type: array
+          description: Include relationships that have any of these values in their `targetType` field
+          items:
+            $ref: '#/components/schemas/resourceType'
+          minItems: 1
+          maxItems: 1000
+        dataSetIds:
+          type: array
+          maxItems: 1000
+          items:
+            $ref: '#/components/schemas/DataSetIdEither'
+        startTime:
+          $ref: '#/components/schemas/EpochTimestampRange'
+        endTime:
+          $ref: '#/components/schemas/EpochTimestampRange'
+        confidence:
+          $ref: '#/components/schemas/floatRange'
+        lastUpdatedTime:
+          $ref: '#/components/schemas/EpochTimestampRange'
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestampRange'
+        activeAtTime:
+          description: Limits results to those active within the specified time range, that is, if there is any overlap in the intervals [`activeAtTime.min`, `activeAtTime.max`] and [`startTime`, `endTime`], where both intervals are inclusive. If a relationship does not have a `startTime`, it is regarded as active from the beginning of time by this filter. If it does not have an `endTime` is is regarded as active until the end of time. Similarly, if a `min` is not supplied to the filter, the `min` is implicitly set to the beginning of time. If a `max` is not supplied, the `max` is implicitly set to the end of time.
+          allOf:
+          - $ref: '#/components/schemas/EpochTimestampRange'
+        labels:
+          $ref: '#/components/schemas/LabelFilter'
+        sourcesOrTargets:
+          type: array
+          description: Include relationships that match any of the resources in either their source- or target-related fields.
+          items:
+            $ref: '#/components/schemas/resourceReferenceWithExternalId'
+          minItems: 1
+          maxItems: 1
+    InstanceSpace:
+      type: string
+      pattern: ^[a-zA-Z][a-zA-Z0-9_-]{0,41}[a-zA-Z0-9]?$
+      minLength: 1
+      maxLength: 43
+    MultiPolygon:
+      type: object
+      required:
+      - type
+      - coordinates
+      properties:
+        type:
+          type: string
+          enum:
+          - MultiPolygon
+        coordinates:
+          $ref: '#/components/schemas/MultiPolygonCoordinates'
+    relationshipsAdvancedListRequest:
+      type: object
+      properties:
+        filter:
+          $ref: '#/components/schemas/advancedListFilter'
+        limit:
+          $ref: '#/components/schemas/Limit/properties/limit'
+        cursor:
+          $ref: '#/components/schemas/Cursor/properties/cursor'
+        fetchResources:
+          $ref: '#/components/schemas/fetchResources'
+        partition:
+          $ref: '#/components/schemas/Partition'
+    AssetMetadata:
+      type: object
+      description: 'Custom, application specific metadata. String key -> String value. Limits: Maximum length of key is 128 bytes, value 10240 bytes, up to 256 key-value pairs, of total size at most 10240.'
+      additionalProperties:
+        type: string
+        maxLength: 10240
+      x-maxKeyLength: 128
+      x-maxTotalSize: 10240
+      maxProperties: 256
+  requestBodies:
+    advancedList:
+      description: Data required to filter relationships. Combined filters are interpreted as an AND operation (not OR). Only relationships that match ALL the provided filters are returned.
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/relationshipsAdvancedListRequest'
+    newRelationship:
+      description: Data required to create relationships. You can request a maximum of 1000 relationships per request.
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/relationshipRequestWrapper'
+    delete:
+      description: Data required to delete relationships. You can delete a maximum of 1000 relationships per request.
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/deleteRequest'
+    listOfExternalIds:
+      description: Data required to list relationships.
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/byIdsRequest'
+    updateObject:
+      description: Data required to update relationships.
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/updateRelationshipWrapper'
+  responses:
+    pagedPersistedRelationships:
+      description: One page of relationships stored by CDF.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/pagedRelationshipResponseWrapper'
+    400GeneralError:
+      description: Bad request error. Typically issued if relationships in a create request have illegal/unsupported values.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/generalErrorWrapper'
+    emptyDeleteResponse:
+      description: Empty response for deleting relationships.
+      content:
+        application/json:
+          schema:
+            type: object
+    enrichedPersistedRelationships:
+      description: Relationships stored by CDF.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/enrichedRelationshipResponseWrapper'
+    filteredRelationships:
+      description: One page of relationships stored by CDF that match the provided filter.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/pagedEnrichedRelationshipResponseWrapper'
+    generalError:
+      description: General error object.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/generalErrorWrapper'
+    409GeneralError:
+      description: Conflict error. Typically issued if external IDs on any relationship already exists, or if there are duplicate external IDs in the request itself.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/generalErrorWrapper'
+    persistedRelationships:
+      description: Relationships stored by CDF.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/relationshipResponseWrapper'
+  parameters:
+    Limit:
+      name: limit
+      description: Limits the number of results to be returned. The maximum results returned by the server is 1000 even if you specify a higher limit.
+      in: query
+      schema:
+        type: integer
+        default: 100
+        minimum: 1
+        maximum: 1000
+    partition:
+      in: query
+      name: partition
+      required: false
+      description: 'Splits the data set into `N` partitions.
+
+        The attribute is specified as a "M/N" string, where `M` is a natural number in the interval of `[1, N]`.
+
+        You need to follow the cursors within each partition in order to receive all the data.
+
+
+        To prevent unexpected problems and maximize read throughput, you should at most use 10 (N <= 10) partitions.
+
+
+        When using more than 10 partitions, CDF may reduce the number of partitions silently.
+
+        For example, CDF may reduce the number of partitions to `K = 10` so if you specify an `X/N` `partition` value where `X = 8` and `N = 20` - i.e. `"partition": "8/20"`- then
+
+        CDF will change `N` to `N = K = 10` and process the request.
+
+        But if you  specify the `X/N` `partition` value where `X = 11` (`X > K`) and `N = 20` - i.e. `"partition": "11/20"`- then
+
+        CDF will reply with an empty result list and no cursor in the response.
+
+
+        In future releases of the resource APIs, Cognite may reject requests if you specify more than 10 partitions.
+
+        When Cognite enforces this behavior, the requests will result in a 400 Bad Request status.
+
+        '
+      schema:
+        type: string
+        example: 1/10
+    Cursor:
+      name: cursor
+      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
+
+        property, it means that there may be more results, and you should pass that value as the
+
+        `cursor` parameter in the next request.
+
+
+        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
+
+        decoded. Its internal structure is not a part of the public API, and may change without
+
+        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
+
+        '
+      in: query
+      schema:
+        type: string
+        example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+  securitySchemes:
+    oidc-token:
+      type: http
+      scheme: bearer
+      bearerFormat: OpenID Connect or OAuth2 token
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+    oauth2-client-credentials:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        clientCredentials:
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-auth-code:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://your-idps.authorization.url/
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-open-industrial-data:
+      type: oauth2
+      description: Auth flow for Open Industrial Data. Get your client secret from https://hub.cognite.com/open-industrial-data-211.
+      flows:
+        clientCredentials:
+          tokenUrl: https://login.microsoftonline.com/48d5043c-cf70-4c49-881c-c638f5796997/oauth2/v2.0/token
+          scopes:
+            default: https://api.cognitedata.com/.default
+    org-oidc-token:
+      type: openIdConnect
+      openIdConnectUrl: https://auth.cognite.com/.well-known/openid-configuration
+      description: 'Access token issued by the Cognite authorization server, and valid for the target organization. The token must
+
+        be an OpenID Connect token, and it can be obtained by performing an OIDC login flow toward `auth.cognite.com`.
+
+        This is a single URL for all CDF organizations.'
+x-tagGroups:
+- name: Changelog
+  tags:
+  - Changelog
+- name: Organizations and projects
+  tags:
+  - Organizations
+  - Projects
+- name: Identity and access management
+  tags:
+  - Principals
+  - Groups
+  - Security categories
+  - Sessions
+  - Token
+  - User profiles
+  - Project Deletion Reporting
+- name: Data modeling
+  tags:
+  - Data Modeling
+  - Data models
+  - Spaces
+  - Views
+  - Containers
+  - Nodes
+  - Instances
+  - Statistics
+  - Streams
+  - Records
+- name: Asset-centric data model
+  tags:
+  - Assets
+  - Time series
+  - Synthetic Time Series
+  - Data point subscriptions
+  - Events
+  - Files
+  - Sequences
+  - Geospatial
+  - Seismic
+- name: 3D
+  tags:
+  - 3D Models
+  - 3D Model Revisions
+  - 3D Files
+  - 3D Asset Mapping
+  - 3D Contextualization
+  - 3D Jobs
+  - 3D Migration
+  - 3D Scenes
+- name: Contextualization
+  tags:
+  - Entity matching
+  - Entity matching pipelines
+  - Engineering diagrams
+  - Vision
+  - Advanced joins
+- name: Cognite AI
+  tags:
+  - Agents
+  - Skills
+  - Chat Completions
+  - Document AI
+  - Models
+- name: Documents
+  tags:
+  - Documents
+  - Document preview
+- name: Data ingestion
+  tags:
+  - Raw
+  - Extraction Pipelines
+  - Extraction Pipelines Runs
+  - Extraction Pipelines Config
+  - Extractors
+- name: Data organization
+  tags:
+  - Data sets
+  - Data domains
+  - Data products
+  - Rule sets
+  - Labels
+  - Relationships
+  - Annotations
+- name: Transformations
+  tags:
+  - Transformations
+  - Transformation Jobs
+  - Transformation Schedules
+  - Transformation Notifications
+  - Query
+  - Schema
+- name: Functions
+  tags:
+  - Functions
+  - Function calls
+  - Function schedules
+- name: Hosted Extractors
+  tags:
+  - Sources
+  - Jobs
+  - Destinations
+  - Mappings
+- name: PostgreSQL Gateway
+  tags:
+  - Postgres Gateway Users
+  - Postgres Gateway Tables
+- name: SAP Writeback
+  tags:
+  - SAP Instances
+  - SAP Endpoints
+  - Schema Mappings
+  - Writeback Requests
+- name: Data workflows
+  tags:
+  - Workflows
+  - Workflow versions
+  - Workflow executions
+  - Workflow triggers
+  - Tasks
+  - Workers
+- name: Simulators
+  tags:
+  - Simulators
+  - Simulator Integrations
+  - Simulator Models
+  - Simulator Routines
+  - Simulation Runs
+  - Simulator Logs
+- name: Units
+  tags:
+  - Units
+  - Unit Systems
+- name: ''
+  tags:
+  - ''

@@ -1,0 +1,4496 @@
+openapi: 3.1.0
+info:
+  title: Cognite 3D Asset Mapping Instances API
+  description: "# Introduction\nThis is the reference documentation for the Cognite API with\nan overview of all the available methods.\n\n# Postman\nSelect the **Download** button to download our OpenAPI specification to get started.\n\nTo import your data into Postman, select **Import**, and the Import modal opens.\nYou can import items by dragging or dropping files or folders. You can choose how to import your API and manage the import settings in **View Import Settings**.\n\nIn the Import Settings, set the **Folder organization** to **Tags**, select\n**Enable optional parameters** to turn off the settings, and select **Always inherit authentication** to turn on the settings. Select **Import**.\n\nSet the Authorization to **Oauth2.0**. By default, the settings are for Open Industrial Data. Navigate to [Cognite Hub](https://hub.cognite.com/open-industrial-data-211) to understand how to get the credentials for use in Postman.\n\nFor more information, see [Getting Started with Postman](https://developer.cognite.com/dev/guides/postman/).\n\n# Pagination\nMost resource types can be paginated, indicated by the field `nextCursor` in the response.\nBy passing the value of `nextCursor` as the cursor you will get the next page of `limit` results.\nNote that all parameters except `cursor` has to stay the same.\n\n# Parallel retrieval\nAs general guidance, Parallel Retrieval is a technique that should be used when due to query complexity, retrieval of data in a single request is significantly slower than it would otherwise be for a simple request.  Parallel retrieval does not act as a speed multiplier on optimally running queries.  By parallelizing such requests, data retrieval performance can be tuned to meet the client application needs. \n\nCDF supports parallel retrieval through the `partition` parameter, which has the format `m/n` where `n` is the amount of partitions you would like to split the entire data set into.\nIf you want to download the entire data set by splitting it into 10 partitions, do the following in parallel with `m` running from 1 to 10:\n  - Make a request to `/events` with `partition=m/10`.\n  - Paginate through the response by following the cursor as explained above. Note that the `partition` parameter needs to be passed to all subqueries.\n\nProcessing of parallel retrieval requests is subject to concurrency quota availability. The request returns the `429` response upon exceeding concurrency limits. See the Request throttling chapter below.\n\nTo prevent unexpected problems and to maximize read throughput, you should at most use 10 partitions. \nSome CDF resources will automatically enforce a maximum of 10 partitions.\nFor more specific and detailed information, please read the ```partition``` attribute documentation for the CDF resource you're using.  \n\n# Requests throttling\nCognite Data Fusion (CDF) returns the HTTP `429` (too many requests) response status code when project capacity exceeds the limit.\n\nThe throttling can happen:\n  - If a user or a project sends too many (more than allocated) concurrent requests.\n  - If a user or a project sends a too high (more than allocated) rate of requests in a given amount of time.\n\nCognite recommends using a retry strategy based on truncated exponential backoff to handle sessions with HTTP response codes 429.\n\nCognite recommends using a reasonable number (up to 10) of  `Parallel retrieval` partitions.\n\nFollowing these strategies lets you slow down the request frequency to maximize productivity without having to re-submit/retry failing requests.\n\nSee more [here](https://docs.cognite.com/dev/concepts/resource_throttling).\n\n# API versions\n## Version headers\nThis API uses calendar versioning, and version names follow the `YYYYMMDD` format.\nYou can find the versions currently available by using the version selector at the top of this page.\n\nTo use a specific API version, you can pass the `cdf-version: $version` header along with your requests to the API.\n\n## Beta versions\nThe beta versions provide a preview of what the stable version will look like in the future.\nBeta versions contain functionality that is reasonably mature, and highly likely to become a part of the stable API.\n\nBeta versions are indicated by a `-beta` suffix after the version name. For example, the beta version header for the\n2023-01-01 version is then `cdf-version: 20230101-beta`.\n\n## Alpha versions\nAlpha versions contain functionality that is new and experimental, and not guaranteed to ever become a part of the stable API.\nThis functionality presents no guarantee of service, so its use is subject to caution.\n\nAlpha versions are indicated by an `-alpha` suffix after the version name. For example, the alpha version header for\nthe 2023-01-01 version is then `cdf-version: 20230101-alpha`."
+  version: v1
+  contact:
+    name: Cognite Support
+    url: https://support.cognite.com
+    email: support@cognite.com
+servers:
+- url: https://{cluster}.cognitedata.com/api/v1/projects/{project}
+  description: The URL for the CDF cluster to connect to
+  variables:
+    cluster:
+      enum:
+      - api
+      - az-tyo-gp-001
+      - az-eastus-1
+      - az-power-no-northeurope
+      - westeurope-1
+      - asia-northeast1-1
+      - gc-dsm-gp-001
+      default: api
+      description: The CDF cluster to connect to
+    project:
+      default: publicdata
+      description: The CDF project name.
+security:
+- oidc-token:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-client-credentials:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-open-industrial-data:
+  - https://api.cognitedata.com/.default
+- oauth2-auth-code:
+  - https://{cluster}.cognitedata.com/.default
+tags:
+- name: Instances
+paths:
+  /models/instances:
+    post:
+      tags:
+      - Instances
+      summary: Create or update nodes/edges
+      description: "\n\n> **Required capabilities:** `dataModelsAcl:WRITE`\n\nCreate or update nodes and edges in a transaction. The ```items``` field of the payload is an array of objects\nwhere each object describes a node or an edge to create, patch or replace. The ```instanceType``` field of\neach object must be ```node``` or ```edge``` and determines how the rest of the object is interpreted.\n\nThis operation is currently limited to 1000 nodes and/or edges at a time.\n\nIndividual nodes and edges are uniquely identified by their externalId and space.\n\nInstances will be returned in the same order as they are supplied in the request.\n\nFor more details on ingesting instances into a graph, see [Ingesting instances]\n(https://docs.cognite.com/cdf/dm/dm_concepts/dm_ingestion).\n\n### Creating new instances\n\nWhen there is no node or edge with the given externalId in the given space, a node will be created and the\nproperties provided for each of the containers or views in the ```sources``` array will be populated for the\nnode/edge. Nodes can also be created implicitly when an edge between them is created (if\n```autoCreateStartNodes``` and/or ``` autoCreateEndNodes``` is set), or when a direct relation\nproperty is set, the target node does not exist and ```autoCreateDirectRelations``` is set.\n\nTo add a node or edge, the user must have capabilities to access (write to) both the view(s) referenced in\n```sources``` and the container(s) underlying these views, as well as any directly referenced containers.\n\n### Updating (patching) or replacing instances\n\nWhen a node or edge (instance) with the given externalId already exists in a space, the\nproperties named in the ```sources``` field will be written to the instance. Other properties will remain\nunchanged. To replace the whole set of properties for an instance (a node or an edge) rather than patch the\ninstance, set the ```replace``` parameter to ```true```.\n\nNote: When using ```replace``` as ```true``` it will replace any omitted property to either it's default\nvalue as defined on the container(s) or null if no default value is set. All properties on the related\ncontainer(s) referenced in the provided ```sources``` view(s) will be replaced, so even when the provided\nview(s) only contains a subset of properties from a container all the properties in that container for that\ninstance will be replaced. If the underlying container(s) have any required properties that are not provided,\nthe operation will fail.\n\nIf you use a writable view to update properties (that is, the source you are referring to in ```sources```\nis a view), you must have write access to the view as well as all of its backing containers.\n\n### No-change patch operations\nWhen a node/edge item has no changes compared to the existing instance - that is, when the supplied property\nvalues are equal to the corresponding values in the existing node/edge, the node/edge will stay unchanged.\nIn this case, the ```lastUpdatedTime``` values for the nodes/edges in question will not change.\n\n### Deleting instances\nIt's also possible to delete instances by passing instance references to the `delete` field. Upserts and\ndeletes can be combined in the same request and will be executed atomically. The total number of ingested and\ndeleted items cannot exceed 1000. If an instance doesnâ\x80\x99t exist, the delete operation skips it and it won't be\nincluded in the response.\n"
+      operationId: applyNodeAndEdges
+      requestBody:
+        description: Nodes/edges to add or update.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InstanceBulk'
+        required: true
+      x-capability:
+      - dataModelsAcl:WRITE
+      responses:
+        '200':
+          $ref: '#/components/responses/SlimNodeAndEdgeCollectionResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          description: Ingestion conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpsertConflict'
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: "from cognite.client.data_classes.data_modeling import EdgeApply, NodeOrEdgeData, NodeApply\nnode = NodeApply(\"mySpace\", \"myNodeId\")\nres = client.data_modeling.instances.apply(node)\n\nfrom cognite.client.data_classes.data_modeling import EdgeApply, NodeOrEdgeData, NodeApply, ViewId\nactor = NodeApply(\n    space=\"actors\",\n    external_id=\"arnold_schwarzenegger\",\n    sources=[\n        NodeOrEdgeData(\n            ViewId(\"mySpace\", \"PersonView\", \"v1\"),\n            {\"name\": \"Arnold Schwarzenegger\", \"birthYear\": 1947}\n        ),\n        NodeOrEdgeData(\n            ViewId(\"mySpace\", \"ActorView\", \"v1\"),\n            {\"wonOscar\": False}\n        )\n    ]\n)\nmovie = NodeApply(\n    space=\"movies\",\n    external_id=\"Terminator\",\n    sources=[\n        NodeOrEdgeData(\n            ViewId(\"mySpace\", \"MovieView\", \"v1\"),\n            {\"title\": \"Terminator\", \"releaseYear\": 1984}\n        )\n    ]\n)\n# This is one-to-many edge, in this case from a person to a movie\nactor_to_movie = EdgeApply(\n    space=\"actors\",\n    external_id=\"relation:arnold_schwarzenegger:terminator\",\n    type=(\"types\", \"acts-in\"),\n    start_node=(\"actors\", \"arnold_schwarzenegger\"),\n    end_node=(\"movies\", \"Terminator\"),\n)\nres = client.data_modeling.instances.apply([actor, movie], [actor_to_movie])\n\nfrom cognite.client.data_classes.data_modeling import EdgeApply\nactor_to_movie = EdgeApply(\n    space=\"actors\",\n    external_id=\"relation:arnold_schwarzenegger:terminator\",\n    type=(\"types\", \"acts-in\"),\n    start_node=(\"actors\", \"arnold_schwarzenegger\"),\n    end_node=(\"movies\", \"Terminator\"),\n)\nres = client.data_modeling.instances.apply(\n    edges=actor_to_movie,\n    auto_create_start_nodes=True,\n    auto_create_end_nodes=True\n)\n\nfrom cognite.client.utils import datetime_to_ms_iso_timestamp\nfrom datetime import datetime, timezone\nmy_date = datetime(2020, 3, 14, 15, 9, 26, 535000, tzinfo=timezone.utc)\ndata_model_timestamp = datetime_to_ms_iso_timestamp(my_date)  # \"2020-03-14T15:09:26.535+00:00\"\n\nfrom cognite.client.data_classes.data_modeling import TypedNodeApply, PropertyOptions\nclass PersonApply(TypedNodeApply):\n    birth_year = PropertyOptions(identifier=\"birthYear\")\n\n    def __init__(self, space: str, external_id, name: str, birth_year: int):\n        super().__init__(space, external_id, type=(\"sp_model_space\", \"Person\"))\n        self.name = name\n        self.birth_year = birth_year\n    def get_source(self):\n        return ViewId(\"sp_model_space\", \"Person\", \"v1\")\nperson = PersonApply(\"sp_date_space\", \"my_person\", \"John Doe\", 1980)\nres = client.data_modeling.instances.apply(nodes=person)\n"
+  /models/instances/list:
+    post:
+      tags:
+      - Instances
+      summary: Filter nodes/edges
+      description: '
+
+
+        > **Required capabilities:** `dataModelsAcl:READ`
+
+
+        Filter the instances - nodes and edges - in a project.'
+      operationId: advancedListInstance
+      requestBody:
+        description: Filter based on the instance type, the name, the external-ids, and on properties. The filter supports sorting and pagination. The instances must have data in all the views referenced by the sources field. Properties for up to 10 views can be retrieved in one query.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NodeOrEdgeListRequestV3'
+        required: true
+      x-capability:
+      - dataModelsAcl:READ
+      responses:
+        '200':
+          $ref: '#/components/responses/NodeAndEdgeCollectionResponseWithCursorV3'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: "instance_list = client.data_modeling.instances.list(limit=5)\n\ninstance_list = client.data_modeling.instances.list(space=\"my-space\")\n\nfrom cognite.client.data_classes.data_modeling import InstanceSort\nproperty_sort = InstanceSort(\n    property=('space', 'view_xid/view_version', 'some_property'),\n    direction=\"descending\",\n    nulls_first=True)\ninstance_list = client.data_modeling.instances.list(sort=property_sort)\n\nfor instance in client.data_modeling.instances:\n    instance # do something with the instance\n\nfor instance_list in client.data_modeling.instances(chunk_size=100):\n    instance_list # do something with the instances\n"
+  /models/instances/byids:
+    post:
+      tags:
+      - Instances
+      summary: Retrieve nodes/edges by their external ids
+      description: '
+
+
+        > **Required capabilities:** `dataModelsAcl:READ`
+
+
+        Retrieve up to 1000 nodes or edges by their external ids.'
+      operationId: byExternalIdsInstances
+      requestBody:
+        description: List of external-ids for nodes or edges to retrieve. Properties for **up to 10 unique views** (in total across the external ids requested) can be retrieved in one query.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListOfSpaceExternalIdsRequestWithTyping'
+        required: true
+      x-capability:
+      - dataModelsAcl:READ
+      responses:
+        '200':
+          $ref: '#/components/responses/ByIdsResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: "res = client.data_modeling.instances.retrieve(\n    nodes=(\"mySpace\", \"myNodeExternalId\"),\n    edges=(\"mySpace\", \"myEdgeExternalId\"),\n    sources=(\"mySpace\", \"myViewExternalId\", \"myViewVersion\"))\n\nfrom cognite.client.data_classes.data_modeling import NodeId, EdgeId, ViewId\nres = client.data_modeling.instances.retrieve(\n    NodeId(\"mySpace\", \"myNode\"),\n    EdgeId(\"mySpace\", \"myEdge\"),\n    ViewId(\"mySpace\", \"myViewExternalId\", \"myViewVersion\"))\n\nfrom cognite.client.data_classes.data_modeling import NodeId, EdgeId\nres = client.data_modeling.instances.retrieve(\n    NodeId(\"mySpace\", \"myNode\"),\n    EdgeId(\"mySpace\", \"myEdge\"),\n    sources=(\"myspace\", \"myView\"))\nfrom cognite.client.data_classes.data_modeling import EdgeId, TypedEdge, PropertyOptions, DirectRelationReference, ViewId\nclass Flow(TypedEdge):\n   flow_rate = PropertyOptions(identifier=\"flowRate\")\n\n   def __init__(\n       self,\n       space: str,\n       external_id: str,\n       version: int,\n       type: DirectRelationReference,\n       last_updated_time: int,\n       created_time: int,\n       flow_rate: float,\n       start_node: DirectRelationReference,\n       end_node: DirectRelationReference,\n       deleted_time: int | None = None,\n   ) -> None:\n       super().__init__(\n           space, external_id, version, type, last_updated_time, created_time, start_node, end_node, deleted_time\n       )\n       self.flow_rate = flow_rate\n\n   @classmethod\n   def get_source(cls) -> ViewId:\n       return ViewId(\"sp_model_space\", \"flow\", \"1\")\nres = client.data_modeling.instances.retrieve_edges(\n    EdgeId(\"mySpace\", \"theFlow\"), edge_cls=Flow\n)\nisinstance(res, Flow)\nfrom cognite.client.data_classes.data_modeling import NodeId, TypedNode, PropertyOptions, DirectRelationReference, ViewId\nclass Person(TypedNode):\n   birth_year = PropertyOptions(identifier=\"birthYear\")\n\n   def __init__(\n       self,\n       space: str,\n       external_id: str,\n       version: int,\n       last_updated_time: int,\n       created_time: int,\n       name: str,\n       birth_year: int | None = None,\n       type: DirectRelationReference | None = None,\n       deleted_time: int | None = None,\n   ):\n       super().__init__(\n           space=space,\n           external_id=external_id,\n           version=version,\n           last_updated_time=last_updated_time,\n           created_time=created_time,\n           type=type,\n           deleted_time=deleted_time\n       )\n       self.name = name\n       self.birth_year = birth_year\n\n   @classmethod\n   def get_source(cls) -> ViewId:\n       return ViewId(\"myModelSpace\", \"Person\", \"1\")\nres = client.data_modeling.instances.retrieve_nodes(\n    NodeId(\"myDataSpace\", \"myPerson\"), node_cls=Person\n)\nisinstance(res, Person)\n"
+  /models/instances/search:
+    post:
+      tags:
+      - Instances
+      summary: Search for nodes/edges
+      description: '
+
+
+        > **Required capabilities:** `DataModels:READ`
+
+
+        Search text fields in views for nodes or edge(s). The service will return up to 1000 results. This operation orders the results by relevance, across the specified spaces.'
+      operationId: searchInstances
+      requestBody:
+        description: The search specification.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NodeOrEdgeSearchRequest'
+        required: true
+      x-capability:
+      - DataModels:READ
+      responses:
+        '200':
+          $ref: '#/components/responses/SearchResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: "from cognite.client.data_classes.data_modeling import ViewId\nres = client.data_modeling.instances.search(\n    ViewId(\"mySpace\", \"PersonView\", \"v1\"),\n    query=\"Arnold\",\n    properties=[\"name\"])\n\nfrom cognite.client.data_classes.data_modeling import ViewId\nfrom cognite.client.data_classes import filters\nborn_after_1970 = filters.Range([\"mySpace\", \"PersonView/v1\", \"birthYear\"], gt=1970)\nres = client.data_modeling.instances.search(\n    ViewId(\"mySpace\", \"PersonView\", \"v1\"),\n    query=\"Quentin\",\n    properties=[\"name\"],\n    filter=born_after_1970)\n"
+  /models/instances/aggregate:
+    post:
+      tags:
+      - Instances
+      summary: Aggregate data across nodes/edges
+      description: '
+
+
+        > **Required capabilities:** `dataModelsAcl:READ`
+
+
+        Aggregate data for nodes or edges in a project. You can use an optional query or filter specification to limit the result.'
+      operationId: aggregateInstances
+      requestBody:
+        description: Aggregation specification.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AggregationRequest'
+        required: true
+      x-capability:
+      - dataModelsAcl:READ
+      responses:
+        '200':
+          $ref: '#/components/responses/AggregationResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: 'from cognite.client.data_classes.data_modeling import ViewId, aggregations as aggs
+
+          avg_run_time = aggs.Avg("runTimeMinutes")
+
+          view_id = ViewId("mySpace", "PersonView", "v1")
+
+          res = client.data_modeling.instances.aggregate(view_id, avg_run_time, group_by="releaseYear")
+
+          from cognite.client.data_classes.data_modeling import aggregations as aggs, ViewId
+
+          birth_by_decade = aggs.Histogram("birthYear", interval=10.0)
+
+          view_id = ViewId("mySpace", "PersonView", "v1")
+
+          res = client.data_modeling.instances.histogram(view_id, birth_by_decade)
+
+          '
+  /models/instances/delete:
+    post:
+      tags:
+      - Instances
+      summary: Delete nodes/edges
+      description: '
+
+
+        > **Required capabilities:** `dataModelsAcl:WRITE`
+
+
+        Delete nodes and edges in a transaction. Limited to 1000 nodes/edges at a time.
+
+
+
+        When a node is selected for deletion, all connected incoming and outgoing edges that point to or from it are also deleted. However, please note that the operation might fail if the node has a high number of edge connections. If this is the case, consider deleting the edges connected to the node before deleting the node itself.
+
+        Nodes and/or edges that do not exist in the graph when the delete request is processed will be ignored. The rationale for this is that the end-state will reflect the desired state regardless of the instance''s previous state.
+
+        Note that attempting to delete something from a space that does not exist will be considered an invalid request, as the API does not affect spaces themselves, only graph nodes and edges. '
+      operationId: deleteBulk
+      requestBody:
+        description: List of types, spaces, and external-ids for nodes and edges to delete.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NodeOrEdgeDeleteRequest'
+        required: true
+      x-capability:
+      - dataModelsAcl:WRITE
+      responses:
+        '200':
+          $ref: '#/components/responses/NodeOrEdgeDeleteResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: 'client.data_modeling.instances.delete(nodes=("mySpace", "myNode"))
+
+
+          from cognite.client.data_classes.data_modeling import NodeId, EdgeId
+
+          client.data_modeling.instances.delete(NodeId(''mySpace'', ''myNode''), EdgeId(''mySpace'', ''myEdge''))
+
+
+          from cognite.client.data_classes.data_modeling import NodeId, EdgeId
+
+          my_view = client.data_modeling.views.retrieve((''mySpace'', ''myView''))
+
+          my_nodes = client.data_modeling.instances.list(instance_type=''node'', sources=my_view, limit=None)
+
+          client.data_modeling.instances.delete(nodes=my_nodes.as_ids())
+
+          '
+  /models/instances/query:
+    post:
+      tags:
+      - Instances
+      summary: Query nodes/edges
+      description: '
+
+
+        > **Required capabilities:** `dataModelsAcl:READ`
+
+
+        Specification of query endpoint. For more information, see [Query language](https://docs.cognite.com/cdf/dm/dm_concepts/dm_querying).'
+      operationId: queryContent
+      requestBody:
+        description: Query specification.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueryRequest'
+        required: true
+      x-capability:
+      - dataModelsAcl:READ
+      responses:
+        '200':
+          $ref: '#/components/responses/QueryResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: "from cognite.client.data_classes.data_modeling.query import Query, Select, NodeResultSetExpression, EdgeResultSetExpression, SourceSelector\nfrom cognite.client.data_classes.filters import Range, Equals\nfrom cognite.client.data_classes.data_modeling.ids import ViewId\nmovie_id = ViewId(\"mySpace\", \"MovieView\", \"v1\")\nactor_id = ViewId(\"mySpace\", \"ActorView\", \"v1\")\nquery = Query(\n    with_ = {\n        \"movies\": NodeResultSetExpression(filter=Range(movie_id.as_property_ref(\"releaseYear\"), lt=2000)),\n        \"actors_in_movie\": EdgeResultSetExpression(from_=\"movies\", filter=Equals([\"edge\", \"type\"], {\"space\": movie_id.space, \"externalId\": \"Movie.actors\"})),\n        \"actors\": NodeResultSetExpression(from_=\"actors_in_movie\"),\n    },\n    select = {\n        \"actors\": Select(\n            [SourceSelector(actor_id, [\"name\"])], sort=[InstanceSort(actor_id.as_property_ref(\"name\"))]),\n    },\n)\nres = client.data_modeling.instances.query(query)\n\nfrom cognite.client.data_classes.data_modeling.data_types import UnitReference, UnitSystemReference\nselected_source = SourceSelector(\n    source=ViewId(\"my-space\", \"my-xid\", \"v1\"),\n    properties=[\"f32_prop1\", \"f32_prop2\", \"f64_prop1\", \"f64_prop2\"],\n    target_units=[\n        TargetUnit(\"f32_prop1\", UnitReference(\"pressure:kilopa\")),\n        TargetUnit(\"f32_prop2\", UnitReference(\"pressure:barg\")),\n        TargetUnit(\"f64_prop1\", UnitSystemReference(\"SI\")),\n        TargetUnit(\"f64_prop2\", UnitSystemReference(\"Imperial\")),\n    ],\n)\n\nSourceSelector(source=ViewId(\"my-space\", \"my-xid\", \"v1\"), properties=[\"*\"])\n"
+  /models/instances/sync:
+    post:
+      tags:
+      - Instances
+      summary: Sync nodes/edges
+      description: '
+
+
+        > **Required capabilities:** `dataModelsAcl:READ`
+
+
+        Subscribe to changes for nodes and edges in a project, matching a supplied filter.  This endpoint will always return a ```NextCursor```.  The sync specification mirrors the query interface, but sorting is not currently supported. For more information, see [Query language](https://docs.cognite.com/cdf/dm/dm_concepts/dm_querying).'
+      operationId: syncContent
+      requestBody:
+        description: Change filter specification
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SyncRequest'
+        required: true
+      x-capability:
+      - dataModelsAcl:READ
+      responses:
+        '200':
+          $ref: '#/components/responses/QueryResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: "from cognite.client.data_classes.data_modeling.instances import InstanceSort\nfrom cognite.client.data_classes.data_modeling.query import Query, Select, NodeResultSetExpression, EdgeResultSetExpression, SourceSelector\nfrom cognite.client.data_classes.filters import Range, Equals\nfrom cognite.client.data_classes.data_modeling.ids import ViewId\nmovie_id = ViewId(\"mySpace\", \"MovieView\", \"v1\")\nactor_id = ViewId(\"mySpace\", \"ActorView\", \"v1\")\nquery = Query(\n    with_ = {\n        \"movies\": NodeResultSetExpression(filter=Range(movie_id.as_property_ref(\"releaseYear\"), lt=2000)),\n        \"actors_in_movie\": EdgeResultSetExpression(from_=\"movies\", filter=Equals([\"edge\", \"type\"], {\"space\": movie_id.space, \"externalId\": \"Movie.actors\"})),\n        \"actors\": NodeResultSetExpression(from_=\"actors_in_movie\"),\n    },\n    select = {\n        \"actors\": Select(\n            [SourceSelector(actor_id, [\"name\"])], sort=[InstanceSort(actor_id.as_property_ref(\"name\"))]),\n    },\n)\nres = client.data_modeling.instances.sync(query)\nquery.cursors = res.cursors\nres_new = client.data_modeling.instances.sync(query)\n"
+  /models/instances/inspect:
+    post:
+      tags:
+      - Instances
+      summary: Inspect instances
+      operationId: instanceInspect
+      requestBody:
+        description: Change filter specification
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InstanceInspectRequest'
+        required: true
+      x-capability:
+      - dataModelsAcl:READ
+      responses:
+        '200':
+          $ref: '#/components/responses/InstanceInspectResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: "from cognite.client.data_classes.data_modeling import NodeId, EdgeId\nres = client.data_modeling.instances.inspect(\n    nodes=NodeId(\"my-space\", \"foo1\"),\n    edges=EdgeId(\"my-space\", \"bar2\"),\n)\n"
+      description: '
+
+
+        > **Required capabilities:** `dataModelsAcl:READ`
+
+        '
+components:
+  schemas:
+    SortingNotice:
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/SortNotBackedByIndexNotice'
+      - $ref: '#/components/schemas/FilterMatchesCursorableSortNotice'
+      - $ref: '#/components/schemas/FilterMatchesBrokenCursorableIndexNotice'
+      discriminator:
+        propertyName: code
+        mapping:
+          sortNotBackedByIndex: '#/components/schemas/SortNotBackedByIndexNotice'
+          filterMatchesCursorableSort: '#/components/schemas/FilterMatchesCursorableSortNotice'
+          filterMatchesBrokenCursorableIndex: '#/components/schemas/FilterMatchesBrokenCursorableIndexNotice'
+    AggregatedHistogramValue:
+      type: object
+      required:
+      - aggregate
+      - interval
+      - property
+      - buckets
+      properties:
+        aggregate:
+          type: string
+          enum:
+          - histogram
+        interval:
+          type: number
+          example: 50
+        property:
+          type: string
+          example: duration
+        buckets:
+          type: array
+          description: List (array) of buckets to use for histogram aggregates.
+          items:
+            type: object
+            required:
+            - start
+            - count
+            properties:
+              start:
+                description: Start value for a histogram bucket
+                type: number
+                example: 1050
+              count:
+                description: Number of items in the histogram bucket
+                type: integer
+                example: 7
+    IntractableCursorWithNestedFilterNotice:
+      description: Emitted when a query supplies both a cursor and a nested filter on the same result set expression. Nested filters require a join that invalidates cursor positions, making pagination results unreliable.
+      type: object
+      required:
+      - code
+      - category
+      - hint
+      - level
+      - grade
+      - resultExpression
+      properties:
+        code:
+          type: string
+          enum:
+          - intractableCursorWithNestedFilter
+        category:
+          type: string
+          enum:
+          - cursoring
+        level:
+          type: string
+          enum:
+          - warning
+        grade:
+          type: string
+          enum:
+          - D
+        hint:
+          type: string
+          description: A user-friendly message explaining why cursoring is intractable with a nested filter.
+        resultExpression:
+          type: string
+          description: Identifier for the result set expression that the notice applies to.
+    QueryUnionTableExpressionV3:
+      title: union
+      description: 'Return the union of the specified result sets. We will remove the results that match the optional
+
+        exception result sets.  But this operation does not result in duplicate results as it performs
+
+        deduplication.
+
+
+        Note: You should use the `unionAll` operation whenever possible. Using it enables a built-in optimization.
+
+        I.e. `A unionAll B` with `limit: n` will execute set operation B, if and only if, A returns less than
+
+        n records.
+
+        '
+      type: object
+      required:
+      - union
+      properties:
+        union:
+          type: array
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/QuerySetOperationTableExpressionV3'
+            - type: string
+        except:
+          type: array
+          items:
+            type: string
+        limit:
+          $ref: '#/components/schemas/TableExpressionQueryLimit'
+    SearchSort:
+      type: object
+      required:
+      - property
+      properties:
+        property:
+          $ref: '#/components/schemas/DMSFilterProperty'
+        direction:
+          type: string
+          default: ascending
+          enum:
+          - ascending
+          - descending
+    SyncTableExpressionV3:
+      oneOf:
+      - $ref: '#/components/schemas/SyncNodeTableExpressionV3'
+      - $ref: '#/components/schemas/SyncEdgeTableExpressionV3'
+    SearchOperator:
+      type: string
+      description: "Controls how multiple search terms are combined when matching documents.\n- **OR** (default): A document matches if it contains *any* of the query terms\n  in the searchable fields. This typically returns more results but with lower precision.\n\n- **AND**: A document matches only if it contains *all* of the query terms\n  across the searchable fields. This typically returns fewer results but with higher relevance.\n"
+      enum:
+      - AND
+      - OR
+      default: OR
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
+    QueryIntersectionTableExpressionV3:
+      title: intersection
+      type: object
+      description: Find the common elements in the returned result set. Excludes the elements from the optional `except` result set.
+      required:
+      - intersection
+      properties:
+        intersection:
+          type: array
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/QuerySetOperationTableExpressionV3'
+            - type: string
+        except:
+          type: array
+          items:
+            type: string
+        limit:
+          $ref: '#/components/schemas/TableExpressionQueryLimit'
+    EdgeWrite:
+      description: Edge to create or update
+      type: object
+      required:
+      - instanceType
+      - space
+      - externalId
+      - startNode
+      - endNode
+      - type
+      properties:
+        instanceType:
+          type: string
+          enum:
+          - edge
+          default: edge
+        existingVersion:
+          description: Fail the ingestion request if the edge's version is greater than this value. If no existingVersion is specified, the ingestion will always overwrite any existing data for the edge (for the specified container or view). If existingVersion is set to 0, the upsert will behave as an insert, so it will fail the bulk if the item already exists. If skipOnVersionConflict is set on the ingestion request, then the item will be skipped instead of failing the ingestion request.
+          type: integer
+        type:
+          description: Edge type (direct relation)
+          allOf:
+          - $ref: '#/components/schemas/DirectRelationReference'
+        space:
+          description: Id of the space that the edge belongs to. This id cannot be updated.
+          allOf:
+          - $ref: '#/components/schemas/SpaceSpecification'
+        externalId:
+          description: Unique alphanumeric identifier for the edge
+          allOf:
+          - $ref: '#/components/schemas/NodeOrEdgeExternalId'
+        startNode:
+          $ref: '#/components/schemas/DirectRelationReference'
+        endNode:
+          $ref: '#/components/schemas/DirectRelationReference'
+        sources:
+          type: array
+          description: Properties to write to in a view or container, for the edge.
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/EdgeOrNodeData'
+    AggregationRequest:
+      allOf:
+      - $ref: '#/components/schemas/CommonAggregationRequest'
+      - type: object
+        required:
+        - view
+        properties:
+          instanceType:
+            $ref: '#/components/schemas/InstanceType'
+          view:
+            $ref: '#/components/schemas/ViewReference'
+          targetUnits:
+            $ref: '#/components/schemas/TargetUnits'
+          includeTyping:
+            $ref: '#/components/schemas/IncludeTyping'
+    InstanceInspectRequest:
+      type: object
+      required:
+      - inspectionOperations
+      - items
+      properties:
+        inspectionOperations:
+          type: object
+          properties:
+            involvedViews:
+              type: object
+              properties:
+                allVersions:
+                  type: boolean
+                  default: false
+            involvedContainers:
+              type: object
+              properties:
+                allVersions:
+                  type: boolean
+                  default: false
+        items:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items:
+            type: object
+            required:
+            - instanceType
+            - space
+            - externalId
+            properties:
+              instanceType:
+                description: The type of instance being returned, an edge or a node.
+                allOf:
+                - $ref: '#/components/schemas/InstanceType'
+              externalId:
+                description: External ids for the requested items
+                allOf:
+                - $ref: '#/components/schemas/NodeOrEdgeExternalId'
+              space:
+                $ref: '#/components/schemas/SpaceSpecification'
+    EdgeOrNodeData:
+      type: object
+      description: Property values for the identified/specified view or container
+      properties:
+        source:
+          $ref: '#/components/schemas/SourceReference'
+        properties:
+          $ref: '#/components/schemas/PropertyValueGroupV3'
+      required:
+      - source
+    ContainersWithoutIndexesInvolvedNotice:
+      type: object
+      required:
+      - code
+      - category
+      - hint
+      - level
+      - grade
+      - resultExpression
+      - containers
+      properties:
+        code:
+          type: string
+          enum:
+          - containersWithoutIndexesInvolved
+        category:
+          type: string
+          enum:
+          - indexing
+        level:
+          type: string
+          enum:
+          - warning
+        hint:
+          type: string
+        grade:
+          type: string
+          enum:
+          - C
+        resultExpression:
+          type: string
+          description: Identifier for the result set expression that the notice applies to.
+        containers:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContainerReference'
+          description: List of containers that the notice applies to.
+    AggregatedValueItem:
+      oneOf:
+      - $ref: '#/components/schemas/AggregatedNumberValue'
+      - $ref: '#/components/schemas/AggregatedHistogramValue'
+    AggregationDefinition:
+      type: object
+      description: An aggregate.  It consists of a name, an aggregator function, and the field to use for the function.
+      oneOf:
+      - $ref: '#/components/schemas/AvgAggregateFunctionV3'
+      - $ref: '#/components/schemas/CountAggregateFunctionV3'
+      - $ref: '#/components/schemas/MinAggregateFunctionV3'
+      - $ref: '#/components/schemas/MaxAggregateFunctionV3'
+      - $ref: '#/components/schemas/SumAggregateFunctionV3'
+      - $ref: '#/components/schemas/HistogramAggregateFunctionV3'
+    NodeOrEdgeSearchRequest:
+      description: Searching nodes or edges using properties from a view
+      type: object
+      allOf:
+      - $ref: '#/components/schemas/SearchRequestV3'
+    DMSExternalId:
+      type: string
+      pattern: ^[a-zA-Z]([a-zA-Z0-9_]{0,253}[a-zA-Z0-9])?$
+      minLength: 1
+      maxLength: 255
+    SyncSelectV3:
+      type: object
+      description: Define which view to return properties for, and the properties to return. Up to 10 views can be specified per query.
+      properties:
+        sources:
+          $ref: '#/components/schemas/SourceSelectorV3'
+    CountAggregateFunctionV3:
+      title: count
+      type: object
+      description: Counts the number of items.  When you specify a property, it returns the number of non-null values for that property.
+      required:
+      - count
+      properties:
+        count:
+          type: object
+          properties:
+            property:
+              type: string
+              description: The property to count. If specified, counts all non-null values for the specified property.
+    MatchAllFilter:
+      type: object
+      title: matchAll
+      required:
+      - matchAll
+      properties:
+        matchAll:
+          description: All the listed items must match the clause.
+          type: object
+          maxProperties: 0
+    DMSVersion:
+      type: string
+      pattern: ^[a-zA-Z0-9]([.a-zA-Z0-9_-]{0,41}[a-zA-Z0-9])?$
+      minLength: 1
+      maxLength: 43
+    NextCursorV3:
+      description: The cursor value used to return (paginate to) the next page of results, when more data is available.
+      type: string
+    QueryEdgeTableExpressionV3:
+      title: edge result expression
+      description: Specifies a result set of edges.
+      type: object
+      required:
+      - edges
+      properties:
+        sort:
+          type: array
+          maxItems: 5
+          items:
+            $ref: '#/components/schemas/PropertySortV3'
+        postSort:
+          type: array
+          maxItems: 5
+          items:
+            $ref: '#/components/schemas/PropertySortV3'
+        limit:
+          $ref: '#/components/schemas/TableExpressionQueryLimit'
+        edges:
+          type: object
+          properties:
+            from:
+              description: The name of a result expression to chain from.
+              type: string
+            chainTo:
+              $ref: '#/components/schemas/TableExpressionChainToDefinition'
+            maxDistance:
+              description: The largest - max - number of levels to traverse.
+              type: integer
+            direction:
+              description: The direction to use when traversing.
+              type: string
+              default: outwards
+              enum:
+              - outwards
+              - inwards
+            filter:
+              $ref: '#/components/schemas/TableExpressionFilterDefinition'
+            nodeFilter:
+              $ref: '#/components/schemas/TableExpressionFilterDefinition'
+            terminationFilter:
+              $ref: '#/components/schemas/TableExpressionFilterDefinition'
+            limitEach:
+              type: integer
+              description: Limit the number of returned edges for each of the source nodes in the result set.  The indicated uniform limit applies to the result set from the referenced `from`.  `limitEach` only has meaning when you also specify `maxDistance=1` and `from`.
+              minimum: 1
+              maximum: 2000
+    NodeOrEdgeCreate:
+      oneOf:
+      - $ref: '#/components/schemas/NodeWrite'
+      - $ref: '#/components/schemas/EdgeWrite'
+    ContainerSubObjectIdentifier:
+      type: object
+      required:
+      - space
+      - containerExternalId
+      - identifier
+      properties:
+        space:
+          $ref: '#/components/schemas/SpaceSpecification'
+        containerExternalId:
+          description: External id for the container
+          allOf:
+          - $ref: '#/components/schemas/DMSExternalId'
+        identifier:
+          type: string
+    EqualsFilterV3:
+      type: object
+      title: equals
+      required:
+      - equals
+      properties:
+        equals:
+          required:
+          - property
+          - value
+          description: Matches items that contain the exact value in the provided property.
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/DMSFilterProperty'
+            value:
+              $ref: '#/components/schemas/FilterValue'
+    FilterMatchesCursorableSortNotice:
+      type: object
+      required:
+      - code
+      - category
+      - hint
+      - level
+      - grade
+      - resultExpression
+      properties:
+        code:
+          type: string
+          enum:
+          - filterMatchesCursorableSort
+        category:
+          type: string
+          enum:
+          - sorting
+        level:
+          type: string
+          enum:
+          - info
+        hint:
+          type: string
+        grade:
+          type: string
+          enum:
+          - A
+          - B
+        sort:
+          type: array
+          maxItems: 5
+          items:
+            $ref: '#/components/schemas/PropertySortV3'
+        resultExpression:
+          type: string
+          description: Identifier for the result set expression that the notice applies to.
+    CDFExternalIdReference:
+      type: object
+      description: 'An external-id reference to an existing CDF resource type item, such as a time series.
+
+
+        An example could be that for an existing time series stored in the CDF time series resource type with the
+
+        external-id 21PT0293, then the value would be set to "21PT029", and the type would be set to "timeseries". There
+
+        are no referential integrity guarantees for this, and the client should handle if the time series has been removed
+
+        or the client may not have access to it.
+
+
+        Currently, time series, sequence and file references are supported.
+
+        CDF external ID reference types (timeseries, file, sequence) are not allowed for containers with ```usedFor``` set to ```record```.
+
+        '
+      required:
+      - type
+      properties:
+        type:
+          type: string
+          enum:
+          - timeseries
+          - file
+          - sequence
+        list:
+          description: 'Specifies that the data type is a list of values. The ordering of values is preserved.
+
+            '
+          type: boolean
+          default: false
+        maxListSize:
+          type: integer
+          description: Specifies the maximum number of values in the list
+    ExcessiveTimeoutNotice:
+      type: object
+      required:
+      - code
+      - category
+      - hint
+      - level
+      - timeout
+      properties:
+        code:
+          type: string
+          enum:
+          - excessiveTimeout
+        category:
+          type: string
+          enum:
+          - invalidDebugOptions
+        level:
+          type: string
+          enum:
+          - warning
+        hint:
+          type: string
+        timeout:
+          type: integer
+          description: The specified timeout for the query.
+    QueryTableExpressionV3:
+      oneOf:
+      - $ref: '#/components/schemas/QueryNodeTableExpressionV3'
+      - $ref: '#/components/schemas/QueryEdgeTableExpressionV3'
+      - $ref: '#/components/schemas/QuerySetOperationTableExpressionV3'
+      type: object
+    ViewReference:
+      type: object
+      description: Reference to a view
+      required:
+      - type
+      - space
+      - externalId
+      - version
+      properties:
+        type:
+          type: string
+          enum:
+          - view
+        space:
+          description: Id of the space that the view belongs to
+          allOf:
+          - $ref: '#/components/schemas/SpaceSpecification'
+        externalId:
+          description: External-id of the view
+          allOf:
+          - $ref: '#/components/schemas/DMSExternalId'
+        version:
+          description: Version of the view
+          allOf:
+          - $ref: '#/components/schemas/DMSVersion'
+    PrimitiveProperty:
+      type: object
+      description: 'Primitive types for the property.
+
+
+        We expect dates to be in the ISO-8601 format, while timestamps are expected to be an epoch value with
+
+        millisecond precision. JSON values have to be valid JSON fragments. The maximum allowed size for a JSON
+
+        object is 40960 bytes. For list of json values, the size of the entire list must be within this limit.
+
+        The maximum allowed length of a key is 128, while the maximum allowed size of a value is 10240 bytes
+
+        and you can have up to 256 key-value pairs.
+
+        '
+      required:
+      - type
+      properties:
+        type:
+          type: string
+          enum:
+          - boolean
+          - float32
+          - float64
+          - int32
+          - int64
+          - timestamp
+          - date
+          - json
+        unit:
+          type: object
+          description: 'The unit of the data stored in this property, can only be assign to type float32 or float64.
+
+            ExternalId needs to match with a unit in the Cognite unit catalog.
+
+            '
+          required:
+          - externalId
+          example: 'externalId: temperature:deg_c, sourceUnit: Celsius
+
+            '
+          properties:
+            externalId:
+              $ref: '#/components/schemas/NodeOrEdgeExternalId'
+            sourceUnit:
+              type: string
+        list:
+          description: 'Specifies that the data type is a list of values. The ordering of values is preserved.
+
+            '
+          type: boolean
+          default: false
+        maxListSize:
+          type: integer
+          description: Specifies the maximum number of values in the list
+    FilterValueRange:
+      oneOf:
+      - $ref: '#/components/schemas/RangeValue'
+      - $ref: '#/components/schemas/ReferencedPropertyValueV3'
+    ReferencedPropertyValueV3:
+      title: property reference
+      description: A property reference value
+      type: object
+      required:
+      - property
+      properties:
+        property:
+          type: array
+          items:
+            type: string
+          minItems: 2
+          maxItems: 4
+    TableExpressionSyncLimit:
+      type: integer
+      default: 100
+      minimum: 1
+      maximum: 2000
+      description: Limits the number of instances in the result set generated by this table expression. We recommend to to not use a value lower than 100, as this will result in excessive API calls to fetch the data.
+    TypingViewOrContainer:
+      type: object
+      description: View or container holding properties
+      additionalProperties:
+        x-additionalPropertiesName: view-or-container-external-id
+        allOf:
+        - $ref: '#/components/schemas/TypeInformation'
+    TypeInformationOuter:
+      type: object
+      description: Spaces for the requested view and containers
+      additionalProperties:
+        x-additionalPropertiesName: space-name
+        allOf:
+        - $ref: '#/components/schemas/TypingViewOrContainer'
+    TableExpressionContainsAnyFilterV3:
+      type: object
+      title: containsAny
+      required:
+      - containsAny
+      properties:
+        containsAny:
+          required:
+          - property
+          - values
+          description: Matches items where the property contains one or more of the given values. Only apply this filter to multivalued properties.
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/DMSFilterProperty'
+            values:
+              $ref: '#/components/schemas/TableExpressionFilterValueList'
+    InFilterV3:
+      type: object
+      title: in
+      required:
+      - in
+      properties:
+        in:
+          required:
+          - property
+          - values
+          description: Matches items where the property **exactly** matches one of the given values.
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/DMSFilterProperty'
+            values:
+              $ref: '#/components/schemas/FilterValueList'
+    HasExistingDataFilterV3:
+      type: object
+      title: hasData
+      required:
+      - hasData
+      properties:
+        hasData:
+          type: array
+          description: Matches instances that have data in the referenced views or containers.
+          items:
+            $ref: '#/components/schemas/SourceReference'
+    ViewDirectNodeRelation:
+      description: Direct node relation. Can include a hint to specify the view that this direct relation points to. This hint is optional.
+      allOf:
+      - $ref: '#/components/schemas/DirectNodeRelation'
+      - type: object
+        properties:
+          source:
+            description: The hint showing the view what the direct relation points to.
+            allOf:
+            - $ref: '#/components/schemas/ViewReference'
+    InvalidDebugOptionsNotice:
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/ExcessiveTimeoutNotice'
+      - $ref: '#/components/schemas/NoTimeoutWithResultsNotice'
+      discriminator:
+        propertyName: code
+        mapping:
+          excessiveTimeout: '#/components/schemas/ExcessiveTimeoutNotice'
+          noTimeoutWithResults: '#/components/schemas/NoTimeoutWithResultsNotice'
+    TargetUnit:
+      type: object
+      description: Describes a target unit for a property.
+      required:
+      - property
+      - unit
+      properties:
+        property:
+          type: string
+        unit:
+          description: The external id of the target unit or unit system to convert to.
+          oneOf:
+          - $ref: '#/components/schemas/UnitReference'
+          - $ref: '#/components/schemas/UnitSystemReference'
+    DMSExistsFilter:
+      type: object
+      title: exists
+      required:
+      - exists
+      properties:
+        exists:
+          required:
+          - property
+          description: 'Will match items that have a value in the specified property.
+
+            '
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/DMSFilterProperty'
+    ContainerReference:
+      type: object
+      description: Reference to an existing container
+      required:
+      - type
+      - space
+      - externalId
+      properties:
+        type:
+          type: string
+          enum:
+          - container
+        space:
+          description: Id of the space hosting (containing) the container
+          allOf:
+          - $ref: '#/components/schemas/SpaceSpecification'
+        externalId:
+          description: External-id of the container
+          allOf:
+          - $ref: '#/components/schemas/DMSExternalId'
+    SyncMode:
+      type: string
+      description: 'Specify whether to sync all instances in a single phase (`onePhase` - default) or two phases (`twoPhase`), or to skip the backfill phase `noBackfill`.
+
+        With `onePhase`, all matching instances are streamed until there are no more, after which new instances and soft-deleted instances can be fetched by following the cursor.
+
+        With `twoPhase`, syncing is split into a backfill phase, and a streaming phase. In the backfill phase, only instances that existed at the time of the first sync request are guaranteed to be returned. These can optionally be sorted by specifying `backfillSort` in order to take advantage of cursorable indexes in the backfill phase. When the number of instances returned is smaller than `limit` (including 0), the backfill phase is over. Following the cursor will now return instances created and deleted after the first sync call, but no longer ordered by `backfillSort`.
+
+        With `noBackfill`, existing instances are not returned, but following the cursor will return instances created and deleted after the first sync call.'
+      default: onePhase
+      enum:
+      - onePhase
+      - twoPhase
+      - noBackfill
+    TableExpressionContainsAllFilterV3:
+      type: object
+      title: containsAll
+      required:
+      - containsAll
+      properties:
+        containsAll:
+          required:
+          - property
+          - values
+          description: Matches items where the property contains all the given values. Only apply this filter to multivalued properties.
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/DMSFilterProperty'
+            values:
+              $ref: '#/components/schemas/TableExpressionFilterValueList'
+    SourceSelectorV3:
+      type: array
+      maxItems: 10
+      items:
+        type: object
+        required:
+        - source
+        - properties
+        properties:
+          source:
+            $ref: '#/components/schemas/ViewReference'
+          properties:
+            type: array
+            description: Properties to return for the specified view. Use "*" to return all properties.
+            items:
+              type: string
+          targetUnits:
+            $ref: '#/components/schemas/TargetUnits'
+    DebugResponse:
+      type: object
+      description: Contains debug notices if debug flag is set in the query.
+      properties:
+        notices:
+          type: array
+          description: A list of notices that provide insights into the query's execution. These can highlight potential performance issues, offer optimization suggestions, or explain aspects of the query processing. Each notice falls into a category, such as indexing, sorting, filtering, or cursoring, to help identify areas for improvement.
+          items:
+            $ref: '#/components/schemas/DebugNotice'
+    SpaceSpecification:
+      type: string
+      pattern: ^[a-zA-Z][a-zA-Z0-9_-]{0,41}[a-zA-Z0-9]?$
+      minLength: 1
+      maxLength: 43
+    DirectNodeRelation:
+      type: object
+      description: Direct node relation
+      required:
+      - type
+      properties:
+        type:
+          type: string
+          enum:
+          - direct
+        container:
+          description: The (optional) required type for the node the direct relation points to. If specified, the node must exist before the direct relation is referenced and of the specified type. If no container specification is used, the node will be auto created with the built-in ```node``` container type, and it does not explicitly have to be created before the node that references it. For records, the container type constraint is not enforced and targets are not auto-created. Only the target space existence is validated.
+          allOf:
+          - $ref: '#/components/schemas/ContainerReference'
+        list:
+          description: 'Specifies that the data type is a list of values. The ordering of values is preserved.
+
+            '
+          type: boolean
+          default: false
+        maxListSize:
+          type: integer
+          description: Specifies the maximum number of values in the list
+    EnumValueProperties:
+      type: object
+      description: Metadata of the enum value.
+      properties:
+        name:
+          type: string
+          description: Name of the enum value.
+          maxLength: 255
+        description:
+          type: string
+          description: Description of the enum value.
+          maxLength: 1024
+    OverlapsFilterV3:
+      type: object
+      title: overlaps
+      required:
+      - overlaps
+      properties:
+        overlaps:
+          type: object
+          description: 'Matches items where the range made up of the two properties overlap with the provided range.
+
+            Not available for search queries.'
+          required:
+          - startProperty
+          - endProperty
+          properties:
+            startProperty:
+              $ref: '#/components/schemas/DMSFilterProperty'
+            endProperty:
+              $ref: '#/components/schemas/DMSFilterProperty'
+            gte:
+              $ref: '#/components/schemas/FilterValueRange'
+            gt:
+              $ref: '#/components/schemas/FilterValueRange'
+            lte:
+              $ref: '#/components/schemas/FilterValueRange'
+            lt:
+              $ref: '#/components/schemas/FilterValueRange'
+    TableExpressionFilterValueList:
+      oneOf:
+      - $ref: '#/components/schemas/RawPropertyValueListV3'
+      - $ref: '#/components/schemas/ParameterizedPropertyValueV3'
+      - $ref: '#/components/schemas/ReferencedPropertyValueV3'
+    InstanceBulk:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          description: List of nodes and edges to create/update
+          minItems: 0
+          maxItems: 1000
+          items:
+            $ref: '#/components/schemas/NodeOrEdgeCreate'
+        delete:
+          type: array
+          description: List of nodes and edges to delete
+          minItems: 0
+          maxItems: 1000
+          items:
+            $ref: '#/components/schemas/InstanceDelete'
+        autoCreateDirectRelations:
+          type: boolean
+          description: Should we create missing target nodes of direct relations? If the target-container constraint has been specified for a direct relation, the target node cannot be auto-created. If you want to point direct relations to a space where you have only read access, this option must be set to false.
+          default: true
+        autoCreateStartNodes:
+          type: boolean
+          description: Should we create missing start nodes for edges when ingesting?  By default, the start node of an edge must exist before we can ingest the edge.
+          default: false
+        autoCreateEndNodes:
+          type: boolean
+          default: false
+          description: Should we create missing end nodes for edges when ingesting?  By default, the end node of an edge must exist before we can ingest the edge.
+        skipOnVersionConflict:
+          type: boolean
+          default: false
+          description: If existingVersion is specified on any of the nodes/edges in the input, the default behaviour is that the entire ingestion will fail when version conflicts occur. If skipOnVersionConflict is set to true, items with version conflicts will be skipped instead. If no version is specified for nodes/edges, it will do the write directly.
+        replace:
+          type: boolean
+          description: 'How do we behave when a property value exists? Do we replace all matching and existing values with the supplied values (`true`)?  Or should we merge in new values for properties together with the existing values (`false`)?  Note: This setting applies for all nodes or edges specified in the ingestion call.'
+          default: false
+    EdgeDefinition:
+      type: object
+      description: Edge
+      required:
+      - instanceType
+      - type
+      - space
+      - externalId
+      - createdTime
+      - lastUpdatedTime
+      - startNode
+      - endNode
+      - version
+      properties:
+        instanceType:
+          type: string
+          enum:
+          - edge
+        version:
+          description: Current version of the edge
+          type: integer
+        type:
+          description: Edge type
+          allOf:
+          - $ref: '#/components/schemas/DirectRelationReference'
+        space:
+          description: Id of the space the edge belongs to
+          allOf:
+          - $ref: '#/components/schemas/SpaceSpecification'
+        externalId:
+          description: Unique identifier for the edge. Can also be a null character.
+          allOf:
+          - $ref: '#/components/schemas/NodeOrEdgeExternalId'
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        lastUpdatedTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        deletedTime:
+          description: Timestamp when the edge was soft deleted. Note that deleted edges are filtered out of query results, but present in sync results. This means that this value will only be present in sync results.
+          allOf:
+          - $ref: '#/components/schemas/EpochTimestamp'
+        properties:
+          type: object
+          description: Spaces for the requested view and its containers
+          additionalProperties:
+            $ref: '#/components/schemas/ViewOrContainer'
+        startNode:
+          $ref: '#/components/schemas/DirectRelationReference'
+        endNode:
+          $ref: '#/components/schemas/DirectRelationReference'
+    TableExpressionEqualsFilterV3:
+      type: object
+      title: equals
+      required:
+      - equals
+      properties:
+        equals:
+          required:
+          - property
+          - value
+          description: Matches items that contain the exact value in the provided property.
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/DMSFilterProperty'
+            value:
+              $ref: '#/components/schemas/TableExpressionFilterValue'
+    QuerySetOperationTableExpressionV3:
+      title: set operation result expression
+      oneOf:
+      - $ref: '#/components/schemas/QueryUnionAllTableExpressionV3'
+      - $ref: '#/components/schemas/QueryUnionTableExpressionV3'
+      - $ref: '#/components/schemas/QueryIntersectionTableExpressionV3'
+      type: object
+    ViewPropertyReference:
+      type: object
+      required:
+      - view
+      - identifier
+      deprecated: true
+      properties:
+        view:
+          description: Reference to a view - this is deprecated, use `source` with ViewReference instead
+          allOf:
+          - $ref: '#/components/schemas/ViewReference'
+        identifier:
+          description: The unique identifier, from the view, for the property
+          allOf:
+          - $ref: '#/components/schemas/PropertyIdentifierV3'
+    NoTimeoutWithResultsNotice:
+      type: object
+      required:
+      - code
+      - category
+      - hint
+      - level
+      properties:
+        code:
+          type: string
+          enum:
+          - noTimeoutWithResults
+        category:
+          type: string
+          enum:
+          - invalidDebugOptions
+        level:
+          type: string
+          enum:
+          - warning
+        hint:
+          type: string
+    SearchRequestV3:
+      allOf:
+      - type: object
+        required:
+        - view
+        properties:
+          view:
+            $ref: '#/components/schemas/ViewReference'
+          query:
+            type: string
+            description: Query string that will be parsed and used for search.
+          instanceType:
+            description: Limit the search query to searching nodes or edges. Unless you set the item type to apply the search to, the service will default to searching nodes within the view.
+            allOf:
+            - $ref: '#/components/schemas/InstanceType'
+          properties:
+            type: array
+            description: Optional array of properties you want to search through.  If you do not specify one or more properties, the service will search all text fields within the view.
+            items:
+              type: string
+          targetUnits:
+            $ref: '#/components/schemas/TargetUnits'
+          filter:
+            $ref: '#/components/schemas/FilterDefinition'
+          includeTyping:
+            $ref: '#/components/schemas/IncludeTyping'
+          sort:
+            type: array
+            maxItems: 5
+            items:
+              $ref: '#/components/schemas/SearchSort'
+          operator:
+            $ref: '#/components/schemas/SearchOperator'
+      - $ref: '#/components/schemas/LimitWithDefault1000'
+    SourceReference:
+      description: Reference to a view, or a container
+      oneOf:
+      - $ref: '#/components/schemas/ViewReference'
+      - $ref: '#/components/schemas/ContainerReference'
+      discriminator:
+        propertyName: type
+    NodeWrite:
+      description: Node to create or update
+      type: object
+      required:
+      - instanceType
+      - space
+      - externalId
+      properties:
+        instanceType:
+          type: string
+          enum:
+          - node
+          default: node
+        existingVersion:
+          description: Fail the ingestion request if the node's version is greater than this value. If no existingVersion is specified, the ingestion will always overwrite any existing data for the node (for the specified container or view). If existingVersion is set to 0, the upsert will behave as an insert, so it will fail the bulk if the item already exists. If skipOnVersionConflict is set on the ingestion request, then the item will be skipped instead of failing the ingestion request.
+          type: integer
+        space:
+          description: Id of the space that the node belongs to. This space-id cannot be updated.
+          allOf:
+          - $ref: '#/components/schemas/SpaceSpecification'
+        externalId:
+          description: Unique identifier for the node
+          allOf:
+          - $ref: '#/components/schemas/NodeOrEdgeExternalId'
+        type:
+          description: Node type (direct relation)
+          allOf:
+          - $ref: '#/components/schemas/DirectRelationReference'
+        sources:
+          type: array
+          description: List of source properties to write. The properties are from the view and/or the container(s) making up this node.
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/EdgeOrNodeData'
+    TypePropertyDefinition:
+      description: Describes the type and configuration of a property included in the result.
+      allOf:
+      - $ref: '#/components/schemas/ViewCorePropertyDefinition'
+    SumAggregateFunctionV3:
+      type: object
+      title: sum
+      description: Calculates the sum from the values of the specified property.
+      required:
+      - sum
+      properties:
+        sum:
+          type: object
+          required:
+          - property
+          properties:
+            property:
+              type: string
+              description: The property who's data we use to calculate the sum of.  This property needs to be a defined-as-numerical property.
+    TableExpressionQueryLimit:
+      type: integer
+      default: 100
+      minimum: 1
+      maximum: 10000
+      description: Limits the number of instances in the result set generated by this result expression.
+    FilterValue:
+      oneOf:
+      - $ref: '#/components/schemas/RawPropertyValueV3'
+      - $ref: '#/components/schemas/ReferencedPropertyValueV3'
+    IndexingNotice:
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/UnindexedThroughNotice'
+      - $ref: '#/components/schemas/ContainersWithoutIndexesInvolvedNotice'
+      discriminator:
+        propertyName: code
+        mapping:
+          unindexedThrough: '#/components/schemas/UnindexedThroughNotice'
+          containersWithoutIndexesInvolved: '#/components/schemas/ContainersWithoutIndexesInvolvedNotice'
+    CommonAggregationRequest:
+      description: Defines an aggregation request. This will let you group, and aggregate supported data types. The request supports filters, and allows optional search matching.
+      type: object
+      properties:
+        query:
+          type: string
+          description: Optional query string.  The API will parse the query string, and use it to match the text properties on elements to use for the aggregate(s).
+        properties:
+          type: array
+          minItems: 1
+          maxItems: 200
+          description: Optional list (array) of properties you want to apply the query above to. If you do not list any properties, you search through text fields by default.
+          items:
+            type: string
+        limit:
+          type: integer
+          description: Limit the number of results returned. The default limit is currently at 100 items.
+          minimum: 1
+          maximum: 1000
+          default: 100
+        aggregates:
+          type: array
+          maxItems: 5
+          items:
+            $ref: '#/components/schemas/AggregationDefinition'
+        groupBy:
+          type: array
+          description: 'The selection of fields to group the results by when doing aggregations. You can specify up to 5 items
+
+            to group by.
+
+
+            When you do not specify any aggregates, the fields listed in the `groupBy` clause will return the unique
+
+            values stored for each field. The property types supported for `groupBy` are `text`, `direct`, `int32`, `int64`, `float32`, `float64`, `boolean`, and `enum`.
+
+            '
+          minItems: 1
+          maxItems: 5
+          items:
+            type: string
+        filter:
+          $ref: '#/components/schemas/FilterDefinition'
+        operator:
+          $ref: '#/components/schemas/SearchOperator'
+    PropertySortV3:
+      type: object
+      required:
+      - property
+      properties:
+        property:
+          $ref: '#/components/schemas/DMSFilterProperty'
+        direction:
+          type: string
+          default: ascending
+          enum:
+          - ascending
+          - descending
+        nullsFirst:
+          type: boolean
+          default: false
+    NodeOrEdge:
+      oneOf:
+      - $ref: '#/components/schemas/NodeDefinition'
+      - $ref: '#/components/schemas/EdgeDefinition'
+    MaxAggregateFunctionV3:
+      type: object
+      title: max
+      description: The function will calculate, and return, the highest - max - value for the property.
+      required:
+      - max
+      properties:
+        max:
+          type: object
+          required:
+          - property
+          properties:
+            property:
+              type: string
+              description: The property who's data we use to generate the max value from.  This property needs to be a defined-as-numerical property.
+    SourceSelectorWithoutPropertiesV3:
+      type: array
+      description: Retrieve properties from the listed - by reference - views. The node/edge must have data in all the sources defined in the list.
+      maxItems: 10
+      items:
+        type: object
+        required:
+        - source
+        properties:
+          source:
+            $ref: '#/components/schemas/ViewReference'
+          targetUnits:
+            $ref: '#/components/schemas/TargetUnits'
+    TableExpressionFilterValue:
+      oneOf:
+      - $ref: '#/components/schemas/RawPropertyValueV3'
+      - $ref: '#/components/schemas/ParameterizedPropertyValueV3'
+      - $ref: '#/components/schemas/ReferencedPropertyValueV3'
+    UnindexedThroughNotice:
+      type: object
+      required:
+      - code
+      - category
+      - hint
+      - level
+      - grade
+      - property
+      - resultExpression
+      properties:
+        code:
+          type: string
+          enum:
+          - unindexedThrough
+        category:
+          type: string
+          enum:
+          - indexing
+        level:
+          type: string
+          enum:
+          - warning
+        hint:
+          type: string
+        grade:
+          type: string
+          enum:
+          - E
+        resultExpression:
+          type: string
+          description: Identifier for the result set expression that the notice applies to.
+        property:
+          type: array
+          items:
+            type: string
+          description: Reference to the property that the notice applies to.
+    InstanceReferenceFilterV3:
+      type: object
+      title: instanceReferences
+      required:
+      - instanceReferences
+      properties:
+        instanceReferences:
+          type: array
+          description: Matches instances with any of the specified space/externalId pairs.
+          items:
+            type: object
+            required:
+            - space
+            - externalId
+            properties:
+              space:
+                $ref: '#/components/schemas/SpaceSpecification'
+              externalId:
+                $ref: '#/components/schemas/NodeOrEdgeExternalId'
+    NodeDefinition:
+      type: object
+      description: Node
+      required:
+      - instanceType
+      - space
+      - externalId
+      - createdTime
+      - lastUpdatedTime
+      - version
+      properties:
+        instanceType:
+          type: string
+          enum:
+          - node
+        version:
+          description: Current version of the node
+          type: integer
+        space:
+          description: Id of the space that the node belongs to
+          allOf:
+          - $ref: '#/components/schemas/SpaceSpecification'
+        externalId:
+          description: Unique identifier for the node
+          allOf:
+          - $ref: '#/components/schemas/NodeOrEdgeExternalId'
+        type:
+          description: Node type
+          allOf:
+          - $ref: '#/components/schemas/DirectRelationReference'
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        lastUpdatedTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        deletedTime:
+          description: Timestamp when the node was soft deleted. Note that deleted nodes are filtered out of query results, but present in sync results. This means that this value will only be present in sync results.
+          allOf:
+          - $ref: '#/components/schemas/EpochTimestamp'
+        properties:
+          type: object
+          description: Spaces for the requested view and its containers
+          additionalProperties:
+            x-additionalPropertiesName: space-name
+            allOf:
+            - $ref: '#/components/schemas/ViewOrContainer'
+    SortNotBackedByIndexNotice:
+      type: object
+      required:
+      - code
+      - category
+      - hint
+      - level
+      - grade
+      - sort
+      - resultExpression
+      properties:
+        code:
+          type: string
+          enum:
+          - sortNotBackedByIndex
+        category:
+          type: string
+          enum:
+          - sorting
+        level:
+          type: string
+          enum:
+          - warning
+        hint:
+          type: string
+        grade:
+          type: string
+          enum:
+          - C
+        sort:
+          type: array
+          maxItems: 5
+          items:
+            $ref: '#/components/schemas/PropertySortV3'
+        resultExpression:
+          type: string
+          description: Identifier for the result set expression that the notice applies to.
+    ListOfSpaceExternalIdsRequestWithTyping:
+      type: object
+      required:
+      - items
+      properties:
+        sources:
+          description: The node/edge must have data in all the sources defined in the list
+          allOf:
+          - $ref: '#/components/schemas/SourceSelectorWithoutPropertiesV3'
+        items:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items:
+            type: object
+            required:
+            - instanceType
+            - space
+            - externalId
+            properties:
+              instanceType:
+                description: The type of instance being returned, an edge or a node.
+                allOf:
+                - $ref: '#/components/schemas/InstanceType'
+              externalId:
+                description: External ids for the requested items
+                allOf:
+                - $ref: '#/components/schemas/NodeOrEdgeExternalId'
+              space:
+                $ref: '#/components/schemas/SpaceSpecification'
+        includeTyping:
+          $ref: '#/components/schemas/IncludeTyping'
+    InstanceType:
+      description: The type of instance
+      type: string
+      default: node
+      enum:
+      - node
+      - edge
+    SlimEdgeDefinition:
+      type: object
+      description: Edge
+      required:
+      - instanceType
+      - space
+      - externalId
+      - wasModified
+      - version
+      - createdTime
+      - lastUpdatedTime
+      properties:
+        instanceType:
+          type: string
+          enum:
+          - edge
+        version:
+          description: Current version of the edge
+          type: integer
+        wasModified:
+          description: Whether or not the edge was modified by this ingestion. We only update the edges if the input differs from the existing state.
+          type: boolean
+        space:
+          description: Id of the space that the edge belongs to
+          allOf:
+          - $ref: '#/components/schemas/SpaceSpecification'
+        externalId:
+          description: Unique alphanumeric identifier for the edge
+          allOf:
+          - $ref: '#/components/schemas/NodeOrEdgeExternalId'
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        lastUpdatedTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+    ViewOrContainer:
+      type: object
+      description: View or container holding properties
+      additionalProperties:
+        description: Properties in the view/container of the instance
+        x-additionalPropertiesName: view-or-container-identifier
+        allOf:
+        - $ref: '#/components/schemas/PropertyValueGroupV3'
+    DebugParameters:
+      type: object
+      description: Return query debug notices.
+      properties:
+        emitResults:
+          type: boolean
+          description: Include the query result in the response. emitResults=false is required for advanced query analysis features.
+          default: true
+        timeout:
+          type: integer
+          description: Query timeout in milliseconds. Can be used to override the default timeout when analysing queries. Requires emitResults=false.
+        profile:
+          type: boolean
+          description: Most thorough level of query analysis. Requires emitResults=false.
+          default: false
+    DebugNotice:
+      oneOf:
+      - $ref: '#/components/schemas/InvalidDebugOptionsNotice'
+      - $ref: '#/components/schemas/SortingNotice'
+      - $ref: '#/components/schemas/IndexingNotice'
+      - $ref: '#/components/schemas/FilteringNotice'
+      - $ref: '#/components/schemas/CursoringNotice'
+    SyncRequest:
+      type: object
+      required:
+      - with
+      - select
+      properties:
+        with:
+          type: object
+          minProperties: 1
+          maxProperties: 50
+          additionalProperties:
+            $ref: '#/components/schemas/SyncTableExpressionV3'
+        cursors:
+          description: Cursors returned from the previous sync request. These cursors match the result set expressions you specified in the ```with``` clause for the sync.
+          type: object
+          maxProperties: 50
+          additionalProperties:
+            x-additionalPropertiesName: sync cursor reference
+            allOf:
+            - $ref: '#/components/schemas/NextCursorV3'
+        select:
+          minProperties: 1
+          maxProperties: 50
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/SyncSelectV3'
+        parameters:
+          type: object
+          description: Parameters to return
+          additionalProperties:
+            x-additionalPropertiesName: parameter-identifier
+            allOf:
+            - $ref: '#/components/schemas/RawPropertyValueV3'
+        includeTyping:
+          $ref: '#/components/schemas/IncludeTyping'
+        allowExpiredCursorsAndAcceptMissedDeletes:
+          type: boolean
+          default: false
+          description: Sync cursors will expire after 3 days. This is because soft-deleted instances are cleaned up after this grace period, so a client using a cursor older than that risks missing deletes. If this option is set to `true`, the API will allow the use of expired cursors.
+        debug:
+          $ref: '#/components/schemas/DebugParameters'
+    UnitSystemReference:
+      type: object
+      description: 'Target system to convert data to. Can be used instead of targetUnit to identify the unit to convert to.
+
+        '
+      required:
+      - unitSystemName
+      example: 'Default, SI, Imperial
+
+        '
+      properties:
+        unitSystemName:
+          type: string
+    AvgAggregateFunctionV3:
+      type: object
+      title: avg
+      description: Calculates the average from the data stored by the specified property. This aggregation uses an average mean calculation, and not an integral mean.
+      required:
+      - avg
+      properties:
+        avg:
+          type: object
+          required:
+          - property
+          properties:
+            property:
+              type: string
+              description: The property who's data we use to calculate the average from.  This property needs to be a defined-as-numerical property.
+    PropertyIdentifierV3:
+      type: string
+      pattern: ^[a-zA-Z]([a-zA-Z0-9_]{0,253}[a-zA-Z0-9])?$
+      minLength: 1
+      maxLength: 255
+    RawPropertyValueV3:
+      title: raw value
+      description: A value matching the data type of the defined property
+      oneOf:
+      - type: string
+        title: string
+        description: 'A string value without `null` characters and 128KB maximum size.
+
+          Or a date string in the format `YYYY-MM-DD`.
+
+          Or a timestamp string in the format: `YYYY-MM-DDTHH:MM:SS[.millis][Z|time zone]`.
+
+          '
+        maxLength: 128000
+      - type: number
+        title: number
+        description: A number value matching the data type (integer(32/64), float, doable, etc) of the defined property.
+      - type: boolean
+        title: boolean
+        description: A boolean value - `true` or `false`.
+      - type: object
+        title: object
+        description: A JSON value. General limits for the JSON object are the next. The max key length is 128. The max number of keys 256. The max object total size is 40,960B. The max value size is 10,240B.
+      - type: object
+        title: direct relation
+        description: A JSON value matching the direct relation type. Direct relation json object requires and allows only `space` and `externalId` attributes of the related instance.
+      - type: array
+        title: array of strings
+        description: 'An array of string values without `null` characters in each item and sum of individual elements is no more than 128KB.
+
+          Each item can be a date string in the format `YYYY-MM-DD` or a timestamp string in the format: `YYYY-MM-DDTHH:MM:SS[.millis][Z|time zone]`.
+
+          '
+        minItems: 1
+        maxItems: 1000
+        items:
+          type: string
+      - type: array
+        title: array of booleans
+        description: An array of boolean values.
+        minItems: 1
+        maxItems: 1000
+        items:
+          type: boolean
+      - type: array
+        title: array of numbers
+        description: An array of number values.
+        minItems: 1
+        maxItems: 1000
+        items:
+          type: number
+      - type: array
+        title: array of direct relations
+        description: An array of direct relations.
+        minItems: 1
+        maxItems: 100
+        items:
+          type: object
+      - type: array
+        title: array of objects
+        description: An array of JSON objects. General limits for the JSON array are the next. The max JSON total size is 40,960B. Other JSON objects constraints are applicable to each item in the array (see object).
+        minItems: 1
+        maxItems: 1000
+        items:
+          type: object
+    ParameterizedPropertyValueV3:
+      title: parameter
+      description: A parameterized value
+      type: object
+      required:
+      - parameter
+      properties:
+        parameter:
+          type: string
+    DataModelsBoolFilter:
+      title: BoolFilter
+      description: 'Build a new query by combining other queries, using boolean operators. We support the `and`, `or`, and
+
+        `not` boolean operators.
+
+        '
+      type: object
+      oneOf:
+      - type: object
+        title: and
+        required:
+        - and
+        properties:
+          and:
+            description: All the sub-clauses in the query must return a matching item.
+            type: array
+            minItems: 1
+            items:
+              $ref: '#/components/schemas/FilterDefinition'
+      - type: object
+        title: or
+        required:
+        - or
+        properties:
+          or:
+            description: One or more of the sub-clauses in the query must return a matching item.
+            type: array
+            minItems: 1
+            items:
+              $ref: '#/components/schemas/FilterDefinition'
+      - type: object
+        title: not
+        required:
+        - not
+        properties:
+          not:
+            title: Filter DSL
+            description: None of the sub-clauses in the query can return a matching item.
+            type: object
+            allOf:
+            - $ref: '#/components/schemas/FilterDefinition'
+    QueryNodeTableExpressionV3:
+      title: node result expression
+      description: Specifies a result set of nodes.
+      type: object
+      required:
+      - nodes
+      properties:
+        sort:
+          type: array
+          maxItems: 5
+          items:
+            $ref: '#/components/schemas/PropertySortV3'
+        limit:
+          $ref: '#/components/schemas/TableExpressionQueryLimit'
+        nodes:
+          type: object
+          properties:
+            from:
+              description: The name of a result expression to chain from.
+              type: string
+            chainTo:
+              $ref: '#/components/schemas/TableExpressionChainToDefinition'
+            through:
+              $ref: '#/components/schemas/NodeTableExpressionThrough'
+            direction:
+              description: The direction to use when traversing direct relations. Only applicable when `through` is specified.
+              type: string
+              default: inwards
+              enum:
+              - outwards
+              - inwards
+            filter:
+              $ref: '#/components/schemas/TableExpressionFilterDefinition'
+    NodeOrEdgeListRequestV3:
+      allOf:
+      - type: object
+        properties:
+          includeTyping:
+            $ref: '#/components/schemas/IncludeTyping'
+          sources:
+            $ref: '#/components/schemas/SourceSelectorWithoutPropertiesV3'
+          instanceType:
+            description: "The type of instance you are querying for; an edge or a node.  If the instance type isn't specified, we list nodes. When instanceType is `edge`, `property` can refer to any container and is defined as [\"edge\", \"type\"], and `value` contains the value of the property.\n\n  <u>Example:</u>\n\n  ```\n  {\n      â\x80\x9CincludeTypingâ\x80\x9D: true,\n      â\x80\x9CinstanceTypeâ\x80\x9D: \"edge\",\n      â\x80\x9Cfilterâ\x80\x9D: {\n                  â\x80\x9Cequalsâ\x80\x9D: {\n                      \"property\": [\n                        \"edge\",\n                        \"type\" // VALID VALUES:[space, externalId, createdTime, lastUpdatedTime, startNode, endNode, type ]\n                      ],\n                      \"value\": {\n                      \"space\": \"apm_simple\",\n                      \"externalId\": \"WMT:23-FO-96187\"\n                      }\n                    }\n                }\n  }\n  ```"
+            default: node
+            allOf:
+            - $ref: '#/components/schemas/InstanceType'
+          debug:
+            $ref: '#/components/schemas/DebugParameters'
+      - $ref: '#/components/schemas/Cursor'
+      - $ref: '#/components/schemas/LimitWithDefault1000'
+      - $ref: '#/components/schemas/SortV3'
+      - type: object
+        properties:
+          filter:
+            $ref: '#/components/schemas/FilterDefinition'
+    UnitReference:
+      type: object
+      description: Target unit reference.
+      required:
+      - externalId
+      properties:
+        externalId:
+          $ref: '#/components/schemas/NodeOrEdgeExternalId'
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    TableExpressionLeafFilter:
+      description: Leaf filter
+      title: LeafFilter
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/TableExpressionEqualsFilterV3'
+      - $ref: '#/components/schemas/TableExpressionInFilterV3'
+      - $ref: '#/components/schemas/TableExpressionRangeFilterV3'
+      - $ref: '#/components/schemas/TableExpressionPrefixFilterV3'
+      - $ref: '#/components/schemas/DMSExistsFilter'
+      - $ref: '#/components/schemas/TableExpressionContainsAnyFilterV3'
+      - $ref: '#/components/schemas/TableExpressionContainsAllFilterV3'
+      - $ref: '#/components/schemas/MatchAllFilter'
+      - $ref: '#/components/schemas/DataModelsNestedFilter'
+      - $ref: '#/components/schemas/TableExpressionOverlapsFilterV3'
+      - $ref: '#/components/schemas/HasExistingDataFilterV3'
+      - $ref: '#/components/schemas/InstanceReferenceFilterV3'
+    QuerySelectV3:
+      type: object
+      description: Define which view to return properties for, and the properties to return. Up to 10 views can be specified per query.
+      properties:
+        sources:
+          $ref: '#/components/schemas/SourceSelectorV3'
+        sort:
+          type: array
+          items:
+            $ref: '#/components/schemas/PropertySortV3'
+        limit:
+          type: integer
+    DeletedInstances:
+      type: array
+      minItems: 1
+      maxItems: 1000
+      description: List of deleted instances
+      items:
+        type: object
+        required:
+        - instanceType
+        - space
+        - externalId
+        properties:
+          instanceType:
+            description: Is the deleted item a node or an edge
+            type: string
+            enum:
+            - node
+            - edge
+          externalId:
+            description: External id of the deleted instance
+            allOf:
+            - $ref: '#/components/schemas/NodeOrEdgeExternalId'
+          space:
+            description: The space that the instance belongs to
+            allOf:
+            - $ref: '#/components/schemas/SpaceSpecification'
+    AggregatedNumberValue:
+      type: object
+      required:
+      - aggregate
+      properties:
+        aggregate:
+          type: string
+          example: avg
+          enum:
+          - avg
+          - min
+          - max
+          - count
+          - sum
+        property:
+          description: The property the aggregate was calculated from
+          type: string
+          example: duration
+        value:
+          type: number
+          description: Value returned by the aggregate function
+          example: 0.2
+    FilterDefinition:
+      type: object
+      description: A filter Domain Specific Language (DSL) used to create advanced filter queries.
+      oneOf:
+      - $ref: '#/components/schemas/DataModelsBoolFilter'
+      - $ref: '#/components/schemas/DataModelsLeafFilter'
+      example:
+        and:
+        - in:
+            property:
+            - tag
+            values:
+            - 10011
+            - 10011
+        - range:
+            property:
+            - weight
+            gte: 0
+    SlimNodeDefinition:
+      type: object
+      description: Node
+      required:
+      - instanceType
+      - space
+      - externalId
+      - wasModified
+      - version
+      - createdTime
+      - lastUpdatedTime
+      properties:
+        instanceType:
+          type: string
+          enum:
+          - node
+        version:
+          description: Current version of the node
+          type: integer
+        wasModified:
+          description: Whether or not the node was modified by this ingestion. We only update the nodes if the input differs from the existing state.
+          type: boolean
+        space:
+          description: Id of the space that the node belongs to
+          allOf:
+          - $ref: '#/components/schemas/SpaceSpecification'
+        externalId:
+          description: Unique identifier for the node
+          allOf:
+          - $ref: '#/components/schemas/NodeOrEdgeExternalId'
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        lastUpdatedTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+    SignificantHasDataFiltersNotice:
+      type: object
+      required:
+      - code
+      - category
+      - hint
+      - level
+      - grade
+      - containers
+      - resultExpression
+      properties:
+        code:
+          type: string
+          enum:
+          - significantHasDataFiltering
+        category:
+          type: string
+          enum:
+          - filtering
+        level:
+          type: string
+          enum:
+          - warning
+        hint:
+          type: string
+        grade:
+          type: string
+          enum:
+          - C
+        resultExpression:
+          type: string
+          description: Identifier for the result set expression that the notice applies to.
+        containers:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContainerReference'
+          description: List of containers that the notice applies to.
+    DirectRelationReference:
+      type: object
+      description: Reference to the node pointed to by the direct relation. The reference consists of a space and an external-id.
+      required:
+      - space
+      - externalId
+      properties:
+        space:
+          $ref: '#/components/schemas/SpaceSpecification'
+        externalId:
+          $ref: '#/components/schemas/NodeOrEdgeExternalId'
+    SortV3:
+      type: object
+      properties:
+        sort:
+          type: array
+          maxItems: 5
+          items:
+            $ref: '#/components/schemas/PropertySortV3'
+    AggregatedResultItemCollection:
+      required:
+      - items
+      - properties
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AggregatedResultItem'
+    AggregatedResultItem:
+      type: object
+      required:
+      - instanceType
+      - aggregates
+      properties:
+        instanceType:
+          $ref: '#/components/schemas/InstanceType'
+        group:
+          type: object
+          additionalProperties:
+            oneOf:
+            - type: string
+            - type: number
+            - type: boolean
+            - $ref: '#/components/schemas/DirectRelationReference'
+          example:
+            name: PumpName1
+            tag: tag01
+        aggregates:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items:
+            $ref: '#/components/schemas/AggregatedValueItem'
+    PropertyValueGroupV3:
+      type: object
+      description: 'Group of property values indexed by a local unique identifier. The identifier has to have a length of between 1 and 255 characters.  It must also match the pattern ```^[a-zA-Z0-9][a-zA-Z0-9_-]{0,253}[a-zA-Z0-9]?$``` , and it cannot be any of the following reserved identifiers: ```space```, ```externalId```, ```createdTime```, ```lastUpdatedTime```, ```deletedTime```, and ```extensions```. The maximum number of properties depends on your subscription, and is by default 100.'
+      minProperties: 1
+      additionalProperties:
+        x-additionalPropertiesName: property-identifier
+        allOf:
+        - $ref: '#/components/schemas/RawPropertyValueV3'
+      example:
+        someStringProperty: someStringValue
+        someDirectRelation:
+          space: mySpace
+          externalId: someNode
+        someIntArrayProperty:
+        - 1
+        - 2
+        - 3
+        - 4
+    TypeInformation:
+      type: object
+      description: Type information for the returned properties (if requested)
+      additionalProperties:
+        x-additionalPropertiesName: property-identifier
+        allOf:
+        - $ref: '#/components/schemas/TypePropertyDefinition'
+    QueryRequest:
+      type: object
+      required:
+      - with
+      - select
+      properties:
+        with:
+          type: object
+          minProperties: 1
+          maxProperties: 50
+          additionalProperties:
+            x-additionalPropertiesName: result-expression-name
+            allOf:
+            - $ref: '#/components/schemas/QueryTableExpressionV3'
+        cursors:
+          description: Cursors returned from the previous query request. These cursors match the result set expressions you specified in the ```with``` clause for the query.
+          type: object
+          maxProperties: 50
+          additionalProperties:
+            x-additionalPropertiesName: pagination cursor reference
+            allOf:
+            - $ref: '#/components/schemas/NextCursorV3'
+        select:
+          type: object
+          description: Select properties for each result set.
+          minProperties: 1
+          maxProperties: 50
+          additionalProperties:
+            x-additionalPropertiesName: result-expression-name
+            allOf:
+            - $ref: '#/components/schemas/QuerySelectV3'
+        parameters:
+          type: object
+          description: Values in filters can be parameterised. Parameters are provided as part of the query object, and referenced in the filter itself.
+          additionalProperties:
+            x-additionalPropertiesName: parameter-identifier
+            allOf:
+            - $ref: '#/components/schemas/RawPropertyValueV3'
+        includeTyping:
+          $ref: '#/components/schemas/IncludeTyping'
+        debug:
+          $ref: '#/components/schemas/DebugParameters'
+    PrefixFilterV3:
+      type: object
+      title: prefix
+      required:
+      - prefix
+      properties:
+        prefix:
+          required:
+          - property
+          - value
+          description: Matches items that have the prefix in the identified property. This filter is only supported for single value text properties.
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/DMSFilterProperty'
+            value:
+              oneOf:
+              - type: string
+              - $ref: '#/components/schemas/ParameterizedPropertyValueV3'
+    UpsertConflict:
+      type: object
+      required:
+      - error
+      properties:
+        error:
+          type: object
+          description: Details about the error caused by the upsert/update.
+          required:
+          - code
+          - message
+          properties:
+            code:
+              type: integer
+              description: The HTTP status code returned
+              format: int32
+              example: 409
+            message:
+              type: string
+              description: The error message returned from the service.
+            isAutoRetryable:
+              type: boolean
+              description: Whether or not the error is auto-retryable. If present and true, the client can automatically retry the request after some delay.
+    InstanceDelete:
+      type: object
+      description: Instance to delete
+      required:
+      - instanceType
+      - space
+      - externalId
+      properties:
+        instanceType:
+          type: string
+          enum:
+          - node
+          - edge
+        space:
+          description: Id of the space that the instance belongs to
+          allOf:
+          - $ref: '#/components/schemas/SpaceSpecification'
+        externalId:
+          description: Unique identifier for the instance
+          allOf:
+          - $ref: '#/components/schemas/NodeOrEdgeExternalId'
+        existingVersion:
+          description: Fail the ingestion request if the instance's version is greater than this value. If no existingVersion is specified, the ingestion will always delete the instance. If skipOnVersionConflict is set on the ingestion request, then the item will be skipped instead of failing the ingestion request.
+          type: integer
+    FilterMatchesBrokenCursorableIndexNotice:
+      type: object
+      required:
+      - code
+      - category
+      - hint
+      - level
+      - grade
+      - resultExpression
+      properties:
+        code:
+          type: string
+          enum:
+          - filterMatchesBrokenCursorableIndex
+        category:
+          type: string
+          enum:
+          - sorting
+        level:
+          type: string
+          enum:
+          - warning
+        hint:
+          type: string
+        grade:
+          type: string
+          enum:
+          - D
+        sort:
+          type: array
+          maxItems: 5
+          items:
+            $ref: '#/components/schemas/PropertySortV3'
+        index:
+          description: Identifier for the broken index
+          $ref: '#/components/schemas/ContainerSubObjectIdentifier'
+        resultExpression:
+          type: string
+          description: Identifier for the result set expression that the notice applies to.
+    ContainsAllFilterV3:
+      type: object
+      title: containsAll
+      required:
+      - containsAll
+      properties:
+        containsAll:
+          required:
+          - property
+          - values
+          description: Matches items where the property contains all the given values. Only apply this filter to multivalued properties.
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/DMSFilterProperty'
+            values:
+              $ref: '#/components/schemas/FilterValueList'
+    TextProperty:
+      type: object
+      description: Text type
+      required:
+      - type
+      properties:
+        type:
+          type: string
+          enum:
+          - text
+        list:
+          type: boolean
+          description: 'Specifies that the data type is a list of values. The ordering of values is preserved.
+
+            '
+          default: false
+        maxListSize:
+          type: integer
+          description: Specifies the maximum number of values in the list
+        maxTextSize:
+          type: integer
+          description: Specifies the maximum size in bytes of the text property, when encoded with utf-8
+        collation:
+          type: string
+          description: Collation - the set of language specific rules - used when sorting text fields. Collation is not applicable for records.
+          enum:
+          - ucs_basic
+          - und
+          - af
+          - af-NA
+          - af-ZA
+          - agq
+          - agq-CM
+          - ak
+          - ak-GH
+          - am
+          - am-ET
+          - ar
+          - ar-001
+          - ar-AE
+          - ar-BH
+          - ar-DJ
+          - ar-DZ
+          - ar-EG
+          - ar-EH
+          - ar-ER
+          - ar-IL
+          - ar-IQ
+          - ar-JO
+          - ar-KM
+          - ar-KW
+          - ar-LB
+          - ar-LY
+          - ar-MA
+          - ar-MR
+          - ar-OM
+          - ar-PS
+          - ar-QA
+          - ar-SA
+          - ar-SD
+          - ar-SO
+          - ar-SS
+          - ar-SY
+          - ar-TD
+          - ar-TN
+          - ar-YE
+          - as
+          - as-IN
+          - asa
+          - asa-TZ
+          - ast
+          - ast-ES
+          - az
+          - az-Cyrl
+          - az-Cyrl-AZ
+          - az-Latn
+          - az-Latn-AZ
+          - bas
+          - bas-CM
+          - be
+          - be-BY
+          - bem
+          - bem-ZM
+          - bez
+          - bez-TZ
+          - bg
+          - bg-BG
+          - bm
+          - bm-ML
+          - bn
+          - bn-BD
+          - bn-IN
+          - bo
+          - bo-CN
+          - bo-IN
+          - br
+          - br-FR
+          - brx
+          - brx-IN
+          - bs
+          - bs-Cyrl
+          - bs-Cyrl-BA
+          - bs-Latn
+          - bs-Latn-BA
+          - ca
+          - ca-AD
+          - ca-ES
+          - ca-FR
+          - ca-IT
+          - ccp
+          - ccp-BD
+          - ccp-IN
+          - ce
+          - ce-RU
+          - ceb
+          - ceb-PH
+          - cgg
+          - cgg-UG
+          - chr
+          - chr-US
+          - ckb
+          - ckb-IQ
+          - ckb-IR
+          - cs
+          - cs-CZ
+          - cy
+          - cy-GB
+          - da
+          - da-DK
+          - da-GL
+          - dav
+          - dav-KE
+          - de
+          - de-AT
+          - de-BE
+          - de-CH
+          - de-DE
+          - de-IT
+          - de-LI
+          - de-LU
+          - dje
+          - dje-NE
+          - dsb
+          - dsb-DE
+          - dua
+          - dua-CM
+          - dyo
+          - dyo-SN
+          - dz
+          - dz-BT
+          - ebu
+          - ebu-KE
+          - ee
+          - ee-GH
+          - ee-TG
+          - el
+          - el-CY
+          - el-GR
+          - en
+          - en-001
+          - en-150
+          - en-AE
+          - en-AG
+          - en-AI
+          - en-AS
+          - en-AT
+          - en-AU
+          - en-BB
+          - en-BE
+          - en-BI
+          - en-BM
+          - en-BS
+          - en-BW
+          - en-BZ
+          - en-CA
+          - en-CC
+          - en-CH
+          - en-CK
+          - en-CM
+          - en-CX
+          - en-CY
+          - en-DE
+          - en-DG
+          - en-DK
+          - en-DM
+          - en-ER
+          - en-FI
+          - en-FJ
+          - en-FK
+          - en-FM
+          - en-GB
+          - en-GD
+          - en-GG
+          - en-GH
+          - en-GI
+          - en-GM
+          - en-GU
+          - en-GY
+          - en-HK
+          - en-IE
+          - en-IL
+          - en-IM
+          - en-IN
+          - en-IO
+          - en-JE
+          - en-JM
+          - en-KE
+          - en-KI
+          - en-KN
+          - en-KY
+          - en-LC
+          - en-LR
+          - en-LS
+          - en-MG
+          - en-MH
+          - en-MO
+          - en-MP
+          - en-MS
+          - en-MT
+          - en-MU
+          - en-MW
+          - en-MY
+          - en-NA
+          - en-NF
+          - en-NG
+          - en-NL
+          - en-NR
+          - en-NU
+          - en-NZ
+          - en-PG
+          - en-PH
+          - en-PK
+          - en-PN
+          - en-PR
+          - en-PW
+          - en-RW
+          - en-SB
+          - en-SC
+          - en-SD
+          - en-SE
+          - en-SG
+          - en-SH
+          - en-SI
+          - en-SL
+          - en-SS
+          - en-SX
+          - en-SZ
+          - en-TC
+          - en-TK
+          - en-TO
+          - en-TT
+          - en-TV
+          - en-TZ
+          - en-UG
+          - en-UM
+          - en-US
+          - en-US-u-va-posix
+          - en-VC
+          - en-VG
+          - en-VI
+          - en-VU
+          - en-WS
+          - en-ZA
+          - en-ZM
+          - en-ZW
+          - eo
+          - eo-001
+          - es
+          - es-419
+          - es-AR
+          - es-BO
+          - es-BR
+          - es-BZ
+          - es-CL
+          - es-CO
+          - es-CR
+          - es-CU
+          - es-DO
+          - es-EA
+          - es-EC
+          - es-ES
+          - es-GQ
+          - es-GT
+          - es-HN
+          - es-IC
+          - es-MX
+          - es-NI
+          - es-PA
+          - es-PE
+          - es-PH
+          - es-PR
+          - es-PY
+          - es-SV
+          - es-US
+          - es-UY
+          - es-VE
+          - et
+          - et-EE
+          - eu
+          - eu-ES
+          - ewo
+          - ewo-CM
+          - fa
+          - fa-AF
+          - fa-IR
+          - ff
+          - ff-Adlm
+          - ff-Adlm-BF
+          - ff-Adlm-CM
+          - ff-Adlm-GH
+          - ff-Adlm-GM
+          - ff-Adlm-GN
+          - ff-Adlm-GW
+          - ff-Adlm-LR
+          - ff-Adlm-MR
+          - ff-Adlm-NE
+          - ff-Adlm-NG
+          - ff-Adlm-SL
+          - ff-Adlm-SN
+          - ff-Latn
+          - ff-Latn-BF
+          - ff-Latn-CM
+          - ff-Latn-GH
+          - ff-Latn-GM
+          - ff-Latn-GN
+          - ff-Latn-GW
+          - ff-Latn-LR
+          - ff-Latn-MR
+          - ff-Latn-NE
+          - ff-Latn-NG
+          - ff-Latn-SL
+          - ff-Latn-SN
+          - fi
+          - fi-FI
+          - fil
+          - fil-PH
+          - fo
+          - fo-DK
+          - fo-FO
+          - fr
+          - fr-BE
+          - fr-BF
+          - fr-BI
+          - fr-BJ
+          - fr-BL
+          - fr-CA
+          - fr-CD
+          - fr-CF
+          - fr-CG
+          - fr-CH
+          - fr-CI
+          - fr-CM
+          - fr-DJ
+          - fr-DZ
+          - fr-FR
+          - fr-GA
+          - fr-GF
+          - fr-GN
+          - fr-GP
+          - fr-GQ
+          - fr-HT
+          - fr-KM
+          - fr-LU
+          - fr-MA
+          - fr-MC
+          - fr-MF
+          - fr-MG
+          - fr-ML
+          - fr-MQ
+          - fr-MR
+          - fr-MU
+          - fr-NC
+          - fr-NE
+          - fr-PF
+          - fr-PM
+          - fr-RE
+          - fr-RW
+          - fr-SC
+          - fr-SN
+          - fr-SY
+          - fr-TD
+          - fr-TG
+          - fr-TN
+          - fr-VU
+          - fr-WF
+          - fr-YT
+          - fur
+          - fur-IT
+          - fy
+          - fy-NL
+          - ga
+          - ga-GB
+          - ga-IE
+          - gd
+          - gd-GB
+          - gl
+          - gl-ES
+          - gsw
+          - gsw-CH
+          - gsw-FR
+          - gsw-LI
+          - gu
+          - gu-IN
+          - guz
+          - guz-KE
+          - gv
+          - gv-IM
+          - ha
+          - ha-GH
+          - ha-NE
+          - ha-NG
+          - haw
+          - haw-US
+          - he
+          - he-IL
+          - hi
+          - hi-IN
+          - hr
+          - hr-BA
+          - hr-HR
+          - hsb
+          - hsb-DE
+          - hu
+          - hu-HU
+          - hy
+          - hy-AM
+          - ia
+          - ia-001
+          - id
+          - id-ID
+          - ig
+          - ig-NG
+          - ii
+          - ii-CN
+          - is
+          - is-IS
+          - it
+          - it-CH
+          - it-IT
+          - it-SM
+          - it-VA
+          - ja
+          - ja-JP
+          - jgo
+          - jgo-CM
+          - jmc
+          - jmc-TZ
+          - jv
+          - jv-ID
+          - ka
+          - ka-GE
+          - kab
+          - kab-DZ
+          - kam
+          - kam-KE
+          - kde
+          - kde-TZ
+          - kea
+          - kea-CV
+          - khq
+          - khq-ML
+          - ki
+          - ki-KE
+          - kk
+          - kk-KZ
+          - kkj
+          - kkj-CM
+          - kl
+          - kl-GL
+          - kln
+          - kln-KE
+          - km
+          - km-KH
+          - kn
+          - kn-IN
+          - ko
+          - ko-KP
+          - ko-KR
+          - kok
+          - kok-IN
+          - ks
+          - ks-Arab
+          - ks-Arab-IN
+          - ksb
+          - ksb-TZ
+          - ksf
+          - ksf-CM
+          - ksh
+          - ksh-DE
+          - ku
+          - ku-TR
+          - kw
+          - kw-GB
+          - ky
+          - ky-KG
+          - lag
+          - lag-TZ
+          - lb
+          - lb-LU
+          - lg
+          - lg-UG
+          - lkt
+          - lkt-US
+          - ln
+          - ln-AO
+          - ln-CD
+          - ln-CF
+          - ln-CG
+          - lo
+          - lo-LA
+          - lrc
+          - lrc-IQ
+          - lrc-IR
+          - lt
+          - lt-LT
+          - lu
+          - lu-CD
+          - luo
+          - luo-KE
+          - luy
+          - luy-KE
+          - lv
+          - lv-LV
+          - mai
+          - mai-IN
+          - mas
+          - mas-KE
+          - mas-TZ
+          - mer
+          - mer-KE
+          - mfe
+          - mfe-MU
+          - mg
+          - mg-MG
+          - mgh
+          - mgh-MZ
+          - mgo
+          - mgo-CM
+          - mi
+          - mi-NZ
+          - mk
+          - mk-MK
+          - ml
+          - ml-IN
+          - mn
+          - mn-MN
+          - mni
+          - mni-Beng
+          - mni-Beng-IN
+          - mr
+          - mr-IN
+          - ms
+          - ms-BN
+          - ms-ID
+          - ms-MY
+          - ms-SG
+          - mt
+          - mt-MT
+          - mua
+          - mua-CM
+          - my
+          - my-MM
+          - mzn
+          - mzn-IR
+          - naq
+          - naq-NA
+          - nb
+          - nb-NO
+          - nb-SJ
+          - nd
+          - nd-ZW
+          - nds
+          - nds-DE
+          - nds-NL
+          - ne
+          - ne-IN
+          - ne-NP
+          - nl
+          - nl-AW
+          - nl-BE
+          - nl-BQ
+          - nl-CW
+          - nl-NL
+          - nl-SR
+          - nl-SX
+          - nmg
+          - nmg-CM
+          - nn
+          - nn-NO
+          - nnh
+          - nnh-CM
+          - nus
+          - nus-SS
+          - nyn
+          - nyn-UG
+          - om
+          - om-ET
+          - om-KE
+          - or
+          - or-IN
+          - os
+          - os-GE
+          - os-RU
+          - pa
+          - pa-Arab
+          - pa-Arab-PK
+          - pa-Guru
+          - pa-Guru-IN
+          - pcm
+          - pcm-NG
+          - pl
+          - pl-PL
+          - ps
+          - ps-AF
+          - ps-PK
+          - pt
+          - pt-AO
+          - pt-BR
+          - pt-CH
+          - pt-CV
+          - pt-GQ
+          - pt-GW
+          - pt-LU
+          - pt-MO
+          - pt-MZ
+          - pt-PT
+          - pt-ST
+          - pt-TL
+          - qu
+          - qu-BO
+          - qu-EC
+          - qu-PE
+          - rm
+          - rm-CH
+          - rn
+          - rn-BI
+          - ro
+          - ro-MD
+          - ro-RO
+          - rof
+          - rof-TZ
+          - ru
+          - ru-BY
+          - ru-KG
+          - ru-KZ
+          - ru-MD
+          - ru-RU
+          - ru-UA
+          - rw
+          - rw-RW
+          - rwk
+          - rwk-TZ
+          - sah
+          - sah-RU
+          - saq
+          - saq-KE
+          - sat
+          - sat-Olck
+          - sat-Olck-IN
+          - sbp
+          - sbp-TZ
+          - sd
+          - sd-Arab
+          - sd-Arab-PK
+          - sd-Deva
+          - sd-Deva-IN
+          - se
+          - se-FI
+          - se-NO
+          - se-SE
+          - seh
+          - seh-MZ
+          - ses
+          - ses-ML
+          - sg
+          - sg-CF
+          - shi
+          - shi-Latn
+          - shi-Latn-MA
+          - shi-Tfng
+          - shi-Tfng-MA
+          - si
+          - si-LK
+          - sk
+          - sk-SK
+          - sl
+          - sl-SI
+          - smn
+          - smn-FI
+          - sn
+          - sn-ZW
+          - so
+          - so-DJ
+          - so-ET
+          - so-KE
+          - so-SO
+          - sq
+          - sq-AL
+          - sq-MK
+          - sq-XK
+          - sr
+          - sr-Cyrl
+          - sr-Cyrl-BA
+          - sr-Cyrl-ME
+          - sr-Cyrl-RS
+          - sr-Cyrl-XK
+          - sr-Latn
+          - sr-Latn-BA
+          - sr-Latn-ME
+          - sr-Latn-RS
+          - sr-Latn-XK
+          - su
+          - su-Latn
+          - su-Latn-ID
+          - sv
+          - sv-AX
+          - sv-FI
+          - sv-SE
+          - sw
+          - sw-CD
+          - sw-KE
+          - sw-TZ
+          - sw-UG
+          - ta
+          - ta-IN
+          - ta-LK
+          - ta-MY
+          - ta-SG
+          - te
+          - te-IN
+          - teo
+          - teo-KE
+          - teo-UG
+          - tg
+          - tg-TJ
+          - th
+          - th-TH
+          - ti
+          - ti-ER
+          - ti-ET
+          - tk
+          - tk-TM
+          - to
+          - to-TO
+          - tr
+          - tr-CY
+          - tr-TR
+          - tt
+          - tt-RU
+          - twq
+          - twq-NE
+          - tzm
+          - tzm-MA
+          - ug
+          - ug-CN
+          - uk
+          - uk-UA
+          - ur
+          - ur-IN
+          - ur-PK
+          - uz
+          - uz-Arab
+          - uz-Arab-AF
+          - uz-Cyrl
+          - uz-Cyrl-UZ
+          - uz-Latn
+          - uz-Latn-UZ
+          - vai
+          - vai-Latn
+          - vai-Latn-LR
+          - vai-Vaii
+          - vai-Vaii-LR
+          - vi
+          - vi-VN
+          - vun
+          - vun-TZ
+          - wae
+          - wae-CH
+          - wo
+          - wo-SN
+          - xh
+          - xh-ZA
+          - xog
+          - xog-UG
+          - yav
+          - yav-CM
+          - yi
+          - yi-001
+          - yo
+          - yo-BJ
+          - yo-NG
+          - yue
+          - yue-Hans
+          - yue-Hans-CN
+          - yue-Hant
+          - yue-Hant-HK
+          - zgh
+          - zgh-MA
+          - zh
+          - zh-Hans
+          - zh-Hans-CN
+          - zh-Hans-HK
+          - zh-Hans-MO
+          - zh-Hans-SG
+          - zh-Hant
+          - zh-Hant-HK
+          - zh-Hant-MO
+          - zh-Hant-TW
+          - zu
+          - zu-ZA
+          default: ucs_basic
+    NodeOrEdgeDeleteRequest:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items:
+            $ref: '#/components/schemas/InstanceDelete'
+    InstanceInspectResultItem:
+      type: object
+      required:
+      - instanceType
+      - externalId
+      - space
+      - inspectionResults
+      properties:
+        instanceType:
+          description: The type of instance being returned, an edge or a node.
+          allOf:
+          - $ref: '#/components/schemas/InstanceType'
+        externalId:
+          description: External ids for the requested items
+          allOf:
+          - $ref: '#/components/schemas/NodeOrEdgeExternalId'
+        space:
+          $ref: '#/components/schemas/SpaceSpecification'
+        inspectionResults:
+          type: object
+          properties:
+            involvedViews:
+              type: array
+              items:
+                $ref: '#/components/schemas/ViewReference'
+            involvedContainers:
+              type: array
+              items:
+                $ref: '#/components/schemas/ContainerReference'
+    TableExpressionDataModelsBoolFilter:
+      title: BoolFilter
+      description: 'Build a new query by combining other queries, using boolean operators. We support the `and`, `or`, and
+
+        `not` boolean operators.
+
+        '
+      type: object
+      oneOf:
+      - type: object
+        title: and
+        required:
+        - and
+        properties:
+          and:
+            description: All the sub-clauses in the query must return a matching item.
+            type: array
+            minItems: 1
+            items:
+              $ref: '#/components/schemas/TableExpressionFilterDefinition'
+      - type: object
+        title: or
+        required:
+        - or
+        properties:
+          or:
+            description: One or more of the sub-clauses in the query must return a matching item.
+            type: array
+            minItems: 1
+            items:
+              $ref: '#/components/schemas/TableExpressionFilterDefinition'
+      - type: object
+        title: not
+        required:
+        - not
+        properties:
+          not:
+            title: Filter DSL
+            description: None of the sub-clauses in the query can return a matching item.
+            type: object
+            allOf:
+            - $ref: '#/components/schemas/TableExpressionFilterDefinition'
+    TargetUnits:
+      type: array
+      description: Properties to convert to another unit. The API can only convert to another unit, if a unit has been defined as part of the type on the underlying container being queried.
+      maxItems: 10
+      minItems: 1
+      items:
+        $ref: '#/components/schemas/TargetUnit'
+    BackfillSort:
+      type: array
+      description: 'Optionally sort synced instances during the backfill phase of a two-phase sync. The properties sorted on must have a cursorable index on them. Can only be specified with `mode: twoPhase`.'
+      maxItems: 5
+      items:
+        $ref: '#/components/schemas/PropertySortV3'
+    SyncEdgeTableExpressionV3:
+      type: object
+      required:
+      - edges
+      description: The synchronization query to use when we listen for changes to edges.  The edges must also match the specified filter.
+      properties:
+        limit:
+          $ref: '#/components/schemas/TableExpressionSyncLimit'
+        skipAlreadyDeleted:
+          type: boolean
+          description: 'If set to ''false'' the API will return instances that have been soft deleted before sync was initiated. Soft deletes that happen after the sync is initiated and a cursor generated, are always included in the result. Soft deleted instances are identified by having ```deletedTime``` set. This flag has no effect with `mode: noBackfill`.'
+          default: true
+        mode:
+          $ref: '#/components/schemas/SyncMode'
+        backfillSort:
+          $ref: '#/components/schemas/BackfillSort'
+        edges:
+          type: object
+          properties:
+            from:
+              description: Chain your result expression from this query.
+              type: string
+            chainTo:
+              $ref: '#/components/schemas/TableExpressionChainToDefinition'
+            maxDistance:
+              description: The largest - max - number of levels to traverse when resolving the query.
+              type: integer
+            direction:
+              description: The direction to use when traversing.
+              type: string
+              enum:
+              - outwards
+              - inwards
+            filter:
+              $ref: '#/components/schemas/TableExpressionFilterDefinition'
+            nodeFilter:
+              $ref: '#/components/schemas/TableExpressionFilterDefinition'
+            terminationFilter:
+              $ref: '#/components/schemas/TableExpressionFilterDefinition'
+    FilterValueList:
+      oneOf:
+      - $ref: '#/components/schemas/RawPropertyValueListV3'
+      - $ref: '#/components/schemas/ReferencedPropertyValueV3'
+    SelectiveExternalIDFilterNotice:
+      type: object
+      required:
+      - code
+      - category
+      - hint
+      - level
+      - grade
+      - resultExpression
+      properties:
+        code:
+          type: string
+          enum:
+          - selectiveExternalIDFilter
+        category:
+          type: string
+          enum:
+          - filtering
+        level:
+          type: string
+          enum:
+          - info
+        hint:
+          type: string
+        grade:
+          type: string
+          enum:
+          - A
+        viaFrom:
+          type: string
+          description: Identifier for a result set. Indicates that the notice is inherited from this result expression.
+        resultExpression:
+          type: string
+          description: Identifier for the result set expression that the notice applies to.
+    CursoringNotice:
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/IntractableDirectRelationsCursorNotice'
+      - $ref: '#/components/schemas/IntractableCursorWithNestedFilterNotice'
+      discriminator:
+        propertyName: code
+        mapping:
+          intractableDirectRelationsCursor: '#/components/schemas/IntractableDirectRelationsCursorNotice'
+          intractableCursorWithNestedFilter: '#/components/schemas/IntractableCursorWithNestedFilterNotice'
+    ConstraintOrIndexState:
+      type: string
+      enum:
+      - current
+      - pending
+      - failed
+    RangeFilterV3:
+      type: object
+      title: range
+      required:
+      - range
+      properties:
+        range:
+          required:
+          - property
+          description: "Matches items that contain terms within the provided range.\n\nThe range must include both an upper and a lower bound. It is not permitted to specify both inclusive\nand exclusive bounds together.  E.g. `gte` and `gt`.\n\n  `gte`: Greater than or equal to.\n  `gt`: Greater than.\n  `lte`: Less than or equal to.\n  `lt`: Less than.\n"
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/DMSFilterProperty'
+            gte:
+              $ref: '#/components/schemas/FilterValueRange'
+            gt:
+              $ref: '#/components/schemas/FilterValueRange'
+            lte:
+              $ref: '#/components/schemas/FilterValueRange'
+            lt:
+              $ref: '#/components/schemas/FilterValueRange'
+    SyncNodeTableExpressionV3:
+      type: object
+      required:
+      - nodes
+      description: The synchronization query to use when we listen for changes to nodes.  The nodes must also match the specified filter.
+      properties:
+        limit:
+          $ref: '#/components/schemas/TableExpressionSyncLimit'
+        skipAlreadyDeleted:
+          type: boolean
+          description: 'If set to ''false'' the API will return instances that have been soft deleted before sync was initiated. Soft deletes that happen after the sync is initiated and a cursor generated, are always included in the result. Soft deleted instances are identified by having ```deletedTime``` set. This flag has no effect with `mode: noBackfill`.'
+          default: true
+        mode:
+          $ref: '#/components/schemas/SyncMode'
+        backfillSort:
+          $ref: '#/components/schemas/BackfillSort'
+        nodes:
+          type: object
+          properties:
+            from:
+              description: Chain your result expression from the specified view, or container.
+              type: string
+            chainTo:
+              $ref: '#/components/schemas/TableExpressionChainToDefinition'
+            through:
+              $ref: '#/components/schemas/NodeTableExpressionThrough'
+            direction:
+              description: The direction to use when traversing direct relations. Only applicable when `through` is specified. If `from` is a set operation result expression then direction must be "inwards".
+              type: string
+              default: inwards
+              enum:
+              - outwards
+              - inwards
+            filter:
+              $ref: '#/components/schemas/TableExpressionFilterDefinition'
+    ContainsAnyFilterV3:
+      type: object
+      title: containsAny
+      required:
+      - containsAny
+      properties:
+        containsAny:
+          required:
+          - property
+          - values
+          description: Matches items where the property contains one or more of the given values. Only apply this filter to multivalued properties.
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/DMSFilterProperty'
+            values:
+              $ref: '#/components/schemas/FilterValueList'
+    SignificantPostFilteringNotice:
+      type: object
+      required:
+      - code
+      - category
+      - hint
+      - level
+      - grade
+      - resultExpression
+      - limit
+      - maxInvolvedRows
+      properties:
+        code:
+          type: string
+          enum:
+          - significantPostFiltering
+        category:
+          type: string
+          enum:
+          - filtering
+        level:
+          type: string
+          enum:
+          - warning
+        hint:
+          type: string
+        grade:
+          type: string
+          enum:
+          - C
+        resultExpression:
+          type: string
+          description: Identifier for the result set expression that the notice applies to.
+        limit:
+          type: integer
+          description: The specified limit for the result expression.
+        maxInvolvedRows:
+          type: integer
+          description: Number of rows of data that is internally processed. Value gives an indication of the complexity of evaluating the query.
+    TableExpressionFilterValueRange:
+      oneOf:
+      - $ref: '#/components/schemas/RangeValue'
+      - $ref: '#/components/schemas/ParameterizedPropertyValueV3'
+      - $ref: '#/components/schemas/ReferencedPropertyValueV3'
+    EnumProperty:
+      type: object
+      description: 'An enum type property.
+
+
+        An enum property can only consist of predefined values.
+
+        '
+      required:
+      - type
+      - values
+      properties:
+        type:
+          type: string
+          enum:
+          - enum
+        unknownValue:
+          type: string
+          description: 'The value to use when the enum value is unknown.
+
+            This can optionally be used to provide forward-compatibility, Specifying what value to use if the client does not recognize the returned value. It is not possible to ingest the unknown value, but it must be part of the allowed values.'
+        values:
+          type: object
+          description: 'A set of all possible values for the enum property. The enum value identifier has to have a length of between 1 and 127 characters.  It must also match the pattern ```^[_A-Za-z][_0-9A-Za-z]{0,127}$```, and not be `"true"`, `"false"` or `"null"`.
+
+
+            Example: ```{ "value1": { "name": "Value 1", "description": "This is value 1" }, "value2": { } }```'
+          additionalProperties:
+            x-additionalPropertiesName: enumValueIdentifier
+            minProperties: 1
+            maxProperties: 32
+            allOf:
+            - $ref: '#/components/schemas/EnumValueProperties'
+      example:
+        unknownValue: unknown
+        values:
+          value1:
+            name: Value 1
+            description: This is value 1
+          value2: {}
+          unknown:
+            name: Unknown
+            description: Used if the client does not recognize the returned value.
+    RangeValue:
+      title: rangeBound
+      description: Value you wish to find in the provided property using a range clause.
+      oneOf:
+      - type: string
+        title: string
+      - type: number
+        title: number
+      - type: integer
+        title: integer
+    IntractableDirectRelationsCursorNotice:
+      type: object
+      required:
+      - code
+      - category
+      - hint
+      - level
+      - grade
+      - resultExpression
+      properties:
+        code:
+          type: string
+          enum:
+          - intractableDirectRelationsCursor
+        category:
+          type: string
+          enum:
+          - cursoring
+        level:
+          type: string
+          enum:
+          - warning
+        grade:
+          type: string
+          enum:
+          - D
+        hint:
+          type: string
+        resultExpression:
+          type: string
+    FilteringNotice:
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/SelectiveExternalIDFilterNotice'
+      - $ref: '#/components/schemas/SignificantPostFilteringNotice'
+      - $ref: '#/components/schemas/SignificantHasDataFiltersNotice'
+      discriminator:
+        propertyName: code
+        mapping:
+          selectiveExternalIDFilter: '#/components/schemas/SelectiveExternalIDFilterNotice'
+          significantPostFiltering: '#/components/schemas/SignificantPostFilteringNotice'
+          significantHasDataFiltering: '#/components/schemas/SignificantHasDataFiltersNotice'
+    TableExpressionFilterDefinition:
+      type: object
+      description: A filter Domain Specific Language (DSL) used to create advanced filter queries.
+      oneOf:
+      - $ref: '#/components/schemas/TableExpressionDataModelsBoolFilter'
+      - $ref: '#/components/schemas/TableExpressionLeafFilter'
+      example:
+        and:
+        - in:
+            property:
+            - tag
+            values:
+            - 10011
+            - 10011
+        - range:
+            property:
+            - weight
+            gte: 0
+    TableExpressionOverlapsFilterV3:
+      type: object
+      title: overlaps
+      required:
+      - overlaps
+      properties:
+        overlaps:
+          type: object
+          description: Matches items where the range made up of the two properties overlap with the provided range.
+          required:
+          - startProperty
+          - endProperty
+          properties:
+            startProperty:
+              $ref: '#/components/schemas/DMSFilterProperty'
+            endProperty:
+              $ref: '#/components/schemas/DMSFilterProperty'
+            gte:
+              $ref: '#/components/schemas/TableExpressionFilterValueRange'
+            gt:
+              $ref: '#/components/schemas/TableExpressionFilterValueRange'
+            lte:
+              $ref: '#/components/schemas/TableExpressionFilterValueRange'
+            lt:
+              $ref: '#/components/schemas/TableExpressionFilterValueRange'
+    DMSFilterProperty:
+      title: property
+      description: "A reference to either a DMS base property or a container property.\nFor nodes the DMS base properties are `instanceType`, `version`,\n`space`, `externalId`, `type`, `createdTime`, `lastUpdatedTime`,\nand `deletedTime`. For edges the DMS base properties\nare all of the node base properties with the addition of\n`startNode` and `endNode`.\n\nReferences to DMS base properties are on the form\n`[\"identifier\"]`, `[\"node\", \"identifier\"]` or `[\"edge\", \"identifier\"]` where\n`identifier` is a DMS base property.\n\nContainer properties can be referenced either through a view\n or through the container where it is defined.\n- To reference a property through the container where it\n    is defined the format is\n    `[\"space\", \"externalId\", \"identifier\"]` where `space`,\n    `externalId` is the space and\n    externalId of the container and `identifier` is one of the\n    property identifiers defined in the container.\n- To reference a property through one of the views mapping it the format\n  is `[\"space\", \"externalId/version\", \"identifier\"]`\n  where `space`, `externalId`, `version` is the space, externalId,\n  and version of the view respectively, and `identifier` is one of the\n  property identifiers defined in the view.\n"
+      type: array
+      minItems: 1
+      items:
+        type: string
+    SlimNodeOrEdge:
+      oneOf:
+      - $ref: '#/components/schemas/SlimNodeDefinition'
+      - $ref: '#/components/schemas/SlimEdgeDefinition'
+    CorePropertyDefinition:
+      allOf:
+      - $ref: '#/components/schemas/CorePropertyCreateDefinition'
+      - type: object
+        required:
+        - constraintState
+        properties:
+          constraintState:
+            type: object
+            description: 'Describes the validity of constraints defined on this property.
+
+              Not applicable for records.
+
+              '
+            properties:
+              nullability:
+                description: 'For properties that have isNullable set to false, this field describes the validity of the not-null constraint.
+
+                  It is not specified for nullable properties.
+
+
+                  Possible values are:
+
+
+                  * `"failed"`: The property contains null values, violating the constraint. This can occur if a property with existing nulls was made non-nullable. New null values will still be rejected.
+
+                  * `"current"`: The constraint is satisfied; all values in the property are not null.
+
+                  * `"pending"`: The constraint validity has not yet been computed.
+
+                  '
+                $ref: '#/components/schemas/ConstraintOrIndexState'
+              maxListSize:
+                description: 'For list properties with maxListSize set, this field describes the validity of the maxListSize check constraint.
+
+                  It is not specified for properties with isList = false or maxListSize = null.
+
+
+                  Possible values are:
+
+
+                  * `"failed"`: The property contains overly large lists, violating the constraint. This can occur if maxListSize was set on a property with existing values. New overly large list values will still be rejected.
+
+                  * `"current"`: The constraint is satisfied; all list values in the property are within maxListSize.
+
+                  * `"pending"`: The constraint validity has not yet been computed.
+
+                  '
+                $ref: '#/components/schemas/ConstraintOrIndexState'
+              maxTextSize:
+                description: 'For text properties with maxTextSize set, this field describes the validity of the maxTextSize check constraint.
+
+                  It is not specified for non-text properties or properties with maxTextSize = null.
+
+
+                  Possible values are:
+
+
+                  * `"failed"`: The property contains overly big text values, violating the constraint. This can occur if maxTextSize was set on a property with existing values. New overly large text values will still be rejected.
+
+                  * `"current"`: The constraint is satisfied; all text values in the property are within maxTextSize.
+
+                  * `"pending"`: The constraint validity has not yet been computed.
+
+                  '
+                $ref: '#/components/schemas/ConstraintOrIndexState'
+    TableExpressionChainToDefinition:
+      type: string
+      default: destination
+      enum:
+      - source
+      - destination
+      description: "Default: `\"destination\"`. Applicable when `from` is an edge result expression. Control which side of the edges in `from` to chain to. The behavior depends on the `direction` setting in the `from` result expression:\n  - If `from` follows edges outwards, `direction=\"outwards\"` (default), then `\"source\"` selects `startNode` and `\"destination\"` selects `endNode`.\n  - If `from` follows edges inwards, `direction=\"inwards\"`, then `\"source\"` selects `endNode` and `\"destination\"` selects `startNode`."
+    ThroughReference:
+      type: object
+      title: direct reference
+      description: Traverse from another table expression using a direct relation. Only applicable when `from` is specified. The view or container property to use when we traverse direct relations. Has to reference a direct relation property.
+      required:
+      - source
+      - identifier
+      properties:
+        source:
+          $ref: '#/components/schemas/SourceReference'
+        identifier:
+          $ref: '#/components/schemas/PropertyIdentifierV3'
+    TableExpressionInFilterV3:
+      type: object
+      title: in
+      required:
+      - in
+      properties:
+        in:
+          required:
+          - property
+          - values
+          description: Matches items where the property **exactly** matches one of the given values.
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/DMSFilterProperty'
+            values:
+              $ref: '#/components/schemas/TableExpressionFilterValueList'
+    ViewCorePropertyDefinition:
+      allOf:
+      - $ref: '#/components/schemas/CorePropertyDefinition'
+      - type: object
+        required:
+        - type
+        properties:
+          type:
+            description: "The type of data you can store in this property. Most properties can also hold a list of values, for example, a list of integers or a list of timestamps. The supported storage types are:\n\n\n* text (allows user control of collation),\n * boolean,\n * 32-bit, and 64-bit float,\n * 32-bit, and 64-bit integer,\n * timestamp,\n * date,\n * JSON fragment,\n * direct relation to an existing node,\n * time series external-id reference,\n * file external-id reference,\n * sequence external-id reference,\n * enum.\n\n\nThe JSON fragments have to be valid JSON objects. If JSON arrays are to be stored, these must be wrapped in a JSON object. JSON values (such as string, number, boolean) should use their respective primitive form instead. The maximum allowed size for a JSON object is 40960 bytes. For lists of json values, the size of the entire list must be within this limit. The maximum allowed length of a key is 128, while the maximum allowed size of a value is 10240 bytes and you can have up to 256 key-value pairs. The  byte sizes are computed by representing the data as a UTF-8 encoded JSON string.\nDirect relations use a space external-id, the external-id for an existing node, and the external-id for the data container. E.g. ```s-spaceExternalId.uniqueNodeExternalId.containerExternalId```. The ```view``` property on direct relation can optionally be set, and if it is set then this is a hint to the client on what kind of data is expected to exist.\nTimestamps must be a string in the format 'YYYY-MM-DDTHH:MM:SS[.millis][Z|time zone]' with optional milliseconds having precision of 1-3 decimal digits and optional timezone with format Â±HH:MM, Â±HHMM, Â±HH or Z, where Z represents UTC, Year must be between 0001 and 9999.\nDates must be a date string in the format 'YYYY-MM-DD'. Year must be between 1 and 9999. "
+            oneOf:
+            - $ref: '#/components/schemas/TextProperty'
+            - $ref: '#/components/schemas/PrimitiveProperty'
+            - $ref: '#/components/schemas/CDFExternalIdReference'
+            - $ref: '#/components/schemas/ViewDirectNodeRelation'
+            - $ref: '#/components/schemas/EnumProperty'
+    LimitWithDefault1000:
+      type: object
+      properties:
+        limit:
+          description: Limits the number of results to return.
+          type: integer
+          default: 1000
+          minimum: 1
+          maximum: 1000
+    CorePropertyCreateDefinition:
+      type: object
+      properties:
+        immutable:
+          type: boolean
+          description: Should updates to this property be rejected after the initial population? Per-property immutability is not applicable for records. For records, immutability is a stream-level concept only.
+          default: false
+        nullable:
+          type: boolean
+          description: Does this property need to be set to a value, or not?
+          default: true
+        autoIncrement:
+          type: boolean
+          description: When set to ```true```, the API will increment the property based on its highest current value (max value).  You can only use this functionality to increment properties of type `int32` or `int64`. If the property has a different data type, the API will return an error. Auto-increment is not supported for records. The value will not be auto-generated, so omitting a non-nullable auto-increment property during record ingestion will fail validation.
+          default: false
+        defaultValue:
+          oneOf:
+          - type: string
+          - type: number
+          - type: boolean
+          - type: object
+          description: "Default value to use when you do not specify a value for the property.  The default value must be of the same type as what you defined for the property itself. \n\n\nWe do not currently support using default values for array/list types. "
+        description:
+          type: string
+          description: Description of the content and suggested use for this property.
+          maxLength: 1024
+        name:
+          type: string
+          description: Readable property name.
+          maxLength: 255
+    HistogramAggregateFunctionV3:
+      type: object
+      title: histogram
+      description: A histogram aggregator function.  This function will generate a histogram from the values of the specified property.  It uses the specified interval as defined in your `interval` argument.
+      required:
+      - histogram
+      properties:
+        histogram:
+          type: object
+          required:
+          - property
+          - interval
+          properties:
+            property:
+              type: string
+              description: The property who's data we use to generate the histogram.  This property needs to be a defined-as-numerical property.
+            interval:
+              type: number
+              description: The interval between each bucket.
+    NodeTableExpressionThrough:
+      oneOf:
+      - $ref: '#/components/schemas/ViewPropertyReference'
+      - $ref: '#/components/schemas/ThroughReference'
+    IncludeTyping:
+      type: boolean
+      description: Should we return property type information as part of the result?
+      default: false
+    TableExpressionRangeFilterV3:
+      type: object
+      title: range
+      required:
+      - range
+      properties:
+        range:
+          required:
+          - property
+          description: "Matches items that contain terms within the provided range.\n\nThe range must include both an upper and a lower bound. It is not permitted to specify both inclusive\nand exclusive bounds together.  E.g. `gte` and `gt`.\n\n  `gte`: Greater than or equal to.\n  `gt`: Greater than.\n  `lte`: Less than or equal to.\n  `lt`: Less than.\n"
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/DMSFilterProperty'
+            gte:
+              $ref: '#/components/schemas/TableExpressionFilterValueRange'
+            gt:
+              $ref: '#/components/schemas/TableExpressionFilterValueRange'
+            lte:
+              $ref: '#/components/schemas/TableExpressionFilterValueRange'
+            lt:
+              $ref: '#/components/schemas/TableExpressionFilterValueRange'
+    DataModelsNestedFilter:
+      type: object
+      title: nested
+      required:
+      - nested
+      properties:
+        nested:
+          required:
+          - scope
+          - filter
+          description: "Use `nested` to apply the properties of the direct relation as the filter.  `scope` specifies the direct\nrelation property you want use as the filtering property.\n\nExample:\n```\n  {\n    \"nested\": {\n      \"scope\": [\"some\", \"direct_relation\", \"property\"],\n      \"filter\": {\n        \"equals\": {\n          \"property\": [\"node\", \"name\"],\n          \"value\": \"ACME\"\n        }\n      }\n    }\n  }\n```\n"
+          type: object
+          properties:
+            scope:
+              type: array
+              minItems: 1
+              maxItems: 3
+              items:
+                type: string
+            filter:
+              $ref: '#/components/schemas/FilterDefinition'
+    NodeOrEdgeExternalId:
+      type: string
+      pattern: ^[^\\x00]{1,256}$
+      minLength: 1
+      maxLength: 256
+    RawPropertyValueListV3:
+      description: A list of values
+      type: array
+      items:
+        description: A value describing the type of the defined property
+        oneOf:
+        - type: string
+        - type: number
+        - type: boolean
+        - type: object
+    MinAggregateFunctionV3:
+      type: object
+      title: min
+      description: The function will calculate, and return, the lowest - min - value for a property.
+      required:
+      - min
+      properties:
+        min:
+          type: object
+          required:
+          - property
+          properties:
+            property:
+              type: string
+              description: The property who's data we use to generate the min value from.  This property needs to be a defined-as-numerical property.
+    Cursor:
+      type: object
+      properties:
+        cursor:
+          type: string
+          example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
+
+        property, it means that there may be more results, and you should pass that value as the
+
+        `cursor` parameter in the next request.
+
+
+        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
+
+        decoded. Its internal structure is not a part of the public API, and may change without
+
+        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
+
+        '
+    DataModelsLeafFilter:
+      description: Leaf filter
+      title: LeafFilter
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/EqualsFilterV3'
+      - $ref: '#/components/schemas/InFilterV3'
+      - $ref: '#/components/schemas/RangeFilterV3'
+      - $ref: '#/components/schemas/PrefixFilterV3'
+      - $ref: '#/components/schemas/DMSExistsFilter'
+      - $ref: '#/components/schemas/ContainsAnyFilterV3'
+      - $ref: '#/components/schemas/ContainsAllFilterV3'
+      - $ref: '#/components/schemas/MatchAllFilter'
+      - $ref: '#/components/schemas/DataModelsNestedFilter'
+      - $ref: '#/components/schemas/OverlapsFilterV3'
+      - $ref: '#/components/schemas/HasExistingDataFilterV3'
+      - $ref: '#/components/schemas/InstanceReferenceFilterV3'
+    QueryUnionAllTableExpressionV3:
+      title: union all
+      type: object
+      description: 'Return the union of the specified result sets.  We will remove the results that match the optional exception
+
+        result sets.  Note: The operation may return duplicate results since we do not perform deduplication.
+
+        '
+      required:
+      - unionAll
+      properties:
+        unionAll:
+          type: array
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/QuerySetOperationTableExpressionV3'
+            - type: string
+        except:
+          type: array
+          items:
+            type: string
+        limit:
+          $ref: '#/components/schemas/TableExpressionQueryLimit'
+    TableExpressionPrefixFilterV3:
+      type: object
+      title: prefix
+      required:
+      - prefix
+      properties:
+        prefix:
+          required:
+          - property
+          - value
+          description: Matches items that have the prefix in the identified property.
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/DMSFilterProperty'
+            value:
+              $ref: '#/components/schemas/TableExpressionFilterValue'
+  responses:
+    NodeOrEdgeDeleteResponse:
+      description: Nodes or edges that were deleted
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            properties:
+              items:
+                $ref: '#/components/schemas/DeletedInstances'
+    SlimNodeAndEdgeCollectionResponse:
+      description: Created, deleted, and updated instances
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            - deleted
+            properties:
+              items:
+                type: array
+                description: List of nodes and edges that were created or updated
+                items:
+                  $ref: '#/components/schemas/SlimNodeOrEdge'
+              deleted:
+                $ref: '#/components/schemas/DeletedInstances'
+    QueryResponse:
+      description: Matching nodes and edges
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            - nextCursor
+            properties:
+              items:
+                type: object
+                additionalProperties:
+                  x-additionalPropertiesName: result-expression
+                  allOf:
+                  - type: array
+                    description: List of nodes or edges
+                    items:
+                      $ref: '#/components/schemas/NodeOrEdge'
+              typing:
+                type: object
+                description: Property type information for selected result expressions.
+                additionalProperties:
+                  x-additionalPropertiesName: result-expression
+                  allOf:
+                  - $ref: '#/components/schemas/TypeInformationOuter'
+              nextCursor:
+                type: object
+                additionalProperties:
+                  x-additionalPropertiesName: cursor-name
+                  $ref: '#/components/schemas/NextCursorV3'
+              debug:
+                $ref: '#/components/schemas/DebugResponse'
+    SearchResponse:
+      description: Search query results
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            properties:
+              items:
+                type: array
+                description: List of nodes and edges
+                items:
+                  $ref: '#/components/schemas/NodeOrEdge'
+              typing:
+                $ref: '#/components/schemas/TypeInformationOuter'
+    InstanceInspectResponse:
+      description: Instances along with which containers/views they are associated with
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            properties:
+              items:
+                type: array
+                description: List of instance inspection results
+                items:
+                  $ref: '#/components/schemas/InstanceInspectResultItem'
+    ErrorResponse:
+      description: The response for a failed request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+    AggregationResponse:
+      description: Aggregated query results
+      content:
+        application/json:
+          schema:
+            allOf:
+            - $ref: '#/components/schemas/AggregatedResultItemCollection'
+            - type: object
+              properties:
+                typing:
+                  $ref: '#/components/schemas/TypeInformationOuter'
+    NodeAndEdgeCollectionResponseWithCursorV3:
+      description: List of matching nodes and edges
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            properties:
+              items:
+                type: array
+                description: List of nodes and edges
+                items:
+                  $ref: '#/components/schemas/NodeOrEdge'
+              typing:
+                $ref: '#/components/schemas/TypeInformationOuter'
+              nextCursor:
+                $ref: '#/components/schemas/NextCursorV3'
+    ByIdsResponse:
+      description: List of matching nodes and edges
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            properties:
+              items:
+                type: array
+                description: List of nodes and edges
+                items:
+                  $ref: '#/components/schemas/NodeOrEdge'
+              typing:
+                $ref: '#/components/schemas/TypeInformationOuter'
+  securitySchemes:
+    oidc-token:
+      type: http
+      scheme: bearer
+      bearerFormat: OpenID Connect or OAuth2 token
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+    oauth2-client-credentials:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        clientCredentials:
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-auth-code:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://your-idps.authorization.url/
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-open-industrial-data:
+      type: oauth2
+      description: Auth flow for Open Industrial Data. Get your client secret from https://hub.cognite.com/open-industrial-data-211.
+      flows:
+        clientCredentials:
+          tokenUrl: https://login.microsoftonline.com/48d5043c-cf70-4c49-881c-c638f5796997/oauth2/v2.0/token
+          scopes:
+            default: https://api.cognitedata.com/.default
+    org-oidc-token:
+      type: openIdConnect
+      openIdConnectUrl: https://auth.cognite.com/.well-known/openid-configuration
+      description: 'Access token issued by the Cognite authorization server, and valid for the target organization. The token must
+
+        be an OpenID Connect token, and it can be obtained by performing an OIDC login flow toward `auth.cognite.com`.
+
+        This is a single URL for all CDF organizations.'
+x-tagGroups:
+- name: Changelog
+  tags:
+  - Changelog
+- name: Organizations and projects
+  tags:
+  - Organizations
+  - Projects
+- name: Identity and access management
+  tags:
+  - Principals
+  - Groups
+  - Security categories
+  - Sessions
+  - Token
+  - User profiles
+  - Project Deletion Reporting
+- name: Data modeling
+  tags:
+  - Data Modeling
+  - Data models
+  - Spaces
+  - Views
+  - Containers
+  - Nodes
+  - Instances
+  - Statistics
+  - Streams
+  - Records
+- name: Asset-centric data model
+  tags:
+  - Assets
+  - Time series
+  - Synthetic Time Series
+  - Data point subscriptions
+  - Events
+  - Files
+  - Sequences
+  - Geospatial
+  - Seismic
+- name: 3D
+  tags:
+  - 3D Models
+  - 3D Model Revisions
+  - 3D Files
+  - 3D Asset Mapping
+  - 3D Contextualization
+  - 3D Jobs
+  - 3D Migration
+  - 3D Scenes
+- name: Contextualization
+  tags:
+  - Entity matching
+  - Entity matching pipelines
+  - Engineering diagrams
+  - Vision
+  - Advanced joins
+- name: Cognite AI
+  tags:
+  - Agents
+  - Skills
+  - Chat Completions
+  - Document AI
+  - Models
+- name: Documents
+  tags:
+  - Documents
+  - Document preview
+- name: Data ingestion
+  tags:
+  - Raw
+  - Extraction Pipelines
+  - Extraction Pipelines Runs
+  - Extraction Pipelines Config
+  - Extractors
+- name: Data organization
+  tags:
+  - Data sets
+  - Data domains
+  - Data products
+  - Rule sets
+  - Labels
+  - Relationships
+  - Annotations
+- name: Transformations
+  tags:
+  - Transformations
+  - Transformation Jobs
+  - Transformation Schedules
+  - Transformation Notifications
+  - Query
+  - Schema
+- name: Functions
+  tags:
+  - Functions
+  - Function calls
+  - Function schedules
+- name: Hosted Extractors
+  tags:
+  - Sources
+  - Jobs
+  - Destinations
+  - Mappings
+- name: PostgreSQL Gateway
+  tags:
+  - Postgres Gateway Users
+  - Postgres Gateway Tables
+- name: SAP Writeback
+  tags:
+  - SAP Instances
+  - SAP Endpoints
+  - Schema Mappings
+  - Writeback Requests
+- name: Data workflows
+  tags:
+  - Workflows
+  - Workflow versions
+  - Workflow executions
+  - Workflow triggers
+  - Tasks
+  - Workers
+- name: Simulators
+  tags:
+  - Simulators
+  - Simulator Integrations
+  - Simulator Models
+  - Simulator Routines
+  - Simulation Runs
+  - Simulator Logs
+- name: Units
+  tags:
+  - Units
+  - Unit Systems
+- name: ''
+  tags:
+  - ''

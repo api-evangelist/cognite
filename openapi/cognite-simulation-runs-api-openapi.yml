@@ -1,0 +1,1077 @@
+openapi: 3.1.0
+info:
+  title: Cognite 3D Asset Mapping Simulation Runs API
+  description: "# Introduction\nThis is the reference documentation for the Cognite API with\nan overview of all the available methods.\n\n# Postman\nSelect the **Download** button to download our OpenAPI specification to get started.\n\nTo import your data into Postman, select **Import**, and the Import modal opens.\nYou can import items by dragging or dropping files or folders. You can choose how to import your API and manage the import settings in **View Import Settings**.\n\nIn the Import Settings, set the **Folder organization** to **Tags**, select\n**Enable optional parameters** to turn off the settings, and select **Always inherit authentication** to turn on the settings. Select **Import**.\n\nSet the Authorization to **Oauth2.0**. By default, the settings are for Open Industrial Data. Navigate to [Cognite Hub](https://hub.cognite.com/open-industrial-data-211) to understand how to get the credentials for use in Postman.\n\nFor more information, see [Getting Started with Postman](https://developer.cognite.com/dev/guides/postman/).\n\n# Pagination\nMost resource types can be paginated, indicated by the field `nextCursor` in the response.\nBy passing the value of `nextCursor` as the cursor you will get the next page of `limit` results.\nNote that all parameters except `cursor` has to stay the same.\n\n# Parallel retrieval\nAs general guidance, Parallel Retrieval is a technique that should be used when due to query complexity, retrieval of data in a single request is significantly slower than it would otherwise be for a simple request.  Parallel retrieval does not act as a speed multiplier on optimally running queries.  By parallelizing such requests, data retrieval performance can be tuned to meet the client application needs. \n\nCDF supports parallel retrieval through the `partition` parameter, which has the format `m/n` where `n` is the amount of partitions you would like to split the entire data set into.\nIf you want to download the entire data set by splitting it into 10 partitions, do the following in parallel with `m` running from 1 to 10:\n  - Make a request to `/events` with `partition=m/10`.\n  - Paginate through the response by following the cursor as explained above. Note that the `partition` parameter needs to be passed to all subqueries.\n\nProcessing of parallel retrieval requests is subject to concurrency quota availability. The request returns the `429` response upon exceeding concurrency limits. See the Request throttling chapter below.\n\nTo prevent unexpected problems and to maximize read throughput, you should at most use 10 partitions. \nSome CDF resources will automatically enforce a maximum of 10 partitions.\nFor more specific and detailed information, please read the ```partition``` attribute documentation for the CDF resource you're using.  \n\n# Requests throttling\nCognite Data Fusion (CDF) returns the HTTP `429` (too many requests) response status code when project capacity exceeds the limit.\n\nThe throttling can happen:\n  - If a user or a project sends too many (more than allocated) concurrent requests.\n  - If a user or a project sends a too high (more than allocated) rate of requests in a given amount of time.\n\nCognite recommends using a retry strategy based on truncated exponential backoff to handle sessions with HTTP response codes 429.\n\nCognite recommends using a reasonable number (up to 10) of  `Parallel retrieval` partitions.\n\nFollowing these strategies lets you slow down the request frequency to maximize productivity without having to re-submit/retry failing requests.\n\nSee more [here](https://docs.cognite.com/dev/concepts/resource_throttling).\n\n# API versions\n## Version headers\nThis API uses calendar versioning, and version names follow the `YYYYMMDD` format.\nYou can find the versions currently available by using the version selector at the top of this page.\n\nTo use a specific API version, you can pass the `cdf-version: $version` header along with your requests to the API.\n\n## Beta versions\nThe beta versions provide a preview of what the stable version will look like in the future.\nBeta versions contain functionality that is reasonably mature, and highly likely to become a part of the stable API.\n\nBeta versions are indicated by a `-beta` suffix after the version name. For example, the beta version header for the\n2023-01-01 version is then `cdf-version: 20230101-beta`.\n\n## Alpha versions\nAlpha versions contain functionality that is new and experimental, and not guaranteed to ever become a part of the stable API.\nThis functionality presents no guarantee of service, so its use is subject to caution.\n\nAlpha versions are indicated by an `-alpha` suffix after the version name. For example, the alpha version header for\nthe 2023-01-01 version is then `cdf-version: 20230101-alpha`."
+  version: v1
+  contact:
+    name: Cognite Support
+    url: https://support.cognite.com
+    email: support@cognite.com
+servers:
+- url: https://{cluster}.cognitedata.com/api/v1/projects/{project}
+  description: The URL for the CDF cluster to connect to
+  variables:
+    cluster:
+      enum:
+      - api
+      - az-tyo-gp-001
+      - az-eastus-1
+      - az-power-no-northeurope
+      - westeurope-1
+      - asia-northeast1-1
+      - gc-dsm-gp-001
+      default: api
+      description: The CDF cluster to connect to
+    project:
+      default: publicdata
+      description: The CDF project name.
+security:
+- oidc-token:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-client-credentials:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-open-industrial-data:
+  - https://api.cognitedata.com/.default
+- oauth2-auth-code:
+  - https://{cluster}.cognitedata.com/.default
+tags:
+- name: Simulation Runs
+  description: "\nEvery time a simulation routine executes, a simulation run object is created. This object ensures that each execution of a routine is documented and traceable. Each run has an associated simulation data resource, which stores the inputs and outputs of a simulation run, capturing the values set into and read from the simulator model to ensure the traceability and integrity of the simulation data.\n\nSimulation runs provide a historical record of the simulations performed, allowing users to analyze and compare different runs, track changes over time, and make informed decisions based on the simulation results.\n\nWhen simulation run load balancing is enabled and the routine is not assigned to any particular simulator integration, the run initiates with status `queued` and any active simulator integration can claim it automatically.\nWithout load balancing, the run initiates with status `ready` and is tied to the simulator integration specified on the routine.\n\n#### Limitations:\n\n- A retention policy is in place for simulation runs, allowing up to 100000 entries.\n  When this limit is reached, the oldest runs are deleted to make room for new ones.\n- The total size of all inputs for a simulation run can be a maximum of  50.00 KB.\n- The total size of simulation run data sent by the connector can be a maximum of  100.00 KB.\n"
+paths:
+  /simulators/run:
+    post:
+      tags:
+      - Simulation Runs
+      summary: Run Simulation
+      description: 'Request to run a simulator routine asynchronously.
+
+
+        The total size of the request body can be a maximum of 50.00 KB.'
+      operationId: run_simulation_simulators_run_post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SingleItemSimulationRunCommandByRoutineOrByRoutineRevision'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListSimulationRunView'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBase'
+          description: Bad Request
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBase'
+          description: Forbidden
+        '413':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBase'
+          description: Request Entity Too Large
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBase'
+          description: Internal Server Error
+  /simulators/runs/list:
+    post:
+      tags:
+      - Simulation Runs
+      summary: Filter Simulation Runs
+      description: Retrieves a list of simulation runs that match the given criteria.
+      operationId: filter_simulation_runs_simulators_runs_list_post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListSimulationRunsQuery'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListWithCursorSimulationRunView'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBase'
+          description: Bad Request
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBase'
+          description: Forbidden
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBase'
+          description: Internal Server Error
+  /simulators/runs/byids:
+    post:
+      tags:
+      - Simulation Runs
+      summary: Retrieve Simulation
+      description: Retrieve a simulation run by ID.
+      operationId: retrieve_simulation_run_by_id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SingleItemIdRef'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListSimulationRunView'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBase'
+          description: Bad Request
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBase'
+          description: Forbidden
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBase'
+          description: Internal Server Error
+  /simulators/runs/data/list:
+    post:
+      tags:
+      - Simulation Runs
+      summary: Retrieve Simulation Data
+      description: Retrieve data associated with a simulation run by ID.
+      operationId: retrieve_simulation_run_data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SingleItemRunIdRef'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListSimulationRunDataItem'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBase'
+          description: Bad Request
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBase'
+          description: Forbidden
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBase'
+          description: Internal Server Error
+components:
+  schemas:
+    SimulationValueUnitName:
+      properties:
+        name:
+          type: string
+          maxLength: 50
+          minLength: 1
+          title: Name
+          description: Name of the unit
+          examples:
+          - kg
+          - m
+          - Pa
+      additionalProperties: false
+      type: object
+      required:
+      - name
+      title: SimulationValueUnitName
+    SortByCreatedTime:
+      properties:
+        order:
+          anyOf:
+          - type: string
+            const: asc
+            enum:
+            - asc
+          - type: string
+            const: desc
+            enum:
+            - desc
+          title: Order
+          description: Sort order
+        property:
+          type: string
+          const: createdTime
+          title: Property
+          description: Name of the property to sort by
+          enum:
+          - createdTime
+      additionalProperties: false
+      type: object
+      required:
+      - order
+      - property
+      title: SortByCreatedTime
+    ListSimulationRunView:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/SimulationRunView'
+          type: array
+          title: Items
+      additionalProperties: false
+      type: object
+      required:
+      - items
+      title: ListSimulationRunView
+    SimulatorObjectRef:
+      properties: {}
+      additionalProperties: true
+      type: object
+      title: SimulatorObjectRef
+    SimulationRunCommandByRoutine:
+      properties:
+        runTime:
+          title: RunTime
+          description: Run time in milliseconds. Reference timestamp used for data pre-processing and data sampling. If not provided, the creation time of the simulation run is used.
+          type: integer
+        queue:
+          title: Queue
+          description: Queue the simulation run when connector is down.
+          default: false
+          type: boolean
+        logSeverity:
+          description: Override the minimum severity level for the simulation run logs. If not provided, the minimum severity is read from the connector logger configuration.
+          $ref: '#/components/schemas/SimulatorLogSeverityLevel'
+        inputs:
+          title: Inputs
+          description: List of input overrides
+          items:
+            $ref: '#/components/schemas/SimulationInputOverride'
+          type: array
+          maxItems: 10000
+          minItems: 1
+        routineExternalId:
+          type: string
+          maxLength: 255
+          minLength: 1
+          title: RoutineExternalId
+          description: Routine external id
+          examples:
+          - calculation_1
+      additionalProperties: false
+      type: object
+      required:
+      - routineExternalId
+      title: SimulationRunCommandByRoutine
+    SimulationRunType:
+      type: string
+      enum:
+      - external
+      - manual
+      - scheduled
+      title: SimulationRunType
+    APIError:
+      properties:
+        message:
+          type: string
+          title: Message
+        code:
+          type: integer
+          title: Code
+      type: object
+      required:
+      - message
+      - code
+      title: APIError
+    SingleItemSimulationRunCommandByRoutineOrByRoutineRevision:
+      properties:
+        items:
+          items:
+            anyOf:
+            - $ref: '#/components/schemas/SimulationRunCommandByRoutine'
+            - $ref: '#/components/schemas/SimulationRunCommandByRoutineRevision'
+          type: array
+          title: Items
+          description: A list with a single item
+      additionalProperties: false
+      type: object
+      required:
+      - items
+      title: SingleItemSimulationRunCommandByRoutineOrByRoutineRevision
+    SimulationRunDataItem:
+      properties:
+        runId:
+          type: integer
+          title: RunId
+        inputs:
+          items:
+            $ref: '#/components/schemas/SimulationValue'
+          type: array
+          title: Inputs
+        outputs:
+          items:
+            $ref: '#/components/schemas/SimulationValueBase'
+          type: array
+          title: Outputs
+      additionalProperties: false
+      type: object
+      required:
+      - runId
+      - inputs
+      - outputs
+      title: SimulationRunDataItem
+    SingleItemRunIdRef:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/RunIdRef'
+          type: array
+          title: Items
+          description: A list with a single item
+      additionalProperties: false
+      type: object
+      required:
+      - items
+      title: SingleItemRunIdRef
+    SimulationValueBase:
+      properties:
+        referenceId:
+          type: string
+          maxLength: 50
+          minLength: 1
+          title: ReferenceId
+          description: Reference id of the value
+        value:
+          anyOf:
+          - type: string
+            description: String value. Maximum length is 1024
+          - type: number
+            description: Double precision value
+          - items:
+              type: string
+            type: array
+            description: Array of strings. Minimum length is 1 and maximum length is 1000
+          - items:
+              type: number
+            type: array
+            description: Array of double precision values. Minimum length is 1 and maximum length is 1000
+          title: Value
+          description: Value used for simulation. Can be string, double, array of strings or array of doubles. Maximum length is 1024 for strings and 1000 for arrays.
+        valueType:
+          $ref: '#/components/schemas/SimulationValueType'
+          description: Type of the value
+        unit:
+          description: Unit of the value
+          $ref: '#/components/schemas/SimulationValueUnit'
+        simulatorObjectReference:
+          description: Where the value was written to, and for the outputs it is where the value was read from
+          $ref: '#/components/schemas/SimulatorObjectRef'
+        timeseriesExternalId:
+          title: TimeseriesExternalId
+          description: External id of the time series where the value was written to
+          type: string
+          maxLength: 255
+          minLength: 1
+      additionalProperties: false
+      type: object
+      required:
+      - referenceId
+      - value
+      - valueType
+      title: SimulationValueBase
+    RunIdRef:
+      properties:
+        runId:
+          type: integer
+          title: RunId
+          description: Simulation run id
+          examples:
+          - 5559452808603919
+      additionalProperties: false
+      type: object
+      required:
+      - runId
+      title: RunIdRef
+    SimulationRunCommandByRoutineRevision:
+      properties:
+        runTime:
+          title: RunTime
+          description: Run time in milliseconds. Reference timestamp used for data pre-processing and data sampling. If not provided, the creation time of the simulation run is used.
+          type: integer
+        queue:
+          title: Queue
+          description: Queue the simulation run when connector is down.
+          default: false
+          type: boolean
+        logSeverity:
+          description: Override the minimum severity level for the simulation run logs. If not provided, the minimum severity is read from the connector logger configuration.
+          $ref: '#/components/schemas/SimulatorLogSeverityLevel'
+        inputs:
+          title: Inputs
+          description: List of input overrides
+          items:
+            $ref: '#/components/schemas/SimulationInputOverride'
+          type: array
+          maxItems: 10000
+          minItems: 1
+        routineRevisionExternalId:
+          type: string
+          maxLength: 255
+          minLength: 1
+          title: RoutineRevisionExternalId
+          description: Routine revision external id
+          examples:
+          - dwsim_shower_mixer_model_v1
+        modelRevisionExternalId:
+          type: string
+          maxLength: 255
+          minLength: 1
+          title: ModelRevisionExternalId
+          description: Model revision external id
+          examples:
+          - dwsim_shower_mixer_routine_v1
+      additionalProperties: false
+      type: object
+      required:
+      - routineRevisionExternalId
+      - modelRevisionExternalId
+      title: SimulationRunCommandByRoutineRevision
+    SimulationValueType:
+      type: string
+      enum:
+      - STRING
+      - DOUBLE
+      - STRING_ARRAY
+      - DOUBLE_ARRAY
+      title: SimulationValueType
+    ListSimulationRunDataItem:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/SimulationRunDataItem'
+          type: array
+          title: Items
+      additionalProperties: false
+      type: object
+      required:
+      - items
+      title: ListSimulationRunDataItem
+    SimulationInputOverride:
+      properties:
+        referenceId:
+          type: string
+          maxLength: 50
+          minLength: 1
+          title: ReferenceId
+          description: Reference id of the value to override
+        value:
+          anyOf:
+          - type: string
+            description: String value. Maximum length is 1024
+          - type: number
+            description: Double precision value
+          - items:
+              type: string
+            type: array
+            description: Array of strings. Minimum length is 1 and maximum length is 1000
+          - items:
+              type: number
+            type: array
+            description: Array of double precision values. Minimum length is 1 and maximum length is 1000
+          title: Value
+          description: Override the value used for simulation run
+        unit:
+          description: Override the unit of the value
+          $ref: '#/components/schemas/SimulationValueUnitName'
+      additionalProperties: false
+      type: object
+      required:
+      - referenceId
+      - value
+      title: SimulationInputOverride
+    ListSimulationRunsQuery:
+      properties:
+        filter:
+          $ref: '#/components/schemas/ListSimulationRunsFilters'
+        limit:
+          type: integer
+          maximum: 1000
+          minimum: 1
+          title: Limit
+          default: 1000
+        cursor:
+          title: Cursor
+          description: Cursor for pagination
+          type: string
+        sort:
+          title: Sort
+          description: Only supports sorting by one property at a time
+          items:
+            anyOf:
+            - $ref: '#/components/schemas/SortByCreatedTime'
+            - $ref: '#/components/schemas/SortBySimulationTime'
+          type: array
+      additionalProperties: false
+      type: object
+      title: ListSimulationRunsQuery
+    SingleItemIdRef:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/IdRef'
+          type: array
+          title: Items
+          description: A list with a single item
+      additionalProperties: false
+      type: object
+      required:
+      - items
+      title: SingleItemIdRef
+    SimulationRunStatus:
+      type: string
+      enum:
+      - queued
+      - ready
+      - running
+      - success
+      - failure
+      title: SimulationRunStatus
+    ListSimulationRunsFilters:
+      properties:
+        status:
+          description: Filter by simulation run status
+          $ref: '#/components/schemas/SimulationRunStatus'
+        runType:
+          description: Filter by simulation run type
+          $ref: '#/components/schemas/SimulationRunType'
+        simulatorIntegrationExternalIds:
+          title: SimulatorIntegrationExternalIds
+          description: Filter by simulator integration external ids
+          examples:
+          - - PROSPER_connector
+            - DWSIM_connector
+          items:
+            type: string
+          type: array
+          maxItems: 100
+          minItems: 1
+        simulatorExternalIds:
+          title: SimulatorExternalIds
+          description: Filter by simulator external ids
+          examples:
+          - - PROSPER
+            - PetroSIM
+          items:
+            type: string
+          type: array
+          maxItems: 100
+          minItems: 1
+        modelExternalIds:
+          title: ModelExternalIds
+          description: Filter by simulator model external ids
+          examples:
+          - - PROSPER_model
+            - PetroSIM_model
+          items:
+            type: string
+          type: array
+          maxItems: 100
+          minItems: 1
+        routineExternalIds:
+          title: RoutineExternalIds
+          description: Filter by simulator routine external ids
+          examples:
+          - - PROSPER_routine
+            - PetroSIM_routine
+          items:
+            type: string
+          type: array
+          maxItems: 100
+          minItems: 1
+        routineRevisionExternalIds:
+          title: RoutineRevisionExternalIds
+          description: Filter by routine revision external ids
+          examples:
+          - - routineRevisionForModel
+          items:
+            type: string
+          type: array
+          maxItems: 100
+          minItems: 1
+        modelRevisionExternalIds:
+          title: ModelRevisionExternalIds
+          description: Filter by model revision external ids
+          examples:
+          - - wellModel
+          items:
+            type: string
+          type: array
+          maxItems: 100
+          minItems: 1
+        createdTime:
+          description: Filter by created time range
+          $ref: '#/components/schemas/EpochTimestampRange'
+        simulationTime:
+          description: Filter by simulation time range
+          $ref: '#/components/schemas/EpochTimestampRange'
+      additionalProperties: false
+      type: object
+      title: ListSimulationRunsFilters
+    SimulationRunView:
+      properties:
+        dataSetId:
+          type: integer
+          title: DataSetId
+          description: Dataset id of the resource
+          examples:
+          - 5559452808603919
+        id:
+          type: integer
+          title: Id
+          description: A unique id of a simulation run
+        simulatorExternalId:
+          type: string
+          title: SimulatorExternalId
+          description: External id of the simulator. Null for the legacy runs
+        simulatorIntegrationExternalId:
+          title: SimulatorIntegrationExternalId
+          description: External id of the simulator integration assigned to this run. Null when simulation run load balancing is enabled and the run is awaiting assignment.
+          type: string
+        modelExternalId:
+          type: string
+          title: ModelExternalId
+          description: External id of the simulation model. Null for the legacy runs
+        modelRevisionExternalId:
+          type: string
+          title: ModelRevisionExternalId
+          description: External id of the simulator model revision. Null for the legacy runs
+        routineExternalId:
+          type: string
+          title: RoutineExternalId
+          description: External id of the simulation routine. Null for the legacy runs
+        routineRevisionExternalId:
+          type: string
+          title: RoutineRevisionExternalId
+          description: External id of the simulation routine revision. Null for the legacy runs
+        runTime:
+          title: RunTime
+          description: Run time in milliseconds. Reference timestamp used for data pre-processing and data sampling.
+          type: integer
+        simulationTime:
+          title: SimulationTime
+          description: Simulation time in milliseconds. Timestamp when the input data was sampled. Used for indexing input and output time series.
+          type: integer
+        status:
+          $ref: '#/components/schemas/SimulationRunStatus'
+          description: Status of the simulation run
+        statusMessage:
+          title: StatusMessage
+          description: Message status of the simulation run
+          type: string
+        runType:
+          $ref: '#/components/schemas/SimulationRunType'
+          description: Type of the simulation run
+        userId:
+          type: string
+          title: UserId
+          description: User id of the simulation run
+        logId:
+          type: integer
+          title: LogId
+          description: Log ID
+        createdTime:
+          type: integer
+          title: CreatedTime
+          description: The number of milliseconds since epoch
+        lastUpdatedTime:
+          type: integer
+          title: LastUpdatedTime
+          description: The number of milliseconds since epoch
+      additionalProperties: false
+      type: object
+      required:
+      - dataSetId
+      - id
+      - simulatorExternalId
+      - modelExternalId
+      - modelRevisionExternalId
+      - routineExternalId
+      - routineRevisionExternalId
+      - status
+      - runType
+      - userId
+      - logId
+      - createdTime
+      - lastUpdatedTime
+      title: SimulationRunView
+    EpochTimestampRange:
+      description: Range between two timestamps (inclusive).
+      type: object
+      properties:
+        max:
+          description: Maximum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+          type: integer
+          minimum: 0
+          format: int64
+        min:
+          description: Minimum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+          type: integer
+          minimum: 0
+          format: int64
+    SortBySimulationTime:
+      properties:
+        order:
+          anyOf:
+          - type: string
+            const: asc
+            enum:
+            - asc
+          - type: string
+            const: desc
+            enum:
+            - desc
+          title: Order
+          description: Sort order
+        property:
+          type: string
+          const: simulationTime
+          title: Property
+          description: Name of the property to sort by
+          enum:
+          - simulationTime
+      additionalProperties: false
+      type: object
+      required:
+      - order
+      - property
+      title: SortBySimulationTime
+    SimulationValueUnit:
+      properties:
+        name:
+          type: string
+          maxLength: 50
+          minLength: 1
+          title: Name
+          description: Name of the unit
+          examples:
+          - kg
+          - m
+          - Pa
+        externalId:
+          title: ExternalId
+          description: External id of the unit
+          examples:
+          - mass:kilogm
+          - length:m
+          - pressure:pa
+          type: string
+          maxLength: 255
+          minLength: 1
+      additionalProperties: false
+      type: object
+      required:
+      - name
+      title: SimulationValueUnit
+    ListWithCursorSimulationRunView:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/SimulationRunView'
+          type: array
+          title: Items
+        nextCursor:
+          title: NextCursor
+          type: string
+      additionalProperties: false
+      type: object
+      required:
+      - items
+      title: ListWithCursorSimulationRunView
+    SimulatorLogSeverityLevel:
+      type: string
+      enum:
+      - Debug
+      - Information
+      - Warning
+      - Error
+      title: SimulatorLogSeverityLevel
+    SimulationValue:
+      properties:
+        referenceId:
+          type: string
+          maxLength: 50
+          minLength: 1
+          title: ReferenceId
+          description: Reference id of the value
+        value:
+          anyOf:
+          - type: string
+            description: String value. Maximum length is 1024
+          - type: number
+            description: Double precision value
+          - items:
+              type: string
+            type: array
+            description: Array of strings. Minimum length is 1 and maximum length is 1000
+          - items:
+              type: number
+            type: array
+            description: Array of double precision values. Minimum length is 1 and maximum length is 1000
+          title: Value
+          description: Value used for simulation. Can be string, double, array of strings or array of doubles. Maximum length is 1024 for strings and 1000 for arrays.
+        valueType:
+          $ref: '#/components/schemas/SimulationValueType'
+          description: Type of the value
+        unit:
+          description: Unit of the value
+          $ref: '#/components/schemas/SimulationValueUnit'
+        simulatorObjectReference:
+          description: Where the value was written to, and for the outputs it is where the value was read from
+          $ref: '#/components/schemas/SimulatorObjectRef'
+        timeseriesExternalId:
+          title: TimeseriesExternalId
+          description: External id of the time series where the value was written to
+          type: string
+          maxLength: 255
+          minLength: 1
+        overridden:
+          title: Overridden
+          description: Whether the value was overridden by for this simulation run or used directly from the routine configuration
+          type: boolean
+      additionalProperties: false
+      type: object
+      required:
+      - referenceId
+      - value
+      - valueType
+      title: SimulationValue
+    ErrorBase:
+      properties:
+        error:
+          $ref: '#/components/schemas/APIError'
+      type: object
+      required:
+      - error
+      title: ErrorBase
+    IdRef:
+      properties:
+        id:
+          type: integer
+          title: Id
+          description: ID
+          examples:
+          - 5559452808603919
+      additionalProperties: false
+      type: object
+      required:
+      - id
+      title: IdRef
+  securitySchemes:
+    oidc-token:
+      type: http
+      scheme: bearer
+      bearerFormat: OpenID Connect or OAuth2 token
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+    oauth2-client-credentials:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        clientCredentials:
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-auth-code:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://your-idps.authorization.url/
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-open-industrial-data:
+      type: oauth2
+      description: Auth flow for Open Industrial Data. Get your client secret from https://hub.cognite.com/open-industrial-data-211.
+      flows:
+        clientCredentials:
+          tokenUrl: https://login.microsoftonline.com/48d5043c-cf70-4c49-881c-c638f5796997/oauth2/v2.0/token
+          scopes:
+            default: https://api.cognitedata.com/.default
+    org-oidc-token:
+      type: openIdConnect
+      openIdConnectUrl: https://auth.cognite.com/.well-known/openid-configuration
+      description: 'Access token issued by the Cognite authorization server, and valid for the target organization. The token must
+
+        be an OpenID Connect token, and it can be obtained by performing an OIDC login flow toward `auth.cognite.com`.
+
+        This is a single URL for all CDF organizations.'
+x-tagGroups:
+- name: Changelog
+  tags:
+  - Changelog
+- name: Organizations and projects
+  tags:
+  - Organizations
+  - Projects
+- name: Identity and access management
+  tags:
+  - Principals
+  - Groups
+  - Security categories
+  - Sessions
+  - Token
+  - User profiles
+  - Project Deletion Reporting
+- name: Data modeling
+  tags:
+  - Data Modeling
+  - Data models
+  - Spaces
+  - Views
+  - Containers
+  - Nodes
+  - Instances
+  - Statistics
+  - Streams
+  - Records
+- name: Asset-centric data model
+  tags:
+  - Assets
+  - Time series
+  - Synthetic Time Series
+  - Data point subscriptions
+  - Events
+  - Files
+  - Sequences
+  - Geospatial
+  - Seismic
+- name: 3D
+  tags:
+  - 3D Models
+  - 3D Model Revisions
+  - 3D Files
+  - 3D Asset Mapping
+  - 3D Contextualization
+  - 3D Jobs
+  - 3D Migration
+  - 3D Scenes
+- name: Contextualization
+  tags:
+  - Entity matching
+  - Entity matching pipelines
+  - Engineering diagrams
+  - Vision
+  - Advanced joins
+- name: Cognite AI
+  tags:
+  - Agents
+  - Skills
+  - Chat Completions
+  - Document AI
+  - Models
+- name: Documents
+  tags:
+  - Documents
+  - Document preview
+- name: Data ingestion
+  tags:
+  - Raw
+  - Extraction Pipelines
+  - Extraction Pipelines Runs
+  - Extraction Pipelines Config
+  - Extractors
+- name: Data organization
+  tags:
+  - Data sets
+  - Data domains
+  - Data products
+  - Rule sets
+  - Labels
+  - Relationships
+  - Annotations
+- name: Transformations
+  tags:
+  - Transformations
+  - Transformation Jobs
+  - Transformation Schedules
+  - Transformation Notifications
+  - Query
+  - Schema
+- name: Functions
+  tags:
+  - Functions
+  - Function calls
+  - Function schedules
+- name: Hosted Extractors
+  tags:
+  - Sources
+  - Jobs
+  - Destinations
+  - Mappings
+- name: PostgreSQL Gateway
+  tags:
+  - Postgres Gateway Users
+  - Postgres Gateway Tables
+- name: SAP Writeback
+  tags:
+  - SAP Instances
+  - SAP Endpoints
+  - Schema Mappings
+  - Writeback Requests
+- name: Data workflows
+  tags:
+  - Workflows
+  - Workflow versions
+  - Workflow executions
+  - Workflow triggers
+  - Tasks
+  - Workers
+- name: Simulators
+  tags:
+  - Simulators
+  - Simulator Integrations
+  - Simulator Models
+  - Simulator Routines
+  - Simulation Runs
+  - Simulator Logs
+- name: Units
+  tags:
+  - Units
+  - Unit Systems
+- name: ''
+  tags:
+  - ''

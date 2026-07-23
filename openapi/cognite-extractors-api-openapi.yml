@@ -1,0 +1,866 @@
+openapi: 3.1.0
+info:
+  title: Cognite 3D Asset Mapping Extractors API
+  description: "# Introduction\nThis is the reference documentation for the Cognite API with\nan overview of all the available methods.\n\n# Postman\nSelect the **Download** button to download our OpenAPI specification to get started.\n\nTo import your data into Postman, select **Import**, and the Import modal opens.\nYou can import items by dragging or dropping files or folders. You can choose how to import your API and manage the import settings in **View Import Settings**.\n\nIn the Import Settings, set the **Folder organization** to **Tags**, select\n**Enable optional parameters** to turn off the settings, and select **Always inherit authentication** to turn on the settings. Select **Import**.\n\nSet the Authorization to **Oauth2.0**. By default, the settings are for Open Industrial Data. Navigate to [Cognite Hub](https://hub.cognite.com/open-industrial-data-211) to understand how to get the credentials for use in Postman.\n\nFor more information, see [Getting Started with Postman](https://developer.cognite.com/dev/guides/postman/).\n\n# Pagination\nMost resource types can be paginated, indicated by the field `nextCursor` in the response.\nBy passing the value of `nextCursor` as the cursor you will get the next page of `limit` results.\nNote that all parameters except `cursor` has to stay the same.\n\n# Parallel retrieval\nAs general guidance, Parallel Retrieval is a technique that should be used when due to query complexity, retrieval of data in a single request is significantly slower than it would otherwise be for a simple request.  Parallel retrieval does not act as a speed multiplier on optimally running queries.  By parallelizing such requests, data retrieval performance can be tuned to meet the client application needs. \n\nCDF supports parallel retrieval through the `partition` parameter, which has the format `m/n` where `n` is the amount of partitions you would like to split the entire data set into.\nIf you want to download the entire data set by splitting it into 10 partitions, do the following in parallel with `m` running from 1 to 10:\n  - Make a request to `/events` with `partition=m/10`.\n  - Paginate through the response by following the cursor as explained above. Note that the `partition` parameter needs to be passed to all subqueries.\n\nProcessing of parallel retrieval requests is subject to concurrency quota availability. The request returns the `429` response upon exceeding concurrency limits. See the Request throttling chapter below.\n\nTo prevent unexpected problems and to maximize read throughput, you should at most use 10 partitions. \nSome CDF resources will automatically enforce a maximum of 10 partitions.\nFor more specific and detailed information, please read the ```partition``` attribute documentation for the CDF resource you're using.  \n\n# Requests throttling\nCognite Data Fusion (CDF) returns the HTTP `429` (too many requests) response status code when project capacity exceeds the limit.\n\nThe throttling can happen:\n  - If a user or a project sends too many (more than allocated) concurrent requests.\n  - If a user or a project sends a too high (more than allocated) rate of requests in a given amount of time.\n\nCognite recommends using a retry strategy based on truncated exponential backoff to handle sessions with HTTP response codes 429.\n\nCognite recommends using a reasonable number (up to 10) of  `Parallel retrieval` partitions.\n\nFollowing these strategies lets you slow down the request frequency to maximize productivity without having to re-submit/retry failing requests.\n\nSee more [here](https://docs.cognite.com/dev/concepts/resource_throttling).\n\n# API versions\n## Version headers\nThis API uses calendar versioning, and version names follow the `YYYYMMDD` format.\nYou can find the versions currently available by using the version selector at the top of this page.\n\nTo use a specific API version, you can pass the `cdf-version: $version` header along with your requests to the API.\n\n## Beta versions\nThe beta versions provide a preview of what the stable version will look like in the future.\nBeta versions contain functionality that is reasonably mature, and highly likely to become a part of the stable API.\n\nBeta versions are indicated by a `-beta` suffix after the version name. For example, the beta version header for the\n2023-01-01 version is then `cdf-version: 20230101-beta`.\n\n## Alpha versions\nAlpha versions contain functionality that is new and experimental, and not guaranteed to ever become a part of the stable API.\nThis functionality presents no guarantee of service, so its use is subject to caution.\n\nAlpha versions are indicated by an `-alpha` suffix after the version name. For example, the alpha version header for\nthe 2023-01-01 version is then `cdf-version: 20230101-alpha`."
+  version: v1
+  contact:
+    name: Cognite Support
+    url: https://support.cognite.com
+    email: support@cognite.com
+servers:
+- url: https://{cluster}.cognitedata.com/api/v1/projects/{project}
+  description: The URL for the CDF cluster to connect to
+  variables:
+    cluster:
+      enum:
+      - api
+      - az-tyo-gp-001
+      - az-eastus-1
+      - az-power-no-northeurope
+      - westeurope-1
+      - asia-northeast1-1
+      - gc-dsm-gp-001
+      default: api
+      description: The CDF cluster to connect to
+    project:
+      default: publicdata
+      description: The CDF project name.
+security:
+- oidc-token:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-client-credentials:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-open-industrial-data:
+  - https://api.cognitedata.com/.default
+- oauth2-auth-code:
+  - https://{cluster}.cognitedata.com/.default
+tags:
+- name: Extractors
+  description: 'Extractors are tools used to move data from various source systems to CDF. The extractors API is used to manage extractor releases, give access to downloads, and contextualize which source systems each extractor is used to access.
+
+    Each extractor has a list of releases, and each release may have a list of artifacts which are things like documentation PDFs, executables, and installers.
+
+    Extractors may also be tied to source systems through solutions, representing concrete sources each extractor may connect to.
+
+    The extractors API is currently read-only. In the future it may be possible to define per-project extractors. Because of this, cognite-maintained extractors and source systems currently have their external ID prefixed by `cognite-`.'
+paths:
+  /extractors:
+    get:
+      tags:
+      - Extractors
+      operationId: list_extractors
+      description: List all available extractors.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemsResponse_Extractor_'
+          description: List of extractors.
+        '400':
+          $ref: '#/components/responses/400ErrorResponse'
+      summary: List Extractors
+  /extractors/byids:
+    post:
+      tags:
+      - Extractors
+      operationId: retrieve_extractors
+      description: Retrieve extractors by external ID, optionally ignoring unknown IDs.
+      summary: Retrieve Extractors
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExtractorsItemsWithIgnoreUnknownIds_ExternalId_'
+        required: true
+      responses:
+        '200':
+          description: List of extractors.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemsResponse_Extractor_'
+        '400':
+          $ref: '#/components/responses/400ErrorResponse'
+          description: Response for a failed request
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /extractors/releases:
+    get:
+      tags:
+      - Extractors
+      operationId: list_releases
+      description: List releases for all extractors, or optionally for a single extractor. Results are sorted in descending version order.
+      summary: List releases
+      parameters:
+      - in: query
+        name: externalId
+        required: false
+        schema:
+          title: External ID
+          description: External ID of extractor to retrieve releases for.
+          type: string
+      responses:
+        '200':
+          description: List of extractor releases.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemsResponse_Release_'
+        '400':
+          $ref: '#/components/responses/400ErrorResponse'
+  /extractors/releases/byids:
+    post:
+      tags:
+      - Extractors
+      operationId: retrieve_releases
+      summary: Retrieve Releases
+      description: Retrieve releases by extractor external ID and version, optionally ignoring unknown IDs.
+      requestBody:
+        description: List of releases to retrieve.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ItemsWithIgnoreUnknownIds_ReleaseId_'
+        required: true
+      responses:
+        '200':
+          description: List of extractor releases.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemsResponse_Release_'
+        '400':
+          $ref: '#/components/responses/400ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /extractors/sources:
+    get:
+      tags:
+      - Extractors
+      operationId: list_source_systems
+      summary: List Source Systems
+      description: List source systems. Source systems represent sources that extractors may read from. They are tied to extractors through Solutions.
+      responses:
+        '200':
+          description: List of source systems.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemsResponse_SourceSystem_'
+        '400':
+          $ref: '#/components/responses/400ErrorResponse'
+  /extractors/sources/byids:
+    post:
+      tags:
+      - Extractors
+      operationId: retrieve_source_systems
+      summary: Retrieve Source Systems
+      description: Retrieve source systems. Source systems represent sources that extractors may read from. They are tied to extractors through Solutions.
+      requestBody:
+        description: List of source systems to retrieve.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExtractorsItemsWithIgnoreUnknownIds_ExternalId_'
+      responses:
+        '200':
+          description: List of source systems.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemsResponse_SourceSystem_'
+        '400':
+          $ref: '#/components/responses/400ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /extractors/solutions:
+    get:
+      tags:
+      - Extractors
+      operationId: list_solutions
+      summary: List Solutions
+      description: List solutions. Solutions connect sources to extractors, documenting how a specific extractor might be used to connect to a source system.
+      responses:
+        '200':
+          description: List of solutions.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemsResponse_Solution_'
+        '400':
+          $ref: '#/components/responses/400ErrorResponse'
+  /extractors/solutions/byids:
+    post:
+      tags:
+      - Extractors
+      operationId: retrieve_solutions
+      summary: Retrieve Solutions
+      description: Retrieve solutions by external ID. Solutions connect sources to extractors, documenting how a specific extractor might be used to connect to a source system.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExtractorsItemsWithIgnoreUnknownIds_ExternalId_'
+      responses:
+        '200':
+          description: List of solutions.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemsResponse_Solution_'
+        '400':
+          $ref: '#/components/responses/400ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /extractors/schemas/{extractor}/{version}:
+    get:
+      tags:
+      - Extractors
+      operationId: get_extractor_schema
+      summary: Get Config Schema
+      description: Retrieve the configuration schema for the specified extractor and release version. The configuration schema is a [JSON Schema](https://json-schema.org/) file.
+      parameters:
+      - in: path
+        name: extractor
+        required: true
+        schema:
+          description: External ID of the extractor to get the schema for.
+          type: string
+          maxLength: 255
+      - in: path
+        name: version
+        required: true
+        schema:
+          description: Version of the extractor to fetch schema for.
+          type: string
+          example: 1.2.3
+      responses:
+        '200':
+          description: Extractor configuration schema as JSON.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: JSON Schema object.
+        '400':
+          $ref: '#/components/responses/400ErrorResponse'
+components:
+  schemas:
+    Link:
+      additionalProperties: false
+      description: Link to an external resource for an extractor
+      properties:
+        name:
+          title: Name
+          type: string
+          description: Human readable link name.
+        type:
+          $ref: '#/components/schemas/LinkType'
+        url:
+          title: Url
+          type: string
+          description: Link URL.
+      required:
+      - url
+      - name
+      - type
+      title: Link
+      type: object
+    CogniteExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
+      type: string
+      maxLength: 255
+      example: my.known.id
+    Changelog:
+      description: Extractor changelog, uses the [keep-a-changelog](https://keepachangelog.com/en/1.1.0/) format
+      properties:
+        added:
+          items:
+            type: string
+          title: Added
+          type: array
+          description: Features added to this release.
+        changed:
+          items:
+            type: string
+          title: Changed
+          type: array
+          description: Changes made to the extractor in this release.
+        deprecated:
+          items:
+            type: string
+          title: Deprecated
+          type: array
+          description: Features that have been deprecated, but not yet removed.
+        fixed:
+          items:
+            type: string
+          title: Fixed
+          type: array
+          description: Bugs fixed in this release.
+        removed:
+          items:
+            type: string
+          title: Removed
+          type: array
+          description: Features that have been removed.
+        security:
+          items:
+            type: string
+          title: Security
+          type: array
+          description: Changes that affect security.
+      title: Changelog
+      type: object
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
+    ItemType:
+      description: Status of this item. "Global" means that it is maintained by Cognite and considered official. "Community" means that it is community made and maintained. "Unreleased" means that it is not yet released and it is visible only as a preview or closed beta.
+      type: string
+      enum:
+      - global
+      - community
+      - unreleased
+    SourceSystem:
+      description: A source system representing a source extractors may read from.
+      type: object
+      title: SourceSystem
+      required:
+      - name
+      - description
+      - type
+      - externalId
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        name:
+          type: string
+          description: Source system name.
+          maxLength: 128
+          minLength: 1
+        description:
+          type: string
+          description: Short description of the source system.
+          maxLength: 255
+          minLength: 1
+        documentation:
+          type: string
+          description: Long-form description of the source system.
+        imageUrl:
+          type: string
+          description: URL of a publicly hosted logo for the source system.
+        type:
+          $ref: '#/components/schemas/ItemType'
+        tags:
+          items:
+            type: string
+          title: Tags
+          type: array
+          description: A list of tags, used for searching and filtering.
+    Extractor:
+      description: An extractor instance
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        name:
+          title: Name
+          type: string
+          description: Name of this extractor.
+        description:
+          title: Description
+          type: string
+          description: Short description of the extractor.
+        documentation:
+          title: Documentation
+          type: string
+          description: Longer markdown documentation.
+        imageUrl:
+          title: Image Url
+          type: string
+          description: Image URL for extractor logo.
+        latestVersion:
+          title: Latest Version
+          type: string
+          description: The last released version of the extractor.
+        links:
+          items:
+            $ref: '#/components/schemas/Link'
+          title: Links
+          type: array
+          description: A list of external links.
+        tags:
+          items:
+            type: string
+          title: Tags
+          type: array
+          description: A list of tags, used for searching and filtering.
+        type:
+          title: Type
+          type: string
+          description: Type of extractor. "Global" means that it is globally available and maintained by cognite. "Community" means that it is unofficial and community maintained. "Unreleased" means that it is not yet publicly available and it is visible only as a prerelease or private beta. "Hosted" means it is a hosted extractor that runs as part of the CDF platform.
+          enum:
+          - global
+          - community
+          - unreleased
+          - hosted
+      required:
+      - externalId
+      - name
+      - description
+      - type
+      title: Extractor
+      type: object
+    Artifact:
+      description: An artifact for an extractor release.
+      properties:
+        name:
+          title: Name
+          type: string
+          description: Filename of the artifact.
+        displayName:
+          title: Display Name
+          type: string
+          description: Human readable name of the artifact.
+        link:
+          title: Link
+          type: string
+          description: Link to obtain a temporary download link for the artifact.
+        platform:
+          title: Platform
+          type: string
+          description: Platform the extractor runs on. One of "windows", "linux", "macos", "docs", or "all".
+          enum:
+          - windows
+          - linux
+          - macos
+          - docs
+          - all
+      required:
+      - link
+      - platform
+      - name
+      title: Artifact
+      type: object
+    ItemsResponse_Solution_:
+      additionalProperties: false
+      description: List of source systems
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/Solution'
+          title: Items
+          type: array
+      required:
+      - items
+      title: ItemsResponse[Solution]
+      type: object
+    ExtractorId:
+      description: Identifier for an extractor
+      type: object
+      required:
+      - externalId
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    ExtractorsItemsWithIgnoreUnknownIds_ExternalId_:
+      additionalProperties: false
+      description: List of externalIds with optional ignore unknown ids
+      properties:
+        ignoreUnknownIds:
+          title: Ignore Unknown Ids
+          type: boolean
+        items:
+          items:
+            $ref: '#/components/schemas/ExtractorId'
+          title: Items
+          type: array
+      required:
+      - items
+      title: ItemsWithIgnoreUnknownIds[ExternalId]
+      type: object
+    ItemsWithIgnoreUnknownIds_ReleaseId_:
+      additionalProperties: false
+      description: List of release ids with optional ignore unknown ids
+      properties:
+        ignoreUnknownIds:
+          title: Ignore Unknown Ids
+          type: boolean
+        items:
+          items:
+            $ref: '#/components/schemas/ReleaseId'
+          title: Items
+          type: array
+      required:
+      - items
+      title: ItemsWithIgnoreUnknownIds[ReleaseId]
+      type: object
+    ValidationErrorContent:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 422
+        message:
+          type: string
+          description: Error message.
+          example: 'Extra inputs are not permitted: type'
+    ReleaseId:
+      additionalProperties: false
+      description: Identifier for a release
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        version:
+          title: Version
+          type: string
+          description: Release version number, uses semantic versioning.
+      required:
+      - externalId
+      - version
+      title: ReleaseId
+      type: object
+    ItemsResponse_Release_:
+      additionalProperties: false
+      description: List of releases
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/Release'
+          title: Items
+          type: array
+      required:
+      - items
+      title: ItemsResponse[Release]
+      type: object
+    Solution:
+      description: A solution represents a connection between an extractor and a source system it can be configured to read from.
+      required:
+      - externalId
+      - name
+      - sourceSystemExternalId
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        name:
+          type: string
+          description: Solution name.
+          maxLength: 128
+          minLength: 1
+        documentation:
+          type: string
+          description: Long-form documentation of the solution, describing how to use the referenced extractor to connect to the referenced source.
+        type:
+          $ref: '#/components/schemas/ItemType'
+        sourceSystemExternalId:
+          type: string
+          description: External ID of the source system of this solution.
+          maxLength: 255
+          minLength: 1
+        extractorExternalId:
+          type: string
+          description: External ID of the extractor of this solution.
+          maxLength: 255
+          minLength: 1
+    Release:
+      additionalProperties: false
+      description: A release of an extractor
+      properties:
+        artifacts:
+          items:
+            $ref: '#/components/schemas/Artifact'
+          title: Artifacts
+          type: array
+          description: List of artifacts included in this release.
+        changelog:
+          $ref: '#/components/schemas/Changelog'
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        description:
+          title: Description
+          type: string
+          description: Short description of this release. Details are found in the changelog.
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        version:
+          title: Version
+          type: string
+          description: Release version number, uses semantic versioning.
+      required:
+      - externalId
+      - version
+      - artifacts
+      title: Release
+      type: object
+    LinkType:
+      description: Enumeration of link types.
+      enum:
+      - generic
+      - externalDocumentation
+      title: LinkType
+    ItemsResponse_SourceSystem_:
+      additionalProperties: false
+      description: List of source systems
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/SourceSystem'
+          title: Items
+          type: array
+      required:
+      - items
+      title: ItemsResponse[SourceSystem]
+      type: object
+    ItemsResponse_Extractor_:
+      additionalProperties: false
+      description: List of extractors
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/Extractor'
+          title: Items
+          type: array
+      required:
+      - items
+      title: ItemsResponse[Extractor]
+      type: object
+  responses:
+    ValidationError:
+      description: Validation Error
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/ValidationErrorContent'
+    400ErrorResponse:
+      description: The response for a bad request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: 400
+              message: '`null` values aren''t allowed.'
+  securitySchemes:
+    oidc-token:
+      type: http
+      scheme: bearer
+      bearerFormat: OpenID Connect or OAuth2 token
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+    oauth2-client-credentials:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        clientCredentials:
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-auth-code:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://your-idps.authorization.url/
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-open-industrial-data:
+      type: oauth2
+      description: Auth flow for Open Industrial Data. Get your client secret from https://hub.cognite.com/open-industrial-data-211.
+      flows:
+        clientCredentials:
+          tokenUrl: https://login.microsoftonline.com/48d5043c-cf70-4c49-881c-c638f5796997/oauth2/v2.0/token
+          scopes:
+            default: https://api.cognitedata.com/.default
+    org-oidc-token:
+      type: openIdConnect
+      openIdConnectUrl: https://auth.cognite.com/.well-known/openid-configuration
+      description: 'Access token issued by the Cognite authorization server, and valid for the target organization. The token must
+
+        be an OpenID Connect token, and it can be obtained by performing an OIDC login flow toward `auth.cognite.com`.
+
+        This is a single URL for all CDF organizations.'
+x-tagGroups:
+- name: Changelog
+  tags:
+  - Changelog
+- name: Organizations and projects
+  tags:
+  - Organizations
+  - Projects
+- name: Identity and access management
+  tags:
+  - Principals
+  - Groups
+  - Security categories
+  - Sessions
+  - Token
+  - User profiles
+  - Project Deletion Reporting
+- name: Data modeling
+  tags:
+  - Data Modeling
+  - Data models
+  - Spaces
+  - Views
+  - Containers
+  - Nodes
+  - Instances
+  - Statistics
+  - Streams
+  - Records
+- name: Asset-centric data model
+  tags:
+  - Assets
+  - Time series
+  - Synthetic Time Series
+  - Data point subscriptions
+  - Events
+  - Files
+  - Sequences
+  - Geospatial
+  - Seismic
+- name: 3D
+  tags:
+  - 3D Models
+  - 3D Model Revisions
+  - 3D Files
+  - 3D Asset Mapping
+  - 3D Contextualization
+  - 3D Jobs
+  - 3D Migration
+  - 3D Scenes
+- name: Contextualization
+  tags:
+  - Entity matching
+  - Entity matching pipelines
+  - Engineering diagrams
+  - Vision
+  - Advanced joins
+- name: Cognite AI
+  tags:
+  - Agents
+  - Skills
+  - Chat Completions
+  - Document AI
+  - Models
+- name: Documents
+  tags:
+  - Documents
+  - Document preview
+- name: Data ingestion
+  tags:
+  - Raw
+  - Extraction Pipelines
+  - Extraction Pipelines Runs
+  - Extraction Pipelines Config
+  - Extractors
+- name: Data organization
+  tags:
+  - Data sets
+  - Data domains
+  - Data products
+  - Rule sets
+  - Labels
+  - Relationships
+  - Annotations
+- name: Transformations
+  tags:
+  - Transformations
+  - Transformation Jobs
+  - Transformation Schedules
+  - Transformation Notifications
+  - Query
+  - Schema
+- name: Functions
+  tags:
+  - Functions
+  - Function calls
+  - Function schedules
+- name: Hosted Extractors
+  tags:
+  - Sources
+  - Jobs
+  - Destinations
+  - Mappings
+- name: PostgreSQL Gateway
+  tags:
+  - Postgres Gateway Users
+  - Postgres Gateway Tables
+- name: SAP Writeback
+  tags:
+  - SAP Instances
+  - SAP Endpoints
+  - Schema Mappings
+  - Writeback Requests
+- name: Data workflows
+  tags:
+  - Workflows
+  - Workflow versions
+  - Workflow executions
+  - Workflow triggers
+  - Tasks
+  - Workers
+- name: Simulators
+  tags:
+  - Simulators
+  - Simulator Integrations
+  - Simulator Models
+  - Simulator Routines
+  - Simulation Runs
+  - Simulator Logs
+- name: Units
+  tags:
+  - Units
+  - Unit Systems
+- name: ''
+  tags:
+  - ''

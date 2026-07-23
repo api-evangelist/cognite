@@ -1,0 +1,878 @@
+openapi: 3.1.0
+info:
+  title: Cognite 3D Asset Mapping Streams API
+  description: "# Introduction\nThis is the reference documentation for the Cognite API with\nan overview of all the available methods.\n\n# Postman\nSelect the **Download** button to download our OpenAPI specification to get started.\n\nTo import your data into Postman, select **Import**, and the Import modal opens.\nYou can import items by dragging or dropping files or folders. You can choose how to import your API and manage the import settings in **View Import Settings**.\n\nIn the Import Settings, set the **Folder organization** to **Tags**, select\n**Enable optional parameters** to turn off the settings, and select **Always inherit authentication** to turn on the settings. Select **Import**.\n\nSet the Authorization to **Oauth2.0**. By default, the settings are for Open Industrial Data. Navigate to [Cognite Hub](https://hub.cognite.com/open-industrial-data-211) to understand how to get the credentials for use in Postman.\n\nFor more information, see [Getting Started with Postman](https://developer.cognite.com/dev/guides/postman/).\n\n# Pagination\nMost resource types can be paginated, indicated by the field `nextCursor` in the response.\nBy passing the value of `nextCursor` as the cursor you will get the next page of `limit` results.\nNote that all parameters except `cursor` has to stay the same.\n\n# Parallel retrieval\nAs general guidance, Parallel Retrieval is a technique that should be used when due to query complexity, retrieval of data in a single request is significantly slower than it would otherwise be for a simple request.  Parallel retrieval does not act as a speed multiplier on optimally running queries.  By parallelizing such requests, data retrieval performance can be tuned to meet the client application needs. \n\nCDF supports parallel retrieval through the `partition` parameter, which has the format `m/n` where `n` is the amount of partitions you would like to split the entire data set into.\nIf you want to download the entire data set by splitting it into 10 partitions, do the following in parallel with `m` running from 1 to 10:\n  - Make a request to `/events` with `partition=m/10`.\n  - Paginate through the response by following the cursor as explained above. Note that the `partition` parameter needs to be passed to all subqueries.\n\nProcessing of parallel retrieval requests is subject to concurrency quota availability. The request returns the `429` response upon exceeding concurrency limits. See the Request throttling chapter below.\n\nTo prevent unexpected problems and to maximize read throughput, you should at most use 10 partitions. \nSome CDF resources will automatically enforce a maximum of 10 partitions.\nFor more specific and detailed information, please read the ```partition``` attribute documentation for the CDF resource you're using.  \n\n# Requests throttling\nCognite Data Fusion (CDF) returns the HTTP `429` (too many requests) response status code when project capacity exceeds the limit.\n\nThe throttling can happen:\n  - If a user or a project sends too many (more than allocated) concurrent requests.\n  - If a user or a project sends a too high (more than allocated) rate of requests in a given amount of time.\n\nCognite recommends using a retry strategy based on truncated exponential backoff to handle sessions with HTTP response codes 429.\n\nCognite recommends using a reasonable number (up to 10) of  `Parallel retrieval` partitions.\n\nFollowing these strategies lets you slow down the request frequency to maximize productivity without having to re-submit/retry failing requests.\n\nSee more [here](https://docs.cognite.com/dev/concepts/resource_throttling).\n\n# API versions\n## Version headers\nThis API uses calendar versioning, and version names follow the `YYYYMMDD` format.\nYou can find the versions currently available by using the version selector at the top of this page.\n\nTo use a specific API version, you can pass the `cdf-version: $version` header along with your requests to the API.\n\n## Beta versions\nThe beta versions provide a preview of what the stable version will look like in the future.\nBeta versions contain functionality that is reasonably mature, and highly likely to become a part of the stable API.\n\nBeta versions are indicated by a `-beta` suffix after the version name. For example, the beta version header for the\n2023-01-01 version is then `cdf-version: 20230101-beta`.\n\n## Alpha versions\nAlpha versions contain functionality that is new and experimental, and not guaranteed to ever become a part of the stable API.\nThis functionality presents no guarantee of service, so its use is subject to caution.\n\nAlpha versions are indicated by an `-alpha` suffix after the version name. For example, the alpha version header for\nthe 2023-01-01 version is then `cdf-version: 20230101-alpha`."
+  version: v1
+  contact:
+    name: Cognite Support
+    url: https://support.cognite.com
+    email: support@cognite.com
+servers:
+- url: https://{cluster}.cognitedata.com/api/v1/projects/{project}
+  description: The URL for the CDF cluster to connect to
+  variables:
+    cluster:
+      enum:
+      - api
+      - az-tyo-gp-001
+      - az-eastus-1
+      - az-power-no-northeurope
+      - westeurope-1
+      - asia-northeast1-1
+      - gc-dsm-gp-001
+      default: api
+      description: The CDF cluster to connect to
+    project:
+      default: publicdata
+      description: The CDF project name.
+security:
+- oidc-token:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-client-credentials:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-open-industrial-data:
+  - https://api.cognitedata.com/.default
+- oauth2-auth-code:
+  - https://{cluster}.cognitedata.com/.default
+tags:
+- name: Streams
+  description: "Use the streams and records API to build high-volume extensions to industrial knowledge graphs that are built with [Data Modeling](https://docs.cognite.com/cdf/dm).\nThe streams API lets you manage the streams that are used for storing records.\nWith the API you can create, list, retrieve, and delete streams, and view stream settings and statistics.\n\nA stream defines the data lifecycle,\nand not schema, type or source. Multiple different sets of data which have\nnothing in common can be put into the same stream, provided that settings of this stream\nfit lifecycle and usage patterns (volume, rate, etc) of the data involved.\n\nStreams can be either mutable or immutable, which affects how records can be modified,\nstorage capacity limits, and query performance characteristics.\n\nMutable streams allow records to be updated and deleted by the user. They provide\nconsistent low-latency access and optimal query performance.\nHowever, the total number of records that can be stored is limited. Mutable streams are\nwell-suited for use cases requiring frequent data access and updates.\n\nImmutable streams do not allow records to be updated or deleted by the user, but support\ningestion of very large amounts of data. Query performance may vary depending on the age\nof the data being accessed, as the system optimizes storage over time.\n\nTo delete all data in a stream, the stream itself should be deleted. To protect against irretrievable erroneous deletion,\nstreams are 'soft deleted' allowing them to be recovered for up to 6 weeks after the time of deletion.\nThe template used to create the stream determines the actual recovery time.\n\nA single project has a limited number of soft deleted streams at any given time. To avoid hitting this limit, please\navoid using any pattern of create and delete streams in a high frequency.\nPlease note that we expect streams to be long lived. The exception are streams created\nwith one of the `test` templates. Deleting a stream can take a long time.\nHow long depends on the stream settings and the volume of data stored.\nWhile a stream is soft deleted, it is not possible to recreate a stream with the same identifier as the deleted stream.\n\nOnce a stream is deleted, it does not count as one of the active streams, and more streams can be\ncreated to serve as active streams. If a stream is accidentally deleted, it is possible to recover\nthe data by contacting [Cognite Support](https://cognite.zendesk.com/hc/en-us/requests/new).\nYou must contact Cognite no less than 1 week prior to the expiration of the stream retention period\nto ensure we can recover the data.\n\n## Available stream templates\n\n**Note: Stream Templates are in Beta**\n\nThe current Stream Templates are in beta. This means:\n- New templates may be added based on customer needs\n- Existing templates may be modified or removed if necessary\n- Such modifications will **not affect existing streams** created from these templates\n\nChoose your template carefully for production use, as templates cannot be changed after stream creation.\n\nThis section lists all currently available templates that can be used for creating streams.\n\n### Immutable streams\n\n#### ImmutableTestStream\n\nThis template should be used exclusively for experimentation. It is configured for high throughput\nand total data volume, but has a short data retention period. Low retention in a soft-deleted state\nmeans that such streams can be quickly discarded when no longer needed or recreated to remove the experimental data.\n\n**Note:** This template should never be used for production purposes. As this template\nallows significant load on the system, if we detect improper usage\npatterns, we can change setting of streams created from this template as a last resort.\n\n- Maximum total number of records - 50 M (50,000,000)\n- Maximum total data volume - 50 GB\n- Data retention - 7 days\n- Maximum ingestion throughput (per 10 minutes) - 1.5 GB\n- Maximum reading throughput (per 10 minutes) - 1.5 GB\n- Maximum records ingested (per 10 minutes) - 800,000 items\n- Maximum unique properties with data across all records - 1000\n- Maximum range filter interval for the `lastUpdatedTime` property - 7 days\n- Stream soft-delete retention (before hard delete) - 1 day\n- Maximum active streams per project - 3\n\n#### BasicArchive\n\nThis template is intended for perpetual storage of data. However, overall data volume\nis limited, which needs to be taken into account when planning usage.\n\n- Maximum total number of records - 50 M (50,000,000)\n- Maximum total data volume - 50 GB\n- Data retention - Unlimited (data never gets deleted)\n- Maximum ingestion throughput (per 10 minutes) - 170 MB\n- Maximum reading throughput (per 10 minutes) - 1.7 GB\n- Maximum records ingested (per 10 minutes) - 170,000 items\n- Maximum unique properties with data (across all records) - 1000\n- Maximum range filter interval for the `lastUpdatedTime` property - 365 days\n- Stream soft-delete retention (before hard delete) - 6 weeks\n- Maximum active streams per project - 2\n\n### Mutable streams\n\n#### BasicLiveData\n\nThis template is intended for production usage and offers significant data volume\nand throughput.\n\n- Maximum total number of records - 5 M (5,000,000)\n- Maximum total data volume - 15 GB\n- Maximum ingestion throughput (per 10 minutes) - 170 MB\n- Maximum reading throughput (per 10 minutes) - 500 MB\n- Maximum records ingested (per 10 minutes) - 170,000 items\n- Maximum records updated or deleted (per 10 minutes) - 85,000 items\n- Maximum unique properties with data (across all records) - 1000\n- Stream soft-delete retention (before hard delete) - 6 weeks\n- Maximum active streams per project - 1\n\n\n## Rate and concurrency limits\n\nBoth the rate of requests (denoted as request per second (â\x80\x98**rps**â\x80\x99)) and the number of concurrent (parallel)\nrequests are governed by limits, for all CDF API endpoints. If a request exceeds one of the limits,\nit will be throttled with a `429: Too Many Requests` response.\nSee [Resource throttling](https://docs.cognite.com/dev/concepts/resource_throttling) for limit types and how to avoid throttling.\n\nAs streams are intended to be long-lived, users are not expected to interact with these endpoints frequently.\n\nThe version limits for the streams endpoints are illustrated in the tables below.\nThese limits are subject to change, pending review of changing consumption patterns and resource availability over time:\n\n<table>\n  <thead>\n    <tr>\n      <th colspan=\"3\" style=\"text-align: center; background-color: #e0e0e0; padding: 10px; font-weight: bold;\">Create and Delete request budget</th>\n    </tr>\n    <tr>\n      <th></th>\n      <th style=\"text-align: center;\">Overall</th>\n      <th style=\"text-align: center;\">Per ID</th>\n    </tr>\n  </thead>\n  <tbody>\n    <tr>\n      <td><strong>Requests per second</strong></td>\n      <td style=\"text-align: center;\">2</td>\n      <td style=\"text-align: center;\">1</td>\n    </tr>\n    <tr>\n      <td><strong>Concurrent requests</strong></td>\n      <td style=\"text-align: center;\">1</td>\n      <td style=\"text-align: center;\">1</td>\n    </tr>\n  </tbody>\n</table>\n\n<table>\n  <thead>\n    <tr>\n      <th colspan=\"3\" style=\"text-align: center; background-color: #e0e0e0; padding: 10px; font-weight: bold;\">Retrieve and List request budget</th>\n    </tr>\n    <tr>\n      <th></th>\n      <th style=\"text-align: center;\">Overall</th>\n      <th style=\"text-align: center;\">Per ID</th>\n    </tr>\n  </thead>\n  <tbody>\n    <tr>\n      <td><strong>Requests per second</strong></td>\n      <td style=\"text-align: center;\">5</td>\n      <td style=\"text-align: center;\">3</td>\n    </tr>\n    <tr>\n      <td><strong>Concurrent requests</strong></td>\n      <td style=\"text-align: center;\">3</td>\n      <td style=\"text-align: center;\">2</td>\n    </tr>\n  </tbody>\n</table>\n"
+paths:
+  /streams:
+    post:
+      tags:
+      - Streams
+      summary: Create stream
+      description: '
+
+
+        > **Required capabilities:** `streamsAcl:CREATE`
+
+
+        Create a new stream. A stream is a target for high volume data ingestion,
+
+        with data shaped by the Data Modeling concepts. Specify an external ID and a stream template for each stream. The template defines the stream''s mutability, limits, and lifecycle.
+
+        '
+      operationId: createStream
+      requestBody:
+        description: 'Stream to create.
+
+          '
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - items
+              properties:
+                items:
+                  type: array
+                  title: streamItems
+                  description: 'List of streams.
+
+                    '
+                  items:
+                    allOf:
+                    - $ref: '#/components/schemas/StreamRequestItem'
+                    minItems: 1
+                    maxItems: 1
+        required: true
+      x-capability:
+      - streamsAcl:CREATE
+      responses:
+        '201':
+          description: 'Stream created.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StreamResponse'
+        '400':
+          $ref: '#/components/responses/400ErrorResponse'
+        '409':
+          description: 'Stream with the requested ID already exists.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StreamCreateConflict'
+    get:
+      tags:
+      - Streams
+      summary: List streams
+      description: '
+
+
+        > **Required capabilities:** `streamsAcl:READ`
+
+
+        List all streams available in the project.
+
+        '
+      operationId: listStreams
+      x-capability:
+      - streamsAcl:READ
+      responses:
+        '200':
+          description: 'List of streams.
+
+            '
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    title: streamItems
+                    description: 'List of streams.
+
+                      '
+                    items:
+                      allOf:
+                      - $ref: '#/components/schemas/StreamResponseItem'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+  /streams/{streamId}:
+    get:
+      tags:
+      - Streams
+      summary: Retrieve stream
+      description: '
+
+
+        > **Required capabilities:** `streamsAcl:READ`
+
+
+        Retrieve a stream by its identifier.
+
+        '
+      operationId: getStream
+      parameters:
+      - $ref: '#/components/parameters/StreamId'
+      - name: includeStatistics
+        in: query
+        required: false
+        description: 'If set to ```true```, usage statistics will be  returned together with stream settings.
+
+          '
+        schema:
+          type: boolean
+      x-capability:
+      - streamsAcl:READ
+      responses:
+        '200':
+          description: 'Stream retrieved.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StreamResponseItem'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+    delete:
+      tags:
+      - Streams
+      summary: Delete stream (DEPRECATED)
+      description: '
+
+
+        > **Required capabilities:** `streamsAcl:DELETE`
+
+
+        **DEPRECATED**: This endpoint is no longer supported and returns HTTP 410 Gone.
+
+        Please use `POST /streams/delete` instead.
+
+        '
+      operationId: deleteStream
+      deprecated: true
+      parameters:
+      - $ref: '#/components/parameters/StreamId'
+      x-capability:
+      - streamsAcl:DELETE
+      responses:
+        '410':
+          description: 'This endpoint is deprecated and no longer supported.
+
+            Please use POST /streams/delete instead.
+
+            '
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - error
+                properties:
+                  error:
+                    type: object
+                    required:
+                    - code
+                    - message
+                    properties:
+                      code:
+                        type: integer
+                        example: 410
+                      message:
+                        type: string
+                        example: 'This endpoint is deprecated and no longer supported. Please use POST /streams/delete instead with body: {"items": [{"externalId": "your-stream-id"}]}'
+  /streams/delete:
+    post:
+      tags:
+      - Streams
+      summary: Delete stream
+      description: '
+
+
+        > **Required capabilities:** `streamsAcl:DELETE`
+
+
+        Delete a stream by its identifier, along with all records stored in the stream.
+
+
+        If the stream does not exist, the operation succeeds without error (idempotent delete).
+
+        '
+      operationId: deleteStreams
+      requestBody:
+        description: 'Stream to delete.
+
+          '
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StreamDeleteRequest'
+        required: true
+      x-capability:
+      - streamsAcl:DELETE
+      responses:
+        '200':
+          $ref: '#/components/responses/EmptyResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+components:
+  schemas:
+    StreamLimitSettings:
+      type: object
+      required:
+      - maxRecordsTotal
+      - maxGigaBytesTotal
+      title: limits
+      description: 'Limits and usage.
+
+        '
+      properties:
+        maxRecordsTotal:
+          title: maxRecordsTotal
+          description: 'Maximum number of records that can be stored in the stream.
+
+            '
+          allOf:
+          - $ref: '#/components/schemas/StreamLimit'
+        maxGigaBytesTotal:
+          title: maxGigaBytesTotal
+          description: 'Maximum amount of data that can be stored in the stream, in gigabytes.
+
+            '
+          allOf:
+          - $ref: '#/components/schemas/StreamLimit'
+        maxFilteringInterval:
+          type: string
+          title: maxFilteringInterval
+          description: 'Maximum length of time that the ```lastUpdatedTime``` filter can retrieve records for,
+
+            in ISO-8601 format. This setting is only available for immutable streams.
+
+            '
+          example: P1Y
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    StreamCreateConflictItem:
+      type: object
+      title: streamCreateConflictItem
+      description: 'Stream creation conflict info.
+
+        '
+      required:
+      - externalId
+      properties:
+        externalId:
+          type: string
+          title: streamId
+          description: 'Stream identifier.
+
+            '
+          example: test1
+    StreamRequestItem:
+      type: object
+      title: stream request item
+      description: 'Stream object.
+
+        '
+      required:
+      - externalId
+      - settings
+      properties:
+        externalId:
+          type: string
+          title: streamId
+          description: 'Stream identifier. The identifier must be unique within the project and must be a valid stream identifier.
+
+            Stream identifiers can only consist of alphanumeric characters, hyphens, and underscores.
+
+            It must not start with cdf_ or cognite_, as those are reserved for Cognite internal use.
+
+            Stream id cannot be logs or records. Max length is 100 characters.
+
+            '
+          pattern: ^[a-z]([a-z0-9_-]{0,98}[a-z0-9])?$
+          minLength: 1
+          maxLength: 100
+          example: test_stream_1
+        settings:
+          allOf:
+          - $ref: '#/components/schemas/CreateStreamSettings'
+    StreamDeleteItem:
+      type: object
+      title: streamDeleteItem
+      description: 'Stream identifier to delete.
+
+        '
+      required:
+      - externalId
+      properties:
+        externalId:
+          type: string
+          title: streamId
+          description: 'Stream identifier. The identifier must be a valid stream identifier.
+
+            Stream identifiers can only consist of alphanumeric characters, hyphens, and underscores.
+
+            It must not start with cdf_ or cognite_, as those are reserved for Cognite internal use.
+
+            Stream id cannot be logs or records. Max length is 100 characters.
+
+            '
+          pattern: ^[a-z]([a-z0-9_-]{0,98}[a-z0-9])?$
+          minLength: 1
+          maxLength: 100
+          example: test_stream_1
+    StreamResponseItemSettings:
+      type: object
+      required:
+      - lifecycle
+      - limits
+      title: settings
+      description: 'Stream settings.
+
+        '
+      properties:
+        lifecycle:
+          allOf:
+          - $ref: '#/components/schemas/StreamLifecycleSettings'
+        limits:
+          allOf:
+          - $ref: '#/components/schemas/StreamLimitSettings'
+    StreamDeleteRequest:
+      type: object
+      title: streamDeleteRequest
+      description: 'Request to delete a stream.
+
+        '
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          title: streamItems
+          description: 'List of streams to delete. Currently limited to 1 item.
+
+            '
+          minItems: 1
+          maxItems: 1
+          items:
+            allOf:
+            - $ref: '#/components/schemas/StreamDeleteItem'
+    CreateStreamSettings:
+      type: object
+      title: settings
+      description: 'Stream settings which should be applied to a stream.
+
+        '
+      required:
+      - template
+      properties:
+        template:
+          type: object
+          description: 'Reference to a template which should be used to define initial settings for the stream.
+
+            '
+          required:
+          - name
+          properties:
+            name:
+              type: string
+              description: 'The stream settings template name.
+
+                '
+              example: ImmutableTestStream
+    StreamLimit:
+      type: object
+      required:
+      - provisioned
+      properties:
+        provisioned:
+          type: number
+          title: provisioned
+          description: 'Amount of resource provisioned.
+
+            '
+          example: 1000
+        consumed:
+          type: number
+          title: consumed
+          description: 'Amount of resource consumed.
+
+
+            This value will be returned only in a Retrieve stream response,
+
+            and only if ```includeStatistics``` request parameter is ```true```.
+
+            Currently, this value is available for ```maxRecordsTotal``` and
+
+            ```maxGigaBytesTotal``` limits only.
+
+            '
+          example: 999
+    StreamCreateConflict:
+      type: object
+      required:
+      - error
+      properties:
+        error:
+          type: object
+          description: 'Details about the duplicated stream id.
+
+            '
+          required:
+          - code
+          - message
+          properties:
+            code:
+              type: integer
+              description: 'The HTTP status code returned.
+
+                '
+              format: int32
+              example: 409
+              enum:
+              - 409
+            message:
+              type: string
+              description: 'The error which describes the issue.
+
+                '
+            duplicated:
+              type: array
+              description: 'Single stream item in the list that is not unique.
+
+                '
+              items:
+                $ref: '#/components/schemas/StreamCreateConflictItem'
+              minItems: 1
+              maxItems: 1
+    StreamLifecycleSettings:
+      type: object
+      required:
+      - retainedAfterSoftDelete
+      title: lifecycle
+      description: 'Data lifecycle settings. These settings are populated from the stream creation template
+
+        and there is no easy way to change them. This information is meant to be human-readable
+
+        and is not really meant for machine consumption.
+
+        '
+      properties:
+        dataDeletedAfter:
+          type: string
+          title: dataDeletedAfter
+          description: 'This setting is available only for immutable streams.
+
+            ISO-8601 formatted time specifying how long to retain a record in this stream.
+
+            After this time passes, records are scheduled to be removed from the stream.
+
+            Record removal happens in batches, and some time may pass between a record
+
+            being scheduled for deletion and it actually being deleted. During this time,
+
+            the record will remain available, and contributing to
+
+            consumption of limits.
+
+            '
+          example: P1Y
+        retainedAfterSoftDelete:
+          type: string
+          title: retainedAfterSoftDelete
+          description: 'Time until the soft deleted stream will actually be deleted by the system,
+
+            in an ISO-8601 compliant date-time format. Data cannot be ingested to,
+
+            or queried from, a soft-deleted stream. If a stream has been deleted by mistake,
+
+            it can still be recovered from soft-deleted state.
+
+            '
+          example: P42D
+    StreamResponse:
+      type: object
+      title: streamResponse
+      description: 'Stream response.
+
+        '
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          title: streamItems
+          description: 'List of streams.
+
+            '
+          items:
+            allOf:
+            - $ref: '#/components/schemas/StreamResponseItem'
+    StreamResponseItem:
+      type: object
+      title: streamItem
+      description: 'Stream object.
+
+        '
+      required:
+      - externalId
+      - createdTime
+      - createdFromTemplate
+      - type
+      - settings
+      properties:
+        externalId:
+          type: string
+          title: streamId
+          description: 'Stream identifier.
+
+            '
+          example: test1
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        createdFromTemplate:
+          type: string
+          title: createdFromTemplate
+          description: 'Name of the template used for creating this stream.
+
+            **Note:** This value is for information only. The template might have been modified
+
+            or even entirely deleted after the stream has been created.
+
+            '
+          example: ImmutableTestStream
+        type:
+          type: string
+          title: type
+          description: 'Defines type of the stream. Both ```Immutable``` and ```Mutable``` streams are available.
+
+
+            Records in an ```Immutable``` stream cannot be updated or deleted by the user.
+
+            Instead, depending on the specific template, they can have a limited life span
+
+            and be automatically deleted once ```dataDeletedAfter``` interval has passed.
+
+            ```Immutable``` streams allow ingestion of very large amounts of data.
+
+            These streams are most suitable for event or log type data or as a "staging area"
+
+            for data that needs to be normalized before ingestion into a more permanent storage.
+
+            Immutable streams are optimized for long-term retention and high-volume ingestion,
+
+            which results in lower query performance compared to mutable streams.
+
+
+            Records in a ```Mutable``` stream can be updated and deleted by the user,
+
+            but total number of records that can be ingested into such a stream is limited.
+
+            Mutable streams provide better query performance.
+
+            '
+          enum:
+          - Immutable
+          - Mutable
+          default: Immutable
+          example: Immutable
+        settings:
+          allOf:
+          - $ref: '#/components/schemas/StreamResponseItemSettings'
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
+  responses:
+    ErrorResponse:
+      description: The response for a failed request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+    400ErrorResponse:
+      description: The response for a bad request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: 400
+              message: '`null` values aren''t allowed.'
+    EmptyResponse:
+      description: Empty response.
+      content:
+        application/json:
+          schema:
+            type: object
+  parameters:
+    StreamId:
+      name: streamId
+      in: path
+      description: 'An identifier of the stream where the records are stored.
+
+        '
+      required: true
+      schema:
+        type: string
+        pattern: ^[a-z]([a-z0-9_-]{0,98}[a-z0-9])?$
+        minLength: 1
+        maxLength: 100
+        example: test1
+  securitySchemes:
+    oidc-token:
+      type: http
+      scheme: bearer
+      bearerFormat: OpenID Connect or OAuth2 token
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+    oauth2-client-credentials:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        clientCredentials:
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-auth-code:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://your-idps.authorization.url/
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-open-industrial-data:
+      type: oauth2
+      description: Auth flow for Open Industrial Data. Get your client secret from https://hub.cognite.com/open-industrial-data-211.
+      flows:
+        clientCredentials:
+          tokenUrl: https://login.microsoftonline.com/48d5043c-cf70-4c49-881c-c638f5796997/oauth2/v2.0/token
+          scopes:
+            default: https://api.cognitedata.com/.default
+    org-oidc-token:
+      type: openIdConnect
+      openIdConnectUrl: https://auth.cognite.com/.well-known/openid-configuration
+      description: 'Access token issued by the Cognite authorization server, and valid for the target organization. The token must
+
+        be an OpenID Connect token, and it can be obtained by performing an OIDC login flow toward `auth.cognite.com`.
+
+        This is a single URL for all CDF organizations.'
+x-tagGroups:
+- name: Changelog
+  tags:
+  - Changelog
+- name: Organizations and projects
+  tags:
+  - Organizations
+  - Projects
+- name: Identity and access management
+  tags:
+  - Principals
+  - Groups
+  - Security categories
+  - Sessions
+  - Token
+  - User profiles
+  - Project Deletion Reporting
+- name: Data modeling
+  tags:
+  - Data Modeling
+  - Data models
+  - Spaces
+  - Views
+  - Containers
+  - Nodes
+  - Instances
+  - Statistics
+  - Streams
+  - Records
+- name: Asset-centric data model
+  tags:
+  - Assets
+  - Time series
+  - Synthetic Time Series
+  - Data point subscriptions
+  - Events
+  - Files
+  - Sequences
+  - Geospatial
+  - Seismic
+- name: 3D
+  tags:
+  - 3D Models
+  - 3D Model Revisions
+  - 3D Files
+  - 3D Asset Mapping
+  - 3D Contextualization
+  - 3D Jobs
+  - 3D Migration
+  - 3D Scenes
+- name: Contextualization
+  tags:
+  - Entity matching
+  - Entity matching pipelines
+  - Engineering diagrams
+  - Vision
+  - Advanced joins
+- name: Cognite AI
+  tags:
+  - Agents
+  - Skills
+  - Chat Completions
+  - Document AI
+  - Models
+- name: Documents
+  tags:
+  - Documents
+  - Document preview
+- name: Data ingestion
+  tags:
+  - Raw
+  - Extraction Pipelines
+  - Extraction Pipelines Runs
+  - Extraction Pipelines Config
+  - Extractors
+- name: Data organization
+  tags:
+  - Data sets
+  - Data domains
+  - Data products
+  - Rule sets
+  - Labels
+  - Relationships
+  - Annotations
+- name: Transformations
+  tags:
+  - Transformations
+  - Transformation Jobs
+  - Transformation Schedules
+  - Transformation Notifications
+  - Query
+  - Schema
+- name: Functions
+  tags:
+  - Functions
+  - Function calls
+  - Function schedules
+- name: Hosted Extractors
+  tags:
+  - Sources
+  - Jobs
+  - Destinations
+  - Mappings
+- name: PostgreSQL Gateway
+  tags:
+  - Postgres Gateway Users
+  - Postgres Gateway Tables
+- name: SAP Writeback
+  tags:
+  - SAP Instances
+  - SAP Endpoints
+  - Schema Mappings
+  - Writeback Requests
+- name: Data workflows
+  tags:
+  - Workflows
+  - Workflow versions
+  - Workflow executions
+  - Workflow triggers
+  - Tasks
+  - Workers
+- name: Simulators
+  tags:
+  - Simulators
+  - Simulator Integrations
+  - Simulator Models
+  - Simulator Routines
+  - Simulation Runs
+  - Simulator Logs
+- name: Units
+  tags:
+  - Units
+  - Unit Systems
+- name: ''
+  tags:
+  - ''

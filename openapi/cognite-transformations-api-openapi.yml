@@ -1,0 +1,2169 @@
+openapi: 3.1.0
+info:
+  title: Cognite 3D Asset Mapping Transformations API
+  description: "# Introduction\nThis is the reference documentation for the Cognite API with\nan overview of all the available methods.\n\n# Postman\nSelect the **Download** button to download our OpenAPI specification to get started.\n\nTo import your data into Postman, select **Import**, and the Import modal opens.\nYou can import items by dragging or dropping files or folders. You can choose how to import your API and manage the import settings in **View Import Settings**.\n\nIn the Import Settings, set the **Folder organization** to **Tags**, select\n**Enable optional parameters** to turn off the settings, and select **Always inherit authentication** to turn on the settings. Select **Import**.\n\nSet the Authorization to **Oauth2.0**. By default, the settings are for Open Industrial Data. Navigate to [Cognite Hub](https://hub.cognite.com/open-industrial-data-211) to understand how to get the credentials for use in Postman.\n\nFor more information, see [Getting Started with Postman](https://developer.cognite.com/dev/guides/postman/).\n\n# Pagination\nMost resource types can be paginated, indicated by the field `nextCursor` in the response.\nBy passing the value of `nextCursor` as the cursor you will get the next page of `limit` results.\nNote that all parameters except `cursor` has to stay the same.\n\n# Parallel retrieval\nAs general guidance, Parallel Retrieval is a technique that should be used when due to query complexity, retrieval of data in a single request is significantly slower than it would otherwise be for a simple request.  Parallel retrieval does not act as a speed multiplier on optimally running queries.  By parallelizing such requests, data retrieval performance can be tuned to meet the client application needs. \n\nCDF supports parallel retrieval through the `partition` parameter, which has the format `m/n` where `n` is the amount of partitions you would like to split the entire data set into.\nIf you want to download the entire data set by splitting it into 10 partitions, do the following in parallel with `m` running from 1 to 10:\n  - Make a request to `/events` with `partition=m/10`.\n  - Paginate through the response by following the cursor as explained above. Note that the `partition` parameter needs to be passed to all subqueries.\n\nProcessing of parallel retrieval requests is subject to concurrency quota availability. The request returns the `429` response upon exceeding concurrency limits. See the Request throttling chapter below.\n\nTo prevent unexpected problems and to maximize read throughput, you should at most use 10 partitions. \nSome CDF resources will automatically enforce a maximum of 10 partitions.\nFor more specific and detailed information, please read the ```partition``` attribute documentation for the CDF resource you're using.  \n\n# Requests throttling\nCognite Data Fusion (CDF) returns the HTTP `429` (too many requests) response status code when project capacity exceeds the limit.\n\nThe throttling can happen:\n  - If a user or a project sends too many (more than allocated) concurrent requests.\n  - If a user or a project sends a too high (more than allocated) rate of requests in a given amount of time.\n\nCognite recommends using a retry strategy based on truncated exponential backoff to handle sessions with HTTP response codes 429.\n\nCognite recommends using a reasonable number (up to 10) of  `Parallel retrieval` partitions.\n\nFollowing these strategies lets you slow down the request frequency to maximize productivity without having to re-submit/retry failing requests.\n\nSee more [here](https://docs.cognite.com/dev/concepts/resource_throttling).\n\n# API versions\n## Version headers\nThis API uses calendar versioning, and version names follow the `YYYYMMDD` format.\nYou can find the versions currently available by using the version selector at the top of this page.\n\nTo use a specific API version, you can pass the `cdf-version: $version` header along with your requests to the API.\n\n## Beta versions\nThe beta versions provide a preview of what the stable version will look like in the future.\nBeta versions contain functionality that is reasonably mature, and highly likely to become a part of the stable API.\n\nBeta versions are indicated by a `-beta` suffix after the version name. For example, the beta version header for the\n2023-01-01 version is then `cdf-version: 20230101-beta`.\n\n## Alpha versions\nAlpha versions contain functionality that is new and experimental, and not guaranteed to ever become a part of the stable API.\nThis functionality presents no guarantee of service, so its use is subject to caution.\n\nAlpha versions are indicated by an `-alpha` suffix after the version name. For example, the alpha version header for\nthe 2023-01-01 version is then `cdf-version: 20230101-alpha`."
+  version: v1
+  contact:
+    name: Cognite Support
+    url: https://support.cognite.com
+    email: support@cognite.com
+servers:
+- url: https://{cluster}.cognitedata.com/api/v1/projects/{project}
+  description: The URL for the CDF cluster to connect to
+  variables:
+    cluster:
+      enum:
+      - api
+      - az-tyo-gp-001
+      - az-eastus-1
+      - az-power-no-northeurope
+      - westeurope-1
+      - asia-northeast1-1
+      - gc-dsm-gp-001
+      default: api
+      description: The CDF cluster to connect to
+    project:
+      default: publicdata
+      description: The CDF project name.
+security:
+- oidc-token:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-client-credentials:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-open-industrial-data:
+  - https://api.cognitedata.com/.default
+- oauth2-auth-code:
+  - https://{cluster}.cognitedata.com/.default
+tags:
+- name: Transformations
+  description: 'Transformations enable users to use Spark SQL queries to transform
+
+    data from the CDF staging area, RAW, into the CDF data model.
+
+
+    ### Concurrency limits
+
+
+    The number of concurrent (parallel) jobs are governed by limits. If a request exceeds one of the limits,
+
+    the job fails to run. This limitation also applies to scheduled transformations.
+
+
+    The limits for the transformation service are described in the table below. Note that under high load,
+
+    some deviation from the limits might occur for short periods as the service scales up.
+
+
+    | Limit                 | Per project           |
+
+    |-----------------------|-----------------------|
+
+    | Concurrency           | 10 parallel jobs  |'
+paths:
+  /transformations:
+    get:
+      tags:
+      - Transformations
+      summary: List transformations
+      description: '
+
+
+        > **Required capabilities:** `transformationsAcl:READ`
+
+
+        List transformations. Use nextCursor to paginate through the results.'
+      operationId: getTransformations
+      parameters:
+      - name: limit
+        in: query
+        description: Limits the number of results to be returned. The maximum is 1000, default limit is 100.
+        required: false
+        schema:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 1000
+      - name: cursor
+        in: query
+        description: Cursor for paging through results.
+        required: false
+        schema:
+          type: string
+      - name: includePublic
+        in: query
+        description: Whether public transformations should be included in the results. The default is true.
+        required: false
+        schema:
+          type: boolean
+      - name: withJobDetails
+        in: query
+        description: Whether transformations should contain information about jobs. The default is true.
+        required: false
+        schema:
+          type: boolean
+      responses:
+        '200':
+          description: Paged response with list of transformations.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemsWithCursor_TransformationRead'
+        '400':
+          description: The response for a failed request.
+          content:
+            application/json:
+              schema:
+                required:
+                - error
+                type: object
+                properties:
+                  error:
+                    required:
+                    - code
+                    - message
+                    type: object
+                    properties:
+                      code:
+                        type: integer
+                        description: HTTP status code.
+                      message:
+                        type: string
+                        description: Error message.
+                      missing:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of lookup objects that do not match any results.
+                      duplicated:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of objects that are not unique.
+        '403':
+          description: The response for a forbidden request.
+          content:
+            application/json:
+              schema:
+                required:
+                - error
+                type: object
+                properties:
+                  error:
+                    required:
+                    - code
+                    - message
+                    type: object
+                    properties:
+                      code:
+                        type: integer
+                        description: HTTP status code.
+                      message:
+                        type: string
+                        description: Error message.
+                      missing:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of lookup objects that do not match any results.
+                      duplicated:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of objects that are not unique.
+      x-capability: transformationsAcl:READ
+    post:
+      tags:
+      - Transformations
+      summary: Create transformations
+      description: '
+
+
+        > **Required capabilities:** `transformationsAcl:WRITE`
+
+
+        Create a maximum of 1000 transformations per request.'
+      operationId: createTransformations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Items_TransformationCreate'
+        required: true
+      responses:
+        '200':
+          description: Response with list of transformations.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Items_TransformationRead'
+        '400':
+          description: The response for a failed request.
+          content:
+            application/json:
+              schema:
+                required:
+                - error
+                type: object
+                properties:
+                  error:
+                    required:
+                    - code
+                    - message
+                    type: object
+                    properties:
+                      code:
+                        type: integer
+                        description: HTTP status code.
+                      message:
+                        type: string
+                        description: Error message.
+                      missing:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of lookup objects that do not match any results.
+                      duplicated:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of objects that are not unique.
+        '403':
+          description: The response for a forbidden request.
+          content:
+            application/json:
+              schema:
+                required:
+                - error
+                type: object
+                properties:
+                  error:
+                    required:
+                    - code
+                    - message
+                    type: object
+                    properties:
+                      code:
+                        type: integer
+                        description: HTTP status code.
+                      message:
+                        type: string
+                        description: Error message.
+                      missing:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of lookup objects that do not match any results.
+                      duplicated:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of objects that are not unique.
+        '409':
+          description: The response for a conflict.
+          content:
+            application/json:
+              schema:
+                required:
+                - error
+                type: object
+                properties:
+                  error:
+                    required:
+                    - code
+                    - message
+                    type: object
+                    properties:
+                      code:
+                        type: integer
+                        description: HTTP status code.
+                      message:
+                        type: string
+                        description: Error message.
+                      missing:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of lookup objects that do not match any results.
+                      duplicated:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of objects that are not unique.
+      x-capability: transformationsAcl:WRITE
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: "from cognite.client.data_classes import TransformationWrite, TransformationDestination\nfrom cognite.client.data_classes.transformations.common import ViewInfo, EdgeType, DataModelInfo\ntransformations = [\n    TransformationWrite(\n        external_id=\"transformation1\",\n        name=\"transformation1\",\n        ignore_null_fields=False,\n        destination=TransformationDestination.assets()\n    ),\n    TransformationWrite(\n        external_id=\"transformation2\",\n        name=\"transformation2\",\n        ignore_null_fields=False,\n        destination=TransformationDestination.raw(\"myDatabase\", \"myTable\")\n    ),\n     TransformationWrite(\n         external_id=\"transformation3\",\n         name=\"transformation3\",\n         ignore_null_fields=False,\n         view = ViewInfo(space=\"TypeSpace\", external_id=\"TypeExtId\", version=\"version\"),\n         destination=TransformationDestination.nodes(view, \"InstanceSpace\")\n     ),\n     TransformationWrite(\n         external_id=\"transformation4\",\n         name=\"transformation4\",\n         ignore_null_fields=False,\n         view = ViewInfo(space=\"TypeSpace\", external_id=\"TypeExtId\", version=\"version\"),\n         destination=TransformationDestination.edges(view, \"InstanceSpace\")\n     ),\n     TransformationWrite(\n         external_id=\"transformation5\",\n         name=\"transformation5\",\n         ignore_null_fields=False,\n         edge_type = EdgeType(space=\"TypeSpace\", external_id=\"TypeExtId\"),\n         destination=TransformationDestination.edges(edge_type,\"InstanceSpace\")\n     ),\n     TransformationWrite(\n         external_id=\"transformation6\",\n         name=\"transformation6\",\n         ignore_null_fields=False,\n         data_model = DataModelInfo(space=\"modelSpace\", external_id=\"modelExternalId\",version=\"modelVersion\",destination_type=\"viewExternalId\"),\n         destination=TransformationDestination.instances(data_model,\"InstanceSpace\")\n     ),\n     TransformationWrite(\n         external_id=\"transformation7\",\n         name=\"transformation7\",\n         ignore_null_fields=False,\n         data_model = DataModelInfo(space=\"modelSpace\", external_id=\"modelExternalId\",version=\"modelVersion\",destination_type=\"viewExternalId\", destination_relationship_from_type=\"connectionPropertyName\"),\n         destination=TransformationDestination.instances(data_model,\"InstanceSpace\")\n     ),\n]\nres = client.transformations.create(transformations)\n"
+      - lang: Java
+        label: Java SDK
+        source: "Transformation.Builder builder = Transformation.newBuilder() \n          .setName(\"TransformationTestSDK-\") \n          .setQuery(\"select * from teste\") \n          .setConflictMode(\"upsert\") \n          .setIsPublic(true) \n          .setExternalId(\"TestSKD-\") \n          .setIgnoreNullFields(true) \n          .setDataSetId(dataSetId) \n          .setDestination(Transformation.Destination.newBuilder() \n               .setType(\"raw\") \n               .setDatabase(\"Test\") \n               .setTable(\"Test\") \n               .build() \n          ); \nList<Transformation> createdList = client.transformations().upsert(List.of(builder.build())); \n\n"
+  /transformations/byids:
+    post:
+      tags:
+      - Transformations
+      summary: Retrieve transformations
+      description: '
+
+
+        > **Required capabilities:** `transformationsAcl:READ`
+
+
+        Retrieve a maximum of 1000 transformations by ids and externalIds per request.'
+      operationId: getTransformationsByIds
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ItemsWithByIdsFlags_CogniteId'
+        required: true
+      responses:
+        '200':
+          description: Response with list of transformations.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Items_TransformationRead'
+        '400':
+          description: The response for a failed request.
+          content:
+            application/json:
+              schema:
+                required:
+                - error
+                type: object
+                properties:
+                  error:
+                    required:
+                    - code
+                    - message
+                    type: object
+                    properties:
+                      code:
+                        type: integer
+                        description: HTTP status code.
+                      message:
+                        type: string
+                        description: Error message.
+                      missing:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of lookup objects that do not match any results.
+                      duplicated:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of objects that are not unique.
+        '403':
+          description: The response for a forbidden request.
+          content:
+            application/json:
+              schema:
+                required:
+                - error
+                type: object
+                properties:
+                  error:
+                    required:
+                    - code
+                    - message
+                    type: object
+                    properties:
+                      code:
+                        type: integer
+                        description: HTTP status code.
+                      message:
+                        type: string
+                        description: Error message.
+                      missing:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of lookup objects that do not match any results.
+                      duplicated:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of objects that are not unique.
+        '409':
+          description: The response for a conflict.
+          content:
+            application/json:
+              schema:
+                required:
+                - error
+                type: object
+                properties:
+                  error:
+                    required:
+                    - code
+                    - message
+                    type: object
+                    properties:
+                      code:
+                        type: integer
+                        description: HTTP status code.
+                      message:
+                        type: string
+                        description: Error message.
+                      missing:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of lookup objects that do not match any results.
+                      duplicated:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of objects that are not unique.
+      x-capability: transformationsAcl:READ
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: 'res = client.transformations.retrieve(id=1)
+
+
+          res = client.transformations.retrieve(external_id="1")
+
+          res = client.transformations.retrieve_multiple(ids=[1,2,3], external_ids=[''transform-1'',''transform-2''])
+
+          '
+      - lang: Java
+        label: Java SDK
+        source: "List<Item> byExternalIds = List.of(Item.newBuilder() \n          .setExternalId(\"10\") \n          .build()); \nclient.transformations().retrieve(byExternalIds);"
+  /transformations/filter:
+    post:
+      tags:
+      - Transformations
+      summary: Filter transformations
+      description: '
+
+
+        > **Required capabilities:** `transformationsAcl:READ`
+
+
+        Filter transformations. Use nextCursor to paginate through the results.'
+      operationId: filterTransformations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransformationAdvancedList'
+        required: true
+      responses:
+        '200':
+          description: Paged response with list of transformations.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemsWithCursor_TransformationRead'
+        '400':
+          description: The response for a failed request.
+          content:
+            application/json:
+              schema:
+                required:
+                - error
+                type: object
+                properties:
+                  error:
+                    required:
+                    - code
+                    - message
+                    type: object
+                    properties:
+                      code:
+                        type: integer
+                        description: HTTP status code.
+                      message:
+                        type: string
+                        description: Error message.
+                      missing:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of lookup objects that do not match any results.
+                      duplicated:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of objects that are not unique.
+        '403':
+          description: The response for a forbidden request.
+          content:
+            application/json:
+              schema:
+                required:
+                - error
+                type: object
+                properties:
+                  error:
+                    required:
+                    - code
+                    - message
+                    type: object
+                    properties:
+                      code:
+                        type: integer
+                        description: HTTP status code.
+                      message:
+                        type: string
+                        description: Error message.
+                      missing:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of lookup objects that do not match any results.
+                      duplicated:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of objects that are not unique.
+      x-capability: transformationsAcl:READ
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: 'transformations_list = client.transformations.list()
+
+          '
+      - lang: Java
+        label: Java SDK
+        source: "List<Transformation> listTransformationResults = new ArrayList<>(); \nclient.transformations()\n          .list(Request.create().withFilterParameter(\"isPublic\", true))\n          .forEachRemaining(listTransformationResults::addAll); \n\n"
+  /transformations/delete:
+    post:
+      tags:
+      - Transformations
+      summary: Delete transformations
+      description: '
+
+
+        > **Required capabilities:** `transformationsAcl:WRITE`
+
+
+        Delete a maximum of 1000 transformations by ids and externalIds per request.'
+      operationId: deleteTransformations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ItemsWithIgnoreUnknownIds_CogniteId'
+        required: true
+      responses:
+        '200':
+          description: Empty response.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: The response for a failed request.
+          content:
+            application/json:
+              schema:
+                required:
+                - error
+                type: object
+                properties:
+                  error:
+                    required:
+                    - code
+                    - message
+                    type: object
+                    properties:
+                      code:
+                        type: integer
+                        description: HTTP status code.
+                      message:
+                        type: string
+                        description: Error message.
+                      missing:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of lookup objects that do not match any results.
+                      duplicated:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of objects that are not unique.
+        '403':
+          description: The response for a forbidden request.
+          content:
+            application/json:
+              schema:
+                required:
+                - error
+                type: object
+                properties:
+                  error:
+                    required:
+                    - code
+                    - message
+                    type: object
+                    properties:
+                      code:
+                        type: integer
+                        description: HTTP status code.
+                      message:
+                        type: string
+                        description: Error message.
+                      missing:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of lookup objects that do not match any results.
+                      duplicated:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of objects that are not unique.
+        '409':
+          description: The response for a conflict.
+          content:
+            application/json:
+              schema:
+                required:
+                - error
+                type: object
+                properties:
+                  error:
+                    required:
+                    - code
+                    - message
+                    type: object
+                    properties:
+                      code:
+                        type: integer
+                        description: HTTP status code.
+                      message:
+                        type: string
+                        description: Error message.
+                      missing:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of lookup objects that do not match any results.
+                      duplicated:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of objects that are not unique.
+      x-capability: transformationsAcl:WRITE
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: 'client.transformations.delete(id=[1,2,3], external_id="function3")
+
+          '
+      - lang: Java
+        label: Java SDK
+        source: "List<Item> deleteByExternalIds = List.of(Item.newBuilder() \n          .setExternalId(\"10\") \n          .build()); \n\nList<Item> deleteItemsResults = client.transformations().delete(deleteByExternalIds);\n\n"
+  /transformations/update:
+    post:
+      tags:
+      - Transformations
+      summary: Update transformations
+      description: '
+
+
+        > **Required capabilities:** `transformationsAcl:WRITE`
+
+
+        Update the attributes of transformations, maximum 1000 per request.'
+      operationId: updateTransformations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Items_UpdateItem_TransformationUpdate'
+        required: true
+      responses:
+        '200':
+          description: Response with list of transformations.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Items_TransformationRead'
+        '400':
+          description: The response for a failed request.
+          content:
+            application/json:
+              schema:
+                required:
+                - error
+                type: object
+                properties:
+                  error:
+                    required:
+                    - code
+                    - message
+                    type: object
+                    properties:
+                      code:
+                        type: integer
+                        description: HTTP status code.
+                      message:
+                        type: string
+                        description: Error message.
+                      missing:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of lookup objects that do not match any results.
+                      duplicated:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of objects that are not unique.
+        '403':
+          description: The response for a forbidden request.
+          content:
+            application/json:
+              schema:
+                required:
+                - error
+                type: object
+                properties:
+                  error:
+                    required:
+                    - code
+                    - message
+                    type: object
+                    properties:
+                      code:
+                        type: integer
+                        description: HTTP status code.
+                      message:
+                        type: string
+                        description: Error message.
+                      missing:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of lookup objects that do not match any results.
+                      duplicated:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of objects that are not unique.
+        '409':
+          description: The response for a conflict.
+          content:
+            application/json:
+              schema:
+                required:
+                - error
+                type: object
+                properties:
+                  error:
+                    required:
+                    - code
+                    - message
+                    type: object
+                    properties:
+                      code:
+                        type: integer
+                        description: HTTP status code.
+                      message:
+                        type: string
+                        description: Error message.
+                      missing:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of lookup objects that do not match any results.
+                      duplicated:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of objects that are not unique.
+      x-capability: transformationsAcl:WRITE
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: "transformation = client.transformations.retrieve(id=1)\ntransformation.query = \"SELECT * FROM _cdf.assets\"\nres = client.transformations.update(transformation)\n\nfrom cognite.client.data_classes import TransformationUpdate\nmy_update = TransformationUpdate(id=1).query.set(\"SELECT * FROM _cdf.assets\").is_public.set(False)\nres = client.transformations.update(my_update)\n\nfrom cognite.client.data_classes import NonceCredentials\nto_update = client.transformations.list(data_set_external_ids=[\"foo\"])\nnew_session = client.iam.sessions.create()\nnew_nonce = NonceCredentials(\n    session_id=new_session.id,\n    nonce=new_session.nonce,\n    cdf_project_name=client.config.project\n)\nfor tr in to_update:\n    tr.source_nonce = new_nonce\n    tr.destination_nonce = new_nonce\nres = client.transformations.update(to_update)\n"
+      - lang: Java
+        label: Java SDK
+        source: "List<Transformation> editedInput = // List of Transformations \nList<Transformation> updatedList = client.transformations().upsert(editedInput);\n\n"
+  /transformations/run:
+    post:
+      tags:
+      - Transformations
+      summary: Run a transformation
+      operationId: runTransformation
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - $ref: '#/components/schemas/TransformationRunWithExternalId'
+              - $ref: '#/components/schemas/TransformationRunWithId'
+        required: true
+      responses:
+        '200':
+          description: Response with a single job.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobRead'
+        '400':
+          description: The response for a failed request.
+          content:
+            application/json:
+              schema:
+                required:
+                - error
+                type: object
+                properties:
+                  error:
+                    required:
+                    - code
+                    - message
+                    type: object
+                    properties:
+                      code:
+                        type: integer
+                        description: HTTP status code.
+                      message:
+                        type: string
+                        description: Error message.
+                      missing:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of lookup objects that do not match any results.
+                      duplicated:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of objects that are not unique.
+        '403':
+          description: The response for a forbidden request.
+          content:
+            application/json:
+              schema:
+                required:
+                - error
+                type: object
+                properties:
+                  error:
+                    required:
+                    - code
+                    - message
+                    type: object
+                    properties:
+                      code:
+                        type: integer
+                        description: HTTP status code.
+                      message:
+                        type: string
+                        description: Error message.
+                      missing:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of lookup objects that do not match any results.
+                      duplicated:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of objects that are not unique.
+      x-capability: transformationsAcl:WRITE
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: "res = client.transformations.run(transformation_id = 1)\n\nres = client.transformations.run(transformation_id = 1, wait = False)\nimport asyncio\nasync def run_transformation():\n    res = await client.transformations.run_async(id = 1)\nloop = asyncio.get_event_loop()\nloop.run_until_complete(run_transformation())\nloop.close()\n"
+      - lang: Java
+        label: Java SDK
+        source: "Transformation.Job jobRead =  \n          client.transformations().jobs().run(10L);"
+      description: '
+
+
+        > **Required capabilities:** `transformationsAcl:WRITE`
+
+        '
+  /transformations/cancel:
+    post:
+      tags:
+      - Transformations
+      summary: Cancel a transformation
+      operationId: postApiV1ProjectsProjectTransformationsCancel
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - $ref: '#/components/schemas/TransformationCogniteExternalId'
+              - $ref: '#/components/schemas/TransformationCogniteInternalId'
+        required: true
+      responses:
+        '200':
+          description: Empty response.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: The response for a failed request.
+          content:
+            application/json:
+              schema:
+                required:
+                - error
+                type: object
+                properties:
+                  error:
+                    required:
+                    - code
+                    - message
+                    type: object
+                    properties:
+                      code:
+                        type: integer
+                        description: HTTP status code.
+                      message:
+                        type: string
+                        description: Error message.
+                      missing:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of lookup objects that do not match any results.
+                      duplicated:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of objects that are not unique.
+        '403':
+          description: The response for a forbidden request.
+          content:
+            application/json:
+              schema:
+                required:
+                - error
+                type: object
+                properties:
+                  error:
+                    required:
+                    - code
+                    - message
+                    type: object
+                    properties:
+                      code:
+                        type: integer
+                        description: HTTP status code.
+                      message:
+                        type: string
+                        description: Error message.
+                      missing:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of lookup objects that do not match any results.
+                      duplicated:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of objects that are not unique.
+      x-capability: transformationsAcl:WRITE
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: "from cognite.client.data_classes import TransformationJobStatus\nres = client.transformations.run(id = 1, timeout = 60.0)\nif res.status == TransformationJobStatus.RUNNING:\n    res.cancel()\n"
+      - lang: Java
+        label: Java SDK
+        source: "Boolean jobResult1 =  \n          client.transformations().jobs().cancel(10L);"
+      description: '
+
+
+        > **Required capabilities:** `transformationsAcl:WRITE`
+
+        '
+components:
+  schemas:
+    SetStringField:
+      type: object
+      title: set
+      required:
+      - set
+      properties:
+        set:
+          type: string
+    ItemsWithCursor_TransformationRead:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransformationRead'
+        nextCursor:
+          type: string
+          description: Cursor to get the next page of results (if available).
+      description: Array of objects (Transformation).
+    SetValue_Long:
+      required:
+      - set
+      type: object
+      properties:
+        set:
+          type: integer
+          format: int64
+    SetNull_NonceCredentials:
+      required:
+      - setNull
+      type: object
+      properties:
+        setNull:
+          type: boolean
+    UpdateArray_String:
+      type: object
+      properties:
+        add:
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 35
+          description: List of tags to add to the Transformation.
+        remove:
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 35
+          description: List of tags to remove from the Transformation.
+    CogniteExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
+      type: string
+      maxLength: 255
+      example: my.known.id
+    Items_TransformationRead:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransformationRead'
+      description: Array of objects (Transformation).
+    Schedule:
+      required:
+      - id
+      - externalId
+      - createdTime
+      - lastUpdatedTime
+      - interval
+      - isPaused
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Transformation ID
+          format: int32
+        externalId:
+          type: string
+          description: Transformation externalId
+        createdTime:
+          type: integer
+          description: 'Time when the schedule was created: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.'
+          format: int64
+        lastUpdatedTime:
+          type: integer
+          description: 'Time when the schedule was last updated: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.'
+          format: int64
+        interval:
+          $ref: '#/components/schemas/CronValue'
+        isPaused:
+          type: boolean
+          description: If true, the transformation is not scheduled.
+      description: Details for the schedule if the transformation is scheduled
+    MinMax:
+      type: object
+      properties:
+        min:
+          type: integer
+          description: 'Minimum timestamp (inclusive).
+
+            The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.'
+          format: int64
+        max:
+          type: integer
+          description: 'Maximum timestamp (inclusive).
+
+            The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.'
+          format: int64
+      description: Range between two timestamps (inclusive).
+    SessionInfo:
+      type: object
+      properties:
+        clientId:
+          type: string
+          description: Idp client ID
+        sessionId:
+          type: integer
+          description: CDF session ID
+          format: int64
+        projectName:
+          type: string
+          description: CDF project name
+      description: Details for the session used to read from the source project.
+    SetNull_FlatOidcCredentialsUpdate:
+      required:
+      - setNull
+      type: object
+      properties:
+        setNull:
+          type: boolean
+    TransformationJobStatus:
+      type: string
+      description: Status of the job at the request time.
+      enum:
+      - Completed
+      - Created
+      - Failed
+      - Running
+    AutoCreateOptions:
+      type: object
+      description: 'Options to control the automatic creation of related instances when writing to data models. By default, all options are true.
+
+        '
+      properties:
+        startNodes:
+          type: boolean
+          description: 'If true (default), missing start nodes are automatically created in the destination. If false, the transformation validates node references and returns a 400 error if a referenced start node for creating edges doesn''t exist.
+
+            '
+        endNodes:
+          type: boolean
+          description: 'If true (default), missing end nodes  are automatically created in the destination. If false, the transformation validates node references and returns a 400 error if a referenced end node for creating edges doesn''t exist.
+
+            '
+        directRelations:
+          type: boolean
+          description: 'If true (default), missing direct relation targets are automatically created in the destination. If false, the transformation validates relation references and returns a 400 error if a referenced target node doesn''t exist.
+
+            '
+    CogniteExtId:
+      required:
+      - externalId
+      type: object
+      properties:
+        externalId:
+          type: string
+      description: The external ID provided by the client. Must be unique for the resource type.
+    SetValue_ConflictMode:
+      required:
+      - set
+      type: object
+      properties:
+        set:
+          $ref: '#/components/schemas/ConflictMode'
+      description: Set a new value for the transformation conflictMode (action).
+    ContainsAny:
+      type: object
+      properties:
+        containsAny:
+          type: array
+          items:
+            type: string
+          description: Filter the transformations having any of these tags.
+    SetExternalId:
+      type: object
+      title: set
+      required:
+      - set
+      properties:
+        set:
+          $ref: '#/components/schemas/CogniteExternalId'
+    SequenceRowDataSource:
+      required:
+      - type
+      - externalId
+      type: object
+      properties:
+        type:
+          type: string
+          description: The type of the destination resource indicating that the transformation will write to Sequence Rows.
+          enum:
+          - sequence_rows
+        externalId:
+          type: string
+          description: The externalId of sequence
+    TransformationAdvancedList:
+      required:
+      - filter
+      type: object
+      properties:
+        filter:
+          $ref: '#/components/schemas/TransformationFilter'
+        limit:
+          type: integer
+          format: int32
+        cursor:
+          type: string
+    SetBooleanField:
+      type: object
+      title: set
+      required:
+      - set
+      properties:
+        set:
+          type: boolean
+    SetValue_FlatOidcCredentialsUpdate:
+      required:
+      - set
+      type: object
+      properties:
+        set:
+          $ref: '#/components/schemas/FlatOidcCredentialsUpdate'
+    FlatOidcCredentialsUpdate:
+      type: object
+      properties:
+        clientId:
+          type: string
+        clientSecret:
+          type: string
+        scopes:
+          type: string
+        tokenUri:
+          type: string
+        cdfProjectName:
+          type: string
+        audience:
+          type: string
+    EdgeType:
+      required:
+      - space
+      - externalId
+      type: object
+      properties:
+        space:
+          type: string
+          description: Space of the type
+        externalId:
+          type: string
+          description: External ID of the type
+      description: Target type of the connection definition
+    SetNull_Long:
+      required:
+      - setNull
+      type: object
+      properties:
+        setNull:
+          type: boolean
+    SetValue_NonceCredentials:
+      required:
+      - set
+      type: object
+      properties:
+        set:
+          $ref: '#/components/schemas/NonceCredentials'
+    TransformationFilter:
+      type: object
+      properties:
+        isPublic:
+          type: boolean
+          description: Whether public transformations should be included in the results. The default is true.
+        nameRegex:
+          type: string
+          description: Regex expression to match the transformation name.
+        queryRegex:
+          type: string
+          description: Regex expression to match the transformation query.
+        destinationType:
+          type: string
+          description: Transformation destination resource name to filter by.
+          enum:
+          - assets
+          - events
+          - asset_hierarchy
+          - datapoints
+          - string_datapoints
+          - timeseries
+          - sequences
+          - files
+          - labels
+          - relationships
+          - data_sets
+          - nodes
+          - edges
+          - instances
+          - raw
+          - sequence_rows
+        conflictMode:
+          $ref: '#/components/schemas/ConflictMode'
+        hasBlockedError:
+          type: boolean
+          description: Whether only the blocked transformations should be included in the results.
+        cdfProjectName:
+          type: string
+          description: Project name to filter by configured source and destination project.
+        createdTime:
+          $ref: '#/components/schemas/MinMax'
+        lastUpdatedTime:
+          $ref: '#/components/schemas/MinMax'
+        dataSetIds:
+          type: array
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/CogniteExtId'
+            - $ref: '#/components/schemas/CogniteIntId'
+          description: Return only transformations in the specified data sets.
+        tags:
+          description: Return the transformations depending on the tags filter provided.
+          oneOf:
+          - $ref: '#/components/schemas/ContainsAny'
+    ConflictMode:
+      type: string
+      description: Behavior when the data already exists.`upsert` - Create or Update,`abort` - Create and fail when already exists,`update` - update and fail if it does not exist,`delete` - delete the matched rows.
+      enum:
+      - abort
+      - delete
+      - update
+      - upsert
+    AssetCentricDataSource:
+      required:
+      - type
+      type: object
+      properties:
+        type:
+          type: string
+          description: The type of the destination resource.
+          enum:
+          - assets
+          - events
+          - asset_hierarchy
+          - datapoints
+          - string_datapoints
+          - timeseries
+          - sequences
+          - files
+          - labels
+          - relationships
+          - data_sets
+    ViewDataSource:
+      required:
+      - type
+      type: object
+      properties:
+        type:
+          type: string
+          description: The type of the destination resource indicating the instance type that the transformation will write to flexible data models.
+          enum:
+          - nodes
+          - edges
+        view:
+          $ref: '#/components/schemas/ViewInfo'
+        edgeType:
+          $ref: '#/components/schemas/EdgeType'
+        instanceSpace:
+          type: string
+          description: The space where the instances(nodes/edges) will be created.
+        autoCreate:
+          $ref: '#/components/schemas/AutoCreateOptions'
+    SetValue_DataSource:
+      required:
+      - set
+      type: object
+      properties:
+        set:
+          oneOf:
+          - $ref: '#/components/schemas/AssetCentricDataSource'
+          - $ref: '#/components/schemas/DataModelSource'
+          - $ref: '#/components/schemas/ViewDataSource'
+          - $ref: '#/components/schemas/RawDataSource'
+          - $ref: '#/components/schemas/SequenceRowDataSource'
+      description: Set a new value for the transformation destination type. Indicates result resource type.
+    ViewInfo:
+      required:
+      - space
+      - externalId
+      - version
+      type: object
+      properties:
+        space:
+          type: string
+          description: Space of the View
+        externalId:
+          type: string
+          description: External ID of the View
+        version:
+          type: string
+          description: Version of the View
+      description: Target view info
+    TransformBlockedInfo:
+      required:
+      - reason
+      - createdTime
+      type: object
+      properties:
+        reason:
+          type: string
+          description: Indicates the reason if the transformation is blocked.
+        createdTime:
+          type: integer
+          description: 'Indicates the blocked time if the transformation is blocked: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.'
+          format: int64
+      description: Provides reason and time if the transformation is blocked.
+    TransformationUpdate:
+      type: object
+      properties:
+        name:
+          allOf:
+          - $ref: '#/components/schemas/SetStringField'
+          - type: object
+            properties:
+              set:
+                type: string
+                maxLength: 128
+          description: Set a new value for the transformation name. Maximum length is 128 characters.
+        externalId:
+          allOf:
+          - $ref: '#/components/schemas/SetExternalId'
+          description: Set a new value for the transformation External ID.
+        destination:
+          $ref: '#/components/schemas/SetValue_DataSource'
+        conflictMode:
+          $ref: '#/components/schemas/SetValue_ConflictMode'
+        query:
+          allOf:
+          - $ref: '#/components/schemas/SetStringField'
+          description: Set a new value for the transformation query.
+        sourceOidcCredentials:
+          description: Set a new value for the transformation source OIDC credentials, or remove it.
+          oneOf:
+          - $ref: '#/components/schemas/SetNull_FlatOidcCredentialsUpdate'
+          - $ref: '#/components/schemas/SetValue_FlatOidcCredentialsUpdate'
+        destinationOidcCredentials:
+          description: Set a new value for the transformation destination OIDC credentials, or remove it.
+          oneOf:
+          - $ref: '#/components/schemas/SetNull_FlatOidcCredentialsUpdate'
+          - $ref: '#/components/schemas/SetValue_FlatOidcCredentialsUpdate'
+        sourceNonce:
+          description: Bind to a new source CDF session, or remove it
+          oneOf:
+          - $ref: '#/components/schemas/SetNull_NonceCredentials'
+          - $ref: '#/components/schemas/SetValue_NonceCredentials'
+        destinationNonce:
+          description: Bind to a new destination session, or remove it
+          oneOf:
+          - $ref: '#/components/schemas/SetNull_NonceCredentials'
+          - $ref: '#/components/schemas/SetValue_NonceCredentials'
+        isPublic:
+          allOf:
+          - $ref: '#/components/schemas/SetBooleanField'
+          description: Set a new value for the transformation isPublic flag to change who can see the transformation.
+        ignoreNullFields:
+          allOf:
+          - $ref: '#/components/schemas/SetBooleanField'
+          description: Set a new value for the transformation ignoreNullFields flag to change to change how nulls are handled on updates.
+        dataSetId:
+          description: Set a new value for the transformation dataset id which is used for access control.
+          oneOf:
+          - $ref: '#/components/schemas/SetNull_Long'
+          - $ref: '#/components/schemas/SetValue_Long'
+        tags:
+          description: List of tags for the Transformation.
+          oneOf:
+          - $ref: '#/components/schemas/SetValue_Seq_String'
+          - $ref: '#/components/schemas/UpdateArray_String'
+    UpdateItemWithId_TransformationUpdate:
+      required:
+      - update
+      - id
+      type: object
+      properties:
+        update:
+          $ref: '#/components/schemas/TransformationUpdate'
+        id:
+          type: integer
+          description: A server-generated ID for the object.
+          format: int32
+    FlatOidcCredentials:
+      required:
+      - clientId
+      - clientSecret
+      - tokenUri
+      - cdfProjectName
+      type: object
+      properties:
+        clientId:
+          type: string
+        clientSecret:
+          type: string
+        scopes:
+          type: string
+        tokenUri:
+          type: string
+        cdfProjectName:
+          type: string
+        audience:
+          type: string
+    CogniteIntId:
+      required:
+      - id
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+      description: A server-generated ID for the object.
+    CronValue:
+      type: string
+      example: 0 0 * * *
+      description: Cron expression describes when the job should run.
+    TransformationRead:
+      required:
+      - id
+      - name
+      - query
+      - destination
+      - conflictMode
+      - isPublic
+      - createdTime
+      - lastUpdatedTime
+      - owner
+      - ownerIsCurrentUser
+      - hasSourceOidcCredentials
+      - hasDestinationOidcCredentials
+      - externalId
+      - ignoreNullFields
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Transformation ID.
+          format: int32
+        name:
+          type: string
+          maxLength: 128
+          description: Transformation name. Maximum length is 128 characters.
+        query:
+          type: string
+          description: Transformation query.
+        destination:
+          description: Destination data type.
+          oneOf:
+          - $ref: '#/components/schemas/AssetCentricDataSource'
+          - $ref: '#/components/schemas/DataModelSource'
+          - $ref: '#/components/schemas/ViewDataSource'
+          - $ref: '#/components/schemas/RawDataSource'
+          - $ref: '#/components/schemas/SequenceRowDataSource'
+        conflictMode:
+          $ref: '#/components/schemas/ConflictMode'
+        isPublic:
+          type: boolean
+          description: Indicates if the transformation is visible to all in project or only to the owner.
+        blocked:
+          $ref: '#/components/schemas/TransformBlockedInfo'
+        createdTime:
+          type: integer
+          description: 'Time when the transformation was created: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.'
+          format: int64
+        lastUpdatedTime:
+          type: integer
+          description: 'Time when the transformation was last updated: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.'
+          format: int64
+        owner:
+          type: string
+          description: 'Owner of the transformation: requester''s identity.'
+        ownerIsCurrentUser:
+          type: boolean
+          description: Indicates if the transformation belongs to the current user.
+        hasSourceOidcCredentials:
+          type: boolean
+          description: Indicates if the transformation is configured with a source oidc credentials set.
+        hasDestinationOidcCredentials:
+          type: boolean
+          description: Indicates if the transformation is configured with a destination oidc credentials set.
+        sourceSession:
+          $ref: '#/components/schemas/SessionInfo'
+        destinationSession:
+          $ref: '#/components/schemas/SessionInfo'
+        lastFinishedJob:
+          $ref: '#/components/schemas/JobRead'
+        runningJob:
+          $ref: '#/components/schemas/JobRead'
+        schedule:
+          $ref: '#/components/schemas/Schedule'
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        ignoreNullFields:
+          type: boolean
+          description: 'How NULL values are handled on updates: ignore or setNull.'
+        dataSetId:
+          type: integer
+          description: Gets the transformation dataset id which can be used for access control.
+          format: int64
+        tags:
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 35
+          description: List of tags for the Transformation.
+          minItems: 1
+          maxItems: 5
+    SetValue_Seq_String:
+      type: object
+      properties:
+        set:
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 35
+          description: List of tags for the Transformation.
+          minItems: 1
+          maxItems: 5
+    NonceCredentials:
+      description: Credentials for a CDF session (sessionId, nonce, and project name). These are obtained when you create a session via the Sessions API. See [Sessions API](#tag/Sessions/operation/createSessions) documentation for more information.
+      required:
+      - sessionId
+      - nonce
+      - cdfProjectName
+      type: object
+      properties:
+        sessionId:
+          type: integer
+          format: int64
+        nonce:
+          type: string
+        cdfProjectName:
+          type: string
+        clientId:
+          type: string
+    ItemsWithByIdsFlags_CogniteId:
+      required:
+      - withJobDetails
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/TransformationCogniteExternalId'
+            - $ref: '#/components/schemas/TransformationCogniteInternalId'
+          maxItems: 1000
+        ignoreUnknownIds:
+          type: boolean
+          description: Ignore IDs and external IDs that are not found. Defaults to false.
+        withJobDetails:
+          type: boolean
+          description: Whether the transformations will be returned with running job and last created job details.
+      description: All provided IDs and external IDs must be unique.
+    Items_TransformationCreate:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransformationCreate'
+          maxItems: 1000
+    Items_UpdateItem_TransformationUpdate:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/UpdateItemWithExternalId_TransformationUpdate'
+            - $ref: '#/components/schemas/UpdateItemWithId_TransformationUpdate'
+          maxItems: 1000
+    TransformationRunWithExternalId:
+      required:
+      - externalId
+      type: object
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        nonce:
+          $ref: '#/components/schemas/NonceCredentials'
+    TransformationCogniteInternalId:
+      required:
+      - id
+      type: object
+      properties:
+        id:
+          type: integer
+          description: A server-generated ID for the object.
+          format: int32
+    ItemsWithIgnoreUnknownIds_CogniteId:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/TransformationCogniteExternalId'
+            - $ref: '#/components/schemas/TransformationCogniteInternalId'
+          maxItems: 1000
+        ignoreUnknownIds:
+          type: boolean
+          description: Ignore IDs and external IDs that are not found. Defaults to false.
+      description: All provided IDs and external IDs must be unique.
+    JobRead:
+      required:
+      - id
+      - uuid
+      - transformationId
+      - transformationExternalId
+      - sourceProject
+      - destinationProject
+      - destination
+      - conflictMode
+      - query
+      - ignoreNullFields
+      - status
+      - createdTime
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Job numeric ID.
+          format: int32
+        uuid:
+          type: string
+          description: UUID id of the job.
+        transformationId:
+          type: integer
+          description: ID of the transformation that created this job.
+          format: int32
+        transformationExternalId:
+          type: string
+          description: External ID of the transformation that created this job.
+        sourceProject:
+          type: string
+          description: CDF project which is used as source for reading data.
+        destinationProject:
+          type: string
+          description: CDF project which is used as destination for writing data.
+        destination:
+          description: Destination data type.
+          oneOf:
+          - $ref: '#/components/schemas/AssetCentricDataSource'
+          - $ref: '#/components/schemas/DataModelSource'
+          - $ref: '#/components/schemas/ViewDataSource'
+          - $ref: '#/components/schemas/RawDataSource'
+          - $ref: '#/components/schemas/SequenceRowDataSource'
+        conflictMode:
+          $ref: '#/components/schemas/ConflictMode'
+        query:
+          type: string
+          description: The SQL query being executed.
+        createdTime:
+          type: integer
+          description: 'Time when the job was created: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.'
+          format: int64
+        startedTime:
+          type: integer
+          description: 'Time when this job started executing: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.'
+          format: int64
+        finishedTime:
+          type: integer
+          description: 'Time when this job finished running: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.'
+          format: int64
+        lastSeenTime:
+          type: integer
+          description: 'Time when this job last registered running: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.'
+          format: int64
+        error:
+          type: string
+          description: If the job failed, this will be a string describing why. When null, the job did not fail.
+        ignoreNullFields:
+          type: boolean
+          description: 'How NULL values are handled on updates: ignore or setNull.'
+        status:
+          $ref: '#/components/schemas/TransformationJobStatus'
+      description: Details for the last finished job of this transformation
+    DataModelInfo:
+      required:
+      - space
+      - externalId
+      - version
+      - destinationType
+      type: object
+      properties:
+        space:
+          type: string
+          description: Space of the Data Model
+        externalId:
+          type: string
+          description: External ID of the Data Model
+        version:
+          type: string
+          description: Version of the Data Model
+        destinationType:
+          type: string
+          description: External ID of the type(view) in the data model
+        destinationRelationshipFromType:
+          type: string
+          description: Property Identifier of the connection definition in destinationType
+      description: Target data model info
+    DataModelSource:
+      required:
+      - type
+      - dataModel
+      type: object
+      properties:
+        type:
+          type: string
+          description: The type of the destination resource indicating that the transformation will write to data models
+          enum:
+          - instances
+        dataModel:
+          $ref: '#/components/schemas/DataModelInfo'
+        instanceSpace:
+          type: string
+          description: The space where the instances will be created.
+        autoCreate:
+          $ref: '#/components/schemas/AutoCreateOptions'
+    TransformationCreate:
+      required:
+      - name
+      - externalId
+      - ignoreNullFields
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 128
+          description: Transformation name. Maximum length is 128 characters.
+        query:
+          type: string
+        destination:
+          description: Destination data type.
+          oneOf:
+          - $ref: '#/components/schemas/AssetCentricDataSource'
+          - $ref: '#/components/schemas/DataModelSource'
+          - $ref: '#/components/schemas/ViewDataSource'
+          - $ref: '#/components/schemas/RawDataSource'
+          - $ref: '#/components/schemas/SequenceRowDataSource'
+        conflictMode:
+          $ref: '#/components/schemas/ConflictMode'
+        isPublic:
+          type: boolean
+        sourceOidcCredentials:
+          $ref: '#/components/schemas/FlatOidcCredentials'
+        destinationOidcCredentials:
+          $ref: '#/components/schemas/FlatOidcCredentials'
+        sourceNonce:
+          $ref: '#/components/schemas/NonceCredentials'
+        destinationNonce:
+          $ref: '#/components/schemas/NonceCredentials'
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        ignoreNullFields:
+          type: boolean
+          description: 'How NULL values are handled on updates: ignore or setNull.'
+        dataSetId:
+          type: integer
+          format: int64
+        tags:
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 35
+          description: List of tags for the Transformation.
+          minItems: 1
+          maxItems: 5
+    TransformationRunWithId:
+      required:
+      - id
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+        nonce:
+          $ref: '#/components/schemas/NonceCredentials'
+    TransformationCogniteExternalId:
+      required:
+      - externalId
+      type: object
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+    RawDataSource:
+      required:
+      - type
+      - database
+      - table
+      type: object
+      properties:
+        type:
+          type: string
+          description: The type of the destination resource indicating that the transformation will write to RAW.
+          enum:
+          - raw
+        database:
+          type: string
+          description: The database name.
+        table:
+          type: string
+          description: The table name.
+    UpdateItemWithExternalId_TransformationUpdate:
+      required:
+      - update
+      - externalId
+      type: object
+      properties:
+        update:
+          $ref: '#/components/schemas/TransformationUpdate'
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+  securitySchemes:
+    oidc-token:
+      type: http
+      scheme: bearer
+      bearerFormat: OpenID Connect or OAuth2 token
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+    oauth2-client-credentials:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        clientCredentials:
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-auth-code:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://your-idps.authorization.url/
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-open-industrial-data:
+      type: oauth2
+      description: Auth flow for Open Industrial Data. Get your client secret from https://hub.cognite.com/open-industrial-data-211.
+      flows:
+        clientCredentials:
+          tokenUrl: https://login.microsoftonline.com/48d5043c-cf70-4c49-881c-c638f5796997/oauth2/v2.0/token
+          scopes:
+            default: https://api.cognitedata.com/.default
+    org-oidc-token:
+      type: openIdConnect
+      openIdConnectUrl: https://auth.cognite.com/.well-known/openid-configuration
+      description: 'Access token issued by the Cognite authorization server, and valid for the target organization. The token must
+
+        be an OpenID Connect token, and it can be obtained by performing an OIDC login flow toward `auth.cognite.com`.
+
+        This is a single URL for all CDF organizations.'
+x-tagGroups:
+- name: Changelog
+  tags:
+  - Changelog
+- name: Organizations and projects
+  tags:
+  - Organizations
+  - Projects
+- name: Identity and access management
+  tags:
+  - Principals
+  - Groups
+  - Security categories
+  - Sessions
+  - Token
+  - User profiles
+  - Project Deletion Reporting
+- name: Data modeling
+  tags:
+  - Data Modeling
+  - Data models
+  - Spaces
+  - Views
+  - Containers
+  - Nodes
+  - Instances
+  - Statistics
+  - Streams
+  - Records
+- name: Asset-centric data model
+  tags:
+  - Assets
+  - Time series
+  - Synthetic Time Series
+  - Data point subscriptions
+  - Events
+  - Files
+  - Sequences
+  - Geospatial
+  - Seismic
+- name: 3D
+  tags:
+  - 3D Models
+  - 3D Model Revisions
+  - 3D Files
+  - 3D Asset Mapping
+  - 3D Contextualization
+  - 3D Jobs
+  - 3D Migration
+  - 3D Scenes
+- name: Contextualization
+  tags:
+  - Entity matching
+  - Entity matching pipelines
+  - Engineering diagrams
+  - Vision
+  - Advanced joins
+- name: Cognite AI
+  tags:
+  - Agents
+  - Skills
+  - Chat Completions
+  - Document AI
+  - Models
+- name: Documents
+  tags:
+  - Documents
+  - Document preview
+- name: Data ingestion
+  tags:
+  - Raw
+  - Extraction Pipelines
+  - Extraction Pipelines Runs
+  - Extraction Pipelines Config
+  - Extractors
+- name: Data organization
+  tags:
+  - Data sets
+  - Data domains
+  - Data products
+  - Rule sets
+  - Labels
+  - Relationships
+  - Annotations
+- name: Transformations
+  tags:
+  - Transformations
+  - Transformation Jobs
+  - Transformation Schedules
+  - Transformation Notifications
+  - Query
+  - Schema
+- name: Functions
+  tags:
+  - Functions
+  - Function calls
+  - Function schedules
+- name: Hosted Extractors
+  tags:
+  - Sources
+  - Jobs
+  - Destinations
+  - Mappings
+- name: PostgreSQL Gateway
+  tags:
+  - Postgres Gateway Users
+  - Postgres Gateway Tables
+- name: SAP Writeback
+  tags:
+  - SAP Instances
+  - SAP Endpoints
+  - Schema Mappings
+  - Writeback Requests
+- name: Data workflows
+  tags:
+  - Workflows
+  - Workflow versions
+  - Workflow executions
+  - Workflow triggers
+  - Tasks
+  - Workers
+- name: Simulators
+  tags:
+  - Simulators
+  - Simulator Integrations
+  - Simulator Models
+  - Simulator Routines
+  - Simulation Runs
+  - Simulator Logs
+- name: Units
+  tags:
+  - Units
+  - Unit Systems
+- name: ''
+  tags:
+  - ''

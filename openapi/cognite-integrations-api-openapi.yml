@@ -1,0 +1,1606 @@
+openapi: 3.1.0
+info:
+  title: Cognite 3D Asset Mapping Integrations API
+  description: "# Introduction\nThis is the reference documentation for the Cognite API with\nan overview of all the available methods.\n\n# Postman\nSelect the **Download** button to download our OpenAPI specification to get started.\n\nTo import your data into Postman, select **Import**, and the Import modal opens.\nYou can import items by dragging or dropping files or folders. You can choose how to import your API and manage the import settings in **View Import Settings**.\n\nIn the Import Settings, set the **Folder organization** to **Tags**, select\n**Enable optional parameters** to turn off the settings, and select **Always inherit authentication** to turn on the settings. Select **Import**.\n\nSet the Authorization to **Oauth2.0**. By default, the settings are for Open Industrial Data. Navigate to [Cognite Hub](https://hub.cognite.com/open-industrial-data-211) to understand how to get the credentials for use in Postman.\n\nFor more information, see [Getting Started with Postman](https://developer.cognite.com/dev/guides/postman/).\n\n# Pagination\nMost resource types can be paginated, indicated by the field `nextCursor` in the response.\nBy passing the value of `nextCursor` as the cursor you will get the next page of `limit` results.\nNote that all parameters except `cursor` has to stay the same.\n\n# Parallel retrieval\nAs general guidance, Parallel Retrieval is a technique that should be used when due to query complexity, retrieval of data in a single request is significantly slower than it would otherwise be for a simple request.  Parallel retrieval does not act as a speed multiplier on optimally running queries.  By parallelizing such requests, data retrieval performance can be tuned to meet the client application needs. \n\nCDF supports parallel retrieval through the `partition` parameter, which has the format `m/n` where `n` is the amount of partitions you would like to split the entire data set into.\nIf you want to download the entire data set by splitting it into 10 partitions, do the following in parallel with `m` running from 1 to 10:\n  - Make a request to `/events` with `partition=m/10`.\n  - Paginate through the response by following the cursor as explained above. Note that the `partition` parameter needs to be passed to all subqueries.\n\nProcessing of parallel retrieval requests is subject to concurrency quota availability. The request returns the `429` response upon exceeding concurrency limits. See the Request throttling chapter below.\n\nTo prevent unexpected problems and to maximize read throughput, you should at most use 10 partitions. \nSome CDF resources will automatically enforce a maximum of 10 partitions.\nFor more specific and detailed information, please read the ```partition``` attribute documentation for the CDF resource you're using.  \n\n# Requests throttling\nCognite Data Fusion (CDF) returns the HTTP `429` (too many requests) response status code when project capacity exceeds the limit.\n\nThe throttling can happen:\n  - If a user or a project sends too many (more than allocated) concurrent requests.\n  - If a user or a project sends a too high (more than allocated) rate of requests in a given amount of time.\n\nCognite recommends using a retry strategy based on truncated exponential backoff to handle sessions with HTTP response codes 429.\n\nCognite recommends using a reasonable number (up to 10) of  `Parallel retrieval` partitions.\n\nFollowing these strategies lets you slow down the request frequency to maximize productivity without having to re-submit/retry failing requests.\n\nSee more [here](https://docs.cognite.com/dev/concepts/resource_throttling).\n\n# API versions\n## Version headers\nThis API uses calendar versioning, and version names follow the `YYYYMMDD` format.\nYou can find the versions currently available by using the version selector at the top of this page.\n\nTo use a specific API version, you can pass the `cdf-version: $version` header along with your requests to the API.\n\n## Beta versions\nThe beta versions provide a preview of what the stable version will look like in the future.\nBeta versions contain functionality that is reasonably mature, and highly likely to become a part of the stable API.\n\nBeta versions are indicated by a `-beta` suffix after the version name. For example, the beta version header for the\n2023-01-01 version is then `cdf-version: 20230101-beta`.\n\n## Alpha versions\nAlpha versions contain functionality that is new and experimental, and not guaranteed to ever become a part of the stable API.\nThis functionality presents no guarantee of service, so its use is subject to caution.\n\nAlpha versions are indicated by an `-alpha` suffix after the version name. For example, the alpha version header for\nthe 2023-01-01 version is then `cdf-version: 20230101-alpha`."
+  version: v1
+  contact:
+    name: Cognite Support
+    url: https://support.cognite.com
+    email: support@cognite.com
+servers:
+- url: https://{cluster}.cognitedata.com/api/v1/projects/{project}
+  description: The URL for the CDF cluster to connect to
+  variables:
+    cluster:
+      enum:
+      - api
+      - az-tyo-gp-001
+      - az-eastus-1
+      - az-power-no-northeurope
+      - westeurope-1
+      - asia-northeast1-1
+      - gc-dsm-gp-001
+      default: api
+      description: The CDF cluster to connect to
+    project:
+      default: publicdata
+      description: The CDF project name.
+security:
+- oidc-token:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-client-credentials:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-open-industrial-data:
+  - https://api.cognitedata.com/.default
+- oauth2-auth-code:
+  - https://{cluster}.cognitedata.com/.default
+tags:
+- name: Integrations
+  description: Each integration represents an application running on-premises.
+paths:
+  /integrations:
+    get:
+      tags:
+      - Integrations
+      operationId: list_integrations
+      description: '
+
+
+        > **Required capabilities:** `integrationsAcl:READ`
+
+
+        List integrations, with optional pagination.'
+      parameters:
+      - $ref: '#/components/parameters/100Limit'
+      - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemsWithCursor_Integration_'
+          description: List of integrations and an optional cursor.
+        '400':
+          $ref: '#/components/responses/400ErrorResponse'
+        '422':
+          $ref: '#/components/responses/422ErrorResponse'
+      summary: List Integrations
+      x-capability:
+      - integrationsAcl:READ
+    post:
+      tags:
+      - Integrations
+      operationId: create_integrations
+      description: '
+
+
+        > **Required capabilities:** `integrationsAcl:WRITE`
+
+
+        Create integrations.'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Items_CreateIntegration_'
+        required: true
+        description: Integrations to create.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Items_Integration_'
+          description: List of created integrations
+        '400':
+          $ref: '#/components/responses/400ErrorResponse'
+        '422':
+          $ref: '#/components/responses/422ErrorResponse'
+      summary: Create Integrations
+      x-capability:
+      - integrationsAcl:WRITE
+  /integrations/byids:
+    post:
+      tags:
+      - Integrations
+      operationId: retrieve_integrations
+      description: '
+
+
+        > **Required capabilities:** `integrationsAcl:READ`
+
+
+        Retrieve integrations by ID, optionally ignoring unknown ids.'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ItemsWithIgnoreUnknownIds_ExternalId'
+        required: true
+        description: External IDs to retrieve.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Items_Integration_'
+          description: List of integrations.
+        '400':
+          $ref: '#/components/responses/400ErrorResponse'
+        '422':
+          $ref: '#/components/responses/422ErrorResponse'
+      summary: Retrieve Integrations
+      x-capability:
+      - integrationsAcl:READ
+  /integrations/delete:
+    post:
+      tags:
+      - Integrations
+      operationId: delete_integrations
+      description: '
+
+
+        > **Required capabilities:** `integrationsAcl:WRITE`
+
+
+        Delete integrations by ID, optionally ignoring unknown ids.'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ItemsWithIgnoreUnknownIds_ExternalId'
+        required: true
+        description: External IDs of integrations to delete.
+      responses:
+        '200':
+          $ref: '#/components/responses/EmptyResponse'
+          description: Empty response
+        '400':
+          $ref: '#/components/responses/400ErrorResponse'
+        '422':
+          $ref: '#/components/responses/422ErrorResponse'
+      summary: Delete Integrations
+      x-capability:
+      - integrationsAcl:WRITE
+  /integrations/update:
+    post:
+      tags:
+      - Integrations
+      operationId: update_integrations
+      description: '
+
+
+        > **Required capabilities:** `integrationsAcl:WRITE`
+
+
+        Update up to 20 integrations.'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Items_UpdateIntegrationItem_'
+        required: true
+        description: Integration updates.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Items_Integration_'
+          description: List of updated integrations.
+        '400':
+          $ref: '#/components/responses/400ErrorResponse'
+        '422':
+          $ref: '#/components/responses/422ErrorResponse'
+      summary: Update Integrations
+      x-capability:
+      - integrationsAcl:WRITE
+  /integrations/config:
+    post:
+      tags:
+      - Integrations
+      operationId: new_integration_config
+      description: '
+
+
+        > **Required capabilities:** `integrationConfigsAcl:WRITE`
+
+
+        Create a new config revision. The extractor will be notified of this when it next checks in.'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewConfigRevision'
+        required: true
+        description: New config revision.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FullConfigRevision'
+          description: Metadata of created config revision.
+        '400':
+          $ref: '#/components/responses/400ErrorResponse'
+          description: Response for a failed request
+        '422':
+          $ref: '#/components/responses/422ErrorResponse'
+      summary: Create config revision.
+      x-capability:
+      - integrationConfigsAcl:WRITE
+    get:
+      tags:
+      - Integrations
+      operationId: get_integration_config
+      description: '
+
+
+        > **Required capabilities:** `integrationConfigsAcl:READ`
+
+
+        Fetch a specific config revision.'
+      parameters:
+      - in: query
+        name: externalId
+        required: true
+        schema:
+          type: string
+          title: Integration External ID
+        description: Integration to fetch config revision for.
+      - in: query
+        name: revision
+        required: false
+        schema:
+          type: integer
+          title: Revision
+        description: Revision number of config to fetch. If left out, fetches the latest revision.
+      - in: query
+        name: activeAtTime
+        schema:
+          type: integer
+          title: ActiveAtTime
+        description: This is for backwards compatibility with extraction pipelines API therefore has no effect on integrations API.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FullConfigRevision'
+          description: Retrieved config revision.
+        '400':
+          $ref: '#/components/responses/400ErrorResponse'
+          description: Response for a failed request
+        '422':
+          $ref: '#/components/responses/422ErrorResponse'
+      summary: Fetch config revision
+      x-capability:
+      - integrationConfigsAcl:READ
+  /integrations/config/revisions:
+    get:
+      tags:
+      - Integrations
+      operationId: list_integration_configs
+      description: '
+
+
+        > **Required capabilities:** `integrationConfigsAcl:READ`
+
+
+        List config revisions, optionally filtering by a specific integration.
+
+        This is backwards compatible with extraction pipelines API.
+
+        '
+      parameters:
+      - in: query
+        name: externalId
+        required: false
+        schema:
+          type: string
+          title: Integration External Id
+        description: Return config revisions belonging to a specific integration.
+      - $ref: '#/components/parameters/100Limit'
+      - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Items_ConfigRevisionMetadata_'
+          description: Listed config revisions ordered by revision number descending.
+        '400':
+          $ref: '#/components/responses/400ErrorResponse'
+          description: Response for a failed request
+        '422':
+          $ref: '#/components/responses/422ErrorResponse'
+      summary: List config revisions
+      x-capability:
+      - integrationConfigsAcl:READ
+  /integrations/errors:
+    get:
+      tags:
+      - Integrations
+      operationId: get_integration_errors
+      description: '
+
+
+        > **Required capabilities:** `integrationsAcl:READ`
+
+
+        List errors, filtering by tasks and integration. With optional pagination.'
+      parameters:
+      - in: query
+        name: externalId
+        required: false
+        schema:
+          type: string
+          title: Integration External Id
+        description: Return errors belonging to a specific integration.
+      - in: query
+        name: task
+        required: false
+        schema:
+          type: string
+          title: TaskName
+        description: Return errors belonging to a specific task. Requires `integration` to be specified.
+      - in: query
+        name: minStartTime
+        required: false
+        schema:
+          type: integer
+          title: MinStartTime
+        description: Return errors that started at or after this timestamp.
+      - in: query
+        name: maxEndTime
+        required: false
+        schema:
+          type: integer
+          title: MaxEndTime
+        description: Return errors that ended at or before this timestamp.
+      - $ref: '#/components/parameters/100Limit'
+      - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemsWithCursor_ErrorWithTaskRead_'
+          description: List of errors and an optional cursor.
+        '400':
+          $ref: '#/components/responses/400ErrorResponse'
+        '422':
+          $ref: '#/components/responses/422ErrorResponse'
+      summary: List Errors
+      x-capability:
+      - integrationsAcl:READ
+  /integrations/history:
+    get:
+      tags:
+      - Integrations
+      operationId: get_integration_task_history
+      description: '
+
+
+        > **Required capabilities:** `integrationsAcl:READ`
+
+
+        List task history with optional filtering and pagination.'
+      parameters:
+      - in: query
+        name: externalId
+        required: false
+        schema:
+          type: string
+          title: Integration External Id
+        description: Return task histories belonging to a specific integration.
+      - in: query
+        name: taskName
+        required: false
+        schema:
+          type: string
+          title: TaskName
+        description: Return task histories belonging to a specific task. Requires `integration` to be specified.
+      - in: query
+        name: lastPerTask
+        required: false
+        schema:
+          type: boolean
+          title: LastPerTask
+        description: If true, return the last task history entry for each task.
+      - $ref: '#/components/parameters/100Limit'
+      - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemsWithCursor_TaskHistoryWithErrors_'
+          description: List of task histories.
+        '400':
+          $ref: '#/components/responses/400ErrorResponse'
+        '422':
+          $ref: '#/components/responses/422ErrorResponse'
+      summary: Get Task History
+      x-capability:
+      - integrationsAcl:READ
+  /integrations/sync:
+    get:
+      tags:
+      - Integrations
+      operationId: sync_integration_history
+      summary: Sync Integration History
+      description: '
+
+
+        > **Required capabilities:** `integrationsAcl:READ`
+
+
+        Retrieve task history and errors for a specific integration. This endpoint will always return a cursor. If `moreData` is false, you should wait a bit before calling this endpoint again.'
+      parameters:
+      - in: query
+        name: externalId
+        required: true
+        schema:
+          type: string
+          title: Integration External Id
+        description: Return task histories and errors belonging to a specific integration.
+      - in: query
+        name: taskName
+        required: false
+        schema:
+          type: string
+          title: TaskName
+        description: Return task histories and errors belonging to a specific task.
+      - in: query
+        name: includeErrors
+        required: false
+        schema:
+          type: boolean
+          title: IncludeErrors
+        description: If true, include errors in the response. One of this and `includeTaskHistory` must be true.
+      - in: query
+        name: includeTaskUpdates
+        required: false
+        schema:
+          type: boolean
+          title: IncludeTaskUpdates
+        description: If true, include task history in the response. One of this and `includeErrors` must be true.
+      - in: query
+        name: startTime
+        required: false
+        schema:
+          type: integer
+          title: StartTime
+        description: The earliest date by which to filter the task history.
+      - $ref: '#/components/parameters/100Limit'
+      - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncResponse'
+          description: List of task histories and errors, with a cursor.
+        '400':
+          $ref: '#/components/responses/400ErrorResponse'
+        '422':
+          $ref: '#/components/responses/422ErrorResponse'
+      x-capability:
+      - integrationsAcl:READ
+  /integrations/startup:
+    post:
+      tags:
+      - Integrations
+      operationId: integration_startup
+      description: '
+
+
+        > **Required capabilities:** `integrationsAcl:USE`
+
+
+        Report changes to general information about the extractor, and indicates to the API that the extractor has started. This will close any currently running tasks with an error.'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartupRequest'
+        required: true
+        description: Update to extractor information.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckinResponse'
+          description: Response with updates for the extractor.
+        '400':
+          $ref: '#/components/responses/400ErrorResponse'
+          description: Response for a failed request
+        '422':
+          $ref: '#/components/responses/422ErrorResponse'
+      summary: Report Extractor Info
+      x-capability:
+      - integrationsAcl:USE
+  /integrations/checkin:
+    post:
+      tags:
+      - Integrations
+      operationId: integration_checkin
+      description: '
+
+
+        > **Required capabilities:** `integrationsAcl:USE`
+
+
+        Check in with the integrations service. This endpoint is called periodically by extractors to signal that they are still alive, and report any events that may have happened since the last check in.'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckinRequest'
+        required: true
+        description: Extractor status update.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckinResponse'
+          description: Response with updates for the extractor.
+        '400':
+          $ref: '#/components/responses/400ErrorResponse'
+          description: Response for a failed request
+        '422':
+          $ref: '#/components/responses/422ErrorResponse'
+      summary: Check in
+      x-capability:
+      - integrationsAcl:USE
+  /integrations/extpipes/runs:
+    post:
+      summary: Extraction pipeline runs
+      tags:
+      - Integrations
+      operationId: integrations_extpipe_runs
+      description: '
+
+
+        > **Required capabilities:** `extractionrunsAcl:WRITE`
+
+
+        This is an endpoint for backwards compatible with extraction pipelines API.
+
+        It will be used to upload extractor runs.
+
+        '
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Items_NewExtpipeRun_'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Items_ExtpipeRun_'
+          description: Response with updates for the extractor.
+        '400':
+          $ref: '#/components/responses/400ErrorResponse'
+          description: Response for a failed request
+        '422':
+          $ref: '#/components/responses/422ErrorResponse'
+      x-capability:
+      - extractionrunsAcl:WRITE
+components:
+  schemas:
+    UpdateItem_Name_:
+      additionalProperties: false
+      properties:
+        set:
+          title: Set
+          type: string
+          minLength: 1
+          maxLength: 50
+      required:
+      - set
+      title: UpdateSet
+      type: object
+      description: Set a new integration name.
+    Integration:
+      allOf:
+      - $ref: '#/components/schemas/IntegrationWritableProperties'
+      - type: object
+        description: An integration instance representing an on-premises extractor.
+        title: Integration
+        properties:
+          lastSeen:
+            $ref: '#/components/schemas/EpochTimestamp'
+          lastConfigRevision:
+            type: integer
+            description: Last published config revision.
+          activeConfigRevision:
+            $ref: '#/components/schemas/ActiveConfigRevision'
+          tasks:
+            type: array
+            description: List of tasks for this integration.
+            items:
+              $ref: '#/components/schemas/Task'
+          createdTime:
+            $ref: '#/components/schemas/EpochTimestamp'
+          lastUpdatedTime:
+            $ref: '#/components/schemas/EpochTimestamp'
+        required:
+        - createdTime
+        - lastUpdatedTime
+    ActiveConfigRevision:
+      description: The currently active config revision, or "local" if a local config file is in use.
+      oneOf:
+      - type: integer
+        title: Revision
+        description: The currently active config revision.
+      - type: string
+        enum:
+        - local
+        description: Value if a local config file is currently in use.
+    SyncResponse:
+      type: object
+      title: SyncResponse
+      description: Response for the sync endpoint.
+      properties:
+        nextCursor:
+          type: string
+          title: Next cursor
+          description: Cursor for pagination
+        moreData:
+          type: boolean
+          title: MoreData
+          description: If true, there is more data available, and you should call this endpoint again with the returned cursor.
+        history:
+          type: array
+          title: History
+          description: List of task histories.
+          items:
+            $ref: '#/components/schemas/TaskHistoryWithErrors'
+        errors:
+          type: array
+          title: Errors
+          description: List of errors.
+          items:
+            $ref: '#/components/schemas/ErrorWithTaskRead'
+      required:
+      - nextCursor
+      - moreData
+    CogniteExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
+      type: string
+      maxLength: 255
+      example: my.known.id
+    CreateIntegration:
+      allOf:
+      - $ref: '#/components/schemas/IntegrationWritableProperties'
+      - type: object
+        description: Request to create an integration.
+        title: CreateIntegration
+    TaskUpdateType:
+      type: string
+      description: Type of task update.
+      enum:
+      - started
+      - ended
+    ItemsWithCursor_Integration_:
+      type: object
+      properties:
+        items:
+          type: array
+          title: Items
+          maxItems: 100
+          minItems: 0
+          items:
+            $ref: '#/components/schemas/Integration'
+        nextCursor:
+          type: string
+          title: Next cursor
+          description: Cursor for pagination
+      required:
+      - items
+    CheckinRequest:
+      type: object
+      title: CheckinRequest
+      description: Request sent on extractor check-in.
+      properties:
+        externalId:
+          $ref: '#/components/schemas/IntegrationsExternalId'
+        taskEvents:
+          type: array
+          description: A list of task updates.
+          items:
+            $ref: '#/components/schemas/TaskUpdate'
+        errors:
+          type: array
+          description: A list of errors that occurred since the last checkin.
+          items:
+            $ref: '#/components/schemas/ErrorWithTask'
+      required:
+      - externalId
+    Items_Integration_:
+      type: object
+      properties:
+        items:
+          type: array
+          title: Items
+          maxItems: 100
+          minItems: 0
+          items:
+            $ref: '#/components/schemas/Integration'
+      required:
+      - items
+    IntegrationsExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
+      type: string
+      minLength: 1
+      maxLength: 255
+      example: my.integrations.id
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
+    integrationTaskType:
+      type: string
+      description: Type of task, either running continuously, or for finite periods of time.
+      enum:
+      - continuous
+      - batch
+    NewExtpipeRun:
+      type: object
+      title: NewExtpipeRun
+      description: Request of a run operation.
+      properties:
+        externalId:
+          $ref: '#/components/schemas/IntegrationsExternalId'
+        status:
+          type: string
+          description: The type of run being reported
+          enum:
+          - failure
+          - seen
+          - success
+        message:
+          type: string
+          description: Run message
+        created_time:
+          type: integer
+          description: The time when the run was created.
+      required:
+      - externalId
+      - status
+    FullConfigRevision:
+      type: object
+      title: FullConfigRevision
+      description: A full config revision with the config object and metadata.
+      properties:
+        externalId:
+          $ref: '#/components/schemas/IntegrationsExternalId'
+        revision:
+          type: integer
+          description: Revision number.
+          title: Revision
+        description:
+          type: string
+          description: Config revision description.
+        config:
+          type: string
+          description: Content of the config revision.
+          maxLength: 100000
+          minLength: 1
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        lastUpdatedTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+      required:
+      - config
+      - externalId
+      - revision
+      - createdTime
+      - lastUpdatedTime
+    IntegrationWritableProperties:
+      type: object
+      description: Common writable properties for integrations.
+      title: IntegrationWritableProperties
+      properties:
+        externalId:
+          $ref: '#/components/schemas/IntegrationsExternalId'
+        name:
+          type: string
+          description: Descriptive integration name.
+          minLength: 1
+          maxLength: 50
+        description:
+          type: string
+          description: Integration description.
+          maxLength: 500
+        documentation:
+          type: string
+          description: Documentation for the integration in markdown format.
+          maxLength: 10000
+        metadata:
+          type: object
+          description: 'Custom metadata for the integration. String key -> String value. Limits: Key are at most 32 bytes. Values are at most 512 bytes. Up to 16 key-value pairs. Total size is at most 4096.'
+          additionalProperties:
+            type: string
+            maxLength: 512
+          maxProperties: 16
+          x-maxKeyLength: 32
+          x-maxTotalSize: 4096
+        allowedNotSeenMinutes:
+          type: integer
+          description: The maximum number of minutes allowed without a checkin before the integration is marked as inactive. Must be between 5 and 1440 (1 day).
+          minimum: 5
+          maximum: 1440
+        extractor:
+          $ref: '#/components/schemas/IntegrationExtractor'
+      required:
+      - externalId
+      - extractor
+    Task:
+      type: object
+      description: Object representing a task the extractor performs while executing.
+      title: Task
+      properties:
+        type:
+          $ref: '#/components/schemas/integrationTaskType'
+        name:
+          type: string
+          description: Task name, must be unique per integration.
+        action:
+          type: boolean
+          description: Whether or not this task can be triggered through an external action.
+          default: false
+        description:
+          type: string
+          description: Task description.
+      required:
+      - type
+      - name
+    UpdateIntegration:
+      type: object
+      description: Update an integration.
+      properties:
+        name:
+          oneOf:
+          - $ref: '#/components/schemas/UpdateItem_Name_'
+          - $ref: '#/components/schemas/UpdateSetNull'
+          description: Set or remove integration name.
+        description:
+          oneOf:
+          - $ref: '#/components/schemas/UpdateItem_Description_'
+          - $ref: '#/components/schemas/UpdateSetNull'
+          description: Set or remove integration description.
+        documentation:
+          oneOf:
+          - $ref: '#/components/schemas/UpdateItem_Documentation_'
+          - $ref: '#/components/schemas/UpdateSetNull'
+          description: Set or remove integration documentation.
+        allowedNotSeenMinutes:
+          oneOf:
+          - $ref: '#/components/schemas/UpdateItem_AllowedNotSeenMinutes_'
+          - $ref: '#/components/schemas/UpdateSetNull'
+          description: Set or remove the allowed not seen time in minutes.
+        metadata:
+          $ref: '#/components/schemas/ObjectPatch'
+          description: Add or remove metadata keys.
+    ObjectPatchSet:
+      title: set
+      type: object
+      required:
+      - set
+      properties:
+        set:
+          uniqueItems: true
+          type: object
+          description: Set the key-value pairs. All existing key-value pairs will be removed.
+          additionalProperties:
+            type: string
+          example:
+            key1: value1
+            key2: value2
+    UpdateItem_AllowedNotSeenMinutes_:
+      additionalProperties: false
+      properties:
+        set:
+          title: Set
+          type: integer
+          minimum: 5
+          maximum: 1440
+      required:
+      - set
+      title: UpdateSet
+      type: object
+      description: Set the allowed not seen time in minutes (5-1440).
+    Items_ExtpipeRun_:
+      type: object
+      properties:
+        items:
+          type: array
+          title: Items
+          maxItems: 1
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/NewExtpipeRun'
+      required:
+      - items
+    CheckinResponse:
+      type: object
+      title: CheckinResponse
+      description: Response sent on extractor check-in.
+      properties:
+        externalId:
+          $ref: '#/components/schemas/IntegrationsExternalId'
+        lastConfigRevision:
+          type: integer
+          description: Last stored extractor configuration revision.
+      required:
+      - externalId
+    Items_UpdateIntegrationItem_:
+      type: object
+      properties:
+        items:
+          type: array
+          title: Items
+          maxItems: 20
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/UpdateIntegrationItem'
+      required:
+      - items
+    UpdateIntegrationItem:
+      type: object
+      description: Update an integration.
+      title: UpdateIntegrationItem
+      properties:
+        externalId:
+          $ref: '#/components/schemas/IntegrationsExternalId'
+        update:
+          $ref: '#/components/schemas/UpdateIntegration'
+      required:
+      - externalId
+      - update
+    Items_ConfigRevisionMetadata_:
+      type: object
+      properties:
+        items:
+          type: array
+          title: Items
+          maxItems: 100
+          minItems: 0
+          items:
+            $ref: '#/components/schemas/ConfigRevisionMetadata'
+      required:
+      - items
+    ConfigRevisionMetadata:
+      type: object
+      title: ConfigRevisionMetadata
+      description: Metadata about a specific config revision.
+      properties:
+        externalId:
+          $ref: '#/components/schemas/IntegrationsExternalId'
+        revision:
+          type: integer
+          description: Revision number.
+          title: Revision
+        description:
+          type: string
+          description: Config revision description.
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        lastUpdatedTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+      required:
+      - externalId
+      - revision
+      - createdTime
+      - lastUpdatedTime
+    NewConfigRevision:
+      type: object
+      title: NewConfigRevision
+      summary: Request for creating a new config revision.
+      description: Request schema for creating a new config revision. This is also backwards compatible with extraction pipelines API.
+      properties:
+        externalId:
+          $ref: '#/components/schemas/IntegrationsExternalId'
+        description:
+          type: string
+          description: Config revision description.
+        config:
+          type: string
+          description: Content of the config revision.
+          maxLength: 100000
+          minLength: 1
+      required:
+      - externalId
+      - config
+    TaskHistoryWithErrors:
+      type: object
+      description: A historical task run.
+      title: TaskHistoryWithErrors
+      properties:
+        taskName:
+          type: string
+          description: Name of the task this run corresponds to.
+        errorCount:
+          type: integer
+          description: Number of errors tied to this task run.
+        message:
+          type: string
+          description: Message tied to task run.
+        activeConfigRevision:
+          $ref: '#/components/schemas/ActiveConfigRevision'
+        startTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        endTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+      required:
+      - taskName
+      - errorCount
+      - startTime
+    ItemsWithCursor_ErrorWithTaskRead_:
+      type: object
+      properties:
+        items:
+          type: array
+          title: Items
+          maxItems: 100
+          minItems: 0
+          items:
+            $ref: '#/components/schemas/ErrorWithTaskRead'
+        nextCursor:
+          type: string
+          title: Next cursor
+          description: Cursor for pagination
+      required:
+      - items
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    ItemsWithCursor_TaskHistoryWithErrors_:
+      type: object
+      properties:
+        items:
+          type: array
+          title: Items
+          maxItems: 100
+          minItems: 0
+          items:
+            $ref: '#/components/schemas/TaskHistoryWithErrors'
+        nextCursor:
+          type: string
+          title: Next cursor
+          description: Cursor for pagination
+      required:
+      - items
+    Items_NewExtpipeRun_:
+      type: object
+      properties:
+        items:
+          type: array
+          title: Items
+          maxItems: 1
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/NewExtpipeRun'
+      required:
+      - items
+    UpdateSetNull:
+      additionalProperties: false
+      properties:
+        setNull:
+          title: SetNull
+          type: boolean
+          description: Clear this value
+      required:
+      - setNull
+      title: UpdateSetNull
+      type: object
+    ObjectPatch:
+      type: object
+      description: Custom, application specific metadata. String key -> String value.
+      oneOf:
+      - $ref: '#/components/schemas/ObjectPatchSet'
+      - $ref: '#/components/schemas/ObjectPatchAddRemove'
+    Items_CreateIntegration_:
+      type: object
+      properties:
+        items:
+          type: array
+          title: Items
+          maxItems: 20
+          minItems: 0
+          items:
+            $ref: '#/components/schemas/CreateIntegration'
+      required:
+      - items
+    TaskUpdate:
+      type: object
+      description: Update to the status of a task.
+      title: TaskUpdate
+      properties:
+        type:
+          $ref: '#/components/schemas/TaskUpdateType'
+        name:
+          type: string
+          description: Name of the task to update.
+        timestamp:
+          $ref: '#/components/schemas/EpochTimestamp'
+        message:
+          type: string
+          description: Message tied to task run.
+      required:
+      - type
+      - name
+      - timestamp
+    StartupRequest:
+      type: object
+      title: StartupRequest
+      description: Request sent on extractor startup containing information about the extractor.
+      properties:
+        externalId:
+          $ref: '#/components/schemas/IntegrationsExternalId'
+        extractor:
+          $ref: '#/components/schemas/IntegrationExtractor'
+        tasks:
+          type: array
+          description: A list of tasks configured for this extractor.
+          items:
+            $ref: '#/components/schemas/Task'
+        activeConfigRevision:
+          oneOf:
+          - type: integer
+            title: Revision
+            description: The currently active config revision.
+          - type: string
+            enum:
+            - local
+            description: Value if a local config file is currently in use.
+          description: The currently active config revision, or "local" if a local config file is in use.
+        timestamp:
+          description: Timestamp of the startup event in milliseconds since 01/01/1970.
+          type: integer
+          title: Timestamp
+      required:
+      - externalId
+      - extractor
+    UpdateItem_Documentation_:
+      additionalProperties: false
+      properties:
+        set:
+          title: Set
+          type: string
+          maxLength: 10000
+      required:
+      - set
+      title: UpdateSet
+      type: object
+      description: Set new integration documentation.
+    ItemsWithIgnoreUnknownIds_ExternalId:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            additionalProperties: false
+            properties:
+              externalId:
+                $ref: '#/components/schemas/CogniteExternalId'
+            required:
+            - externalId
+            title: ExternalId
+            type: object
+          title: Items
+          type: array
+          maxItems: 100
+          minItems: 1
+        ignoreUnknownIds:
+          type: boolean
+          title: IgnoreUnknownIds
+          description: Ignore IDs and external IDs that are not found
+      required:
+      - items
+      title: ItemsWithIgnoreUnknownIds_ExternalId
+      type: object
+    ErrorWithTaskRead:
+      type: object
+      description: A historical error that occurred as part of an extractor run.
+      title: ErrorWithTaskRead
+      properties:
+        level:
+          $ref: '#/components/schemas/ErrorLevel'
+        description:
+          type: string
+          description: Short error description.
+        details:
+          type: string
+          description: Long error details.
+        task:
+          type: string
+          description: The task associated with this error. If null or left out, the error is associated with the extractor in general.
+        activeConfigRevision:
+          $ref: '#/components/schemas/ActiveConfigRevision'
+        startTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        endTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+      required:
+      - level
+      - description
+      - details
+      - startTime
+    ErrorLevel:
+      type: string
+      description: Error level. `warning` means that something wrong happened but the extractor was able to continue. `error` means that something wrong happened and the extractor _may_ be able to recover, but there will likely be downtime and/or loss of data. `fatal` means that something happened that cannot be recovered from.
+      enum:
+      - warning
+      - error
+      - fatal
+    ObjectPatchAddRemove:
+      title: add/remove
+      type: object
+      properties:
+        add:
+          uniqueItems: true
+          type: object
+          description: Add the key-value pairs. Values for existing keys will be overwritten.
+          additionalProperties:
+            type: string
+          example:
+            key1: value1
+            key2: value2
+        remove:
+          uniqueItems: true
+          type: array
+          description: Remove the key-value pairs with the specified keys.
+          example:
+          - value1
+          - value2
+          items:
+            type: string
+    UpdateItem_Description_:
+      additionalProperties: false
+      properties:
+        set:
+          title: Set
+          type: string
+          maxLength: 500
+      required:
+      - set
+      title: UpdateSet
+      type: object
+      description: Set a new integration description.
+    422ErrorContent:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 422
+        message:
+          type: string
+          description: Error message.
+          example: 'Extra inputs are not permitted: type'
+    ErrorWithTask:
+      type: object
+      description: An error that occurred as part of an extractor run.
+      title: ErrorWithTask
+      properties:
+        level:
+          $ref: '#/components/schemas/ErrorLevel'
+        description:
+          type: string
+          description: Short error description.
+        details:
+          type: string
+          description: Long error details.
+        task:
+          type: string
+          description: The task associated with this error. If null or left out, the error is associated with the extractor in general.
+        startTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        endTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        activeConfigRevision:
+          oneOf:
+          - type: string
+            description: The active revision when this error is reported.
+            enum:
+            - local
+          - type: integer
+            description: The active revision when this error is reported.
+      required:
+      - level
+      - description
+      - startTime
+    IntegrationExtractor:
+      type: object
+      description: Identifier for an extractor. Note that if the extractor externalId starts with `cognite`, it must correspond to a cognite extractor.
+      title: Extractor
+      properties:
+        externalId:
+          type: string
+          description: Extractor external ID. Note that if this starts with `cognite`, it must correspond to a cognite extractor.
+          maxLength: 255
+          example: cognite-opcua
+        version:
+          type: string
+          description: Extractor version. For cognite extractors this must match a published extractor version.
+          title: Version
+          example: 1.2.3
+      required:
+      - externalId
+  parameters:
+    100Limit:
+      name: limit
+      description: Limits the number of results to be returned. The maximum results returned by the server is 100 even if you specify a higher limit.
+      in: query
+      schema:
+        type: integer
+        default: 100
+        minimum: 1
+        maximum: 100
+    Cursor:
+      name: cursor
+      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
+
+        property, it means that there may be more results, and you should pass that value as the
+
+        `cursor` parameter in the next request.
+
+
+        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
+
+        decoded. Its internal structure is not a part of the public API, and may change without
+
+        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
+
+        '
+      in: query
+      schema:
+        type: string
+        example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+  responses:
+    400ErrorResponse:
+      description: The response for a bad request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: 400
+              message: '`null` values aren''t allowed.'
+    422ErrorResponse:
+      description: Request validation failed.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/422ErrorContent'
+    EmptyResponse:
+      description: Empty response.
+      content:
+        application/json:
+          schema:
+            type: object
+  securitySchemes:
+    oidc-token:
+      type: http
+      scheme: bearer
+      bearerFormat: OpenID Connect or OAuth2 token
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+    oauth2-client-credentials:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        clientCredentials:
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-auth-code:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://your-idps.authorization.url/
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-open-industrial-data:
+      type: oauth2
+      description: Auth flow for Open Industrial Data. Get your client secret from https://hub.cognite.com/open-industrial-data-211.
+      flows:
+        clientCredentials:
+          tokenUrl: https://login.microsoftonline.com/48d5043c-cf70-4c49-881c-c638f5796997/oauth2/v2.0/token
+          scopes:
+            default: https://api.cognitedata.com/.default
+    org-oidc-token:
+      type: openIdConnect
+      openIdConnectUrl: https://auth.cognite.com/.well-known/openid-configuration
+      description: 'Access token issued by the Cognite authorization server, and valid for the target organization. The token must
+
+        be an OpenID Connect token, and it can be obtained by performing an OIDC login flow toward `auth.cognite.com`.
+
+        This is a single URL for all CDF organizations.'
+x-tagGroups:
+- name: Changelog
+  tags:
+  - Changelog
+- name: Organizations and projects
+  tags:
+  - Organizations
+  - Projects
+- name: Identity and access management
+  tags:
+  - Principals
+  - Groups
+  - Security categories
+  - Sessions
+  - Token
+  - User profiles
+  - Project Deletion Reporting
+- name: Data modeling
+  tags:
+  - Data Modeling
+  - Data models
+  - Spaces
+  - Views
+  - Containers
+  - Nodes
+  - Instances
+  - Statistics
+  - Streams
+  - Records
+- name: Asset-centric data model
+  tags:
+  - Assets
+  - Time series
+  - Synthetic Time Series
+  - Data point subscriptions
+  - Events
+  - Files
+  - Sequences
+  - Geospatial
+  - Seismic
+- name: 3D
+  tags:
+  - 3D Models
+  - 3D Model Revisions
+  - 3D Files
+  - 3D Asset Mapping
+  - 3D Contextualization
+  - 3D Jobs
+  - 3D Migration
+  - 3D Scenes
+- name: Contextualization
+  tags:
+  - Entity matching
+  - Entity matching pipelines
+  - Engineering diagrams
+  - Vision
+  - Advanced joins
+- name: Cognite AI
+  tags:
+  - Agents
+  - Skills
+  - Chat Completions
+  - Document AI
+  - Models
+- name: Documents
+  tags:
+  - Documents
+  - Document preview
+- name: Data ingestion
+  tags:
+  - Raw
+  - Extraction Pipelines
+  - Extraction Pipelines Runs
+  - Extraction Pipelines Config
+  - Extractors
+- name: Data organization
+  tags:
+  - Data sets
+  - Data domains
+  - Data products
+  - Rule sets
+  - Labels
+  - Relationships
+  - Annotations
+- name: Transformations
+  tags:
+  - Transformations
+  - Transformation Jobs
+  - Transformation Schedules
+  - Transformation Notifications
+  - Query
+  - Schema
+- name: Functions
+  tags:
+  - Functions
+  - Function calls
+  - Function schedules
+- name: Hosted Extractors
+  tags:
+  - Sources
+  - Jobs
+  - Destinations
+  - Mappings
+- name: PostgreSQL Gateway
+  tags:
+  - Postgres Gateway Users
+  - Postgres Gateway Tables
+- name: SAP Writeback
+  tags:
+  - SAP Instances
+  - SAP Endpoints
+  - Schema Mappings
+  - Writeback Requests
+- name: Data workflows
+  tags:
+  - Workflows
+  - Workflow versions
+  - Workflow executions
+  - Workflow triggers
+  - Tasks
+  - Workers
+- name: Simulators
+  tags:
+  - Simulators
+  - Simulator Integrations
+  - Simulator Models
+  - Simulator Routines
+  - Simulation Runs
+  - Simulator Logs
+- name: Units
+  tags:
+  - Units
+  - Unit Systems
+- name: ''
+  tags:
+  - ''

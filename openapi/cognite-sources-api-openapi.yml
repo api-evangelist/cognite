@@ -1,0 +1,2029 @@
+openapi: 3.1.0
+info:
+  title: Cognite 3D Asset Mapping Sources API
+  description: "# Introduction\nThis is the reference documentation for the Cognite API with\nan overview of all the available methods.\n\n# Postman\nSelect the **Download** button to download our OpenAPI specification to get started.\n\nTo import your data into Postman, select **Import**, and the Import modal opens.\nYou can import items by dragging or dropping files or folders. You can choose how to import your API and manage the import settings in **View Import Settings**.\n\nIn the Import Settings, set the **Folder organization** to **Tags**, select\n**Enable optional parameters** to turn off the settings, and select **Always inherit authentication** to turn on the settings. Select **Import**.\n\nSet the Authorization to **Oauth2.0**. By default, the settings are for Open Industrial Data. Navigate to [Cognite Hub](https://hub.cognite.com/open-industrial-data-211) to understand how to get the credentials for use in Postman.\n\nFor more information, see [Getting Started with Postman](https://developer.cognite.com/dev/guides/postman/).\n\n# Pagination\nMost resource types can be paginated, indicated by the field `nextCursor` in the response.\nBy passing the value of `nextCursor` as the cursor you will get the next page of `limit` results.\nNote that all parameters except `cursor` has to stay the same.\n\n# Parallel retrieval\nAs general guidance, Parallel Retrieval is a technique that should be used when due to query complexity, retrieval of data in a single request is significantly slower than it would otherwise be for a simple request.  Parallel retrieval does not act as a speed multiplier on optimally running queries.  By parallelizing such requests, data retrieval performance can be tuned to meet the client application needs. \n\nCDF supports parallel retrieval through the `partition` parameter, which has the format `m/n` where `n` is the amount of partitions you would like to split the entire data set into.\nIf you want to download the entire data set by splitting it into 10 partitions, do the following in parallel with `m` running from 1 to 10:\n  - Make a request to `/events` with `partition=m/10`.\n  - Paginate through the response by following the cursor as explained above. Note that the `partition` parameter needs to be passed to all subqueries.\n\nProcessing of parallel retrieval requests is subject to concurrency quota availability. The request returns the `429` response upon exceeding concurrency limits. See the Request throttling chapter below.\n\nTo prevent unexpected problems and to maximize read throughput, you should at most use 10 partitions. \nSome CDF resources will automatically enforce a maximum of 10 partitions.\nFor more specific and detailed information, please read the ```partition``` attribute documentation for the CDF resource you're using.  \n\n# Requests throttling\nCognite Data Fusion (CDF) returns the HTTP `429` (too many requests) response status code when project capacity exceeds the limit.\n\nThe throttling can happen:\n  - If a user or a project sends too many (more than allocated) concurrent requests.\n  - If a user or a project sends a too high (more than allocated) rate of requests in a given amount of time.\n\nCognite recommends using a retry strategy based on truncated exponential backoff to handle sessions with HTTP response codes 429.\n\nCognite recommends using a reasonable number (up to 10) of  `Parallel retrieval` partitions.\n\nFollowing these strategies lets you slow down the request frequency to maximize productivity without having to re-submit/retry failing requests.\n\nSee more [here](https://docs.cognite.com/dev/concepts/resource_throttling).\n\n# API versions\n## Version headers\nThis API uses calendar versioning, and version names follow the `YYYYMMDD` format.\nYou can find the versions currently available by using the version selector at the top of this page.\n\nTo use a specific API version, you can pass the `cdf-version: $version` header along with your requests to the API.\n\n## Beta versions\nThe beta versions provide a preview of what the stable version will look like in the future.\nBeta versions contain functionality that is reasonably mature, and highly likely to become a part of the stable API.\n\nBeta versions are indicated by a `-beta` suffix after the version name. For example, the beta version header for the\n2023-01-01 version is then `cdf-version: 20230101-beta`.\n\n## Alpha versions\nAlpha versions contain functionality that is new and experimental, and not guaranteed to ever become a part of the stable API.\nThis functionality presents no guarantee of service, so its use is subject to caution.\n\nAlpha versions are indicated by an `-alpha` suffix after the version name. For example, the alpha version header for\nthe 2023-01-01 version is then `cdf-version: 20230101-alpha`."
+  version: v1
+  contact:
+    name: Cognite Support
+    url: https://support.cognite.com
+    email: support@cognite.com
+servers:
+- url: https://{cluster}.cognitedata.com/api/v1/projects/{project}
+  description: The URL for the CDF cluster to connect to
+  variables:
+    cluster:
+      enum:
+      - api
+      - az-tyo-gp-001
+      - az-eastus-1
+      - az-power-no-northeurope
+      - westeurope-1
+      - asia-northeast1-1
+      - gc-dsm-gp-001
+      default: api
+      description: The CDF cluster to connect to
+    project:
+      default: publicdata
+      description: The CDF project name.
+security:
+- oidc-token:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-client-credentials:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-open-industrial-data:
+  - https://api.cognitedata.com/.default
+- oauth2-auth-code:
+  - https://{cluster}.cognitedata.com/.default
+tags:
+- name: Sources
+  description: 'A hosted extractor **source** represents an external source system on the internet. The **source** resource in CDF contains all the information the extractor needs to connect to the external source system.
+
+    A source can have many jobs, each streaming different data from the source system.'
+paths:
+  /hostedextractors/sources:
+    get:
+      tags:
+      - Sources
+      operationId: list_sources
+      x-capability:
+      - hostedExtractors:READ
+      description: '
+
+
+        > **Required capabilities:** `hostedExtractors:READ`
+
+
+        List all sources in a given project. If more than `limit` sources exist, a cursor for pagination will be returned with the response.'
+      parameters:
+      - $ref: '#/components/parameters/100Limit'
+      - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemsWithCursor_Source_'
+          description: List of sources and an optional cursor.
+        '400':
+          $ref: '#/components/responses/400ErrorResponse'
+          description: Response for a failed request
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+          description: Validation Error
+      summary: List Sources
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: "source_list = client.hosted_extractors.sources.list(limit=5)\n\nfor source in client.hosted_extractors.sources:\n    source # do something with the source\n\nfor source_list in client.hosted_extractors.sources(chunk_size=25):\n    source_list # do something with the sources\n"
+    post:
+      tags:
+      - Sources
+      operationId: create_sources
+      x-capability:
+      - hostedExtractors:READ
+      description: '
+
+
+        > **Required capabilities:** `hostedExtractors:READ`
+
+
+        Create up to 100 sources.'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Items_CreateSource_'
+        required: true
+        description: Sources to create.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Items_Source_'
+          description: List of created sources.
+        '400':
+          $ref: '#/components/responses/400ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      summary: Create Sources
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: 'from cognite.client.data_classes.hosted_extractors import EventHubSourceWrite
+
+          source = EventHubSourceWrite(''my_event_hub'', ''http://myeventhub.com'', "My EventHub", ''my_key'', ''my_value'')
+
+          res = client.hosted_extractors.sources.create(source)
+
+          '
+  /hostedextractors/sources/byIds:
+    post:
+      tags:
+      - Sources
+      operationId: retrieve_sources
+      x-capability:
+      - hostedExtractors:READ
+      description: '
+
+
+        > **Required capabilities:** `hostedExtractors:READ`
+
+
+        Retrieve a list of up to 100 sources by their external ID, optionally ignoring unknown IDs.'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ItemsWithIgnoreUnknownIds_ExternalId_'
+        required: true
+        description: List of external IDs of sources to retrieve.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Items_Source_'
+          description: List of retrieved sources.
+        '400':
+          $ref: '#/components/responses/400ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      summary: Retrieve Sources
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: 'res = client.hosted_extractors.sources.retrieve(''myMQTTSource'')
+
+
+          res = client.hosted_extractors.sources.retrieve(["myMQTTSource", "MyEventHubSource"], ignore_unknown_ids=True)
+
+          '
+  /hostedextractors/sources/delete:
+    post:
+      tags:
+      - Sources
+      operationId: delete_sources
+      x-capability:
+      - hostedExtractors:WRITE
+      description: '
+
+
+        > **Required capabilities:** `hostedExtractors:WRITE`
+
+
+        Delete a list of sources by their external ID. This operation will fail if any destination in the request is associated with a job, unless the `force` query parameter is set to `true`.'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ItemsWithIgnoreUnknownIdsAndForce_ExternalId_'
+        required: true
+        description: List of external IDs of sources to delete.
+      responses:
+        '200':
+          $ref: '#/components/responses/EmptyResponse'
+          description: Empty response
+        '400':
+          $ref: '#/components/responses/400ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      summary: Delete Sources
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: 'client.hosted_extractors.sources.delete(["myMQTTSource", "MyEventHubSource"])
+
+          '
+  /hostedextractors/sources/update:
+    post:
+      tags:
+      - Sources
+      operationId: update_sources
+      x-capability:
+      - hostedExtractors:WRITE
+      description: '
+
+
+        > **Required capabilities:** `hostedExtractors:WRITE`
+
+
+        Update up to 100 sources.'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Items_UpdateSource_'
+        description: Sources to update.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Items_Source_'
+          description: List of updated sources.
+        '400':
+          $ref: '#/components/responses/400ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      summary: Update Sources
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: 'from cognite.client.data_classes.hosted_extractors import EventHubSourceUpdate
+
+          source = EventHubSourceUpdate(''my_event_hub'').event_hub_name.set("My Updated EventHub")
+
+          res = client.hosted_extractors.sources.update(source)
+
+          '
+components:
+  schemas:
+    EventhubAuthentication:
+      type: object
+      discriminator:
+        mapping:
+          basic: '#/components/schemas/SimpleBasicAuthentication'
+          clientCredentials: '#/components/schemas/ClientCredentialsAuthentication'
+        propertyName: type
+      oneOf:
+      - $ref: '#/components/schemas/SimpleBasicAuthentication'
+      - $ref: '#/components/schemas/ClientCredentialsAuthentication'
+      title: EventhubAuthentication
+      description: Authentication details for eventhub. Basic authentication uses a shared access key, where the `username` is the key name. The kay value is not returned for security reasons.
+    UpdateEventHubSourceItem:
+      additionalProperties: false
+      properties:
+        type:
+          enum:
+          - eventhub
+          title: Type
+          type: string
+          description: Source type.
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        update:
+          $ref: '#/components/schemas/UpdateEventHubSource'
+      required:
+      - type
+      - externalId
+      - update
+      title: UpdateEventHubSourceItem
+      type: object
+    UpdateItem_Port_:
+      additionalProperties: false
+      properties:
+        set:
+          title: Set
+          type: integer
+          minimum: 1
+          maximum: 65535
+      required:
+      - set
+      title: UpdateItem_Port
+      type: object
+      description: Set a new port this source should connect to.
+    CreateClientCredentialsAuthentication:
+      additionalProperties: false
+      properties:
+        type:
+          enum:
+          - clientCredentials
+          title: Type
+          type: string
+          description: Authentication type.
+        clientId:
+          title: Client ID
+          description: Client ID for for the service principal used by the extractor
+          type: string
+        clientSecret:
+          title: Client secret
+          description: Client secret for for the service principal used by the extractor
+          type: string
+        tokenUrl:
+          title: Token URL
+          description: URL to fetch authentication tokens from
+          type: string
+        scopes:
+          title: Scopes
+          description: A space separated list of scopes
+          type: string
+        defaultExpiresIn:
+          title: Default expires in
+          description: Default value for the expires_in OAuth 2.0 parameter. If the identity provider does not return expires_in in token requests, this parameter must be set or the request will fail.
+          type: string
+      required:
+      - clientId
+      - clientSecret
+      - tokenUrl
+      - scopes
+      - type
+      title: CreateClientCredentialsAuthentication
+      type: object
+    CogniteExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
+      type: string
+      maxLength: 255
+      example: my.known.id
+    KafkaAuthentication:
+      type: object
+      discriminator:
+        mapping:
+          basic: '#/components/schemas/SimpleBasicAuthentication'
+          clientCredentials: '#/components/schemas/ClientCredentialsAuthentication'
+          scramSha256: '#/components/schemas/ScramSha256'
+          scramSha512: '#/components/schemas/ScramSha512'
+        propertyName: type
+      oneOf:
+      - $ref: '#/components/schemas/SimpleBasicAuthentication'
+      - $ref: '#/components/schemas/ClientCredentialsAuthentication'
+      - $ref: '#/components/schemas/ScramSha256'
+      - $ref: '#/components/schemas/ScramSha512'
+      description: 'Method used for authenticating with the kafka brokers.
+
+        This may be used together with auth certificate.'
+    KafkaBroker:
+      type: object
+      additionalProperties: false
+      properties:
+        host:
+          title: Host
+          type: string
+          description: Host name or IP address of the bootstrap broker.
+        port:
+          title: Port
+          type: integer
+          description: Port on the bootstrap broker to connect to.
+          minimum: 1
+          maximum: 65535
+      required:
+      - host
+      - port
+    BasicAuthentication:
+      additionalProperties: false
+      properties:
+        type:
+          enum:
+          - basic
+          title: Type
+          type: string
+          description: Authentication type.
+        username:
+          title: User name
+          description: User name to use for basic authentication
+          type: string
+      required:
+      - type
+      - username
+      title: BasicAuthentication
+      type: object
+    ItemsWithIgnoreUnknownIdsAndForce_ExternalId_:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/ExternalIdWrapper'
+          title: Items
+          type: array
+          maxItems: 100
+          minItems: 1
+        ignoreUnknownIds:
+          type: boolean
+          title: IgnoreUnknownIds
+          description: Ignore IDs and external IDs that are not found.
+        force:
+          type: boolean
+          title: Force
+          description: Delete any jobs associated with each item.
+      required:
+      - items
+      title: ItemsWithIgnoreUnknownIdsAndForce_ExternalId
+      type: object
+    ExternalIdWrapper:
+      additionalProperties: false
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+      required:
+      - externalId
+      title: ExternalIdWrapper
+      type: object
+    UpdateKafkaSourceItem:
+      additionalProperties: false
+      properties:
+        type:
+          enum:
+          - kafka
+          title: Type
+          type: string
+          description: Source type.
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        update:
+          $ref: '#/components/schemas/UpdateKafkaSource'
+      required:
+      - type
+      - externalId
+      - update
+      title: UpdateKafkaSourceItem
+      type: object
+    CreateScramSha256:
+      additionalProperties: false
+      type: object
+      title: CreateScramSha256
+      properties:
+        type:
+          enum:
+          - scramSha256
+          title: Type
+          type: string
+          description: Authentication type
+        username:
+          type: string
+          description: Username for authentication
+          title: Username
+          maxLength: 200
+        password:
+          type: string
+          title: Password
+          description: Password for authentication
+          maxLength: 200
+      required:
+      - type
+      - username
+      - password
+    MqttAuthentication:
+      type: object
+      discriminator:
+        mapping:
+          basic: '#/components/schemas/SimpleBasicAuthentication'
+        propertyName: type
+      oneOf:
+      - $ref: '#/components/schemas/SimpleBasicAuthentication'
+      description: 'Method used for authenticating with the mqtt broker.
+
+        This may be used together with auth certificate.'
+    ScramSha256:
+      additionalProperties: false
+      type: object
+      title: ScramSha256
+      properties:
+        type:
+          enum:
+          - scramSha256
+          title: Type
+          type: string
+          description: Authentication type
+          maxLength: 200
+        username:
+          type: string
+          description: Username for authentication
+          title: Username
+          maxLength: 200
+      required:
+      - type
+      - username
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
+    MqttAuthenticationWrite:
+      type: object
+      discriminator:
+        mapping:
+          basic: '#/components/schemas/SimpleBasicAuthenticationWrite'
+        propertyName: type
+      oneOf:
+      - $ref: '#/components/schemas/SimpleBasicAuthenticationWrite'
+      description: 'Method used for authenticating with the mqtt broker.
+
+        This may be used together with auth certificate.'
+    CreateEventHubSource:
+      additionalProperties: false
+      properties:
+        type:
+          enum:
+          - eventhub
+          title: Type
+          type: string
+          description: Source type.
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        host:
+          title: Host
+          type: string
+          description: Host name or IP address of the event hub consumer endpoint.
+          example: iothub-ns-myhub-12345678-12345abcde.servicebus.windows.net
+          maxLength: 200
+        eventHubName:
+          title: Eventhubname
+          type: string
+          description: Name of the event hub
+          example: myhub
+          maxLength: 200
+        keyName:
+          title: KeyName
+          type: string
+          description: The name of the Event Hub key to use for authentication. This parameter is deprecated, use `username` under basic authentication instead.
+          example: iothubowner
+          maxLength: 200
+          deprecated: true
+        keyValue:
+          title: KeyValue
+          type: string
+          description: Value of the Event Hub key to use for authentication. This parameter is deprecated, use `password` under basic authentication instead.
+          maxLength: 200
+          deprecated: true
+        authentication:
+          $ref: '#/components/schemas/EventhubAuthenticationWrite'
+        consumerGroup:
+          type: string
+          title: ConsumerGroup
+          description: The event hub consumer group to use. Microsoft recommends having a distinct consumer group for each application consuming data from event hub. If left out, this uses the default consumer group.
+          maxLength: 200
+      required:
+      - type
+      - externalId
+      - host
+      - eventHubName
+      title: CreateEventHubSource
+      type: object
+    UpdateMqttV5SourceItem:
+      additionalProperties: false
+      properties:
+        type:
+          enum:
+          - mqtt5
+          title: Type
+          type: string
+          description: Source type.
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        update:
+          $ref: '#/components/schemas/UpdateMqttV5Source'
+      required:
+      - type
+      - externalId
+      - update
+      title: UpdateMqttV5SourceItem
+      type: object
+    UpdateRestSource:
+      additionalProperties: false
+      properties:
+        host:
+          $ref: '#/components/schemas/UpdateItem_Host_'
+        scheme:
+          $ref: '#/components/schemas/UpdateItem_RestScheme_'
+        port:
+          $ref: '#/components/schemas/UpdateItem_Port_'
+        authCertificate:
+          anyOf:
+          - $ref: '#/components/schemas/UpdateItem_AuthCertificate_'
+          - $ref: '#/components/schemas/UpdateSetNull'
+      title: UpdateRestSource
+      type: object
+    UpdateMqttV3SourceItem:
+      additionalProperties: false
+      properties:
+        type:
+          enum:
+          - mqtt3
+          title: Type
+          type: string
+          description: Source type.
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        update:
+          $ref: '#/components/schemas/UpdateMqttV3Source'
+      required:
+      - type
+      - externalId
+      - update
+      title: UpdateMqttV3SourceItem
+      type: object
+    Items_CreateSource_:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            discriminator:
+              mapping:
+                eventhub: '#/components/schemas/CreateEventHubSource'
+                mqtt3: '#/components/schemas/CreateMqttV3Source'
+                mqtt5: '#/components/schemas/CreateMqttV5Source'
+                rest: '#/components/schemas/CreateRestSource'
+                kafka: '#/components/schemas/CreateKafkaSource'
+              propertyName: type
+            oneOf:
+            - $ref: '#/components/schemas/CreateMqttV3Source'
+            - $ref: '#/components/schemas/CreateMqttV5Source'
+            - $ref: '#/components/schemas/CreateEventHubSource'
+            - $ref: '#/components/schemas/CreateRestSource'
+            - $ref: '#/components/schemas/CreateKafkaSource'
+          title: Items
+          type: array
+          minItems: 1
+          maxItems: 10
+      required:
+      - items
+      title: CreateSourceList
+      type: object
+    QueryParamAuthentication:
+      additionalProperties: false
+      properties:
+        type:
+          enum:
+          - query
+          title: Type
+          type: string
+          description: Authentication type.
+        key:
+          title: Query parameter key
+          description: Key for the query parameter to place the authentication token in
+          type: string
+      required:
+      - type
+      - key
+      title: QueryParamAuthentication
+      type: object
+    SimpleBasicAuthentication:
+      additionalProperties: false
+      type: object
+      title: BasicAuthentication
+      description: Username and password authentication.
+      properties:
+        type:
+          enum:
+          - basic
+          title: Type
+          type: string
+          description: Authentication type
+        username:
+          type: string
+          title: Username
+          description: Username used for authenticating with the broker.
+          maxLength: 200
+      required:
+      - username
+      - type
+    ClientCredentialsAuthentication:
+      additionalProperties: false
+      properties:
+        type:
+          enum:
+          - clientCredentials
+          title: Type
+          type: string
+          description: Authentication type.
+        clientId:
+          title: Client ID
+          description: Client ID for for the service principal used by the extractor
+          type: string
+        tokenUrl:
+          title: Token URL
+          description: URL to fetch authentication tokens from
+          type: string
+        scopes:
+          title: Scopes
+          description: A space separated list of scopes
+          type: string
+        defaultExpiresIn:
+          title: Default expires in
+          description: Default value for the expires_in OAuth 2.0 parameter. If the identity provider does not return expires_in in token requests, this parameter must be set or the request will fail.
+          type: string
+      required:
+      - type
+      - clientId
+      - tokenUrl
+      - scopes
+      title: ClientCredentialsAuthentication
+      type: object
+    RestSource:
+      additionalProperties: false
+      properties:
+        type:
+          enum:
+          - rest
+          title: Type
+          type: string
+          description: Source type.
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        host:
+          title: Host
+          type: string
+          description: Host or IP address to connect to.
+          maxLength: 200
+        scheme:
+          title: Scheme
+          type: string
+          description: Type of connection to establish
+          enum:
+          - http
+          - https
+        port:
+          type: integer
+          title: Port
+          description: Port on server to connect to. Uses default ports based on the scheme if omitted.
+          minimum: 1
+          maximum: 65535
+        caCertificate:
+          $ref: '#/components/schemas/CertificateDetails'
+        authCertificate:
+          $ref: '#/components/schemas/CertificateDetails'
+        authentication:
+          discriminator:
+            mapping:
+              basic: '#/components/schemas/BasicAuthentication'
+              header: '#/components/schemas/HeaderValueAuthentication'
+              query: '#/components/schemas/QueryParamAuthentication'
+              clientCredentials: '#/components/schemas/ClientCredentialsAuthentication'
+            propertyName: type
+          oneOf:
+          - $ref: '#/components/schemas/BasicAuthentication'
+          - $ref: '#/components/schemas/HeaderValueAuthentication'
+          - $ref: '#/components/schemas/QueryParamAuthentication'
+          - $ref: '#/components/schemas/ClientCredentialsAuthentication'
+          title: Authentication
+          description: Authentication details for source
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        lastUpdatedTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+      required:
+      - type
+      - externalId
+      - host
+      - createdTime
+      - lastUpdatedTime
+      - scheme
+      title: RestSource
+      type: object
+    HeaderValueAuthentication:
+      additionalProperties: false
+      properties:
+        type:
+          enum:
+          - header
+          title: Type
+          type: string
+          description: Authentication type.
+        key:
+          title: Header key
+          description: Key for the header to place the authentication token in
+          type: string
+      required:
+      - type
+      - key
+      title: HeaderValueAuthentication
+      type: object
+    Items_UpdateSource_:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            discriminator:
+              mapping:
+                eventhub: '#/components/schemas/UpdateEventHubSourceItem'
+                mqtt3: '#/components/schemas/UpdateMqttV3SourceItem'
+                mqtt5: '#/components/schemas/UpdateMqttV5SourceItem'
+                rest: '#/components/schemas/UpdateRestSourceItem'
+                kafka: '#/components/schemas/UpdateKafkaSourceItem'
+              propertyName: type
+            oneOf:
+            - $ref: '#/components/schemas/UpdateMqttV3SourceItem'
+            - $ref: '#/components/schemas/UpdateMqttV5SourceItem'
+            - $ref: '#/components/schemas/UpdateEventHubSourceItem'
+            - $ref: '#/components/schemas/UpdateRestSourceItem'
+            - $ref: '#/components/schemas/UpdateKafkaSourceItem'
+          title: Items
+          type: array
+          minItems: 1
+          maxItems: 10
+      required:
+      - items
+      title: UpdateSourceList
+      type: object
+    UpdateMqttV3Source:
+      additionalProperties: false
+      properties:
+        host:
+          $ref: '#/components/schemas/UpdateItem_Host_'
+        port:
+          anyOf:
+          - $ref: '#/components/schemas/UpdateItem_Port_'
+          - $ref: '#/components/schemas/UpdateSetNull'
+          title: Port
+          description: Set or remove the port on the MQTT broker.
+        authentication:
+          anyOf:
+          - $ref: '#/components/schemas/UpdateItem_MqttAuthentication_'
+          - $ref: '#/components/schemas/UpdateSetNull'
+          title: Authentication
+          description: Set or remove the credentials used for authentication.
+        useTls:
+          additionalProperties: false
+          properties:
+            set:
+              title: Set
+              type: boolean
+          required:
+          - set
+          type: object
+          description: Enable or disable TLS to the MQTT broker.
+        caCertificate:
+          anyOf:
+          - $ref: '#/components/schemas/UpdateItem_CACertificate_'
+          - $ref: '#/components/schemas/UpdateSetNull'
+        authCertificate:
+          anyOf:
+          - $ref: '#/components/schemas/UpdateItem_AuthCertificate_'
+          - $ref: '#/components/schemas/UpdateSetNull'
+      title: UpdateMqttV3Source
+      type: object
+    ScramSha512:
+      additionalProperties: false
+      type: object
+      title: ScramSha512
+      properties:
+        type:
+          enum:
+          - scramSha512
+          title: Type
+          type: string
+          description: Authentication type
+          maxLength: 200
+        username:
+          type: string
+          description: Username for authentication
+          title: Username
+          maxLength: 200
+      required:
+      - type
+      - username
+    UpdateItem_AuthCertificate_:
+      additionalProperties: false
+      properties:
+        set:
+          $ref: '#/components/schemas/AuthCertificate'
+      required:
+      - set
+      title: UpdateItem_AuthCertificate
+      type: object
+      description: Set a new authentication certificate.
+    MqttV5Source:
+      additionalProperties: false
+      properties:
+        type:
+          enum:
+          - mqtt5
+          title: Type
+          type: string
+          description: Source type.
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        host:
+          title: Host
+          type: string
+          description: Host or IP address of the MQTT broker to connect to.
+          maxLength: 200
+        port:
+          type: integer
+          title: Port
+          description: Port to connect to on the MQTT broker.
+          default: 1883
+          minimum: 1
+          maximum: 65535
+        authentication:
+          $ref: '#/components/schemas/MqttAuthentication'
+        useTls:
+          type: boolean
+          title: UseTls
+          description: If true, use TLS when connecting to the broker.
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        lastUpdatedTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        caCertificate:
+          $ref: '#/components/schemas/CertificateDetails'
+        authCertificate:
+          $ref: '#/components/schemas/CertificateDetails'
+      required:
+      - type
+      - externalId
+      - host
+      - createdTime
+      - lastUpdatedTime
+      title: MqttV5Source
+      type: object
+    MqttV3Source:
+      additionalProperties: false
+      properties:
+        type:
+          enum:
+          - mqtt3
+          title: Type
+          type: string
+          description: Source type.
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        host:
+          title: Host
+          type: string
+          description: Host or IP address of the MQTT broker to connect to.
+          maxLength: 200
+        port:
+          type: integer
+          title: Port
+          description: Port to connect to on the MQTT broker.
+          default: 1883
+          minimum: 1
+          maximum: 65535
+        authentication:
+          $ref: '#/components/schemas/MqttAuthentication'
+        useTls:
+          type: boolean
+          title: UseTls
+          description: If true, use TLS when connecting to the broker.
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        lastUpdatedTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        caCertificate:
+          $ref: '#/components/schemas/CertificateDetails'
+        authCertificate:
+          $ref: '#/components/schemas/CertificateDetails'
+      required:
+      - type
+      - externalId
+      - host
+      - createdTime
+      - lastUpdatedTime
+      title: MqttV3Source
+      type: object
+    EventHubSource:
+      additionalProperties: false
+      properties:
+        type:
+          enum:
+          - eventhub
+          title: Type
+          type: string
+          description: Source type.
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        host:
+          title: Host
+          type: string
+          description: URL of the event hub consumer endpoint.
+          example: iothub-ns-myhub-12345678-12345abcde.servicebus.windows.net
+          maxLength: 200
+        eventHubName:
+          title: EventHubName
+          type: string
+          description: Name of the event hub.
+          example: myhub
+          maxLength: 200
+        keyName:
+          title: KeyName
+          type: string
+          description: The name of the Event Hub key to use. This parameter is deprecated. Use `username` under basic authentication instead.
+          example: iothubowner
+          maxLength: 200
+          deprecated: true
+        authentication:
+          $ref: '#/components/schemas/EventhubAuthentication'
+        consumerGroup:
+          type: string
+          title: ConsumerGroup
+          description: The event hub consumer group to use. Microsoft recommends having a distinct consumer group for each application consuming data from event hub. If left out, this uses the default consumer group.
+          maxLength: 200
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        lastUpdatedTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+      required:
+      - type
+      - externalId
+      - host
+      - eventHubName
+      - createdTime
+      - lastUpdatedTime
+      title: EventHubSource
+      type: object
+    CreateScramSha512:
+      additionalProperties: false
+      type: object
+      title: CreateScramSha512
+      properties:
+        type:
+          enum:
+          - scramSha512
+          title: Type
+          type: string
+          description: Authentication type
+        username:
+          type: string
+          description: Username for authentication
+          title: Username
+          maxLength: 200
+        password:
+          type: string
+          title: Password
+          description: Password for authentication
+          maxLength: 200
+      required:
+      - type
+      - username
+      - password
+    SimpleBasicAuthenticationWrite:
+      additionalProperties: false
+      type: object
+      title: BasicAuthenticationWrite
+      description: Username and password authentication.
+      properties:
+        type:
+          enum:
+          - basic
+          title: Type
+          type: string
+          description: Authentication type
+        username:
+          type: string
+          title: Username
+          description: Username used for basic authentication.
+          maxLength: 200
+        password:
+          type: string
+          title: Password
+          description: Password used for basic authentication.
+          maxLength: 200
+      required:
+      - username
+      - type
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    CreateRestSource:
+      additionalProperties: false
+      properties:
+        type:
+          enum:
+          - rest
+          title: Type
+          type: string
+          description: Source type.
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        host:
+          title: Host
+          type: string
+          description: Host or IP address to connect to.
+          maxLength: 200
+        scheme:
+          title: Scheme
+          type: string
+          description: Type of connection to establish
+          enum:
+          - http
+          - https
+          default: https
+        port:
+          type: integer
+          title: Port
+          description: Port on server to connect to. Uses default ports based on the scheme if omitted.
+          minimum: 1
+          maximum: 65535
+        caCertificate:
+          $ref: '#/components/schemas/CACertificate'
+        authCertificate:
+          $ref: '#/components/schemas/AuthCertificate'
+        authentication:
+          discriminator:
+            mapping:
+              basic: '#/components/schemas/CreateBasicAuthentication'
+              header: '#/components/schemas/CreateHeaderValueAuthentication'
+              query: '#/components/schemas/CreateQueryParamAuthentication'
+              clientCredentials: '#/components/schemas/CreateClientCredentialsAuthentication'
+            propertyName: type
+          oneOf:
+          - $ref: '#/components/schemas/CreateBasicAuthentication'
+          - $ref: '#/components/schemas/CreateHeaderValueAuthentication'
+          - $ref: '#/components/schemas/CreateQueryParamAuthentication'
+          - $ref: '#/components/schemas/CreateClientCredentialsAuthentication'
+          title: Authentication
+          description: Authentication details for source
+      required:
+      - type
+      - externalId
+      - host
+      title: CreateRestSource
+      type: object
+    CreateBasicAuthentication:
+      additionalProperties: false
+      properties:
+        type:
+          enum:
+          - basic
+          title: Type
+          type: string
+          description: Authentication type.
+        username:
+          title: User name
+          description: User name to use for basic authentication
+          type: string
+        password:
+          title: Password
+          description: Password to use for basic authentication
+          type: string
+      required:
+      - username
+      - password
+      - type
+      title: CreateBasicAuthentication
+      type: object
+    CertificateType:
+      enum:
+      - der
+      - pem
+      title: CertificateType
+      type: string
+      description: Type of certificate in the `certificate` field.
+    ItemsWithCursor_Source_:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            discriminator:
+              mapping:
+                eventhub: '#/components/schemas/EventHubSource'
+                mqtt3: '#/components/schemas/MqttV3Source'
+                mqtt5: '#/components/schemas/MqttV5Source'
+                rest: '#/components/schemas/RestSource'
+                kafka: '#/components/schemas/KafkaSource'
+              propertyName: type
+            oneOf:
+            - $ref: '#/components/schemas/MqttV3Source'
+            - $ref: '#/components/schemas/MqttV5Source'
+            - $ref: '#/components/schemas/EventHubSource'
+            - $ref: '#/components/schemas/RestSource'
+            - $ref: '#/components/schemas/KafkaSource'
+          title: Items
+          type: array
+          maxItems: 100
+          minItems: 0
+        nextCursor:
+          type: string
+          title: Next cursor
+          description: Cursor for pagination
+      required:
+      - items
+      title: SourceListWithCursor
+      type: object
+    UpdateItem_MqttAuthentication_:
+      additionalProperties: false
+      properties:
+        set:
+          $ref: '#/components/schemas/MqttAuthenticationWrite'
+      required:
+      - set
+      title: UpdateItem_MqttAuthentication
+      type: object
+      description: Set new credentials for authenticating with the broker.
+    UpdateEventHubSource:
+      additionalProperties: false
+      properties:
+        host:
+          $ref: '#/components/schemas/UpdateItem_Host_'
+        eventHubName:
+          additionalProperties: false
+          properties:
+            set:
+              title: Set
+              type: string
+              maxLength: 200
+          required:
+          - set
+          type: object
+          description: Set a new value for the event hub name.
+        keyName:
+          additionalProperties: false
+          properties:
+            set:
+              title: Set
+              type: string
+              maxLength: 200
+          required:
+          - set
+          type: object
+          deprecated: true
+          description: Set a new value for the key name. This parameter is deprecated, use `username` under basic authentication instead.
+        keyValue:
+          additionalProperties: false
+          properties:
+            set:
+              title: Set
+              type: string
+              maxLength: 200
+          required:
+          - set
+          type: object
+          deprecated: true
+          description: Set a new value for the key value. This parameter is deprecated, use `password` under basic authentication instead.
+        authentication:
+          description: Update authentication details for the eventhub source.
+          type: object
+          properties:
+            set:
+              $ref: '#/components/schemas/EventhubAuthenticationWrite'
+          title: Authentication
+          required:
+          - set
+        consumerGroup:
+          anyOf:
+          - type: object
+            required:
+            - set
+            properties:
+              set:
+                title: Set
+                type: string
+                maxLength: 200
+          - $ref: '#/components/schemas/UpdateSetNull'
+          title: ConsumerGroup
+          description: Set a new value for the consumer group, or remove the value.
+      title: UpdateEventHubSource
+      type: object
+    UpdateSetNull:
+      additionalProperties: false
+      properties:
+        setNull:
+          title: SetNull
+          type: boolean
+          description: Clear this value
+      required:
+      - setNull
+      title: UpdateSetNull
+      type: object
+    KafkaAuthenticationWrite:
+      type: object
+      discriminator:
+        mapping:
+          basic: '#/components/schemas/SimpleBasicAuthenticationWrite'
+          clientCredentials: '#/components/schemas/CreateClientCredentialsAuthentication'
+          scramSha256: '#/components/schemas/CreateScramSha256'
+          scramSha512: '#/components/schemas/CreateScramSha512'
+        propertyName: type
+      oneOf:
+      - $ref: '#/components/schemas/SimpleBasicAuthenticationWrite'
+      - $ref: '#/components/schemas/CreateClientCredentialsAuthentication'
+      - $ref: '#/components/schemas/CreateScramSha256'
+      - $ref: '#/components/schemas/CreateScramSha512'
+      description: 'Method used for authenticating with the kafka brokers.
+
+        This may be used together with auth certificate.'
+    UpdateItem_Host_:
+      additionalProperties: false
+      properties:
+        set:
+          title: Set
+          type: string
+          maxLength: 200
+      required:
+      - set
+      title: UpdateItem_Host
+      type: object
+      description: Set a new host or IP address.
+    CACertificate:
+      additionalProperties: false
+      properties:
+        type:
+          $ref: '#/components/schemas/CertificateType'
+        certificate:
+          title: Certificate
+          type: string
+          description: Base 64 encoded der certificate, or a pem certificate with headers.
+          maxLength: 100000
+      required:
+      - certificate
+      - type
+      title: CACertificate
+      type: object
+      description: Custom certificate authority certificate to let the source use a self signed certificate.
+    UpdateItem_CACertificate_:
+      additionalProperties: false
+      properties:
+        set:
+          $ref: '#/components/schemas/CACertificate'
+      required:
+      - set
+      title: UpdateItem_CACertificate
+      type: object
+      description: Set a new certificate authority.
+    EventhubAuthenticationWrite:
+      type: object
+      discriminator:
+        mapping:
+          basic: '#/components/schemas/SimpleBasicAuthenticationWrite'
+          clientCredentials: '#/components/schemas/CreateClientCredentialsAuthentication'
+        propertyName: type
+      oneOf:
+      - $ref: '#/components/schemas/SimpleBasicAuthenticationWrite'
+      - $ref: '#/components/schemas/CreateClientCredentialsAuthentication'
+      title: EventhubAuthenticationWrite
+      description: Authentication details for eventhub. Basic authentication uses a shared access key, where the `username` is the key name, and the `password` is the key value.
+    CreateMqttV5Source:
+      additionalProperties: false
+      properties:
+        type:
+          enum:
+          - mqtt5
+          title: Type
+          type: string
+          description: Source type.
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        host:
+          title: Host
+          type: string
+          description: Host or IP address of the MQTT broker to connect to.
+          maxLength: 200
+        port:
+          type: integer
+          title: Port
+          default: 1883
+          description: Port on the MQTT broker to connect to.
+          minimum: 1
+          maximum: 65535
+        authentication:
+          $ref: '#/components/schemas/MqttAuthenticationWrite'
+        useTls:
+          type: boolean
+          title: UseTls
+          description: If true, use TLS when connecting to the broker.
+        caCertificate:
+          $ref: '#/components/schemas/CACertificate'
+        authCertificate:
+          $ref: '#/components/schemas/AuthCertificate'
+      required:
+      - type
+      - externalId
+      - host
+      title: CreateMqttV5Source
+      type: object
+    CertificateDetails:
+      additionalProperties: false
+      title: CertificatDetails
+      type: object
+      description: Excerpt of certificate details
+      properties:
+        thumbprint:
+          title: Thumbprint
+          type: string
+          description: A thumbprint of the certificate provided
+          maxLength: 50
+        expiresAt:
+          title: ExpiresAt
+          type: integer
+          description: The expiry date of the certificate
+      required:
+      - thumbprint
+      - expiresAt
+    UpdateRestSourceItem:
+      additionalProperties: false
+      properties:
+        type:
+          enum:
+          - rest
+          title: Type
+          type: string
+          description: Source type.
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        update:
+          $ref: '#/components/schemas/UpdateRestSource'
+      required:
+      - type
+      - externalId
+      - update
+      title: UpdateRestSourceItem
+      type: object
+    ItemsWithIgnoreUnknownIds_ExternalId_:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/ExternalIdWrapper'
+          title: Items
+          type: array
+          maxItems: 100
+          minItems: 1
+        ignoreUnknownIds:
+          type: boolean
+          title: IgnoreUnknownIds
+          description: Ignore IDs and external IDs that are not found
+      required:
+      - items
+      title: ItemsWithIgnoreUnknownIds_ExternalId
+      type: object
+    CreateHeaderValueAuthentication:
+      additionalProperties: false
+      properties:
+        type:
+          enum:
+          - header
+          title: Type
+          type: string
+          description: Authentication type.
+        key:
+          title: Header key
+          description: Key for the header to place the authentication token in
+          type: string
+        value:
+          title: Value
+          description: Value of the authentication token
+          type: string
+      required:
+      - key
+      - value
+      - type
+      title: CreateHeaderValueAuthentication
+      type: object
+    ValidationErrorContent:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 422
+        message:
+          type: string
+          description: Error message.
+          example: 'Extra inputs are not permitted: type'
+    KafkaBrokerList:
+      type: array
+      items:
+        $ref: '#/components/schemas/KafkaBroker'
+      description: List of redundant kafka brokers to connect to.
+      minItems: 1
+      maxItems: 8
+    AuthCertificate:
+      additionalProperties: false
+      title: AuthenticationCertificate
+      type: object
+      description: Authentication certificate (if configured) used to authenticate to source.
+      properties:
+        key:
+          title: Certificate key
+          type: string
+          description: The key for the certificate
+          maxLength: 100000
+        keyPassword:
+          title: Certificate key password
+          type: string
+          description: The password for the certificate key
+          minLength: 1
+          maxLength: 255
+        type:
+          $ref: '#/components/schemas/CertificateType'
+        certificate:
+          title: Certificate
+          type: string
+          description: Base 64 encoded der certificate, or a pem certificate with headers.
+          maxLength: 100000
+      required:
+      - type
+      - certificate
+      - key
+    UpdateMqttV5Source:
+      additionalProperties: false
+      properties:
+        host:
+          $ref: '#/components/schemas/UpdateItem_Host_'
+        port:
+          anyOf:
+          - $ref: '#/components/schemas/UpdateItem_Port_'
+          - $ref: '#/components/schemas/UpdateSetNull'
+          title: Port
+          description: Set or remove the port on the MQTT broker.
+        authentication:
+          anyOf:
+          - $ref: '#/components/schemas/UpdateItem_MqttAuthentication_'
+          - $ref: '#/components/schemas/UpdateSetNull'
+          title: Authentication
+          description: Set or remove the credentials used for authentication.
+        useTls:
+          additionalProperties: false
+          properties:
+            set:
+              title: Set
+              type: boolean
+          required:
+          - set
+          type: object
+          description: Enable or disable TLS to the MQTT broker.
+        caCertificate:
+          anyOf:
+          - $ref: '#/components/schemas/UpdateItem_CACertificate_'
+          - $ref: '#/components/schemas/UpdateSetNull'
+        authCertificate:
+          anyOf:
+          - $ref: '#/components/schemas/UpdateItem_AuthCertificate_'
+          - $ref: '#/components/schemas/UpdateSetNull'
+      title: UpdateMqttV5Source
+      type: object
+    UpdateItem_KafkaBrokers_:
+      additionalProperties: false
+      properties:
+        set:
+          $ref: '#/components/schemas/KafkaBrokerList'
+      required:
+      - set
+      title: UpdateItem_KafkaBrokers
+      type: object
+      description: Set a new list of redundant kafka brokers.
+    Items_Source_:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            discriminator:
+              mapping:
+                eventhub: '#/components/schemas/EventHubSource'
+                mqtt3: '#/components/schemas/MqttV3Source'
+                mqtt5: '#/components/schemas/MqttV5Source'
+                rest: '#/components/schemas/RestSource'
+                kafka: '#/components/schemas/KafkaSource'
+              propertyName: type
+            oneOf:
+            - $ref: '#/components/schemas/MqttV3Source'
+            - $ref: '#/components/schemas/MqttV5Source'
+            - $ref: '#/components/schemas/EventHubSource'
+            - $ref: '#/components/schemas/RestSource'
+            - $ref: '#/components/schemas/KafkaSource'
+          title: Items
+          type: array
+          maxItems: 100
+          minItems: 0
+      required:
+      - items
+      title: SourceList
+      type: object
+    CreateMqttV3Source:
+      additionalProperties: false
+      properties:
+        type:
+          enum:
+          - mqtt3
+          title: Type
+          type: string
+          description: Source type.
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        host:
+          title: Host
+          type: string
+          description: Host or IP address of the MQTT broker to connect to.
+          maxLength: 200
+        port:
+          type: integer
+          title: Port
+          default: 1883
+          description: Port on the MQTT broker to connect to.
+          minimum: 1
+          maximum: 65535
+        authentication:
+          $ref: '#/components/schemas/MqttAuthenticationWrite'
+        useTls:
+          type: boolean
+          title: UseTls
+          description: If true, use TLS when connecting to the broker.
+        caCertificate:
+          $ref: '#/components/schemas/CACertificate'
+        authCertificate:
+          $ref: '#/components/schemas/AuthCertificate'
+      required:
+      - type
+      - externalId
+      - host
+      title: CreateMqttV3Source
+      type: object
+    CreateQueryParamAuthentication:
+      additionalProperties: false
+      properties:
+        type:
+          enum:
+          - query
+          title: Type
+          type: string
+          description: Authentication type.
+        key:
+          title: Query parameter key
+          description: Key for the query parameter to place the authentication token in
+          type: string
+        value:
+          title: Value
+          description: Value of the authentication token
+          type: string
+      required:
+      - key
+      - value
+      - type
+      title: CreateQueryParamAuthentication
+      type: object
+    UpdateItem_KafkaAuthentication_:
+      additionalProperties: false
+      properties:
+        set:
+          $ref: '#/components/schemas/KafkaAuthenticationWrite'
+      required:
+      - set
+      title: UpdateItem_KafkaAuthentication
+      type: object
+      description: Set new credentials for authenticating with the broker.
+    KafkaSource:
+      type: object
+      additionalProperties: false
+      properties:
+        type:
+          enum:
+          - kafka
+          title: Type
+          type: string
+          description: Source type.
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        bootstrapBrokers:
+          $ref: '#/components/schemas/KafkaBrokerList'
+        authentication:
+          $ref: '#/components/schemas/KafkaAuthentication'
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        lastUpdatedTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        caCertificate:
+          $ref: '#/components/schemas/CertificateDetails'
+        authCertificate:
+          $ref: '#/components/schemas/CertificateDetails'
+        useTls:
+          type: boolean
+          title: UseTLS
+          description: Indicates whether TLS will be used for connection to broker.
+      required:
+      - bootstrapBrokers
+      - externalId
+      - type
+      - createdTime
+      - lastUpdatedTime
+    UpdateKafkaSource:
+      additionalProperties: false
+      properties:
+        bootstrapBrokers:
+          $ref: '#/components/schemas/UpdateItem_KafkaBrokers_'
+        authentication:
+          anyOf:
+          - $ref: '#/components/schemas/UpdateItem_KafkaAuthentication_'
+          - $ref: '#/components/schemas/UpdateSetNull'
+          title: Authentication
+          description: Set or remove the credentials used for authentication.
+        useTls:
+          additionalProperties: false
+          properties:
+            set:
+              title: Set
+              type: boolean
+          required:
+          - set
+          type: object
+          description: Enable or disable TLS to the Kafka broker.
+        caCertificate:
+          anyOf:
+          - $ref: '#/components/schemas/UpdateItem_CACertificate_'
+          - $ref: '#/components/schemas/UpdateSetNull'
+        authCertificate:
+          anyOf:
+          - $ref: '#/components/schemas/UpdateItem_AuthCertificate_'
+          - $ref: '#/components/schemas/UpdateSetNull'
+    CreateKafkaSource:
+      type: object
+      additionalProperties: false
+      properties:
+        type:
+          enum:
+          - kafka
+          title: Type
+          type: string
+          description: Source type.
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        bootstrapBrokers:
+          $ref: '#/components/schemas/KafkaBrokerList'
+        authentication:
+          $ref: '#/components/schemas/KafkaAuthenticationWrite'
+        useTls:
+          type: boolean
+          title: UseTLS
+          description: If true, use TLS when connecting to the broker
+        caCertificate:
+          $ref: '#/components/schemas/CACertificate'
+        authCertificate:
+          $ref: '#/components/schemas/AuthCertificate'
+      required:
+      - bootstrapBrokers
+      - externalId
+      - type
+    UpdateItem_RestScheme_:
+      additionalProperties: false
+      properties:
+        set:
+          title: Set
+          type: string
+          enum:
+          - http
+          - https
+      required:
+      - set
+      title: UpdateItem_RestScheme
+      type: object
+      description: Set a new scheme for this source to use
+  responses:
+    ValidationError:
+      description: Validation Error
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/ValidationErrorContent'
+    ErrorResponse:
+      description: The response for a failed request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+    400ErrorResponse:
+      description: The response for a bad request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: 400
+              message: '`null` values aren''t allowed.'
+    EmptyResponse:
+      description: Empty response.
+      content:
+        application/json:
+          schema:
+            type: object
+  parameters:
+    100Limit:
+      name: limit
+      description: Limits the number of results to be returned. The maximum results returned by the server is 100 even if you specify a higher limit.
+      in: query
+      schema:
+        type: integer
+        default: 100
+        minimum: 1
+        maximum: 100
+    Cursor:
+      name: cursor
+      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
+
+        property, it means that there may be more results, and you should pass that value as the
+
+        `cursor` parameter in the next request.
+
+
+        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
+
+        decoded. Its internal structure is not a part of the public API, and may change without
+
+        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
+
+        '
+      in: query
+      schema:
+        type: string
+        example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+  securitySchemes:
+    oidc-token:
+      type: http
+      scheme: bearer
+      bearerFormat: OpenID Connect or OAuth2 token
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+    oauth2-client-credentials:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        clientCredentials:
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-auth-code:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://your-idps.authorization.url/
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-open-industrial-data:
+      type: oauth2
+      description: Auth flow for Open Industrial Data. Get your client secret from https://hub.cognite.com/open-industrial-data-211.
+      flows:
+        clientCredentials:
+          tokenUrl: https://login.microsoftonline.com/48d5043c-cf70-4c49-881c-c638f5796997/oauth2/v2.0/token
+          scopes:
+            default: https://api.cognitedata.com/.default
+    org-oidc-token:
+      type: openIdConnect
+      openIdConnectUrl: https://auth.cognite.com/.well-known/openid-configuration
+      description: 'Access token issued by the Cognite authorization server, and valid for the target organization. The token must
+
+        be an OpenID Connect token, and it can be obtained by performing an OIDC login flow toward `auth.cognite.com`.
+
+        This is a single URL for all CDF organizations.'
+x-tagGroups:
+- name: Changelog
+  tags:
+  - Changelog
+- name: Organizations and projects
+  tags:
+  - Organizations
+  - Projects
+- name: Identity and access management
+  tags:
+  - Principals
+  - Groups
+  - Security categories
+  - Sessions
+  - Token
+  - User profiles
+  - Project Deletion Reporting
+- name: Data modeling
+  tags:
+  - Data Modeling
+  - Data models
+  - Spaces
+  - Views
+  - Containers
+  - Nodes
+  - Instances
+  - Statistics
+  - Streams
+  - Records
+- name: Asset-centric data model
+  tags:
+  - Assets
+  - Time series
+  - Synthetic Time Series
+  - Data point subscriptions
+  - Events
+  - Files
+  - Sequences
+  - Geospatial
+  - Seismic
+- name: 3D
+  tags:
+  - 3D Models
+  - 3D Model Revisions
+  - 3D Files
+  - 3D Asset Mapping
+  - 3D Contextualization
+  - 3D Jobs
+  - 3D Migration
+  - 3D Scenes
+- name: Contextualization
+  tags:
+  - Entity matching
+  - Entity matching pipelines
+  - Engineering diagrams
+  - Vision
+  - Advanced joins
+- name: Cognite AI
+  tags:
+  - Agents
+  - Skills
+  - Chat Completions
+  - Document AI
+  - Models
+- name: Documents
+  tags:
+  - Documents
+  - Document preview
+- name: Data ingestion
+  tags:
+  - Raw
+  - Extraction Pipelines
+  - Extraction Pipelines Runs
+  - Extraction Pipelines Config
+  - Extractors
+- name: Data organization
+  tags:
+  - Data sets
+  - Data domains
+  - Data products
+  - Rule sets
+  - Labels
+  - Relationships
+  - Annotations
+- name: Transformations
+  tags:
+  - Transformations
+  - Transformation Jobs
+  - Transformation Schedules
+  - Transformation Notifications
+  - Query
+  - Schema
+- name: Functions
+  tags:
+  - Functions
+  - Function calls
+  - Function schedules
+- name: Hosted Extractors
+  tags:
+  - Sources
+  - Jobs
+  - Destinations
+  - Mappings
+- name: PostgreSQL Gateway
+  tags:
+  - Postgres Gateway Users
+  - Postgres Gateway Tables
+- name: SAP Writeback
+  tags:
+  - SAP Instances
+  - SAP Endpoints
+  - Schema Mappings
+  - Writeback Requests
+- name: Data workflows
+  tags:
+  - Workflows
+  - Workflow versions
+  - Workflow executions
+  - Workflow triggers
+  - Tasks
+  - Workers
+- name: Simulators
+  tags:
+  - Simulators
+  - Simulator Integrations
+  - Simulator Models
+  - Simulator Routines
+  - Simulation Runs
+  - Simulator Logs
+- name: Units
+  tags:
+  - Units
+  - Unit Systems
+- name: ''
+  tags:
+  - ''

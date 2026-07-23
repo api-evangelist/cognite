@@ -1,0 +1,1087 @@
+openapi: 3.1.0
+info:
+  title: Cognite 3D Asset Mapping API
+  description: "# Introduction\nThis is the reference documentation for the Cognite API with\nan overview of all the available methods.\n\n# Postman\nSelect the **Download** button to download our OpenAPI specification to get started.\n\nTo import your data into Postman, select **Import**, and the Import modal opens.\nYou can import items by dragging or dropping files or folders. You can choose how to import your API and manage the import settings in **View Import Settings**.\n\nIn the Import Settings, set the **Folder organization** to **Tags**, select\n**Enable optional parameters** to turn off the settings, and select **Always inherit authentication** to turn on the settings. Select **Import**.\n\nSet the Authorization to **Oauth2.0**. By default, the settings are for Open Industrial Data. Navigate to [Cognite Hub](https://hub.cognite.com/open-industrial-data-211) to understand how to get the credentials for use in Postman.\n\nFor more information, see [Getting Started with Postman](https://developer.cognite.com/dev/guides/postman/).\n\n# Pagination\nMost resource types can be paginated, indicated by the field `nextCursor` in the response.\nBy passing the value of `nextCursor` as the cursor you will get the next page of `limit` results.\nNote that all parameters except `cursor` has to stay the same.\n\n# Parallel retrieval\nAs general guidance, Parallel Retrieval is a technique that should be used when due to query complexity, retrieval of data in a single request is significantly slower than it would otherwise be for a simple request.  Parallel retrieval does not act as a speed multiplier on optimally running queries.  By parallelizing such requests, data retrieval performance can be tuned to meet the client application needs. \n\nCDF supports parallel retrieval through the `partition` parameter, which has the format `m/n` where `n` is the amount of partitions you would like to split the entire data set into.\nIf you want to download the entire data set by splitting it into 10 partitions, do the following in parallel with `m` running from 1 to 10:\n  - Make a request to `/events` with `partition=m/10`.\n  - Paginate through the response by following the cursor as explained above. Note that the `partition` parameter needs to be passed to all subqueries.\n\nProcessing of parallel retrieval requests is subject to concurrency quota availability. The request returns the `429` response upon exceeding concurrency limits. See the Request throttling chapter below.\n\nTo prevent unexpected problems and to maximize read throughput, you should at most use 10 partitions. \nSome CDF resources will automatically enforce a maximum of 10 partitions.\nFor more specific and detailed information, please read the ```partition``` attribute documentation for the CDF resource you're using.  \n\n# Requests throttling\nCognite Data Fusion (CDF) returns the HTTP `429` (too many requests) response status code when project capacity exceeds the limit.\n\nThe throttling can happen:\n  - If a user or a project sends too many (more than allocated) concurrent requests.\n  - If a user or a project sends a too high (more than allocated) rate of requests in a given amount of time.\n\nCognite recommends using a retry strategy based on truncated exponential backoff to handle sessions with HTTP response codes 429.\n\nCognite recommends using a reasonable number (up to 10) of  `Parallel retrieval` partitions.\n\nFollowing these strategies lets you slow down the request frequency to maximize productivity without having to re-submit/retry failing requests.\n\nSee more [here](https://docs.cognite.com/dev/concepts/resource_throttling).\n\n# API versions\n## Version headers\nThis API uses calendar versioning, and version names follow the `YYYYMMDD` format.\nYou can find the versions currently available by using the version selector at the top of this page.\n\nTo use a specific API version, you can pass the `cdf-version: $version` header along with your requests to the API.\n\n## Beta versions\nThe beta versions provide a preview of what the stable version will look like in the future.\nBeta versions contain functionality that is reasonably mature, and highly likely to become a part of the stable API.\n\nBeta versions are indicated by a `-beta` suffix after the version name. For example, the beta version header for the\n2023-01-01 version is then `cdf-version: 20230101-beta`.\n\n## Alpha versions\nAlpha versions contain functionality that is new and experimental, and not guaranteed to ever become a part of the stable API.\nThis functionality presents no guarantee of service, so its use is subject to caution.\n\nAlpha versions are indicated by an `-alpha` suffix after the version name. For example, the alpha version header for\nthe 2023-01-01 version is then `cdf-version: 20230101-alpha`."
+  version: v1
+  contact:
+    name: Cognite Support
+    url: https://support.cognite.com
+    email: support@cognite.com
+servers:
+- url: https://{cluster}.cognitedata.com/api/v1/projects/{project}
+  description: The URL for the CDF cluster to connect to
+  variables:
+    cluster:
+      enum:
+      - api
+      - az-tyo-gp-001
+      - az-eastus-1
+      - az-power-no-northeurope
+      - westeurope-1
+      - asia-northeast1-1
+      - gc-dsm-gp-001
+      default: api
+      description: The CDF cluster to connect to
+    project:
+      default: publicdata
+      description: The CDF project name.
+security:
+- oidc-token:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-client-credentials:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-open-industrial-data:
+  - https://api.cognitedata.com/.default
+- oauth2-auth-code:
+  - https://{cluster}.cognitedata.com/.default
+tags:
+- name: 3D Asset Mapping
+paths:
+  /3d/models/{modelId}/revisions/{revisionId}/mappings:
+    get:
+      tags:
+      - 3D Asset Mapping
+      summary: List 3D asset mappings
+      description: '
+
+
+        > **Required capabilities:** `threedAcl:READ`
+
+
+        Lists 3D assets mappings that match the ID for the specified filter query parameter type. Only one type of filter can be specified for each request, either `assetId`, `nodeId` or `intersectsBoundingBox`.
+
+
+        In Hybrid CDF projects: The nodeId and assetId mappings are returned by default.
+
+        To instead see any assetInstanceId mappings (for CoreDM based contextualization),
+
+        set the `getDmsInstances` query parameter to `true`.
+
+
+        In DataModelingOnly CDF projects: This endpoint is not available. Use DMS queries to list CogniteCADNodes.
+
+
+        Note: When filtering for a specific nodeId, only nodeIds that actually exists will be returned.
+
+        When filtering for a specific assetId, all mappings will be returned, even if the assetId does not exist.'
+      operationId: get3DMappings
+      parameters:
+      - $ref: '#/components/parameters/ModelId'
+      - $ref: '#/components/parameters/RevisionId'
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+      - name: nodeId
+        in: query
+        schema:
+          type: integer
+          format: int64
+      - name: assetId
+        in: query
+        schema:
+          type: integer
+          format: int64
+      - name: intersectsBoundingBox
+        in: query
+        description: 'Example: `{"min":[0.0, 0.0, 0.0], "max":[1.0, 1.0, 1.0]}`
+
+
+          If given, only return asset mappings for assets whose bounding box
+
+          intersects the given bounding box.
+
+
+          Must be a JSON object with `min`, `max` arrays of coordinates.
+
+          '
+        schema:
+          type: string
+      - name: getDmsInstances
+        in: query
+        description: 'If true, the response will include any `assetInstanceId` instances for the mappings.
+
+          '
+        schema:
+          type: boolean
+          default: false
+      responses:
+        '200':
+          description: A list of mappings between assets and 3D nodes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetMapping3DWithCursorResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-capability:
+      - threedAcl:READ
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: const mappings3D = await client.assetMappings3D.list(3244265346345, 32423454353545);
+      - lang: Python
+        label: Python SDK
+        source: "res = client.three_d.asset_mappings.list(model_id=1, revision_id=1)\n\nfrom cognite.client.data_classes import BoundingBox3D\nbbox = BoundingBox3D(min=[0.0, 0.0, 0.0], max=[1.0, 1.0, 1.0])\nres = client.three_d.asset_mappings.list(\n    model_id=1, revision_id=1, intersects_bounding_box=bbox)\n"
+      - lang: Java
+        label: Java SDK
+        source: "Iterator<List<ThreeDAssetMapping>> itFilter = client.threeD() \n          .models() \n          .revisions() \n          .assetMappings() \n          .list(model.getId(), revision.getId()); \nList<ThreeDAssetMapping> listResultsList = itFilter.next(); \n\n"
+    post:
+      tags:
+      - 3D Asset Mapping
+      summary: Create 3D asset mappings
+      description: '
+
+
+        > **Required capabilities:** `threedAcl:UPDATE`
+
+
+        Create asset mappings
+
+
+        Asset mappings allows connections to be made between assets and 3D nodes. This can be used to contextualize 3D models.
+
+
+        In Hybrid CDF projects: Asset IDs obtained from a mapping may be invalid, and not point to real asset IDs.
+
+        The assetId existence is not checked by any means by the 3D API.
+
+        The mappings will be stored until an `assetId` and `nodeId` pair is removed through the mappings delete endpoint.
+
+
+        In DataModelingOnly CDF projects: When creating asset mappings, the data model based assetInstanceId (with space and externalId),
+
+        and the 3d model revision nodeId, must be accessible, existing and valid.'
+      operationId: create3DMappings
+      parameters:
+      - $ref: '#/components/parameters/ModelId'
+      - $ref: '#/components/parameters/RevisionId'
+      requestBody:
+        description: The asset mappings to create.
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - $ref: '#/components/schemas/CreateAssetMapping3DClassicBody'
+              - $ref: '#/components/schemas/CreateAssetMapping3DDmsBody'
+        required: true
+      responses:
+        '201':
+          description: A list of created asset mappings.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetMapping3DList'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-capability:
+      - threedAcl:UPDATE
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: "const assetMappingsToCreate = [\n {\n   nodeId: 8252999965991682,\n   assetId: 4354399876978078\n },\n {\n   nodeId: 9034285498543958,\n   assetId: 1042345809544395\n }\n];\nconst mappings3D = await client.assetMappings3D.create(\n 25432542356436,\n 33485743958747,\n assetMappingsToCreate\n);"
+      - lang: Python
+        label: Python SDK
+        source: 'from cognite.client.data_classes import ThreeDAssetMappingWrite
+
+          my_mapping = ThreeDAssetMappingWrite(node_id=1, asset_id=1)
+
+          res = client.three_d.asset_mappings.create(model_id=1, revision_id=1, asset_mapping=my_mapping)
+
+          '
+      - lang: Java
+        label: Java SDK
+        source: " List<ThreeDAssetMapping> items = List.of(ThreeDAssetMapping.newBuilder() \n          .setAssetId(1L) \n          .setNodeId(1L) \n          .build()); \n\nList<ThreeDAssetMapping> listCreated = client.threeD() \n          .models() \n          .revisions() \n          .assetMappings() \n          .create(model.getId(), revision.getId(), items); \n\n"
+  /3d/models/{modelId}/revisions/{revisionId}/mappings/delete:
+    post:
+      tags:
+      - 3D Asset Mapping
+      summary: Delete 3D asset mappings
+      description: '
+
+
+        > **Required capabilities:** `threedAcl:DELETE`
+
+
+        Delete a list of asset mappings.
+
+
+        In Hybrid CDF projects: The delete request items requires a `nodeId`, and either an `assetId` or an `assetInstanceId`.
+
+
+        In DataModelingOnly CDF projects: The delete request items requires a `nodeId` and an `assetInstanceId` (with space and externalId).'
+      operationId: delete3DMappings
+      parameters:
+      - $ref: '#/components/parameters/ModelId'
+      - $ref: '#/components/parameters/RevisionId'
+      requestBody:
+        description: The IDs of the asset mappings to delete.
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - $ref: '#/components/schemas/DeleteAssetMapping3DClassicBody'
+              - $ref: '#/components/schemas/DeleteAssetMapping3DDmsBody'
+        required: true
+      responses:
+        '200':
+          $ref: '#/components/responses/EmptyResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-capability:
+      - threedAcl:DELETE
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: "const assetMappingsToDelete = [\n {\n   nodeId: 8252999965991682,\n   assetId: 4354399876978078\n },\n {\n   nodeId: 9034285498543958,\n   assetId: 1042345809544395\n }\n];\nawait client.assetMappings3D.delete(8252999965991682, 4190022127342195, assetMappingsToDelete);"
+      - lang: Python
+        label: Python SDK
+        source: 'mapping_to_delete = client.three_d.asset_mappings.list(model_id=1, revision_id=1)[0]
+
+          res = client.three_d.asset_mappings.delete(model_id=1, revision_id=1, asset_mapping=mapping_to_delete)
+
+          '
+      - lang: Java
+        label: Java SDK
+        source: "List<ThreeDAssetMapping> listCreated = //list of ThreeDAssetMapping; \nBoolean isDeleted = client.threeD() \n          .models() \n          .revisions() \n          .assetMappings() \n          .delete(model.getId(), revision.getId(), listCreated); \n\n"
+  /3d/models/{modelId}/revisions/{revisionId}/mappings/list:
+    post:
+      tags:
+      - 3D Asset Mapping
+      summary: Filter 3D asset mappings
+      description: '
+
+
+        > **Required capabilities:** `threedAcl:READ`
+
+
+        Lists 3D assets mappings that match the specified filter parameter.
+
+        Only one type of filter can be specified for each request, either `assetIds`, `nodeIds` or `treeIndexes`.
+
+
+        In Hybrid CDF projects: The nodeId and assetId mappings are returned by default.
+
+        To instead see only any `assetInstanceId` mappings (for CoreDM based contextualization),
+
+        set the `getDmsInstances` property to `true`, in the request body.
+
+
+        In DataModelingOnly CDF projects: This endpoint is not available. Use DMS queries to list CogniteCADNodes.'
+      operationId: filter3DAssetMappings
+      parameters:
+      - $ref: '#/components/parameters/ModelId'
+      - $ref: '#/components/parameters/RevisionId'
+      requestBody:
+        description: The filter for asset mappings to get.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssetMapping3DFilterRequest'
+      responses:
+        '200':
+          description: A list of matching asset mappings.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetMapping3DWithCursorResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-capability:
+      - threedAcl:READ
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: "const mappings3D = await client.assetMappings3D.filter(3244265346345, 32423454353545, {\n  filter: {\n    treeIndexes: [1000, 1001, 1002]\n  }\n});"
+      - lang: Java
+        label: Java SDK
+        source: " Request request1 = \n          Request.create().withFilterParameter(\"assetIds\", List.of(1L, 2L)); \nIterator<List<ThreeDAssetMapping>> itFilter1 = client.threeD() \n          .models() \n          .revisions() \n          .assetMappings() \n          .filter(model.getId(), revision.getId(), request1); \n\n"
+  /3d/mappings/{assetId}/modelnodes:
+    get:
+      tags:
+      - 3D Asset Mapping
+      summary: List mappings for one assetID across all 3D models
+      description: '
+
+
+        > **Required capabilities:** `threedAcl:READ`
+
+
+        Retrieves a list of `node IDs` from the hierarchy of all available 3D models which are mapped to the supplied `asset ID`.
+
+        If a `nodeId` is mapped to an `assetId` but is invalid or does not exist anymore, it will be omitted from the results.
+
+        An asset referenced in an asset mapping is not guaranteed to exist.'
+      parameters:
+      - $ref: '#/components/parameters/AssetId'
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: A list of mappings between assets and 3D valid nodes and revisions in which exist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectAssetMapping3DList'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-capability:
+      - threedAcl:READ
+  /3d/nodes/list:
+    post:
+      tags:
+      - 3D Asset Mapping
+      summary: Filter which nodes are within a boundingbox for a revision.
+      description: 'This endpoint is only supported in dm-only projects.
+
+        The nodeIds can be found as part of a CogniteCadNode in the field `cadNodeReference`.
+
+        Similar functionality is supported in classic through:
+
+        - list 3D asset mappings endpoint + intersectsBoundingBox'
+      requestBody:
+        description: The Model, Revision, a list of nodes and an area definition
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FilterNodesByBoundingBoxRequest'
+      responses:
+        '200':
+          description: A list containing the nodes that are within the area definition for the given Model Revision
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FilterNodesByBoundingBoxResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+components:
+  schemas:
+    NextCursor:
+      type: string
+      description: Cursor to get the next page of results (if available).
+    FilterNodesByBoundingBox:
+      type: object
+      required:
+      - boundingBox
+      - nodeIds
+      properties:
+        boundingBox:
+          $ref: '#/components/schemas/BoundingBox'
+        nodeIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+    TreeIndex:
+      type: integer
+      minimum: 0
+      description: The index of the node in the 3D model hierarchy, starting from 0. The tree is traversed in a depth-first order.
+      format: int64
+      example: 3
+    CreateAssetMapping3DDms:
+      type: object
+      required:
+      - nodeId
+      - assetInstanceId
+      properties:
+        nodeId:
+          type: integer
+          description: The ID of the node.
+          format: int64
+          example: 1003
+        assetInstanceId:
+          $ref: '#/components/schemas/DirectRelationReference'
+    CogniteInstanceId:
+      description: The ID of an [instance in Cognite Data Models](https://docs.cognite.com/cdf/dm/dm_concepts/dm_spaces_instances#instance).
+      type: object
+      required:
+      - space
+      - externalId
+      properties:
+        space:
+          type: string
+          minLength: 1
+          maxLength: 43
+        externalId:
+          type: string
+          minLength: 1
+          maxLength: 255
+    FilterNodesByBoundingBoxRequest:
+      type: object
+      required:
+      - model
+      - revision
+      - filterNodesByBoundingBox
+      properties:
+        model:
+          $ref: '#/components/schemas/InstanceReference'
+        revision:
+          $ref: '#/components/schemas/InstanceReference'
+        filterNodesByBoundingBox:
+          $ref: '#/components/schemas/FilterNodesByBoundingBox'
+    NextCursorData:
+      type: object
+      properties:
+        nextCursor:
+          $ref: '#/components/schemas/NextCursor'
+    BoundingBox3D:
+      type: object
+      required:
+      - min
+      - max
+      properties:
+        max:
+          maxItems: 3
+          minItems: 3
+          type: array
+          items:
+            type: number
+            description: The maximal coordinates of the bounding box.
+            format: double
+        min:
+          maxItems: 3
+          minItems: 3
+          type: array
+          items:
+            type: number
+            description: The minimal coordinates of the bounding box.
+            format: double
+      description: The bounding box of the subtree with this sector as the root sector. Is null if there are no geometries in the subtree.
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
+    NodesWithBoundingBoxList:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/NodesWithBoundingBox'
+    DeleteAssetMapping3DDmsBody:
+      type: object
+      required:
+      - items
+      - dmsContextualizationConfig
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/DeleteAssetMapping3DDms'
+        dmsContextualizationConfig:
+          $ref: '#/components/schemas/DmsCADContextualizationConfig'
+    CreateAssetMapping3DClassicBody:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items:
+            $ref: '#/components/schemas/CreateAssetMapping3D'
+    CreateAssetMapping3DDmsBody:
+      type: object
+      required:
+      - items
+      - dmsContextualizationConfig
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/CreateAssetMapping3DDms'
+        dmsContextualizationConfig:
+          $ref: '#/components/schemas/DmsCADContextualizationConfig'
+    AssetMapping3DFilterRequest:
+      allOf:
+      - $ref: '#/components/schemas/AssetMapping3DFilter'
+      - $ref: '#/components/schemas/Cursor'
+    AssetMapping3DList:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AssetMapping3D'
+    SpaceSpecification:
+      type: string
+      pattern: ^[a-zA-Z][a-zA-Z0-9_-]{0,41}[a-zA-Z0-9]?$
+      minLength: 1
+      maxLength: 43
+    AssetMapping3DFilter:
+      type: object
+      properties:
+        getDmsInstances:
+          type: boolean
+          description: If true, the response will include only the mappings with assetInstanceId values, for DMS based assets.
+          default: false
+        filter:
+          oneOf:
+          - $ref: '#/components/schemas/AssetMapping3DAssetFilter'
+          - $ref: '#/components/schemas/AssetMapping3DAssetInstanceIdFilter'
+          - $ref: '#/components/schemas/AssetMapping3DNodeFilter'
+          - $ref: '#/components/schemas/AssetMapping3DTreeIndexFilter'
+        limit:
+          description: Limits the number of results to return.
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 1000
+          default: 100
+    BoundingBox:
+      type: object
+      required:
+      - xMin
+      - xMax
+      - yMin
+      - yMax
+      - zMin
+      - zMax
+      properties:
+        xMin:
+          $ref: '#/components/schemas/Float'
+        xMax:
+          $ref: '#/components/schemas/Float'
+        yMin:
+          $ref: '#/components/schemas/Float'
+        yMax:
+          $ref: '#/components/schemas/Float'
+        zMin:
+          $ref: '#/components/schemas/Float'
+        zMax:
+          $ref: '#/components/schemas/Float'
+    AssetMapping3DTreeIndexFilter:
+      type: object
+      required:
+      - treeIndexes
+      properties:
+        treeIndexes:
+          type: array
+          minItems: 0
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/TreeIndex'
+    AssetMapping3DAssetFilter:
+      type: object
+      required:
+      - assetIds
+      properties:
+        assetIds:
+          type: array
+          minItems: 0
+          maxItems: 100
+          items:
+            type: integer
+            format: int64
+    Float:
+      type: number
+      format: float
+    DirectRelationReference:
+      type: object
+      description: Reference to the node pointed to by the direct relation. The reference consists of a space and an external-id.
+      required:
+      - space
+      - externalId
+      properties:
+        space:
+          $ref: '#/components/schemas/SpaceSpecification'
+        externalId:
+          $ref: '#/components/schemas/NodeOrEdgeExternalId'
+    AssetMapping3DWithCursorResponse:
+      allOf:
+      - $ref: '#/components/schemas/AssetMapping3DList'
+      - $ref: '#/components/schemas/NextCursorData'
+    AssetMapping3D:
+      type: object
+      required:
+      - nodeId
+      properties:
+        nodeId:
+          type: integer
+          description: The ID of the node.
+          format: int64
+          example: 1003
+        assetId:
+          type: integer
+          description: The ID of the associated asset (Cognite's Assets API).
+          format: int64
+          example: 3001
+        assetInstanceId:
+          $ref: '#/components/schemas/DirectRelationReference'
+        treeIndex:
+          $ref: '#/components/schemas/TreeIndex'
+        subtreeSize:
+          $ref: '#/components/schemas/SubtreeSize'
+    DeleteAssetMapping3DDms:
+      type: object
+      required:
+      - nodeId
+      - assetInstanceId
+      properties:
+        nodeId:
+          type: integer
+          description: The ID of the node.
+          format: int64
+          example: 1003
+        assetInstanceId:
+          $ref: '#/components/schemas/DirectRelationReference'
+    DeleteAssetMapping3D:
+      type: object
+      required:
+      - nodeId
+      properties:
+        nodeId:
+          type: integer
+          description: The ID of the node.
+          format: int64
+          example: 1003
+        assetId:
+          type: integer
+          description: The ID of the associated asset (Cognite's Assets API).
+          format: int64
+          example: 3001
+        assetInstanceId:
+          $ref: '#/components/schemas/DirectRelationReference'
+    AssetMapping3DAssetInstanceIdFilter:
+      type: object
+      required:
+      - assetInstanceIds
+      properties:
+        assetInstanceIds:
+          type: array
+          minItems: 0
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/CogniteInstanceId'
+    Node3DAssetMapping:
+      type: object
+      required:
+      - modelId
+      - revisionId
+      - nodeId
+      properties:
+        modelId:
+          type: integer
+          description: The ID of the associated model
+          format: int64
+          example: 3001
+        revisionId:
+          type: integer
+          description: The ID of the associated revision
+          format: int64
+          example: 3001
+        nodeId:
+          type: integer
+          description: The ID of the node.
+          format: int64
+          example: 1003
+    FilterNodesByBoundingBoxResponse:
+      allOf:
+      - $ref: '#/components/schemas/NodesWithBoundingBoxList'
+      - $ref: '#/components/schemas/NextCursorData'
+    DeleteAssetMapping3DClassicBody:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items:
+            $ref: '#/components/schemas/DeleteAssetMapping3D'
+    CreateAssetMapping3D:
+      type: object
+      required:
+      - nodeId
+      properties:
+        nodeId:
+          type: integer
+          description: The ID of the node.
+          format: int64
+          example: 1003
+        assetId:
+          type: integer
+          description: The ID of the associated asset (Cognite's Assets API).
+          format: int64
+          example: 3001
+        assetInstanceId:
+          $ref: '#/components/schemas/DirectRelationReference'
+    AssetMapping3DNodeFilter:
+      type: object
+      required:
+      - nodeIds
+      properties:
+        nodeIds:
+          type: array
+          minItems: 0
+          maxItems: 100
+          items:
+            type: integer
+            format: int64
+    InstanceReference:
+      type: object
+      required:
+      - instanceId
+      properties:
+        instanceId:
+          $ref: '#/components/schemas/CogniteInstanceId'
+    ProjectAssetMapping3DList:
+      allOf:
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
+            items:
+              $ref: '#/components/schemas/Node3DAssetMapping'
+      - $ref: '#/components/schemas/NextCursorData'
+    NodeOrEdgeExternalId:
+      type: string
+      pattern: ^[^\\x00]{1,256}$
+      minLength: 1
+      maxLength: 256
+    SubtreeSize:
+      type: integer
+      description: The number of descendants of the node, plus one (counting itself).
+      format: int64
+      example: 4
+    Cursor:
+      type: object
+      properties:
+        cursor:
+          type: string
+          example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
+
+        property, it means that there may be more results, and you should pass that value as the
+
+        `cursor` parameter in the next request.
+
+
+        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
+
+        decoded. Its internal structure is not a part of the public API, and may change without
+
+        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
+
+        '
+    DmsCADContextualizationConfig:
+      type: object
+      required:
+      - object3DSpace
+      - cadNodeSpace
+      properties:
+        object3DSpace:
+          $ref: '#/components/schemas/SpaceSpecification'
+        cadNodeSpace:
+          $ref: '#/components/schemas/SpaceSpecification'
+    NodesWithBoundingBox:
+      type: object
+      required:
+      - id
+      - treeIndex
+      - depth
+      - name
+      - subtreeSize
+      - boundingBox
+      properties:
+        id:
+          type: integer
+          description: The ID of the node.
+          format: int64
+          example: 1000
+        treeIndex:
+          $ref: '#/components/schemas/TreeIndex'
+        depth:
+          type: integer
+          description: The depth of the node in the tree, starting from 0 at the root node.
+          format: int64
+          example: 2
+        name:
+          type: string
+          description: The name of the node.
+          example: Node name
+        subtreeSize:
+          $ref: '#/components/schemas/SubtreeSize'
+        boundingBox:
+          $ref: '#/components/schemas/BoundingBox3D'
+  parameters:
+    ModelId:
+      name: modelId
+      in: path
+      description: Model ID.
+      required: true
+      schema:
+        type: integer
+        format: int64
+    RevisionId:
+      name: revisionId
+      in: path
+      description: Revision ID.
+      required: true
+      schema:
+        type: integer
+        format: int64
+    Cursor:
+      name: cursor
+      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
+
+        property, it means that there may be more results, and you should pass that value as the
+
+        `cursor` parameter in the next request.
+
+
+        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
+
+        decoded. Its internal structure is not a part of the public API, and may change without
+
+        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
+
+        '
+      in: query
+      schema:
+        type: string
+        example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+    AssetId:
+      name: assetId
+      in: path
+      description: Asset ID.
+      required: true
+      schema:
+        type: integer
+        format: int64
+    Limit:
+      name: limit
+      description: Limits the number of results to be returned. The maximum results returned by the server is 1000 even if you specify a higher limit.
+      in: query
+      schema:
+        type: integer
+        default: 100
+        minimum: 1
+        maximum: 1000
+  responses:
+    ErrorResponse:
+      description: The response for a failed request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+    EmptyResponse:
+      description: Empty response.
+      content:
+        application/json:
+          schema:
+            type: object
+  securitySchemes:
+    oidc-token:
+      type: http
+      scheme: bearer
+      bearerFormat: OpenID Connect or OAuth2 token
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+    oauth2-client-credentials:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        clientCredentials:
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-auth-code:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://your-idps.authorization.url/
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-open-industrial-data:
+      type: oauth2
+      description: Auth flow for Open Industrial Data. Get your client secret from https://hub.cognite.com/open-industrial-data-211.
+      flows:
+        clientCredentials:
+          tokenUrl: https://login.microsoftonline.com/48d5043c-cf70-4c49-881c-c638f5796997/oauth2/v2.0/token
+          scopes:
+            default: https://api.cognitedata.com/.default
+    org-oidc-token:
+      type: openIdConnect
+      openIdConnectUrl: https://auth.cognite.com/.well-known/openid-configuration
+      description: 'Access token issued by the Cognite authorization server, and valid for the target organization. The token must
+
+        be an OpenID Connect token, and it can be obtained by performing an OIDC login flow toward `auth.cognite.com`.
+
+        This is a single URL for all CDF organizations.'
+x-tagGroups:
+- name: Changelog
+  tags:
+  - Changelog
+- name: Organizations and projects
+  tags:
+  - Organizations
+  - Projects
+- name: Identity and access management
+  tags:
+  - Principals
+  - Groups
+  - Security categories
+  - Sessions
+  - Token
+  - User profiles
+  - Project Deletion Reporting
+- name: Data modeling
+  tags:
+  - Data Modeling
+  - Data models
+  - Spaces
+  - Views
+  - Containers
+  - Nodes
+  - Instances
+  - Statistics
+  - Streams
+  - Records
+- name: Asset-centric data model
+  tags:
+  - Assets
+  - Time series
+  - Synthetic Time Series
+  - Data point subscriptions
+  - Events
+  - Files
+  - Sequences
+  - Geospatial
+  - Seismic
+- name: 3D
+  tags:
+  - 3D Models
+  - 3D Model Revisions
+  - 3D Files
+  - 3D Asset Mapping
+  - 3D Contextualization
+  - 3D Jobs
+  - 3D Migration
+  - 3D Scenes
+- name: Contextualization
+  tags:
+  - Entity matching
+  - Entity matching pipelines
+  - Engineering diagrams
+  - Vision
+  - Advanced joins
+- name: Cognite AI
+  tags:
+  - Agents
+  - Skills
+  - Chat Completions
+  - Document AI
+  - Models
+- name: Documents
+  tags:
+  - Documents
+  - Document preview
+- name: Data ingestion
+  tags:
+  - Raw
+  - Extraction Pipelines
+  - Extraction Pipelines Runs
+  - Extraction Pipelines Config
+  - Extractors
+- name: Data organization
+  tags:
+  - Data sets
+  - Data domains
+  - Data products
+  - Rule sets
+  - Labels
+  - Relationships
+  - Annotations
+- name: Transformations
+  tags:
+  - Transformations
+  - Transformation Jobs
+  - Transformation Schedules
+  - Transformation Notifications
+  - Query
+  - Schema
+- name: Functions
+  tags:
+  - Functions
+  - Function calls
+  - Function schedules
+- name: Hosted Extractors
+  tags:
+  - Sources
+  - Jobs
+  - Destinations
+  - Mappings
+- name: PostgreSQL Gateway
+  tags:
+  - Postgres Gateway Users
+  - Postgres Gateway Tables
+- name: SAP Writeback
+  tags:
+  - SAP Instances
+  - SAP Endpoints
+  - Schema Mappings
+  - Writeback Requests
+- name: Data workflows
+  tags:
+  - Workflows
+  - Workflow versions
+  - Workflow executions
+  - Workflow triggers
+  - Tasks
+  - Workers
+- name: Simulators
+  tags:
+  - Simulators
+  - Simulator Integrations
+  - Simulator Models
+  - Simulator Routines
+  - Simulation Runs
+  - Simulator Logs
+- name: Units
+  tags:
+  - Units
+  - Unit Systems
+- name: ''
+  tags:
+  - ''

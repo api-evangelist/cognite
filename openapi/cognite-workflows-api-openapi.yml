@@ -1,0 +1,540 @@
+openapi: 3.1.0
+info:
+  title: Cognite 3D Asset Mapping Workflows API
+  description: "# Introduction\nThis is the reference documentation for the Cognite API with\nan overview of all the available methods.\n\n# Postman\nSelect the **Download** button to download our OpenAPI specification to get started.\n\nTo import your data into Postman, select **Import**, and the Import modal opens.\nYou can import items by dragging or dropping files or folders. You can choose how to import your API and manage the import settings in **View Import Settings**.\n\nIn the Import Settings, set the **Folder organization** to **Tags**, select\n**Enable optional parameters** to turn off the settings, and select **Always inherit authentication** to turn on the settings. Select **Import**.\n\nSet the Authorization to **Oauth2.0**. By default, the settings are for Open Industrial Data. Navigate to [Cognite Hub](https://hub.cognite.com/open-industrial-data-211) to understand how to get the credentials for use in Postman.\n\nFor more information, see [Getting Started with Postman](https://developer.cognite.com/dev/guides/postman/).\n\n# Pagination\nMost resource types can be paginated, indicated by the field `nextCursor` in the response.\nBy passing the value of `nextCursor` as the cursor you will get the next page of `limit` results.\nNote that all parameters except `cursor` has to stay the same.\n\n# Parallel retrieval\nAs general guidance, Parallel Retrieval is a technique that should be used when due to query complexity, retrieval of data in a single request is significantly slower than it would otherwise be for a simple request.  Parallel retrieval does not act as a speed multiplier on optimally running queries.  By parallelizing such requests, data retrieval performance can be tuned to meet the client application needs. \n\nCDF supports parallel retrieval through the `partition` parameter, which has the format `m/n` where `n` is the amount of partitions you would like to split the entire data set into.\nIf you want to download the entire data set by splitting it into 10 partitions, do the following in parallel with `m` running from 1 to 10:\n  - Make a request to `/events` with `partition=m/10`.\n  - Paginate through the response by following the cursor as explained above. Note that the `partition` parameter needs to be passed to all subqueries.\n\nProcessing of parallel retrieval requests is subject to concurrency quota availability. The request returns the `429` response upon exceeding concurrency limits. See the Request throttling chapter below.\n\nTo prevent unexpected problems and to maximize read throughput, you should at most use 10 partitions. \nSome CDF resources will automatically enforce a maximum of 10 partitions.\nFor more specific and detailed information, please read the ```partition``` attribute documentation for the CDF resource you're using.  \n\n# Requests throttling\nCognite Data Fusion (CDF) returns the HTTP `429` (too many requests) response status code when project capacity exceeds the limit.\n\nThe throttling can happen:\n  - If a user or a project sends too many (more than allocated) concurrent requests.\n  - If a user or a project sends a too high (more than allocated) rate of requests in a given amount of time.\n\nCognite recommends using a retry strategy based on truncated exponential backoff to handle sessions with HTTP response codes 429.\n\nCognite recommends using a reasonable number (up to 10) of  `Parallel retrieval` partitions.\n\nFollowing these strategies lets you slow down the request frequency to maximize productivity without having to re-submit/retry failing requests.\n\nSee more [here](https://docs.cognite.com/dev/concepts/resource_throttling).\n\n# API versions\n## Version headers\nThis API uses calendar versioning, and version names follow the `YYYYMMDD` format.\nYou can find the versions currently available by using the version selector at the top of this page.\n\nTo use a specific API version, you can pass the `cdf-version: $version` header along with your requests to the API.\n\n## Beta versions\nThe beta versions provide a preview of what the stable version will look like in the future.\nBeta versions contain functionality that is reasonably mature, and highly likely to become a part of the stable API.\n\nBeta versions are indicated by a `-beta` suffix after the version name. For example, the beta version header for the\n2023-01-01 version is then `cdf-version: 20230101-beta`.\n\n## Alpha versions\nAlpha versions contain functionality that is new and experimental, and not guaranteed to ever become a part of the stable API.\nThis functionality presents no guarantee of service, so its use is subject to caution.\n\nAlpha versions are indicated by an `-alpha` suffix after the version name. For example, the alpha version header for\nthe 2023-01-01 version is then `cdf-version: 20230101-alpha`."
+  version: v1
+  contact:
+    name: Cognite Support
+    url: https://support.cognite.com
+    email: support@cognite.com
+servers:
+- url: https://{cluster}.cognitedata.com/api/v1/projects/{project}
+  description: The URL for the CDF cluster to connect to
+  variables:
+    cluster:
+      enum:
+      - api
+      - az-tyo-gp-001
+      - az-eastus-1
+      - az-power-no-northeurope
+      - westeurope-1
+      - asia-northeast1-1
+      - gc-dsm-gp-001
+      default: api
+      description: The CDF cluster to connect to
+    project:
+      default: publicdata
+      description: The CDF project name.
+security:
+- oidc-token:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-client-credentials:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-open-industrial-data:
+  - https://api.cognitedata.com/.default
+- oauth2-auth-code:
+  - https://{cluster}.cognitedata.com/.default
+tags:
+- name: Workflows
+  description: Define and orchestrate data workflows consisting of CDF Transformations, Cognite Functions, and other processes. This service enables you to build data pipelines and business solutions leveraging the capabilities of CDF and external tools.<br><br> All API and service limitations are listed <a href="https://docs.cognite.com/cdf/data_workflows/limits_and_restrictions_workflows/">here</a>.
+paths:
+  /workflows:
+    post:
+      operationId: CreateOrUpdateWorkflow
+      summary: Create or update a workflow
+      description: '
+
+
+        > **Required capabilities:** `workflowOrchestrationACL:WRITE`
+
+
+        Create or update a workflow. Limited to a single workflow per request.'
+      tags:
+      - Workflows
+      x-capability:
+      - workflowOrchestrationACL:WRITE
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - items
+              properties:
+                items:
+                  type: array
+                  maxItems: 1
+                  minItems: 1
+                  items:
+                    type: object
+                    properties:
+                      externalId:
+                        $ref: '#/components/schemas/WorkflowExternalId'
+                      description:
+                        type: string
+                        maxLength: 500
+                      dataSetId:
+                        $ref: '#/components/schemas/dataSetIdWorkflows'
+                      maxConcurrentExecutions:
+                        $ref: '#/components/schemas/MaxConcurrentExecutions'
+                    required:
+                    - externalId
+      responses:
+        '200':
+          description: List of created workflows
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WorkflowView'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: 'from cognite.client.data_classes import WorkflowUpsert
+
+          wf = WorkflowUpsert(external_id="my_workflow", description="my workflow description")
+
+          res = client.workflows.upsert(wf)
+
+
+          wf2 = WorkflowUpsert(external_id="other", data_set_id=123)
+
+          res = client.workflows.upsert([wf, wf2])
+
+          '
+    get:
+      operationId: FetchAllWorkflows
+      summary: List workflows
+      description: '
+
+
+        > **Required capabilities:** `workflowOrchestrationACL:READ`
+
+
+        List workflows in the project.'
+      tags:
+      - Workflows
+      x-capability:
+      - workflowOrchestrationACL:READ
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/limit'
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/cursor'
+      responses:
+        '200':
+          description: List of workflows
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WorkflowView'
+                  nextCursor:
+                    $ref: '#/components/schemas/nextCursor'
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: 'res = client.workflows.list(limit=None)
+
+          '
+  /workflows/delete:
+    post:
+      operationId: DeleteWorkflows
+      summary: Delete workflows
+      description: '
+
+
+        > **Required capabilities:** `workflowOrchestrationACL:WRITE`
+
+
+        Delete workflows, including all associated workflow versions.'
+      tags:
+      - Workflows
+      x-capability:
+      - workflowOrchestrationACL:WRITE
+      parameters:
+      - name: ignoreUnknownIds
+        in: query
+        required: false
+        description: If `true`, ignore unknown workflow ids. If `false`, a `404 Not Found` error is returned and none of the workflows are deleted if any of the workflow ids are unknown.
+        schema:
+          type: boolean
+          default: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                items:
+                  type: array
+                  minItems: 1
+                  maxItems: 100
+                  items:
+                    type: object
+                    properties:
+                      externalId:
+                        $ref: '#/components/schemas/WorkflowExternalId'
+                    required:
+                    - externalId
+                  required:
+                  - items
+      responses:
+        '200':
+          $ref: '#/components/responses/EmptyResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: 'client.workflows.delete("my_workflow")
+
+          '
+  /workflows/{workflowExternalId}:
+    parameters:
+    - name: workflowExternalId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/WorkflowExternalId'
+    get:
+      operationId: fetchWorkflowDetails
+      summary: Retrieve a workflow
+      description: '
+
+
+        > **Required capabilities:** `workflowOrchestrationACL:READ`
+
+
+        Retrieve a workflow by its external id.'
+      tags:
+      - Workflows
+      x-capability:
+      - workflowOrchestrationACL:READ
+      responses:
+        '200':
+          description: Information about the workflow
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowView'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: 'workflow = client.workflows.retrieve("my_workflow")
+
+
+          workflow_list = client.workflows.retrieve(["foo", "bar"])
+
+          '
+components:
+  schemas:
+    cursor:
+      type: string
+      example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+      description: Cursor to use for paging through results. This cursor is returned in the response of a previous request as `nextCursor`. If not specified, start from the first page of results.
+    WorkflowView:
+      title: Workflow
+      type: object
+      properties:
+        externalId:
+          $ref: '#/components/schemas/WorkflowExternalId'
+        description:
+          type: string
+          maxLength: 500
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        lastUpdatedTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        dataSetId:
+          $ref: '#/components/schemas/dataSetIdWorkflows'
+        maxConcurrentExecutions:
+          $ref: '#/components/schemas/MaxConcurrentExecutions'
+      required:
+      - externalId
+      - createdTime
+      - lastUpdatedTime
+    MaxConcurrentExecutions:
+      type:
+      - integer
+      - 'null'
+      minimum: 1
+      maximum: 10000
+      description: Maximum concurrent executions for this workflow. Defaults to the project limit if not specified, explicitly set to null, or omitted on update. Values exceeding the project limit are dynamically capped at runtime. The typical project limit ranges from 50 to 200 concurrent executions.
+    WorkflowExternalId:
+      type: string
+      description: Identifier for a workflow. Must be unique for the project. No trailing or leading whitespace and no null characters allowed.
+      maxLength: 255
+    limit:
+      type: integer
+      minimum: 1
+      maximum: 1000
+      default: 100
+      description: The maximum number of results to return.
+    CogniteInternalId:
+      description: A server-generated ID for the object.
+      type: integer
+      minimum: 1
+      maximum: 9007199254740991
+      format: int64
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    dataSetIdWorkflows:
+      description: 'The unique identifier (ID) of the dataset that this workflow is associated with. \
+
+        A user must have access to this dataset to perform any actions on the workflow, such as viewing, updating, or deleting it. \
+
+        Additionally, to manage any resources connected to the workflow (such as triggers, versions, or executions), the user must also have access to the dataset for viewing, updating, creating, and deleting these resources.
+
+        '
+      allOf:
+      - $ref: '#/components/schemas/CogniteInternalId'
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
+    nextCursor:
+      description: Cursor to get the next page of results. If not present, no more results are available.
+      type: string
+      example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+  responses:
+    ErrorResponse:
+      description: The response for a failed request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+    EmptyResponse:
+      description: Empty response.
+      content:
+        application/json:
+          schema:
+            type: object
+  securitySchemes:
+    oidc-token:
+      type: http
+      scheme: bearer
+      bearerFormat: OpenID Connect or OAuth2 token
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+    oauth2-client-credentials:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        clientCredentials:
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-auth-code:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://your-idps.authorization.url/
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-open-industrial-data:
+      type: oauth2
+      description: Auth flow for Open Industrial Data. Get your client secret from https://hub.cognite.com/open-industrial-data-211.
+      flows:
+        clientCredentials:
+          tokenUrl: https://login.microsoftonline.com/48d5043c-cf70-4c49-881c-c638f5796997/oauth2/v2.0/token
+          scopes:
+            default: https://api.cognitedata.com/.default
+    org-oidc-token:
+      type: openIdConnect
+      openIdConnectUrl: https://auth.cognite.com/.well-known/openid-configuration
+      description: 'Access token issued by the Cognite authorization server, and valid for the target organization. The token must
+
+        be an OpenID Connect token, and it can be obtained by performing an OIDC login flow toward `auth.cognite.com`.
+
+        This is a single URL for all CDF organizations.'
+x-tagGroups:
+- name: Changelog
+  tags:
+  - Changelog
+- name: Organizations and projects
+  tags:
+  - Organizations
+  - Projects
+- name: Identity and access management
+  tags:
+  - Principals
+  - Groups
+  - Security categories
+  - Sessions
+  - Token
+  - User profiles
+  - Project Deletion Reporting
+- name: Data modeling
+  tags:
+  - Data Modeling
+  - Data models
+  - Spaces
+  - Views
+  - Containers
+  - Nodes
+  - Instances
+  - Statistics
+  - Streams
+  - Records
+- name: Asset-centric data model
+  tags:
+  - Assets
+  - Time series
+  - Synthetic Time Series
+  - Data point subscriptions
+  - Events
+  - Files
+  - Sequences
+  - Geospatial
+  - Seismic
+- name: 3D
+  tags:
+  - 3D Models
+  - 3D Model Revisions
+  - 3D Files
+  - 3D Asset Mapping
+  - 3D Contextualization
+  - 3D Jobs
+  - 3D Migration
+  - 3D Scenes
+- name: Contextualization
+  tags:
+  - Entity matching
+  - Entity matching pipelines
+  - Engineering diagrams
+  - Vision
+  - Advanced joins
+- name: Cognite AI
+  tags:
+  - Agents
+  - Skills
+  - Chat Completions
+  - Document AI
+  - Models
+- name: Documents
+  tags:
+  - Documents
+  - Document preview
+- name: Data ingestion
+  tags:
+  - Raw
+  - Extraction Pipelines
+  - Extraction Pipelines Runs
+  - Extraction Pipelines Config
+  - Extractors
+- name: Data organization
+  tags:
+  - Data sets
+  - Data domains
+  - Data products
+  - Rule sets
+  - Labels
+  - Relationships
+  - Annotations
+- name: Transformations
+  tags:
+  - Transformations
+  - Transformation Jobs
+  - Transformation Schedules
+  - Transformation Notifications
+  - Query
+  - Schema
+- name: Functions
+  tags:
+  - Functions
+  - Function calls
+  - Function schedules
+- name: Hosted Extractors
+  tags:
+  - Sources
+  - Jobs
+  - Destinations
+  - Mappings
+- name: PostgreSQL Gateway
+  tags:
+  - Postgres Gateway Users
+  - Postgres Gateway Tables
+- name: SAP Writeback
+  tags:
+  - SAP Instances
+  - SAP Endpoints
+  - Schema Mappings
+  - Writeback Requests
+- name: Data workflows
+  tags:
+  - Workflows
+  - Workflow versions
+  - Workflow executions
+  - Workflow triggers
+  - Tasks
+  - Workers
+- name: Simulators
+  tags:
+  - Simulators
+  - Simulator Integrations
+  - Simulator Models
+  - Simulator Routines
+  - Simulation Runs
+  - Simulator Logs
+- name: Units
+  tags:
+  - Units
+  - Unit Systems
+- name: ''
+  tags:
+  - ''

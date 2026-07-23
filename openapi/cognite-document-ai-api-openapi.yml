@@ -1,0 +1,607 @@
+openapi: 3.1.0
+info:
+  title: Cognite 3D Asset Mapping Document AI API
+  description: "# Introduction\nThis is the reference documentation for the Cognite API with\nan overview of all the available methods.\n\n# Postman\nSelect the **Download** button to download our OpenAPI specification to get started.\n\nTo import your data into Postman, select **Import**, and the Import modal opens.\nYou can import items by dragging or dropping files or folders. You can choose how to import your API and manage the import settings in **View Import Settings**.\n\nIn the Import Settings, set the **Folder organization** to **Tags**, select\n**Enable optional parameters** to turn off the settings, and select **Always inherit authentication** to turn on the settings. Select **Import**.\n\nSet the Authorization to **Oauth2.0**. By default, the settings are for Open Industrial Data. Navigate to [Cognite Hub](https://hub.cognite.com/open-industrial-data-211) to understand how to get the credentials for use in Postman.\n\nFor more information, see [Getting Started with Postman](https://developer.cognite.com/dev/guides/postman/).\n\n# Pagination\nMost resource types can be paginated, indicated by the field `nextCursor` in the response.\nBy passing the value of `nextCursor` as the cursor you will get the next page of `limit` results.\nNote that all parameters except `cursor` has to stay the same.\n\n# Parallel retrieval\nAs general guidance, Parallel Retrieval is a technique that should be used when due to query complexity, retrieval of data in a single request is significantly slower than it would otherwise be for a simple request.  Parallel retrieval does not act as a speed multiplier on optimally running queries.  By parallelizing such requests, data retrieval performance can be tuned to meet the client application needs. \n\nCDF supports parallel retrieval through the `partition` parameter, which has the format `m/n` where `n` is the amount of partitions you would like to split the entire data set into.\nIf you want to download the entire data set by splitting it into 10 partitions, do the following in parallel with `m` running from 1 to 10:\n  - Make a request to `/events` with `partition=m/10`.\n  - Paginate through the response by following the cursor as explained above. Note that the `partition` parameter needs to be passed to all subqueries.\n\nProcessing of parallel retrieval requests is subject to concurrency quota availability. The request returns the `429` response upon exceeding concurrency limits. See the Request throttling chapter below.\n\nTo prevent unexpected problems and to maximize read throughput, you should at most use 10 partitions. \nSome CDF resources will automatically enforce a maximum of 10 partitions.\nFor more specific and detailed information, please read the ```partition``` attribute documentation for the CDF resource you're using.  \n\n# Requests throttling\nCognite Data Fusion (CDF) returns the HTTP `429` (too many requests) response status code when project capacity exceeds the limit.\n\nThe throttling can happen:\n  - If a user or a project sends too many (more than allocated) concurrent requests.\n  - If a user or a project sends a too high (more than allocated) rate of requests in a given amount of time.\n\nCognite recommends using a retry strategy based on truncated exponential backoff to handle sessions with HTTP response codes 429.\n\nCognite recommends using a reasonable number (up to 10) of  `Parallel retrieval` partitions.\n\nFollowing these strategies lets you slow down the request frequency to maximize productivity without having to re-submit/retry failing requests.\n\nSee more [here](https://docs.cognite.com/dev/concepts/resource_throttling).\n\n# API versions\n## Version headers\nThis API uses calendar versioning, and version names follow the `YYYYMMDD` format.\nYou can find the versions currently available by using the version selector at the top of this page.\n\nTo use a specific API version, you can pass the `cdf-version: $version` header along with your requests to the API.\n\n## Beta versions\nThe beta versions provide a preview of what the stable version will look like in the future.\nBeta versions contain functionality that is reasonably mature, and highly likely to become a part of the stable API.\n\nBeta versions are indicated by a `-beta` suffix after the version name. For example, the beta version header for the\n2023-01-01 version is then `cdf-version: 20230101-beta`.\n\n## Alpha versions\nAlpha versions contain functionality that is new and experimental, and not guaranteed to ever become a part of the stable API.\nThis functionality presents no guarantee of service, so its use is subject to caution.\n\nAlpha versions are indicated by an `-alpha` suffix after the version name. For example, the alpha version header for\nthe 2023-01-01 version is then `cdf-version: 20230101-alpha`."
+  version: v1
+  contact:
+    name: Cognite Support
+    url: https://support.cognite.com
+    email: support@cognite.com
+servers:
+- url: https://{cluster}.cognitedata.com/api/v1/projects/{project}
+  description: The URL for the CDF cluster to connect to
+  variables:
+    cluster:
+      enum:
+      - api
+      - az-tyo-gp-001
+      - az-eastus-1
+      - az-power-no-northeurope
+      - westeurope-1
+      - asia-northeast1-1
+      - gc-dsm-gp-001
+      default: api
+      description: The CDF cluster to connect to
+    project:
+      default: publicdata
+      description: The CDF project name.
+security:
+- oidc-token:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-client-credentials:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-open-industrial-data:
+  - https://api.cognitedata.com/.default
+- oauth2-auth-code:
+  - https://{cluster}.cognitedata.com/.default
+tags:
+- name: Document AI
+paths:
+  /ai/tools/documents/ask:
+    post:
+      description: 'This API endpoint uses a language model to answer questions about documents. Provided with a natural language question and a list of files, the API returns a multi-part answer with references to the locations in the documents that were used to build the answer.
+
+
+        ### Limitations
+
+        - Currently, we only support PDF files.
+
+        - The PDF files can be a maximum of 400 pages long.
+
+        - You can only pass 100 files in a single request.'
+      operationId: document_questioning_ai_tools_documents_ask_post
+      parameters:
+      - in: header
+        name: content-type
+        required: true
+        schema:
+          title: Content-Type
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentQARequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Answer'
+          description: Successful Response
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      summary: Ask questions about one or more documents.
+      tags:
+      - Document AI
+  /ai/tools/documents/summarize:
+    post:
+      description: Generates concise summaries for a list of input documents using a language model.
+      operationId: documents_summary_ai_tools_documents_summarize_post
+      parameters:
+      - in: header
+        name: content-type
+        required: true
+        schema:
+          title: Content-Type
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentSummarizationRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentSummarizationResponse'
+          description: Successful Response
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      summary: Summarize documents.
+      tags:
+      - Document AI
+components:
+  schemas:
+    DocumentInternalId:
+      additionalProperties: false
+      properties:
+        id:
+          description: The file ID for the document.
+          title: Id
+          type: integer
+      required:
+      - id
+      title: DocumentInternalId
+      type: object
+    Content:
+      additionalProperties: false
+      properties:
+        references:
+          description: The document locations that this part of the answer is sourced from.
+          items:
+            $ref: '#/components/schemas/ReferenceAI'
+          title: References
+          type: array
+        text:
+          description: A part of the answer from the LLM.
+          title: Text
+          type: string
+      required:
+      - text
+      title: Content
+      type: object
+    DocumentSummarizationResponseItemInternalId:
+      additionalProperties: false
+      properties:
+        id:
+          description: The file ID for the document.
+          title: Id
+          type: integer
+        summary:
+          description: The summary of the document.
+          title: Summary
+          type: string
+      required:
+      - id
+      - summary
+      title: DocumentSummarizationResponseItemInternalId
+      type: object
+    DocumentSummarizationRequest:
+      additionalProperties: false
+      properties:
+        ignoreUnknownIds:
+          default: false
+          description: If `true`, the API will not fail if any documents are missing, but summaries for the missing documents will be excluded from the response.
+          title: Ignoreunknownids
+          type: boolean
+        items:
+          description: A list of documents to summarize.
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/DocumentInternalId'
+            - $ref: '#/components/schemas/DocumentExternalId'
+            - $ref: '#/components/schemas/DocumentInstanceId'
+          maxItems: 1
+          minItems: 1
+          title: Items
+          type: array
+        language:
+          $ref: '#/components/schemas/DocumentsLanguage'
+          default: English
+          description: The language in which the answer should be provided.
+      required:
+      - items
+      title: DocumentSummarizationRequest
+      type: object
+    DocumentSummarizationResponseItemExternalId:
+      additionalProperties: false
+      properties:
+        externalId:
+          description: The external ID for the document. The value matches the externalId set in the Files API.
+          title: Externalid
+          type: string
+        summary:
+          description: The summary of the document.
+          title: Summary
+          type: string
+      required:
+      - externalId
+      - summary
+      title: DocumentSummarizationResponseItemExternalId
+      type: object
+    DocumentSummarizationResponseItemInstanceId:
+      additionalProperties: false
+      properties:
+        instanceId:
+          $ref: '#/components/schemas/InstanceIdAI'
+          description: The data modeling instance ID for the document.
+        summary:
+          description: The summary of the document.
+          title: Summary
+          type: string
+      required:
+      - instanceId
+      - summary
+      title: DocumentSummarizationResponseItemInstanceId
+      type: object
+    InstanceIdAI:
+      additionalProperties: false
+      properties:
+        externalId:
+          description: The data modeling external ID of the document.
+          pattern: "^[^\0]{1,256}$"
+          title: Externalid
+          type: string
+        space:
+          description: The data modeling space of the document.
+          pattern: ^[a-zA-Z][a-zA-Z0-9_-]{0,41}[a-zA-Z0-9]?$
+          title: Space
+          type: string
+      required:
+      - space
+      - externalId
+      title: InstanceId
+      type: object
+    DocumentSummarizationResponse:
+      additionalProperties: false
+      properties:
+        items:
+          description: A list of documents with summaries.
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/DocumentSummarizationResponseItemInternalId'
+            - $ref: '#/components/schemas/DocumentSummarizationResponseItemExternalId'
+            - $ref: '#/components/schemas/DocumentSummarizationResponseItemInstanceId'
+          title: Items
+          type: array
+      required:
+      - items
+      title: DocumentSummarizationResponse
+      type: object
+    Answer:
+      additionalProperties: false
+      properties:
+        content:
+          description: The content of an answer consists of one or more parts. Each part can have a different set of document locations connected to it.
+          items:
+            $ref: '#/components/schemas/Content'
+          title: Content
+          type: array
+      required:
+      - content
+      title: Answer
+      type: object
+    DocumentsLanguage:
+      enum:
+      - Chinese
+      - Dutch
+      - English
+      - French
+      - German
+      - Italian
+      - Japanese
+      - Korean
+      - Latvian
+      - Norwegian
+      - Portuguese
+      - Spanish
+      - Swedish
+      title: DocumentsLanguage
+      type: string
+    DocumentQARequest:
+      additionalProperties: false
+      properties:
+        additionalContext:
+          description: Optional additional context that the model can use to improve its answer
+          maxLength: 2048
+          minLength: 10
+          title: Additionalcontext
+          type: string
+        fileIds:
+          description: A list of file IDs, external IDs, or instance IDs pointing to PDF documents
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/DocumentInternalId'
+            - $ref: '#/components/schemas/DocumentExternalId'
+            - $ref: '#/components/schemas/DocumentInstanceId'
+          maxItems: 100
+          minItems: 1
+          title: Fileids
+          type: array
+        ignoreUnknownIds:
+          default: false
+          description: If `true`, the API will not fail if any documents are missing or not fully processed, but generate an answer based on available documents.
+          title: Ignoreunknownids
+          type: boolean
+        language:
+          $ref: '#/components/schemas/DocumentsLanguage'
+          default: English
+          description: The language in which the answer should be provided.
+        question:
+          description: The question to ask about the documents.
+          maxLength: 2048
+          minLength: 1
+          title: Question
+          type: string
+      required:
+      - question
+      - fileIds
+      title: DocumentQARequest
+      type: object
+    DocumentExternalId:
+      additionalProperties: false
+      properties:
+        externalId:
+          description: The external ID for the document. The value matches the externalId set in the Files API.
+          title: Externalid
+          type: string
+      required:
+      - externalId
+      title: DocumentExternalId
+      type: object
+    LocationAI:
+      additionalProperties: false
+      properties:
+        bottom:
+          title: Bottom
+          type: number
+        left:
+          title: Left
+          type: number
+        pageNumber:
+          description: The page number within the file. Page numbers start at 1.
+          title: Pagenumber
+          type: integer
+        right:
+          title: Right
+          type: number
+        top:
+          title: Top
+          type: number
+      required:
+      - pageNumber
+      - left
+      - right
+      - top
+      - bottom
+      title: Location
+      type: object
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
+    ReferenceAI:
+      additionalProperties: false
+      properties:
+        externalId:
+          description: The external ID of the file.
+          title: Externalid
+          type: string
+        fileId:
+          description: The ID of the file.
+          title: Fileid
+          type: integer
+        fileName:
+          description: The name of the file.
+          title: Filename
+          type: string
+        instanceId:
+          $ref: '#/components/schemas/InstanceIdAI'
+          description: The instance ID of the file.
+        locations:
+          description: The locations in the document that contain the relevant text.
+          items:
+            $ref: '#/components/schemas/LocationAI'
+          title: Locations
+          type: array
+      required:
+      - fileId
+      - fileName
+      - locations
+      title: Reference
+      type: object
+    DocumentInstanceId:
+      additionalProperties: false
+      properties:
+        instanceId:
+          $ref: '#/components/schemas/InstanceIdAI'
+          description: The data modeling instance ID for the document.
+      required:
+      - instanceId
+      title: DocumentInstanceId
+      type: object
+  responses:
+    ErrorResponse:
+      description: The response for a failed request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+  securitySchemes:
+    oidc-token:
+      type: http
+      scheme: bearer
+      bearerFormat: OpenID Connect or OAuth2 token
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+    oauth2-client-credentials:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        clientCredentials:
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-auth-code:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://your-idps.authorization.url/
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-open-industrial-data:
+      type: oauth2
+      description: Auth flow for Open Industrial Data. Get your client secret from https://hub.cognite.com/open-industrial-data-211.
+      flows:
+        clientCredentials:
+          tokenUrl: https://login.microsoftonline.com/48d5043c-cf70-4c49-881c-c638f5796997/oauth2/v2.0/token
+          scopes:
+            default: https://api.cognitedata.com/.default
+    org-oidc-token:
+      type: openIdConnect
+      openIdConnectUrl: https://auth.cognite.com/.well-known/openid-configuration
+      description: 'Access token issued by the Cognite authorization server, and valid for the target organization. The token must
+
+        be an OpenID Connect token, and it can be obtained by performing an OIDC login flow toward `auth.cognite.com`.
+
+        This is a single URL for all CDF organizations.'
+x-tagGroups:
+- name: Changelog
+  tags:
+  - Changelog
+- name: Organizations and projects
+  tags:
+  - Organizations
+  - Projects
+- name: Identity and access management
+  tags:
+  - Principals
+  - Groups
+  - Security categories
+  - Sessions
+  - Token
+  - User profiles
+  - Project Deletion Reporting
+- name: Data modeling
+  tags:
+  - Data Modeling
+  - Data models
+  - Spaces
+  - Views
+  - Containers
+  - Nodes
+  - Instances
+  - Statistics
+  - Streams
+  - Records
+- name: Asset-centric data model
+  tags:
+  - Assets
+  - Time series
+  - Synthetic Time Series
+  - Data point subscriptions
+  - Events
+  - Files
+  - Sequences
+  - Geospatial
+  - Seismic
+- name: 3D
+  tags:
+  - 3D Models
+  - 3D Model Revisions
+  - 3D Files
+  - 3D Asset Mapping
+  - 3D Contextualization
+  - 3D Jobs
+  - 3D Migration
+  - 3D Scenes
+- name: Contextualization
+  tags:
+  - Entity matching
+  - Entity matching pipelines
+  - Engineering diagrams
+  - Vision
+  - Advanced joins
+- name: Cognite AI
+  tags:
+  - Agents
+  - Skills
+  - Chat Completions
+  - Document AI
+  - Models
+- name: Documents
+  tags:
+  - Documents
+  - Document preview
+- name: Data ingestion
+  tags:
+  - Raw
+  - Extraction Pipelines
+  - Extraction Pipelines Runs
+  - Extraction Pipelines Config
+  - Extractors
+- name: Data organization
+  tags:
+  - Data sets
+  - Data domains
+  - Data products
+  - Rule sets
+  - Labels
+  - Relationships
+  - Annotations
+- name: Transformations
+  tags:
+  - Transformations
+  - Transformation Jobs
+  - Transformation Schedules
+  - Transformation Notifications
+  - Query
+  - Schema
+- name: Functions
+  tags:
+  - Functions
+  - Function calls
+  - Function schedules
+- name: Hosted Extractors
+  tags:
+  - Sources
+  - Jobs
+  - Destinations
+  - Mappings
+- name: PostgreSQL Gateway
+  tags:
+  - Postgres Gateway Users
+  - Postgres Gateway Tables
+- name: SAP Writeback
+  tags:
+  - SAP Instances
+  - SAP Endpoints
+  - Schema Mappings
+  - Writeback Requests
+- name: Data workflows
+  tags:
+  - Workflows
+  - Workflow versions
+  - Workflow executions
+  - Workflow triggers
+  - Tasks
+  - Workers
+- name: Simulators
+  tags:
+  - Simulators
+  - Simulator Integrations
+  - Simulator Models
+  - Simulator Routines
+  - Simulation Runs
+  - Simulator Logs
+- name: Units
+  tags:
+  - Units
+  - Unit Systems
+- name: ''
+  tags:
+  - ''

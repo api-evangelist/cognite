@@ -1,0 +1,378 @@
+openapi: 3.1.0
+info:
+  title: Cognite 3D Asset Mapping Synthetic Time Series API
+  description: "# Introduction\nThis is the reference documentation for the Cognite API with\nan overview of all the available methods.\n\n# Postman\nSelect the **Download** button to download our OpenAPI specification to get started.\n\nTo import your data into Postman, select **Import**, and the Import modal opens.\nYou can import items by dragging or dropping files or folders. You can choose how to import your API and manage the import settings in **View Import Settings**.\n\nIn the Import Settings, set the **Folder organization** to **Tags**, select\n**Enable optional parameters** to turn off the settings, and select **Always inherit authentication** to turn on the settings. Select **Import**.\n\nSet the Authorization to **Oauth2.0**. By default, the settings are for Open Industrial Data. Navigate to [Cognite Hub](https://hub.cognite.com/open-industrial-data-211) to understand how to get the credentials for use in Postman.\n\nFor more information, see [Getting Started with Postman](https://developer.cognite.com/dev/guides/postman/).\n\n# Pagination\nMost resource types can be paginated, indicated by the field `nextCursor` in the response.\nBy passing the value of `nextCursor` as the cursor you will get the next page of `limit` results.\nNote that all parameters except `cursor` has to stay the same.\n\n# Parallel retrieval\nAs general guidance, Parallel Retrieval is a technique that should be used when due to query complexity, retrieval of data in a single request is significantly slower than it would otherwise be for a simple request.  Parallel retrieval does not act as a speed multiplier on optimally running queries.  By parallelizing such requests, data retrieval performance can be tuned to meet the client application needs. \n\nCDF supports parallel retrieval through the `partition` parameter, which has the format `m/n` where `n` is the amount of partitions you would like to split the entire data set into.\nIf you want to download the entire data set by splitting it into 10 partitions, do the following in parallel with `m` running from 1 to 10:\n  - Make a request to `/events` with `partition=m/10`.\n  - Paginate through the response by following the cursor as explained above. Note that the `partition` parameter needs to be passed to all subqueries.\n\nProcessing of parallel retrieval requests is subject to concurrency quota availability. The request returns the `429` response upon exceeding concurrency limits. See the Request throttling chapter below.\n\nTo prevent unexpected problems and to maximize read throughput, you should at most use 10 partitions. \nSome CDF resources will automatically enforce a maximum of 10 partitions.\nFor more specific and detailed information, please read the ```partition``` attribute documentation for the CDF resource you're using.  \n\n# Requests throttling\nCognite Data Fusion (CDF) returns the HTTP `429` (too many requests) response status code when project capacity exceeds the limit.\n\nThe throttling can happen:\n  - If a user or a project sends too many (more than allocated) concurrent requests.\n  - If a user or a project sends a too high (more than allocated) rate of requests in a given amount of time.\n\nCognite recommends using a retry strategy based on truncated exponential backoff to handle sessions with HTTP response codes 429.\n\nCognite recommends using a reasonable number (up to 10) of  `Parallel retrieval` partitions.\n\nFollowing these strategies lets you slow down the request frequency to maximize productivity without having to re-submit/retry failing requests.\n\nSee more [here](https://docs.cognite.com/dev/concepts/resource_throttling).\n\n# API versions\n## Version headers\nThis API uses calendar versioning, and version names follow the `YYYYMMDD` format.\nYou can find the versions currently available by using the version selector at the top of this page.\n\nTo use a specific API version, you can pass the `cdf-version: $version` header along with your requests to the API.\n\n## Beta versions\nThe beta versions provide a preview of what the stable version will look like in the future.\nBeta versions contain functionality that is reasonably mature, and highly likely to become a part of the stable API.\n\nBeta versions are indicated by a `-beta` suffix after the version name. For example, the beta version header for the\n2023-01-01 version is then `cdf-version: 20230101-beta`.\n\n## Alpha versions\nAlpha versions contain functionality that is new and experimental, and not guaranteed to ever become a part of the stable API.\nThis functionality presents no guarantee of service, so its use is subject to caution.\n\nAlpha versions are indicated by an `-alpha` suffix after the version name. For example, the alpha version header for\nthe 2023-01-01 version is then `cdf-version: 20230101-alpha`."
+  version: v1
+  contact:
+    name: Cognite Support
+    url: https://support.cognite.com
+    email: support@cognite.com
+servers:
+- url: https://{cluster}.cognitedata.com/api/v1/projects/{project}
+  description: The URL for the CDF cluster to connect to
+  variables:
+    cluster:
+      enum:
+      - api
+      - az-tyo-gp-001
+      - az-eastus-1
+      - az-power-no-northeurope
+      - westeurope-1
+      - asia-northeast1-1
+      - gc-dsm-gp-001
+      default: api
+      description: The CDF cluster to connect to
+    project:
+      default: publicdata
+      description: The CDF project name.
+security:
+- oidc-token:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-client-credentials:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-open-industrial-data:
+  - https://api.cognitedata.com/.default
+- oauth2-auth-code:
+  - https://{cluster}.cognitedata.com/.default
+tags:
+- name: Synthetic Time Series
+  description: 'Synthetic Time Series (STS) is a way to combine various input time series, constants and operators, to create completely new time series.
+
+
+    For example can we use the expression `24 * TS{externalId=''production/hour''}` to convert from hourly to daily production rates.
+
+
+    But STS is not limited to simple conversions.
+
+    * We support combination of different time series `TS{id=123} + TS{externalId=''hei''} / TS{space=''data modeling space'', externalId=''dm id''}`.
+
+    * Functions of time series `sin(pow(TS{id=123}, 2))`.
+
+    * Aggregations of time series `TS{id=123, aggregate=''average'', granularity=''1h''}+TS{id=456}`
+
+    * Convert time series with `unitExternalId` to another unit `TS{externalId=''temp_c'', targetUnit=''temperature:deg_f''}`.
+
+
+    To learn more about synthetic time series please follow [our guide](https://docs.cognite.com/dev/concepts/resource_types/synthetic_timeseries).'
+paths:
+  /timeseries/synthetic/query:
+    post:
+      tags:
+      - Synthetic Time Series
+      summary: Synthetic query
+      description: Execute an on-the-fly synthetic query
+      operationId: querySyntheticTimeseries
+      requestBody:
+        description: The list of queries to perform
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SyntheticMultiQuery'
+        required: true
+      responses:
+        '200':
+          description: List of datapoints for the specified queries.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyntheticQueryResponses'
+        '400':
+          description: Query error
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: "await client.timeseries.syntheticQuery([\n  {\n    expression: \"24 * TS{externalId='production/hour', aggregate='average', granularity='1d'}\",\n    start: '48h-ago',\n    end: 'now',\n    limit: 100\n  }\n]);"
+      - lang: Python
+        label: Python SDK
+        source: "expression = '''\n    123\n    + ts{id:123}\n    + ts{externalId:'abc'}\n    + ts{space:'my-space',externalId:'my-ts-xid'}\n'''\ndps = client.time_series.data.synthetic.query(\n    expressions=expression,\n    start=\"2w-ago\",\n    end=\"now\")\n\nfrom cognite.client.data_classes.data_modeling.ids import NodeId\nts = client.time_series.retrieve(id=123)\nvariables = {\n    \"A\": ts,\n    \"B\": \"my_ts_external_id\",\n    \"C\": NodeId(\"my-space\", \"my-ts-xid\"),\n}\ndps = client.time_series.data.synthetic.query(\n    expressions=\"A+B+C\", start=\"2w-ago\", end=\"now\", variables=variables)\n\nfrom sympy import symbols, cos, sin\nx, y = symbols(\"x y\")\ndps = client.time_series.data.synthetic.query(\n    [sin(x), y*cos(x)],\n    start=\"2w-ago\",\n    end=\"now\",\n    variables={x: \"foo\", y: \"bar\"},\n    aggregate=\"interpolation\",\n    granularity=\"15m\",\n    target_unit=\"temperature:deg_c\")\n"
+components:
+  schemas:
+    SyntheticQuery:
+      type: object
+      description: Synthetic query description
+      required:
+      - expression
+      properties:
+        expression:
+          type: string
+          description: query definition. For limits, see the [guide to synthetic time series](https://docs.cognite.com/dev/concepts/resource_types/synthetic_timeseries#limits).
+          example: (5 + TS{externalId='hello'}) / TS{id=123, aggregate='average', granularity='1h'} * TS{space='dm space', externalId='dm id'}
+        start:
+          $ref: '#/components/schemas/TimestampOrStringStart'
+        end:
+          $ref: '#/components/schemas/TimestampOrStringEnd'
+        limit:
+          type: integer
+          description: Return up to this number of datapoints
+          format: int32
+          example: 100
+          minimum: 1
+          maximum: 10000
+        timeZone:
+          type: string
+          description: 'For aggregates of granularity ''hour'' and longer, which [time zone](<https://docs.cognite.com/dev/concepts/aggregation/calendar>) should we align to. Align to the start of the hour, start of the day or start of the month. For time zones of type Region/Location, the aggregate duration can vary, typically due to daylight saving time. For time zones of type UTC+/-HH:MM, use increments of 15 minutes.
+
+            '
+          default: UTC
+          example: Europe/Oslo or UTC+05:30
+    TimestampOrStringEnd:
+      oneOf:
+      - type: integer
+      - type: string
+        default: now
+      description: Get datapoints up to, but excluding, this point in time. Same format as for start. Note that when using aggregates, the end will be rounded up such that the last aggregate represents a full aggregation interval containing the original end, where the interval is the granularity unit times the granularity multiplier. For granularity 2d, the aggregation interval is 2 days, if end was originally 3 days after the start, it will be rounded to 4 days after the start.
+    SyntheticDataError:
+      type: object
+      required:
+      - timestamp
+      - error
+      properties:
+        timestamp:
+          $ref: '#/components/schemas/EpochTimestamp'
+        error:
+          type: string
+          description: Human readable string with description of what went wrong
+          example: 'Error BAD_DOMAIN: Division by zero'
+    SyntheticQueryResponses:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SyntheticQueryResponse'
+    SyntheticMultiQuery:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SyntheticQuery'
+          minItems: 1
+          maxItems: 10
+    SyntheticDataValue:
+      type: object
+      required:
+      - timestamp
+      - value
+      properties:
+        timestamp:
+          $ref: '#/components/schemas/EpochTimestamp'
+        value:
+          type: number
+          description: the data value
+    SyntheticDataPoint:
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/SyntheticDataValue'
+      - $ref: '#/components/schemas/SyntheticDataError'
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    SyntheticQueryResponse:
+      type: object
+      required:
+      - datapoints
+      properties:
+        isString:
+          type: boolean
+          example: false
+          description: whether the returned data points are of string type or floating point type. Currently it will always be false.
+        datapoints:
+          type: array
+          description: list of data points
+          items:
+            $ref: '#/components/schemas/SyntheticDataPoint'
+    TimestampOrStringStart:
+      oneOf:
+      - type: integer
+        default: 0
+      - type: string
+      description: 'Get datapoints starting from, and including, this time. The format is N[timeunit]-ago where
+
+        timeunit is w,d,h,m,s. Example: ''2d-ago'' gets datapoints that are up to 2 days
+
+        old. You can also specify time in milliseconds since epoch. Note that for aggregates, the start time is rounded down to a whole granularity unit (in UTC timezone). Daily granularities (d)
+
+        are rounded to 0:00 AM; hourly granularities (h) to the start of the hour, etc.'
+  securitySchemes:
+    oidc-token:
+      type: http
+      scheme: bearer
+      bearerFormat: OpenID Connect or OAuth2 token
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+    oauth2-client-credentials:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        clientCredentials:
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-auth-code:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://your-idps.authorization.url/
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-open-industrial-data:
+      type: oauth2
+      description: Auth flow for Open Industrial Data. Get your client secret from https://hub.cognite.com/open-industrial-data-211.
+      flows:
+        clientCredentials:
+          tokenUrl: https://login.microsoftonline.com/48d5043c-cf70-4c49-881c-c638f5796997/oauth2/v2.0/token
+          scopes:
+            default: https://api.cognitedata.com/.default
+    org-oidc-token:
+      type: openIdConnect
+      openIdConnectUrl: https://auth.cognite.com/.well-known/openid-configuration
+      description: 'Access token issued by the Cognite authorization server, and valid for the target organization. The token must
+
+        be an OpenID Connect token, and it can be obtained by performing an OIDC login flow toward `auth.cognite.com`.
+
+        This is a single URL for all CDF organizations.'
+x-tagGroups:
+- name: Changelog
+  tags:
+  - Changelog
+- name: Organizations and projects
+  tags:
+  - Organizations
+  - Projects
+- name: Identity and access management
+  tags:
+  - Principals
+  - Groups
+  - Security categories
+  - Sessions
+  - Token
+  - User profiles
+  - Project Deletion Reporting
+- name: Data modeling
+  tags:
+  - Data Modeling
+  - Data models
+  - Spaces
+  - Views
+  - Containers
+  - Nodes
+  - Instances
+  - Statistics
+  - Streams
+  - Records
+- name: Asset-centric data model
+  tags:
+  - Assets
+  - Time series
+  - Synthetic Time Series
+  - Data point subscriptions
+  - Events
+  - Files
+  - Sequences
+  - Geospatial
+  - Seismic
+- name: 3D
+  tags:
+  - 3D Models
+  - 3D Model Revisions
+  - 3D Files
+  - 3D Asset Mapping
+  - 3D Contextualization
+  - 3D Jobs
+  - 3D Migration
+  - 3D Scenes
+- name: Contextualization
+  tags:
+  - Entity matching
+  - Entity matching pipelines
+  - Engineering diagrams
+  - Vision
+  - Advanced joins
+- name: Cognite AI
+  tags:
+  - Agents
+  - Skills
+  - Chat Completions
+  - Document AI
+  - Models
+- name: Documents
+  tags:
+  - Documents
+  - Document preview
+- name: Data ingestion
+  tags:
+  - Raw
+  - Extraction Pipelines
+  - Extraction Pipelines Runs
+  - Extraction Pipelines Config
+  - Extractors
+- name: Data organization
+  tags:
+  - Data sets
+  - Data domains
+  - Data products
+  - Rule sets
+  - Labels
+  - Relationships
+  - Annotations
+- name: Transformations
+  tags:
+  - Transformations
+  - Transformation Jobs
+  - Transformation Schedules
+  - Transformation Notifications
+  - Query
+  - Schema
+- name: Functions
+  tags:
+  - Functions
+  - Function calls
+  - Function schedules
+- name: Hosted Extractors
+  tags:
+  - Sources
+  - Jobs
+  - Destinations
+  - Mappings
+- name: PostgreSQL Gateway
+  tags:
+  - Postgres Gateway Users
+  - Postgres Gateway Tables
+- name: SAP Writeback
+  tags:
+  - SAP Instances
+  - SAP Endpoints
+  - Schema Mappings
+  - Writeback Requests
+- name: Data workflows
+  tags:
+  - Workflows
+  - Workflow versions
+  - Workflow executions
+  - Workflow triggers
+  - Tasks
+  - Workers
+- name: Simulators
+  tags:
+  - Simulators
+  - Simulator Integrations
+  - Simulator Models
+  - Simulator Routines
+  - Simulation Runs
+  - Simulator Logs
+- name: Units
+  tags:
+  - Units
+  - Unit Systems
+- name: ''
+  tags:
+  - ''

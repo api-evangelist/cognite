@@ -1,0 +1,2102 @@
+openapi: 3.1.0
+info:
+  title: Cognite 3D Asset Mapping Documents API
+  description: "# Introduction\nThis is the reference documentation for the Cognite API with\nan overview of all the available methods.\n\n# Postman\nSelect the **Download** button to download our OpenAPI specification to get started.\n\nTo import your data into Postman, select **Import**, and the Import modal opens.\nYou can import items by dragging or dropping files or folders. You can choose how to import your API and manage the import settings in **View Import Settings**.\n\nIn the Import Settings, set the **Folder organization** to **Tags**, select\n**Enable optional parameters** to turn off the settings, and select **Always inherit authentication** to turn on the settings. Select **Import**.\n\nSet the Authorization to **Oauth2.0**. By default, the settings are for Open Industrial Data. Navigate to [Cognite Hub](https://hub.cognite.com/open-industrial-data-211) to understand how to get the credentials for use in Postman.\n\nFor more information, see [Getting Started with Postman](https://developer.cognite.com/dev/guides/postman/).\n\n# Pagination\nMost resource types can be paginated, indicated by the field `nextCursor` in the response.\nBy passing the value of `nextCursor` as the cursor you will get the next page of `limit` results.\nNote that all parameters except `cursor` has to stay the same.\n\n# Parallel retrieval\nAs general guidance, Parallel Retrieval is a technique that should be used when due to query complexity, retrieval of data in a single request is significantly slower than it would otherwise be for a simple request.  Parallel retrieval does not act as a speed multiplier on optimally running queries.  By parallelizing such requests, data retrieval performance can be tuned to meet the client application needs. \n\nCDF supports parallel retrieval through the `partition` parameter, which has the format `m/n` where `n` is the amount of partitions you would like to split the entire data set into.\nIf you want to download the entire data set by splitting it into 10 partitions, do the following in parallel with `m` running from 1 to 10:\n  - Make a request to `/events` with `partition=m/10`.\n  - Paginate through the response by following the cursor as explained above. Note that the `partition` parameter needs to be passed to all subqueries.\n\nProcessing of parallel retrieval requests is subject to concurrency quota availability. The request returns the `429` response upon exceeding concurrency limits. See the Request throttling chapter below.\n\nTo prevent unexpected problems and to maximize read throughput, you should at most use 10 partitions. \nSome CDF resources will automatically enforce a maximum of 10 partitions.\nFor more specific and detailed information, please read the ```partition``` attribute documentation for the CDF resource you're using.  \n\n# Requests throttling\nCognite Data Fusion (CDF) returns the HTTP `429` (too many requests) response status code when project capacity exceeds the limit.\n\nThe throttling can happen:\n  - If a user or a project sends too many (more than allocated) concurrent requests.\n  - If a user or a project sends a too high (more than allocated) rate of requests in a given amount of time.\n\nCognite recommends using a retry strategy based on truncated exponential backoff to handle sessions with HTTP response codes 429.\n\nCognite recommends using a reasonable number (up to 10) of  `Parallel retrieval` partitions.\n\nFollowing these strategies lets you slow down the request frequency to maximize productivity without having to re-submit/retry failing requests.\n\nSee more [here](https://docs.cognite.com/dev/concepts/resource_throttling).\n\n# API versions\n## Version headers\nThis API uses calendar versioning, and version names follow the `YYYYMMDD` format.\nYou can find the versions currently available by using the version selector at the top of this page.\n\nTo use a specific API version, you can pass the `cdf-version: $version` header along with your requests to the API.\n\n## Beta versions\nThe beta versions provide a preview of what the stable version will look like in the future.\nBeta versions contain functionality that is reasonably mature, and highly likely to become a part of the stable API.\n\nBeta versions are indicated by a `-beta` suffix after the version name. For example, the beta version header for the\n2023-01-01 version is then `cdf-version: 20230101-beta`.\n\n## Alpha versions\nAlpha versions contain functionality that is new and experimental, and not guaranteed to ever become a part of the stable API.\nThis functionality presents no guarantee of service, so its use is subject to caution.\n\nAlpha versions are indicated by an `-alpha` suffix after the version name. For example, the alpha version header for\nthe 2023-01-01 version is then `cdf-version: 20230101-alpha`."
+  version: v1
+  contact:
+    name: Cognite Support
+    url: https://support.cognite.com
+    email: support@cognite.com
+servers:
+- url: https://{cluster}.cognitedata.com/api/v1/projects/{project}
+  description: The URL for the CDF cluster to connect to
+  variables:
+    cluster:
+      enum:
+      - api
+      - az-tyo-gp-001
+      - az-eastus-1
+      - az-power-no-northeurope
+      - westeurope-1
+      - asia-northeast1-1
+      - gc-dsm-gp-001
+      default: api
+      description: The CDF cluster to connect to
+    project:
+      default: publicdata
+      description: The CDF project name.
+security:
+- oidc-token:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-client-credentials:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-open-industrial-data:
+  - https://api.cognitedata.com/.default
+- oauth2-auth-code:
+  - https://{cluster}.cognitedata.com/.default
+tags:
+- name: Documents
+  description: "A document is a file that has been indexed by the document search engine.\nEvery time a file is uploaded, updated or deleted in the Files API, it will also\nbe scheduled for processing by the document search engine. After some processing,\nit will be possible to search for the file in the document search API.\n\nThe document search engine is able to extract content from a variety of document\ntypes, and perform classification, contextualization and other operations on the\nfile. This extracted and derived information is made available in the form of a\n`Document` object.\n\nThe document structure consists of a selection of derived fields, such as the\n`title`, `author` and `language` of the document, plus some of the original fields\nfrom the raw file. The fields from the raw file can be found in the\n`sourceFile` structure. The derived fields are described in more detail below.\n\n### Derived fields\n\n#### title\nSome document types (such as PDFs) contain additional metadata fields. If the\ndocument contains its title as part of this metadata, this field will be populated\nwith that title.\n\nNote that we do not currently extract the title from the document content itself.\nIf there is a need for this, we may consider adding such functionality in the future.\n\n#### author\nSimilar to the `title` field, the author field is another field that can often be\nextracted from the document's metadata.\n\n#### producer\nThe `producer` field also exists in the document metadata. It contains information\nabout the software or the system that was used to create the document.\n\n#### createdTime\nThe `createdTime` we assign to the document is not exactly the same as the one found\nin the Files API. We first try to extract the created time from the document metadata.\nIf the document does not contain such a timestamp, we fall back to the time set in\nthe Files API.\n\n#### mimeType\nIf there is a mime type set in on the file in the Files API, this field will be set\nto the same mime type. If there is no mime type set on the file, we will try to\nauto-detect it.\n\n#### extension\nThis field contains the extension of the file, derived from the file name. For\ninstance, if the file name is `My Document.docx`, the `extension` field will contain\n`docx`.\n\n#### pageCount\nContains the number of pages in the document, if possible to determine.\n\n#### type\nThe `type` field contains a high level file type, derived from the mime type. Mime\ntypes are not that pleasant to look at, and not always easy to understand. That is\nwhy we map the mime types into more user-friendly types. Below is the list of types\ncurrently returned, but be aware that this list may be extended in the future.\n\n- `Document`: Document files from Microsoft Word or similar word processing software.\n- `PDF`: PDF files.\n- `Spreadsheet`: Files from Microsoft Excel or similar spreadsheet software.\n- `Presentation`: Slides from Microsoft Powerpoint or similar.\n- `Image`: Any kind of image such as PNG or JPG files.\n- `Video`: Any kind of video such as MOV or MP4 files.\n- `Tabular data`: Csv, tsv and other kinds of tabular data files.\n- `Plain text`: Plain text files.\n- `Compressed`: ZIP files and other kinds of compressed archive files.\n- `Script`: Program code such as python or matlab.\n- `Other`: Anything that doesn't fit in any of the above types.\n\n#### geoLocation\nIf there is a geolocation set on the file in the Files API, then this field will contain\nthe same geolocation. If there is no explicitly assigned geolocation, the document\nprocessing system will try to detect a location using two different techniques;\n\n1. We will extract locations from files that contain embedded GPS locations. Photos and\n   videos often have this kind of metadata.\n2. We will look at related assets that have locations, and assign the same location(s) to\n   the document.\n\n### File type support\n\nWe create a document for each uploaded file, but only derive data from certain files.\n\nThe following file types are eligible for further data extraction & enrichment:\n- PDF files\n- Spreadsheets, documents, and presentations from the Microsoft, Libre Office and macOS office suites\n- Plain text files\n- Images"
+paths:
+  /documents/search:
+    post:
+      tags:
+      - Documents
+      summary: Search for documents
+      description: "\n\n> **Required capabilities:** `filesAcl:READ`\n\nThis endpoint lets you search for documents by using advanced filters and free text queries.\nFree text queries are matched against the documents' filenames and contents.\n\n### Free text search\n\n#### Boolean operators\n\nThe `+` symbol represents an AND operation, and the `|` symbol represents an OR.\nSearching for `lorem + ipsum` will match documents containing both \"lorem\" AND \"ipsum\" in the filename or content.\nSimilarly, searching for `lorem | ipsum` will match documents containing either \"lorem\" OR \"ipsum\" in the filename or\ncontent.\n\nThe default operator between the search keywords is AND.\nThat means that searching for two terms without any operator, for example, `lorem ipsum`, will\nmatch documents containing both the words \"lorem\" and \"ipsum\" in the filename or content.\n\nYou can use the operator `-` to exclude documents containing a specific word.\nFor instance, the search `lorem -ipsum` will match documents that contain the word \"lorem\", but does NOT contain the\nword \"ipsum\".\n\n#### Phrases\n\nEnclose multiple words inside double quotes `\"` to group these words together.\nNormally, the search query `lorem ipsum` will match not only \"lorem ipsum\" but also \"lorem cognite ipsum\",\nand in general, there can be any number of words between the two words in the query.\nThe search query `\"lorem ipsum\"`, however, will match only exactly \"lorem ipsum\" and not \"lorem cognite ipsum\".\n\n#### Escape\n\nTo search for the special characters (`+`, `|`, `-`, `\"`. `\\`), escape with a preceding backslash `\\`.\n\n#### Ordering\n\nWhen you search for a term, the endpoint tries to return the most relevant documents first, with less relevant documents further down\nthe list.\nThere are a few factors that determine the relevance of a document:\n\n- If the search terms are found multiple times within a document, the relevance of that document is higher.\n- For searches with multiple terms, documents containing all the terms are considered more relevant than documents\n  containing only some.\n- Matches of the terms in the filename field of the document are more relevant than matches in the document's content.\n\n#### Examples\n\nThe following request will return documents matching the specified search query.\n\n```json\n{\n  \"search\": {\n    \"query\": \"cognite \\\"lorem ipsum\\\"\"\n   }\n}\n ```\n\nThe following example combines a query with a filter.\nThe search request will return documents matching the search query, where `externalId` starts with \"1\".\nThe results will be ordered by how well they match the query string.\n\n```json\n{\n    \"search\":{\n        \"query\":\"cognite \\\"lorem ipsum\\\"\"\n    },\n    \"filter\":{\n        \"prefix\":{\n            \"property\":[\n                \"externalId\"\n            ],\n            \"value\":\"1\"\n        }\n    }\n}\n```\n\n### Highlights\n\nWhen you enable highlights for your search query, the response contains an additional highlight field for each\nsearch hit, including the highlighted fragments for your query matches. However, the result limit is 20 documents due to the operation costs.\n\n### Filtering\n\nFiltering uses a special JSON filtering language.\nIt's quite flexible and consists of a number of different \"leaf\" filters, which can be combined arbitrarily using the boolean clauses `and`, `or`, and `not`.\n\n#### Supported leaf filters\n\n<table>\n<tr>\n<th> <div style=\"width:150px\"> Leaf filter </div> </th> \n<th> <div style=\"width:200px\"> Supported fields </div> </th> \n<th> Description  </th>\n</tr>\n\n<tr>\n<td> <code>equals</code> </td> <td> Non-array type fields </td> <td> Only includes results that are equal to the specified value. \n\n```json\n{\n    \"equals\":{\n        \"property\":[\n            \"property\"\n        ],\n        \"value\":\"example\"\n    }\n}\n```\n</td>\n</tr>\n\n<tr>\n<td> <code>in</code> </td> <td> Non-array type fields </td> <td> Only includes results that are equal to one of the specified values.  \n\n```json\n{\n    \"in\":{\n        \"property\":[\n            \"property\"\n        ],\n        \"values\":[\n            1,\n            2,\n            3\n        ]\n    }\n}\n```\n</td>\n</tr>\n\n<td> <code>containsAll</code> </td> <td> Array type fields </td> <td> Only includes results which contain all of the specified values.  \n\n```json\n{\n    \"containsAll\":{\n        \"property\":[\n            \"property\"\n        ],\n        \"values\":[\n            1,\n            2,\n            3\n        ]\n    }\n}\n```\n</td>\n<tr>\n\n<td> <code>containsAny</code> </td> <td> Array type fields </td> <td> Only includes results which contain all of the specified values.  \n\n```json\n{\n    \"containsAny\":{\n        \"property\":[\n            \"property\"\n        ],\n        \"values\":[\n            1,\n            2,\n            3\n        ]\n    }\n}\n```\n</td>\n\n<tr>\n<td> <code>exists</code> </td> <td> All fields </td> <td> Only includes results where the specified property exists (has value).  \n\n```json\n{\n    \"exists\":{\n        \"property\":[\n            \"property\"\n        ]\n    }\n}\n```\n</td>\n</tr>\n\n<tr>\n<td> <code>prefix</code> </td> <td> String type fields </td> <td> Only includes results which start with the specified value. \n\n```json\n{\n    \"prefix\":{\n        \"property\":[\n            \"property\"\n        ],\n        \"value\":\"example\"\n    }\n}\n```\n</td>\n</tr>\n\n<tr>\n<td> <code>range</code> </td> <td> Non-array type fields </td> <td> Only includes results that fall within the specified range. \n\nSupported operators: <code>gt</code>, <code>lt</code>, <code>gte</code>, <code>lte</code>\n\n```json\n{\n    \"range\":{\n        \"property\":[\n            \"property\"\n        ],\n        \"gt\":1,\n        \"lte\":5\n    }\n}\n```\n</td>\n</tr>\n\n<tr>\n<td> <code>geojsonIntersects</code> </td> <td> <code>geoLocation</code> </td> <td> Only includes results where the geoshape intersects with the specified geometry.\n\n```json\n{\n    \"geojsonIntersects\":{\n        \"property\":[\n            \"sourceFile\",\n            \"geoLocation\"\n        ],\n        \"geometry\":{\n            \"type\":\"Polygon\",\n            \"coordinates\": [[[30, 10], [40, 40], [20, 40], [10, 20], [30, 10]]],\n        }\n    }\n}\n```\n</td>\n</tr>\n\n<tr>\n<td> <code>geojsonDisjoint</code> </td> <td> <code>geoLocation</code> </td> <td> Only includes results where the geoshape has nothing in common with the specified geometry.\n\n```json\n{\n    \"geojsonDisjoint\":{\n        \"property\":[\n            \"sourceFile\",\n            \"geoLocation\"\n        ],\n        \"geometry\":{\n            \"type\":\"Polygon\",\n            \"coordinates\": [[[30, 10], [40, 40], [20, 40], [10, 20], [30, 10]]],\n        }\n    }\n}\n```\n</td>\n</tr>\n\n<tr>\n<td> <code>geojsonWithin</code> </td> <td> <code>geoLocation</code> </td> <td> Only includes results where the geoshape falls within the specified geometry.\n\n```json\n{\n    \"geojsonWithin\":{\n        \"property\":[\n            \"sourceFile\",\n            \"geoLocation\"\n        ],\n        \"geometry\":{\n            \"type\":\"Polygon\",\n            \"coordinates\": [[[30, 10], [40, 40], [20, 40], [10, 20], [30, 10]]],\n        }\n    }\n}\n```\n</td>\n</tr>\n\n<tr>\n<td> <code>inAssetSubtree</code> </td> <td> <code>assetIds</code>, <code>assetExternalIds</code> </td> <td> Only includes results with a related asset in a subtree rooted at any specified IDs.\n\n```json\n{\n    \"filter\":{\n        \"inAssetSubtree\":{\n            \"property\":[\n                \"sourceFile\",\n                \"assetIds\"\n            ],\n            \"values\":[\n                1,\n                2,\n                3\n            ]\n        }\n    }\n}\n```\n</td>\n</tr>\n\n<tr>\n<td> <code>search</code> </td> <td> <code>name</code>, <code>content</code> </td> <td>\n\n```json\n{\n    \"search\":{\n        \"property\":[\n            \"property\"\n        ],\n        \"value\":\"example\"\n    }\n}\n```\n</td>\n</tr>\n\n</table>\n\n#### Properties\n\nThe following overview shows the properties you can filter and which filter applies to which property.\n\n| Property                                 | Type                | Applicable filters                                                                                                                                                             |\n|------------------------------------------|---------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|\n| `[\"id\"]`                                 | integer             | equals, in, range, exists                                                                                                                                                      |\n| `[\"externalId\"]`                         | string              | equals, in, prefix, exists                                                                                                                                                     |\n| `[\"instanceId\"]`                         | string              | equals, in                                                                                                                                                                     |\n| `[\"instanceId\", \"space\"]`                | string              | equals, in, prefix, exists                                                                                                                                                     |\n| `[\"instanceId\", \"externalId\"]`           | string              | equals, in, prefix, exists                                                                                                                                                     |\n| `[\"title\"]`                              | string              | equals, in, prefix, exists                                                                                                                                                     |\n| `[\"author\"]`                             | string              | equals, in, prefix, exists                                                                                                                                                     |\n| `[\"createdTime\"]`                        | integer             | equals, in, range, exists                                                                                                                                                      |\n| `[\"modifiedTime\"]`                       | integer             | equals, in, range, exists                                                                                                                                                      |\n| `[\"lastIndexedTime\"]`                    | integer             | equals, in, range, exists                                                                                                                                                      |\n| `[\"mimeType\"]`                           | string              | equals, in, prefix, exists                                                                                                                                                     |\n| `[\"extension\"]`                          | string              | equals, in, prefix, exists                                                                                                                                                     |\n| `[\"pageCount\"]`                          | integer             | equals, in, range, exists                                                                                                                                                      |\n| `[\"type\"]`                               | string              | equals, in, prefix, exists                                                                                                                                                     |\n| `[\"geoLocation\"]`                        | geometry object     | geojsonIntersects, geojsonDisjoint, geojsonWithin, exists                                                                                                                      |\n| `[\"language\"]`                           | string              | equals, in, prefix, exists                                                                                                                                                     |\n| `[\"assetIds\"]`                           | array of integers   | containsAny, containsAll, exists, inAssetSubtree                                                                                                                               |\n| `[\"assetExternalIds\"]`                   | array of strings    | containsAny, containsAll, exists, inAssetSubtree                                                                                                                               |\n| `[\"labels\"]`                             | array of Labels     | containsAny, containsAll, exists                                                                                                                                               |\n| `[\"content\"]`                            | string              | search                                                                                                                                                                         |\n| `[\"sourceFile\", \"name\"]`                 | string              | equals, in, prefix, exists, search                                                                                                                                             |\n| `[\"sourceFile\", \"mimeType\"]`             | string              | equals, in, prefix, exists                                                                                                                                                     |\n| `[\"sourceFile\", \"size\"]`                 | integer             | equals, in, range, exists                                                                                                                                                      |\n| `[\"sourceFile\", \"source\"]`               | string              | equals, in, prefix, exists                                                                                                                                                     |\n| `[\"sourceFile\", \"directory\"]`            | string              | equals, in, prefix, exists                                                                                                                                                     |\n| `[\"sourceFile\", \"assetIds\"]`             | array of integers   | containsAny, containsAll, exists, inAssetSubtree                                                                                                                               |\n| `[\"sourceFile\", \"assetExternalIds\"]`     | array of strings    | containsAny, containsAll, exists, inAssetSubtree                                                                                                                               |\n| `[\"sourceFile\", \"datasetId\"]`            | integer             | equals, in, range, exists                                                                                                                                                      |\n| `[\"sourceFile\", \"securityCategories\"]`   | array of integers   | containsAny, containsAll, exists                                                                                                                                               |\n| `[\"sourceFile\", \"geoLocation\"]`          | geometry object     | geojsonIntersects, geojsonDisjoint, geojsonWithin, exists                                                                                                                      |\n| `[\"sourceFile\", \"labels\"]`               | array of Labels     | containsAny, containsAll, exists                                                                                                                                               |\n| `[\"sourceFile\", \"metadata\", <key>]`      | string              | equals, in, prefix, exists                                                                                                                                                     |\n| `[\"sourceFile\", \"metadata\"]`             | string              | equals, in, prefix, exists<br><br>This is a special filter field that targets all metadata values. <br>An alternative to creating a filter for each key in the metadata field. |\n\n#### Full example\n\n```json\n{\n   \"filter\": {\n      \"and\": [\n         {\n            \"or\": [\n               {\n                  \"equals\": {\n                     \"property\": [\n                        \"type\"\n                     ],\n                     \"value\": \"PDF\"\n                  }\n               },\n               {\n                  \"prefix\": {\n                     \"property\": [\n                        \"externalId\"\n                     ],\n                     \"value\": \"hello\"\n                  }\n               }\n            ]\n         },\n         {\n            \"range\": {\n               \"property\": [\n                  \"createdTime\"\n               ],\n               \"lte\": 1519862400000\n            }\n         },\n         {\n            \"not\": {\n               \"in\": {\n                  \"property\": [\n                     \"sourceFile\",\n                     \"name\"\n                  ],\n                  \"values\": [\n                     \"My Document.doc\",\n                     \"My Other Document.docx\"\n                  ]\n               }\n            }\n         }\n      ]\n   }\n}\n ```\n\n### Sorting\n\nBy default, search results are ordered by relevance, meaning how well they match the given query string.\nHowever, it's possible to specify a different property to sort by.\nSorting can be ascending or descending. The sort order is ascending if none is specified.\n\n#### Properties\n\nThe following overview shows all properties that can be sorted on.\n\n| Property                        |\n|---------------------------------|\n| `[\"id\"]`                        |\n| `[\"externalId\"]`                |\n| `[\"mimeType\"]`                  |\n| `[\"extension\"]`                 |\n| `[\"pageCount\"]`                 |\n| `[\"author\"]`                    |\n| `[\"title\"]`                     |\n| `[\"language\"]`                  |\n| `[\"type\"]`                      |\n| `[\"createdTime\"]`               |\n| `[\"modifiedTime\"]`              |\n| `[\"lastIndexedTime\"]`           |\n| `[\"sourceFile\", \"name\"]`        |\n| `[\"sourceFile\", \"mimeType\"]`    |\n| `[\"sourceFile\", \"size\"]`        |\n| `[\"sourceFile\", \"source\"]`      |\n| `[\"sourceFile\", \"datasetId\"]`   |\n| `[\"sourceFile\", \"metadata\", *]` |\n\n#### Example\n\n```json\n{\n    \"sort\":[\n        {\n            \"property\":[\n                \"createdTime\"\n            ],\n            \"order\":\"asc\",\n            \n        }\n    ]\n}\n ```\n"
+      operationId: documentsSearch
+      requestBody:
+        description: Fields to be set for the search request.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentSearchRequest'
+        required: true
+      responses:
+        '200':
+          $ref: '#/components/responses/DocumentSearchResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-capability:
+      - filesAcl:READ
+      - null
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: "const documents = await client.documents.search({\n  search: {\n    query: 'Stuck pipe'\n  },\n  filter: {\n    in: {\n      property: ['type'],\n      values: ['Document', 'PDF']\n    }\n  },\n  limit: 5\n});"
+      - lang: Python
+        label: Python SDK
+        source: "from cognite.client.data_classes import filters\nfrom cognite.client.data_classes.documents import DocumentProperty\nis_pdf = filters.Equals(DocumentProperty.mime_type, \"application/pdf\")\ndocuments = client.documents.search(\"pump 123\", filter=is_pdf)\n\nfrom datetime import datetime, timedelta\nfrom cognite.client.data_classes import filters\nfrom cognite.client.data_classes.documents import DocumentProperty\nfrom cognite.client.utils import timestamp_to_ms\nis_plain_text = filters.Equals(DocumentProperty.mime_type, \"text/plain\")\nlast_week = filters.Range(DocumentProperty.created_time,\n    gt=timestamp_to_ms(datetime.now() - timedelta(days=7)))\ndocuments = client.documents.search('\"CPLEX Error 1217: No Solution exists.\"',\n    highlight=True,\n    filter=filters.And(is_plain_text, last_week))\n"
+  /documents/passages/search:
+    post:
+      tags:
+      - Documents
+      summary: Semantic search for passages
+      description: "\n\n> **Required capabilities:** `filesAcl:READ`\n\nThis endpoint lets you search for relevant passages of up to 100 PDF documents by using advanced filters and semantic search queries. \nWhere documents search results in a list of relevant documents, this endpoint gives you a result of the most relevant parts of a set of documents.\nFor each query you have to specify a list of document ids using the `in` filter (see exmple).\n\nSemantic search works by comparing the semantic meaning of the search query to the semantic meaning of the document passages. \nThe document passages are automatically derived and indexed upon file uploads (PDF only).\n\nA natural flow would be:\n 1. Upload a document\n 2. Query `/documents/status` to check if the document is ready (see beta documentation)\n 3. Query `/documents/passages/search` to find relevant passages in the document(s) \n\n### Passages search offers semantic search filters\n\n> This endpoint requires a list of document ids that you want to do semantic search on. \n> You can not currently search through all passages for the entire project in a single query.\n\n#### Ordering\n\nSearch results are ranked by relevance, with the most relevant appearing first. How relevance is determined depends on the filter you choose:\n\n - **Lexical Search Filter**: This filter looks for exact word matches, making it ideal for finding specific dates, names, or keywords. Use this when you know exactly what youâ\x80\x99re looking for. This is the default search behavior for the Documents API.\n\n - **Semantic Search Filter**: This filter understands the meaning behind words and phrases, even if they donâ\x80\x99t match exactly. Itâ\x80\x99s useful for broader searches or when youâ\x80\x99re looking for related ideas or concepts.\n\nChoose the filter based on your needs: use Lexical for precise results and Semantic for more general, context-based searches.\n\nWhen both filters are used together, the results are combined to give you a balanced, relevant list. For best results, we recommend starting with both filters active.\n\n\n#### Examples\n\nThe following request will return document passages matching the specified search query for the document ids 1, 2, and 3.\n\n```json\n{\n    \"filter\":{\n        \"and\": [\n            {\n                \"semanticSearch\":{\n                    \"property\":[\"content\"],\n                    \"value\":\"I have an overheating pump that is 85 degrees celsius, what dangers are there with higher temperatures\"\n                }\n            },\n            {\n                \"in\":{\n                    \"property\":[\"document\", \"id\"],\n                    \"values\":[1, 2, 3]\n                }\n            }\n        ]\n    }\n}\n ```\n\nIf you need keyword matching you can specify a `lexicalSearch` filter. This helps with edge cases where it's hard to extract meaning such as numbers (eg. dates), names, etc.\n\n```json\n{\n    \"filter\":{\n        \"and\": [\n            {\n                \"semanticSearch\":{\n                    \"property\":[\"content\"],\n                    \"value\":\"I have an overheating pump that is 85 degrees celsius, what dangers are there with higher temperatures\"\n                }\n            },\n            {\n                \"lexicalSearch\":{\n                    \"property\":[\"content\"],\n                    \"value\":\"pump AJ523-253-133\"\n                }\n            },\n            {\n                \"in\":{\n                    \"property\":[\"document\", \"id\"],\n                    \"values\":[1, 2, 3]\n                }\n            }\n        ]\n    }\n}\n ```\n\nDoing just lexical search is also possible:\n\n```json\n{\n    \"filter\":{\n        \"and\": [\n            {\n                \"lexicalSearch\":{\n                    \"property\":[\"content\"],\n                    \"value\":\"pump AJ523-253-133\"\n                }\n            },\n            {\n                \"in\":{\n                    \"property\":[\"document\", \"id\"],\n                    \"values\":[1, 2, 3]\n                }\n            }\n        ]\n    }\n}\n ```\n\n\n### Filtering\n\nFiltering uses a special JSON filtering language.\nIt's flexible and consists of a number of different \"leaf\" filters, which can be combined arbitrarily using the boolean clauses `and`.\nThis is the same filters used in the search, list and aggregate endpoints, with some restrictions and the addition of \"semanticSearch\" filter.\n\n#### Supported leaf filters\n\n<table>\n<tr>\n<th> <div style=\"width:150px\"> Leaf filter </div> </th> \n<th> <div style=\"width:200px\"> Supported fields </div> </th> \n<th> Description  </th>\n</tr>\n\n<tr>\n<td> <code>equals</code> </td> <td> Non-array type fields </td> <td> Only includes results that are equal to the specified value. \n\n```json\n{\n    \"equals\":{\n        \"property\":[\"property\"],\n        \"value\":\"example\"\n    }\n}\n```\n</td>\n</tr>\n\n<tr>\n<td> <code>in</code> </td> <td> Non-array type fields </td> <td> Only includes results that are equal to one of the specified values.  \n\n```json\n{\n    \"in\":{\n        \"property\":[\"property\"],\n        \"values\":[\n            1,\n            2,\n            3\n        ]\n    }\n}\n```\n</td>\n</tr>\n\n\n<tr>\n<td> <code>semanticSearch</code> </td> <td> <code>content</code> </td> <td>\n\n```json\n{\n    \"semanticSearch\":{\n        \"property\":[\"property\"],\n        \"value\":\"example\"\n    }\n}\n```\n</td>\n</tr>\n\n\n<tr>\n<td> <code>lexicalSearch</code> </td> <td> <code>content</code> </td> <td>\n\n```json\n{\n    \"lexicalSearch\":{\n        \"property\":[\"property\"],\n        \"value\":\"example\"\n    }\n}\n```\n</td>\n</tr>\n\n</table>\n\n#### Properties\n\nThe following overview shows the properties you can filter on and which filter applies to which property.\n\n| Property                      | Type                | Applicable filters            |\n|-------------------------------|---------------------|-------------------------------|\n| `[\"document\", \"id\"]`          | integer             | equals, in                    |\n| `[\"document\", \"externalId\"]`  | string              | equals, in                    |\n| `[\"document\", \"instanceId\"]`  | object              | equals, in                    |\n| `[\"type\"]`                    | string              | equals                        |\n| `[\"content\"]`                 | string              | semanticSearch, lexicalSearch |\n\n#### Full example\n\n```json\n{\n    \"filter\":{\n      \"and\": [\n        {\n          \"in\": {\n            \"property\": [\"document\", \"instanceId\"],\n            \"values\": [\n              {\"space\": \"space1\", \"externalId\": \"my-ext-id-1\"},\n              {\"space\": \"space1\", \"externalId\": \"my-ext-id-45\"},\n              {\"space\": \"space1\", \"externalId\": \"some-other-ext-id\"},\n            ]\n          }\n        },\n        {\n          \"semanticSearch\":{\n              \"property\":[\"content\"],\n              \"value\":\"A person walking a dog at night time\"\n          }\n        },\n        {\n          \"lexicalSearch\":{\n              \"property\":[\"content\"],\n              \"value\":\"11:23pm\"\n          }\n        }\n      ]\n    }\n}\n ```\n"
+      operationId: documentsPassagesSearch
+      requestBody:
+        description: Fields to be set for the search request.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentPassagesSearchRequest'
+        required: true
+      responses:
+        '200':
+          $ref: '#/components/responses/DocumentPassagesSearchResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-capability:
+      - filesAcl:READ
+  /documents/aggregate:
+    post:
+      tags:
+      - Documents
+      summary: Aggregate documents
+      description: "\n\n> **Required capabilities:** `filesAcl:READ`\n\nThe aggregation API lets you compute aggregated results on documents, such as\ngetting the count of all documents in a project, checking\ndifferent authors of documents in a project and the count of documents in\neach of those aggregations. By specifying an additional filter or search, you can\naggregate only among documents matching the specified filter or search.\n\nWhen you don't specify the `aggregate` field in the request\nbody,  the default behavior is to return the count of all matched documents.\n\n### Supported aggregates\n\n<table>\n\n<tr>\n<th> <div style=\"width:200px\"> Aggregate </div> </th> \n<th> <div style=\"width:350px\"> Description </div> </th> \n<th> Example  </th>\n</tr>\n\n<tr>\n<td> <code>count</code> </td> <td> Count of documents matching the specified filters and search. </td> <td>  \n\n```json\n{\n    \"search\":{\n        \"query\":\"example\",\n        \n    },\n    \"aggregate\":\"count\",\n    \n}\n```\n\n<tr>\n<td> <code>cardinalityValues</code> </td> <td> Returns an approximate count of \ndistinct values for the specified properties. </td> <td>  \n\n```json\n{\n    \"aggregate\":\"cardinalityValues\",\n    \"properties\":[\n        {\n            \"property\":[\n                \"mimeType\"\n            ]\n        }\n    ]\n}\n```\n\n</td>\n</tr>\n\n<tr>\n<td> <code>cardinalityProperties</code> </td> <td> Returns an approximate count of\ndistinct properties for a given property path. Currently only implemented for the\n<code>[\"sourceFile\", \"metadata\"]</code> path.</td> <td>\n\n```json\n{\n    \"aggregate\":\"cardinalityProperties\",\n    \"path\":[\"sourceFile\", \"metadata\"]\n}\n```\n\n</td>\n</tr>\n\n</td>\n</tr>\n\n<tr>\n<td> <code>uniqueValues</code> </td> <td> Returns top unique values for specified properties (up to the\nrequested limit) and the count of each in the property specified in <code>properties</code>. \nThe list will have the highest count first. </td> <td>  \n\n```json\n{\n    \"aggregate\":\"uniqueValues\",\n    \"properties\":[\n        {\n            \"property\":[\n                \"author\"\n            ]\n        }\n    ]\n}\n```\n\n</td>\n</tr>\n\n<tr>\n<td> <code>uniqueProperties</code> </td> <td> Returns top unique properties values for specified properties (up to the\nrequested limit) and the count of each in the property specified in <code>properties</code>. \nThe list will have the highest count first.\n\nCurrently, the <code>uniqueProperties</code> aggregate is only supported for property \n<code>[\"sourceFile\", \"metadata\"]</code> .</td> <td>  \n\n```json\n{\n    \"aggregate\":\"uniqueProperties\",\n    \"properties\":[\n        {\n            \"property\":[\n                \"sourceFile\",\n                \"metadata\"\n            ]\n        }\n    ]\n}\n```\n\n</td>\n</tr>\n\n</table>\n\n### Aggregate filtering\n\n> Only some aggregate types currently support <code>aggregateFilter</code>\n\nAggregate filtering works directly on the aggregated result. While a normal filter filters relevant documents, aggregate filtering filters the aggregated bucket values. This is useful for e.g. listing metadata keys; while a normal filter will return all metadata keys for related documents, the aggregate filter can be used to reduce the aggregate result even further.\n\nTip: use both <code>filter</code> and <code>aggregateFilter</code> to potentially speed up queries, as the <code>aggregateFilter</code> is essentially a post filter.\n\n\n#### Filter metadata keys by prefix\n\nHere we only show metadata keys which starts with \"car\".\n```json\n{\n    \"aggregate\": \"uniqueProperties\",\n    \"properties\": [{\"property\": [\"sourceFile\", \"metadata\"]}],\n    \"aggregateFilter\": {\"prefix\": {\"value\": \"car\"}}\n}\n```\n\n#### Filter metadata values by prefix\n\nHere we only show metadata values which starts with \"ctx\", for the given metadata key \"car-codes\".\n```json\n{\n    \"aggregate\": \"uniqueValues\",\n    \"properties\": [{\"property\": [\"sourceFile\", \"metadata\", \"car-codes\"]}],\n    \"aggregateFilter\": {\"prefix\": {\"value\": \"ctx\"}}\n}\n```\n"
+      operationId: documentsAggregate
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - $ref: '#/components/schemas/DocumentsAggregateCountRequest'
+              - $ref: '#/components/schemas/DocumentsAggregateCardinalityValuesRequest'
+              - $ref: '#/components/schemas/DocumentsAggregateCardinalityPropertiesRequest'
+              - $ref: '#/components/schemas/DocumentsAggregateUniqueValuesRequest'
+              - $ref: '#/components/schemas/DocumentsAggregateUniquePropertiesRequest'
+              - $ref: '#/components/schemas/DocumentsAggregateAllUniquePropertiesRequest'
+              - $ref: '#/components/schemas/DocumentsAggregateAllUniqueValuesRequest'
+            examples:
+              unique-values:
+                value:
+                  filter:
+                    equals:
+                      property:
+                      - type
+                      value: PDF
+                  aggregate: uniqueValues
+                  properties:
+                  - property:
+                    - author
+      responses:
+        '200':
+          $ref: '#/components/responses/DocumentsAggregateResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-capability:
+      - filesAcl:READ
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: "from cognite.client.data_classes.documents import SourceFileProperty\ncount = client.documents.aggregate_cardinality_properties(SourceFileProperty.metadata)\nfrom cognite.client.data_classes.documents import DocumentProperty\ncount = client.documents.aggregate_cardinality_values(DocumentProperty.type)\n\nfrom cognite.client.data_classes import filters\nfrom cognite.client.data_classes.documents import DocumentProperty\nis_plain_text = filters.Equals(DocumentProperty.mime_type, \"text/plain\")\nplain_text_author_count = client.documents.aggregate_cardinality_values(DocumentProperty.author, filter=is_plain_text)\n\nfrom cognite.client.data_classes.documents import DocumentProperty\nfrom cognite.client.data_classes import aggregations\nagg = aggregations\nis_not_text = agg.Not(agg.Prefix(\"text\"))\ntype_count_excluded_text = client.documents.aggregate_cardinality_values(DocumentProperty.type, aggregate_filter=is_not_text)\ncount = client.documents.aggregate_count()\n\nfrom cognite.client.data_classes import filters\nfrom cognite.client.data_classes.documents import DocumentProperty\nis_pdf = filters.Equals(DocumentProperty.mime_type, \"application/pdf\")\npdf_count = client.documents.aggregate_count(filter=is_pdf)\n\nclient.documents.aggregate_count(\n    filter=filters.InAssetSubtree(\n        property=DocumentProperty.asset_external_ids,\n        values=['Plant_1', 'Plant_2'],\n    )\n)\nfrom cognite.client.data_classes.documents import SourceFileProperty\nresult = client.documents.aggregate_unique_values(SourceFileProperty.metadata)\nfrom cognite.client.data_classes.documents import DocumentProperty\nresult = client.documents.aggregate_unique_values(DocumentProperty.mime_type)\nunique_types = result.unique\n\nfrom cognite.client.data_classes import filters\nfrom cognite.client.data_classes.documents import DocumentProperty\nis_abc = filters.Prefix(DocumentProperty.external_id, \"abc\")\nresult = client.documents.aggregate_unique_values(DocumentProperty.language, filter=is_abc)\nunique_languages = result.unique\n\nfrom cognite.client.data_classes.documents import DocumentProperty\nfrom cognite.client.data_classes import aggregations\nagg = aggregations\nis_not_text = agg.Not(agg.Prefix(\"text\"))\nresult = client.documents.aggregate_unique_values(DocumentProperty.mime_type, aggregate_filter=is_not_text)\nunique_mime_types = result.unique\n"
+  /documents/list:
+    post:
+      tags:
+      - Documents
+      summary: List documents
+      description: '
+
+
+        > **Required capabilities:** `filesAcl:READ`
+
+
+        Retrieves a list of the documents in a project. You can use filters to narrow down the list.
+
+        Unlike the search endpoint, the pagination isn''t restricted to 1000 documents in total, meaning
+
+        this endpoint can be used to iterate through all the documents in your project.
+
+
+        For more information on how the filtering works, see the documentation for the search endpoint.'
+      operationId: documentsList
+      requestBody:
+        description: Fields to be set for the list request.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentListRequest'
+        required: true
+      responses:
+        '200':
+          $ref: '#/components/responses/DocumentListResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-capability:
+      - filesAcl:READ
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: "from cognite.client.data_classes import filters\nfrom cognite.client.data_classes.documents import DocumentProperty\nis_pdf = filters.Equals(DocumentProperty.mime_type, \"application/pdf\")\npdf_documents = client.documents.list(filter=is_pdf)\n\nfrom cognite.client.data_classes.documents import DocumentProperty\nfor document in client.documents:\n   print(document.name)\n\nfrom cognite.client.data_classes.documents import SortableDocumentProperty\ndocuments = client.documents.list(sort=(SortableDocumentProperty.mime_type, \"desc\"))\n"
+  /documents/content:
+    post:
+      tags:
+      - Documents
+      summary: Retrieve document content
+      description: '
+
+
+        > **Required capabilities:** `filesAcl:READ`
+
+
+        Returns extracted textual information for the given document.
+
+
+        The documents pipeline extracts up to 1MiB of textual information from each processed document.
+
+        The search and list endpoints truncate the textual content of each document, in order to reduce the size
+
+        of the returned payload. If you want the whole text for a document, you can use this endpoint.
+
+
+        The `accept` request header MUST be set to `text/plain`. Other values will
+
+        give an HTTP 406 error.'
+      operationId: documentsContentPost
+      requestBody:
+        description: Fields to be set for the content request.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentContentRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                type: string
+                description: The textual content of the document, truncated to the first 1MB of text
+                example: "ACT I\nSCENE I. Elsinore. A platform before the castle.\n  FRANCISCO at his post. Enter to him BERNARDO\nBERNARDO\n  Who's there?\n"
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-capability:
+      - filesAcl:READ
+components:
+  schemas:
+    DocumentsAggregateCountRequest:
+      title: Count
+      description: Count of documents.
+      type: object
+      allOf:
+      - $ref: '#/components/schemas/DocumentSearchInAggregate'
+      - $ref: '#/components/schemas/DocumentSearchFilter'
+      - type: object
+        properties:
+          aggregate:
+            description: Count of documents matching the specified filters and search.
+            type: string
+            enum:
+            - count
+            default: count
+    CogniteInternalId:
+      description: A server-generated ID for the object.
+      type: integer
+      minimum: 1
+      maximum: 9007199254740991
+      format: int64
+    DocumentsAggregateCardinalityValuesItem:
+      type: object
+      required:
+      - count
+      properties:
+        count:
+          type: integer
+          description: Number of items in this aggregation group.
+          format: int64
+    DocumentPassagesSearchPassageExpansion:
+      type: object
+      required:
+      - expansionStrategy
+      properties:
+        expansionStrategy:
+          description: A expansion strategy to to increase the text view for each passage returned. Helpful to increase context for an LLM.
+          oneOf:
+          - $ref: '#/components/schemas/DocumentPassagesSearchPassageExpansionSymmetric'
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
+    DocumentAggregateFilterBool:
+      title: bool filters
+      description: 'A query that matches items matching boolean combinations of other queries.
+
+        It is built using one or more boolean clauses, which can be of types: `and`, `or` or `not`
+
+        '
+      type: object
+      oneOf:
+      - type: object
+        title: and
+        required:
+        - and
+        properties:
+          and:
+            description: All of the sub-clauses in the query must appear in matching items.
+            type: array
+            minItems: 1
+            items:
+              $ref: '#/components/schemas/DocumentAggregateFilter'
+            example:
+            - prefix:
+                property:
+                - name
+                value: Report
+            - equals:
+                property:
+                - type
+                value: PDF
+      - type: object
+        title: or
+        required:
+        - or
+        properties:
+          or:
+            description: At least one of the sub-clauses in the query must appear in matching items.
+            type: array
+            minItems: 1
+            items:
+              $ref: '#/components/schemas/DocumentAggregateFilter'
+            example:
+            - prefix:
+                property:
+                - name
+                value: Report
+            - prefix:
+                property:
+                - name
+                value: Summary
+      - type: object
+        title: not
+        required:
+        - not
+        properties:
+          not:
+            title: Filter
+            description: Sub-clauses in the query must not appear in matching items.
+            type: object
+            allOf:
+            - $ref: '#/components/schemas/DocumentAggregateFilter'
+            example:
+            - equals:
+                property:
+                - type
+                value: PDF
+    DocumentFilterProperty:
+      description: 'Property you wish to filter. It''s a list of strings to allow specifying nested properties.
+
+        For example, If you have the object `{"foo": {"../bar": "baz"}, "bar": 123}`, you can refer to the nested property as `["foo", "../bar"]` and the un-nested one as `["bar"]`.
+
+        '
+      type: array
+      minItems: 1
+      maxItems: 3
+      items:
+        type: string
+      example:
+      - sourceFile
+      - name
+    DocumentsAggregateAllUniqueValuesItem:
+      type: object
+      required:
+      - count
+      - values
+      properties:
+        count:
+          type: integer
+          description: Number of items in this aggregation group.
+          format: int64
+        values:
+          type: array
+          description: A unique value found in the specified properties. Each item is a value for the specified property with same index.
+          items:
+            $ref: '#/components/schemas/DocumentAggregateValue'
+    DocumentsAggregateUniquePropertiesResponse:
+      title: UniqueProperties
+      description: Response for the uniqueProperties aggregate.
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 0
+          maxItems: 10000
+          items:
+            $ref: '#/components/schemas/DocumentsAggregateUniquePropertiesItem'
+      example:
+        items:
+        - count: 4
+          values:
+          - hello
+        - count: 33
+          values:
+          - world
+    DocumentGeoJsonGeometry:
+      description: GeoJSON Geometry.
+      type: object
+      required:
+      - type
+      properties:
+        type:
+          description: Type of the GeoJSON Geometry. When filtering there is a limit of specifying up to 100 positions in the data.
+          type: string
+          example: Point
+        coordinates:
+          description: Coordinates of the geometry.
+          anyOf:
+          - type: array
+            example:
+            - 10.74609
+            - 59.91273
+            items:
+              type: number
+              format: float
+          - type: array
+            items:
+              type: array
+              items:
+                type: number
+                format: float
+          - type: array
+            items:
+              type: array
+              items:
+                type: array
+                items:
+                  type: number
+                  format: float
+        geometries:
+          type: array
+          description: List of geometries for a GeometryCollection. Nested GeometryCollection is not supported
+          items:
+            $ref: '#/components/schemas/DocumentGeoJsonGeometry'
+      example:
+        type: Point
+        coordinates:
+        - 10.74609
+        - 59.91273
+    DocumentHighlight:
+      type: object
+      description: Highlighted snippets from name and content fields which show where the query matches are. The matched terms will be placed inside <em> tags
+      required:
+      - name
+      - content
+      properties:
+        name:
+          type: array
+          description: Matches in name.
+          items:
+            type: string
+        content:
+          type: array
+          description: Matches in content.
+          items:
+            type: string
+      example:
+        name:
+        - amet elit <em>non diam</em> aliquam suscipit
+        content:
+        - Nunc <em>vulputate erat</em> ipsum, at aliquet ligula vestibulum at
+        - '<em>Quisque</em> lectus ex, fringilla aliquet <em>eleifend</em> nec, laoreet a velit.
+
+
+          Phasellus <em>faucibus</em> risus arcu'
+    DocumentPassagesFilterLeaf:
+      title: leaf filters
+      description: Leaf filter
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/DocumentFilterEquals'
+      - $ref: '#/components/schemas/DocumentFilterIn'
+      - $ref: '#/components/schemas/DocumentFilterSemanticSearch'
+      - $ref: '#/components/schemas/DocumentFilterLexicalSearch'
+    DocumentFilterPrefix:
+      type: object
+      title: prefix
+      required:
+      - prefix
+      properties:
+        prefix:
+          required:
+          - property
+          - value
+          description: Matches items that contain a specific prefix in the provided property.
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/DocumentFilterProperty'
+            value:
+              $ref: '#/components/schemas/DocumentFilterValue'
+          example:
+            property:
+            - name
+            value: Report
+    DocumentsAggregateAllUniqueValuesResponse:
+      deprecated: true
+      title: All unique values
+      description: Response for allUniqueValues aggregate.
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 0
+          maxItems: 10000
+          items:
+            $ref: '#/components/schemas/DocumentsAggregateAllUniqueValuesItem'
+        nextCursor:
+          type: string
+          description: The cursor to get the next page of results (if available).
+      example:
+        items:
+        - count: 4
+          values:
+          - hello
+        - count: 33
+          values:
+          - world
+    DocumentFilterValue:
+      description: Value you wish to find in the provided property.
+      oneOf:
+      - type: string
+      - type: number
+      - type: boolean
+      - $ref: '#/components/schemas/Label'
+      - $ref: '#/components/schemas/CogniteInstanceId'
+    DocumentFilterLexicalSearch:
+      type: object
+      title: lexicalSearch
+      required:
+      - lexicalSearch
+      properties:
+        lexicalSearch:
+          required:
+          - property
+          - value
+          description: Matches passages that contains specified keywords.
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/DocumentFilterProperty'
+            value:
+              type: string
+          example:
+            property:
+            - content
+            value: Report
+    DocumentSort:
+      type: object
+      properties:
+        sort:
+          type: array
+          description: List of properties to sort by. Currently only supports 1 property.
+          minItems: 1
+          maxItems: 1
+          items:
+            $ref: '#/components/schemas/DocumentSortItem'
+    DocumentFilterGeoJsonIntersects:
+      type: object
+      title: geojsonIntersects
+      required:
+      - geojsonIntersects
+      properties:
+        geojsonIntersects:
+          required:
+          - property
+          - geometry
+          description: Matches items with geolocations that intersect the provided geometry
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/DocumentFilterProperty'
+            geometry:
+              $ref: '#/components/schemas/DocumentGeoJsonGeometry'
+    DocumentsAggregateCountResponse:
+      title: Count
+      type: object
+      description: Response for count aggregate.
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 1
+          items:
+            $ref: '#/components/schemas/DocumentsAggregateCountItem'
+      example:
+        items:
+        - count: 10
+    DocumentFilterIn:
+      type: object
+      title: in
+      required:
+      - in
+      properties:
+        in:
+          required:
+          - property
+          - values
+          description: Matches items where the property matches one of the given values
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/DocumentFilterProperty'
+            values:
+              $ref: '#/components/schemas/DocumentFilterValueList'
+          example:
+            property:
+            - author
+            values:
+            - Etiam Eget
+            - Praesent Vestibulum
+    DocumentSearchFilter:
+      description: Filter with exact match
+      type: object
+      properties:
+        filter:
+          $ref: '#/components/schemas/DocumentFilter'
+    DocumentContentInstanceId:
+      type: object
+      required:
+      - instanceId
+      properties:
+        instanceId:
+          $ref: '#/components/schemas/CogniteInstanceId'
+    DocumentFilterContainsAll:
+      type: object
+      title: containsAll
+      required:
+      - containsAll
+      properties:
+        containsAll:
+          required:
+          - property
+          - values
+          description: Matches items where the property contains all the given values
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/DocumentFilterProperty'
+            values:
+              $ref: '#/components/schemas/DocumentFilterValueList'
+          example:
+            property:
+            - assetIds
+            values:
+            - 51276
+            - 94287
+    DocumentsAggregateCountItem:
+      type: object
+      required:
+      - count
+      properties:
+        count:
+          type: integer
+          description: Number of items in this aggregation group.
+          format: int64
+    DocumentPassagesFilterBool:
+      title: bool filters
+      description: 'A query that matches items matching boolean combinations of other queries.
+
+        Currently only supports `and` clause.
+
+        '
+      type: object
+      oneOf:
+      - type: object
+        title: and
+        required:
+        - and
+        properties:
+          and:
+            description: All of the sub-clauses in the query must appear in matching items.
+            type: array
+            minItems: 1
+            items:
+              $ref: '#/components/schemas/DocumentPassagesFilter'
+            example:
+            - prefix:
+                property:
+                - name
+                value: Report
+            - equals:
+                property:
+                - type
+                value: PDF
+    DocumentSearchLimit:
+      type: object
+      properties:
+        limit:
+          description: Maximum number of items. When using highlights the maximum value is reduced to 20.
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 1000
+          default: 100
+    DocumentListRequest:
+      allOf:
+      - $ref: '#/components/schemas/DocumentListFilter'
+      - $ref: '#/components/schemas/DocumentSort'
+      - $ref: '#/components/schemas/DocumentListLimit'
+      - $ref: '#/components/schemas/DocumentCursor'
+    DocumentFilterSemanticSearch:
+      type: object
+      title: semanticSearch
+      required:
+      - semanticSearch
+      properties:
+        semanticSearch:
+          required:
+          - property
+          - value
+          description: Matches passages that have similar semantic meaning as the search query.
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/DocumentFilterProperty'
+            value:
+              type: string
+          example:
+            property:
+            - content
+            value: Report
+    DocumentListLimit:
+      type: object
+      properties:
+        limit:
+          description: Maximum number of items per page. Use the cursor to get more pages.
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 1000
+          default: 100
+    DocumentFilterSearch:
+      type: object
+      title: search
+      required:
+      - search
+      properties:
+        search:
+          required:
+          - property
+          - value
+          description: Matches items that contains the search query.
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/DocumentFilterProperty'
+            value:
+              type: string
+          example:
+            property:
+            - content
+            value: Report
+    LabelList:
+      type: array
+      description: A list of the labels associated with this resource item.
+      minItems: 0
+      maxItems: 10
+      uniqueItems: true
+      items:
+        $ref: '#/components/schemas/Label'
+    DocumentPassagesFilter:
+      description: 'A JSON based filtering language. See detailed documentation above.
+
+        '
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/DocumentPassagesFilterBool'
+      - $ref: '#/components/schemas/DocumentPassagesFilterLeaf'
+    DocumentsAggregateUniqueValuesResponse:
+      title: UniqueValues
+      description: Response for uniqueValues aggregate.
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 0
+          maxItems: 10000
+          items:
+            $ref: '#/components/schemas/DocumentsAggregateUniqueValuesItem'
+      example:
+        items:
+        - count: 4
+          values:
+          - hello
+        - count: 33
+          values:
+          - world
+    DocumentSearchRequest:
+      allOf:
+      - $ref: '#/components/schemas/DocumentSearch'
+      - $ref: '#/components/schemas/DocumentSearchFilter'
+      - $ref: '#/components/schemas/DocumentSort'
+      - $ref: '#/components/schemas/DocumentSearchLimit'
+      - $ref: '#/components/schemas/DocumentCursor'
+      - $ref: '#/components/schemas/DocumentSearchHighlight'
+    DocumentsAggregateUniqueValuesItem:
+      type: object
+      required:
+      - count
+      - values
+      properties:
+        count:
+          type: integer
+          description: Number of items in this aggregation group.
+          format: int64
+        values:
+          type: array
+          description: A unique value found in the specified properties. Each item is a value for the specified property with same index.
+          items:
+            $ref: '#/components/schemas/DocumentAggregateValue'
+    DocumentAggregateFilter:
+      description: 'A JSON based filtering language. See detailed documentation above.
+
+        '
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/DocumentAggregateFilterBool'
+      - $ref: '#/components/schemas/DocumentAggregateFilterLeaf'
+    DocumentsAggregateCardinalityPropertiesItem:
+      type: object
+      required:
+      - count
+      properties:
+        count:
+          type: integer
+          description: Number of items in this aggregation group.
+          format: int64
+    DocumentsAggregateAllUniquePropertiesResponse:
+      deprecated: true
+      title: All unique properties
+      description: Response for the allUniqueProperties aggregate.
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 0
+          maxItems: 10000
+          items:
+            $ref: '#/components/schemas/DocumentsAggregateAllUniquePropertiesItem'
+        nextCursor:
+          type: string
+          description: The cursor to get the next page of results (if available).
+      example:
+        items:
+        - count: 4
+          values:
+          - hello
+        - count: 33
+          values:
+          - world
+    DocumentCursor:
+      type: object
+      properties:
+        cursor:
+          description: Cursor for paging through results.
+          type: string
+    DocumentFilterEquals:
+      type: object
+      title: equals
+      required:
+      - equals
+      properties:
+        equals:
+          required:
+          - property
+          - value
+          description: Matches items that contain the exact value in the provided property.
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/DocumentFilterProperty'
+            value:
+              $ref: '#/components/schemas/DocumentFilterValue'
+          example:
+            property:
+            - type
+            value: PDF
+    DocumentsAggregateAllUniquePropertiesItem:
+      type: object
+      required:
+      - count
+      - values
+      properties:
+        count:
+          type: integer
+          description: Number of properties with this name
+          format: int64
+        values:
+          type: array
+          description: A property name
+          items:
+            type: string
+    DocumentFilterRangeValue:
+      description: Value you wish to find in the provided property using a range clause.
+      type: number
+    DocumentsAggregateAllUniqueValuesRequest:
+      deprecated: true
+      title: All unique values
+      description: Paginated list of all unique values for given properties.
+      type: object
+      required:
+      - aggregate
+      - properties
+      allOf:
+      - $ref: '#/components/schemas/DocumentSearchInAggregate'
+      - $ref: '#/components/schemas/DocumentSearchFilter'
+      - type: object
+        properties:
+          aggregate:
+            type: string
+            enum:
+            - allUniqueValues
+          properties:
+            type: array
+            description: List of properties to group by. It is currently only possible to group by 1 property.
+            minItems: 1
+            maxItems: 1
+            items:
+              type: object
+              required:
+              - property
+              properties:
+                property:
+                  description: A property to group by.
+                  allOf:
+                  - $ref: '#/components/schemas/DocumentFilterProperty'
+          limit:
+            description: Maximum number of items per page.
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 10000
+            default: 100
+          cursor:
+            description: Cursor for paging through results.
+            type: string
+    DocumentFilterBool:
+      title: bool filters
+      description: 'A query that matches items matching boolean combinations of other queries.
+
+        It is built using one or more boolean clauses, which can be of types: `and`, `or` or `not`
+
+        '
+      type: object
+      oneOf:
+      - type: object
+        title: and
+        required:
+        - and
+        properties:
+          and:
+            description: All of the sub-clauses in the query must appear in matching items.
+            type: array
+            minItems: 1
+            items:
+              $ref: '#/components/schemas/DocumentFilter'
+            example:
+            - prefix:
+                property:
+                - name
+                value: Report
+            - equals:
+                property:
+                - type
+                value: PDF
+      - type: object
+        title: or
+        required:
+        - or
+        properties:
+          or:
+            description: At least one of the sub-clauses in the query must appear in matching items.
+            type: array
+            minItems: 1
+            items:
+              $ref: '#/components/schemas/DocumentFilter'
+            example:
+            - prefix:
+                property:
+                - name
+                value: Report
+            - prefix:
+                property:
+                - name
+                value: Summary
+      - type: object
+        title: not
+        required:
+        - not
+        properties:
+          not:
+            title: Filter
+            description: Sub-clauses in the query must not appear in matching items.
+            type: object
+            allOf:
+            - $ref: '#/components/schemas/DocumentFilter'
+            example:
+            - equals:
+                property:
+                - type
+                value: PDF
+    DocumentContentExternalId:
+      type: object
+      required:
+      - externalId
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+    DocumentSearchInAggregate:
+      type: object
+      properties:
+        search:
+          type: object
+          required:
+          - query
+          properties:
+            query:
+              type: string
+              description: The free text search query as described in detail above.
+              maxLength: 1000
+              example: cognite "lorem ipsum"
+    DocumentFilter:
+      description: 'A JSON based filtering language. See detailed documentation above.
+
+        '
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/DocumentFilterBool'
+      - $ref: '#/components/schemas/DocumentFilterLeaf'
+    DocumentContentInternalId:
+      type: object
+      required:
+      - id
+      properties:
+        id:
+          $ref: '#/components/schemas/CogniteInternalId'
+    DocumentSearchHighlight:
+      type: object
+      properties:
+        highlight:
+          description: Whether or not matches in search results should be highlighted.
+          type: boolean
+    CogniteExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
+      type: string
+      maxLength: 255
+      example: my.known.id
+    DocumentPassagesSearchItem:
+      type: object
+      required:
+      - text
+      - locations
+      - document
+      description: Each item contains the semantic match and the relevant document it belongs to.
+      example:
+        text: "Pump installation\nFollow these 15 steps:\n ..."
+        document:
+          id: 1234
+        locations:
+        - page_number: 3
+          left: 68.78
+          right: 478.56
+          top: 75.04
+          bottom: 386.1
+        - page_number: 4
+          left: 68.78
+          right: 478.56
+          top: 75.04
+          bottom: 386.1
+      properties:
+        text:
+          type: string
+          description: The text representing the document passage that was related to your search query.
+        locations:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocumentPassageLocation'
+        document:
+          $ref: '#/components/schemas/PassageDocument'
+    DocumentFilterContainsAny:
+      type: object
+      title: containsAny
+      required:
+      - containsAny
+      properties:
+        containsAny:
+          required:
+          - property
+          - values
+          description: Matches items where the property contains one or more of the given values
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/DocumentFilterProperty'
+            values:
+              $ref: '#/components/schemas/DocumentFilterValueList'
+          example:
+            property:
+            - assetIds
+            values:
+            - 51276
+            - 94287
+    DocumentFilterExists:
+      type: object
+      title: exists
+      required:
+      - exists
+      properties:
+        exists:
+          required:
+          - property
+          description: Matches items that contain a value for the provided property.
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/DocumentFilterProperty'
+          example:
+            property:
+            - language
+    DocumentSearchItem:
+      type: object
+      required:
+      - item
+      properties:
+        highlight:
+          $ref: '#/components/schemas/DocumentHighlight'
+        item:
+          $ref: '#/components/schemas/Document'
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    DocumentSearch:
+      type: object
+      properties:
+        search:
+          type: object
+          required:
+          - query
+          properties:
+            query:
+              type: string
+              description: The free text search query as described in detail above.
+              maxLength: 1000
+              example: cognite "lorem ipsum"
+            highlight:
+              deprecated: true
+              type: boolean
+              description: Whether or not matches in search results should be highlighted.
+              default: false
+    DocumentPassagesSearchPassageExpansionSymmetric:
+      type: object
+      required:
+      - strategy
+      - chunk_count
+      properties:
+        strategy:
+          description: Expand the passage with adjacent passages that exists before and after a passage.
+          type: string
+          enum:
+          - symmetric
+          default: symmetric
+        chunk_count:
+          description: Number of passages to expand a given passage by
+          type: integer
+          minimum: 1
+          maximum: 4
+    DocumentFilterGeoJsonDisjoint:
+      type: object
+      title: geojsonDisjoint
+      required:
+      - geojsonDisjoint
+      properties:
+        geojsonDisjoint:
+          required:
+          - property
+          - geometry
+          description: Matches items with geolocations that are disjoint from the provided geometry
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/DocumentFilterProperty'
+            geometry:
+              $ref: '#/components/schemas/DocumentGeoJsonGeometry'
+    DocumentsAggregateUniquePropertiesItem:
+      type: object
+      required:
+      - count
+      - values
+      properties:
+        count:
+          type: integer
+          description: Number of properties with this name
+          format: int64
+        values:
+          type: array
+          description: A property name
+          items:
+            type: string
+    Label:
+      type: object
+      title: Label
+      required:
+      - externalId
+      description: A label assigned to a resource.
+      properties:
+        externalId:
+          description: An external ID to a predefined label definition.
+          allOf:
+          - $ref: '#/components/schemas/CogniteExternalId'
+    DocumentFilterInAssetSubtree:
+      type: object
+      title: inAssetSubtree
+      required:
+      - inAssetSubtree
+      properties:
+        inAssetSubtree:
+          required:
+          - property
+          - values
+          description: Matches items where the property contains one or more assets in a subtree rooted at any of the given values
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/DocumentFilterProperty'
+            values:
+              $ref: '#/components/schemas/DocumentFilterValueList'
+          example:
+            property:
+            - assetIds
+            values:
+            - 51276
+            - 94287
+    DocumentPassagesSearchLimit:
+      type: object
+      properties:
+        limit:
+          description: Maximum number of items.
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 10
+          default: 10
+    DocumentSourceFile:
+      type: object
+      description: The source file that this document is derived from.
+      required:
+      - name
+      properties:
+        name:
+          type: string
+          description: Name of the file.
+          example: hamlet.txt
+        directory:
+          type: string
+          description: The directory the file can be found in
+          example: plays/shakespeare
+        source:
+          type: string
+          description: The source of the file
+          example: SubsurfaceConnectors
+        mimeType:
+          type: string
+          description: The mime type of the file
+          example: application/octet-stream
+        size:
+          type: number
+          format: int64
+          description: The size of the source file in bytes
+          example: 1000
+        hash:
+          type: string
+          description: The hash of the source file. This is a SHA256 hash of the original file. The hash only covers the file content, and not other CDF metadata.
+          example: 23203f9264161714cdb8d2f474b9b641e6a735f8cea4098c40a3cab8743bd749
+        assetIds:
+          type: array
+          description: The ids of the assets related to this file
+          example: []
+          items:
+            $ref: '#/components/schemas/CogniteInternalId'
+        labels:
+          allOf:
+          - description: A list of labels associated with this document's source file in CDF.
+            example:
+            - externalId: play
+            - externalId: tragedy
+          - $ref: '#/components/schemas/LabelList'
+        geoLocation:
+          $ref: '#/components/schemas/DocumentGeoJsonGeometry'
+        datasetId:
+          description: The id if the dataset this file belongs to, if any
+          allOf:
+          - $ref: '#/components/schemas/CogniteInternalId'
+        securityCategories:
+          type: array
+          description: The security category IDs required to access this file
+          example: []
+          items:
+            type: number
+            format: int64
+        metadata:
+          type: object
+          additionalProperties:
+            type: string
+    DocumentsAggregateCardinalityPropertiesRequest:
+      title: CardinalityProperties
+      description: Find approximate number of unique properties.
+      type: object
+      allOf:
+      - $ref: '#/components/schemas/DocumentSearchInAggregate'
+      - $ref: '#/components/schemas/DocumentSearchFilter'
+      - type: object
+        required:
+        - aggregate
+        - path
+        properties:
+          aggregate:
+            type: string
+            enum:
+            - cardinalityProperties
+          aggregateFilter:
+            $ref: '#/components/schemas/DocumentAggregateFilter'
+          path:
+            description: The scope within which properties should be aggregated. The only value that is currently allowed is `["metadata"]`, which will aggregate metadata keys.
+            type: array
+            minItems: 1
+            maxItems: 1
+            items:
+              type: string
+              enum:
+              - metadata
+    DocumentsAggregateCardinalityValuesResponse:
+      title: CardinalityValues
+      type: object
+      description: Response for cardinalityValues aggregate.
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 1
+          items:
+            $ref: '#/components/schemas/DocumentsAggregateCardinalityValuesItem'
+      example:
+        items:
+        - count: 10
+    CogniteInstanceId:
+      description: The ID of an [instance in Cognite Data Models](https://docs.cognite.com/cdf/dm/dm_concepts/dm_spaces_instances#instance).
+      type: object
+      required:
+      - space
+      - externalId
+      properties:
+        space:
+          type: string
+          minLength: 1
+          maxLength: 43
+        externalId:
+          type: string
+          minLength: 1
+          maxLength: 255
+    DocumentPassagesSearchRequest:
+      allOf:
+      - $ref: '#/components/schemas/DocumentPassagesSearchFilter'
+      - $ref: '#/components/schemas/DocumentPassagesSearchPassageExpansion'
+      - $ref: '#/components/schemas/DocumentPassagesSearchLimit'
+    DocumentAggregateFilterLeaf:
+      title: leaf filters
+      description: Leaf filter
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/DocumentAggregateFilterPrefix'
+    DocumentsAggregateUniqueValuesRequest:
+      title: UniqueValues
+      description: Top unique values for given properties.
+      type: object
+      required:
+      - aggregate
+      - properties
+      allOf:
+      - $ref: '#/components/schemas/DocumentSearchInAggregate'
+      - $ref: '#/components/schemas/DocumentSearchFilter'
+      - type: object
+        properties:
+          aggregate:
+            type: string
+            enum:
+            - uniqueValues
+          aggregateFilter:
+            $ref: '#/components/schemas/DocumentAggregateFilter'
+          properties:
+            type: array
+            description: List of properties to group by. It is currently only possible to group by 1 property.
+            minItems: 1
+            maxItems: 1
+            items:
+              type: object
+              required:
+              - property
+              properties:
+                property:
+                  description: A property to group by.
+                  allOf:
+                  - $ref: '#/components/schemas/DocumentFilterProperty'
+          limit:
+            description: Maximum number of items.
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 10000
+            default: 100
+    DocumentListFilter:
+      description: Filter with exact match
+      type: object
+      properties:
+        filter:
+          $ref: '#/components/schemas/DocumentFilter'
+    DocumentAggregateFilterPrefix:
+      type: object
+      title: prefix
+      required:
+      - prefix
+      properties:
+        prefix:
+          required:
+          - value
+          description: Matches items that contain a specific prefix in the provided property.
+          type: object
+          properties:
+            value:
+              $ref: '#/components/schemas/DocumentFilterValue'
+          example:
+            property:
+            - name
+            value: Report
+    DocumentContentRequest:
+      oneOf:
+      - $ref: '#/components/schemas/DocumentContentInternalId'
+      - $ref: '#/components/schemas/DocumentContentExternalId'
+      - $ref: '#/components/schemas/DocumentContentInstanceId'
+    DocumentPassagesSearchFilter:
+      description: Narrow down search results. You must specify atleast one filter of type `semanticSearch`, `lexicalSearch` or both.
+      type: object
+      required:
+      - filter
+      properties:
+        filter:
+          $ref: '#/components/schemas/DocumentPassagesFilter'
+    PassageDocument:
+      type: object
+      required:
+      - id
+      - sourceFile
+      description: A document
+      properties:
+        id:
+          description: The unique identifier for the document. This is automatically generated by CDF, and will be the same as the corresponding value in the Files API.
+          example: 2384
+          allOf:
+          - $ref: '#/components/schemas/CogniteInternalId'
+        externalId:
+          example: haml001
+          description: The external ID for the document. This field will be the same as the value set in the Files API.
+          allOf:
+          - $ref: '#/components/schemas/CogniteExternalId'
+        instanceId:
+          description: The instance ID for documents created through Data Modeling. This field will be the same as the value set in the Files API.
+          allOf:
+          - $ref: '#/components/schemas/CogniteInstanceId'
+        sourceFile:
+          $ref: '#/components/schemas/PassageSourceFile'
+    PassageSourceFile:
+      type: object
+      description: The source file that this document is derived from.
+      required:
+      - name
+      properties:
+        name:
+          type: string
+          description: Name of the file.
+          example: hamlet.txt
+        hash:
+          type: string
+          description: The hash of the source file. This is a SHA256 hash of the original file. The hash only covers the file content, and not other CDF metadata.
+          example: 23203f9264161714cdb8d2f474b9b641e6a735f8cea4098c40a3cab8743bd749
+    DocumentsAggregateAllUniquePropertiesRequest:
+      deprecated: true
+      title: All unique properties
+      description: Find all metadata property names
+      type: object
+      allOf:
+      - $ref: '#/components/schemas/DocumentSearchInAggregate'
+      - $ref: '#/components/schemas/DocumentSearchFilter'
+      - type: object
+        required:
+        - aggregate
+        - properties
+        properties:
+          aggregate:
+            type: string
+            enum:
+            - allUniqueProperties
+          properties:
+            type: array
+            description: List of properties for which you want to get the nested property names. The only supported property is currently `["sourceFile", "metadata"]`.
+            minItems: 1
+            maxItems: 1
+            items:
+              type: object
+              required:
+              - property
+              properties:
+                property:
+                  description: The property to list nested properties for
+                  allOf:
+                  - $ref: '#/components/schemas/DocumentFilterProperty'
+          limit:
+            description: Maximum number of items.
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 10000
+            default: 100
+          cursor:
+            description: Cursor for paging through results.
+            type: string
+    DocumentSortItem:
+      type: object
+      required:
+      - property
+      properties:
+        order:
+          type: string
+          enum:
+          - asc
+          - desc
+          default: asc
+        property:
+          $ref: '#/components/schemas/DocumentFilterProperty'
+    DocumentPassageLocation:
+      type: object
+      description: Insight about a search result
+      properties:
+        pageNumber:
+          type: number
+          format: int32
+        left:
+          type: number
+          format: float
+        right:
+          type: number
+          format: float
+        up:
+          type: number
+          format: float
+        bottom:
+          type: number
+          format: float
+      example:
+        page: 7
+        left: 68.78
+        right: 478.56
+        top: 75.04
+        bottom: 386.1
+    Document:
+      type: object
+      required:
+      - id
+      - createdTime
+      - sourceFile
+      description: A document
+      properties:
+        id:
+          description: The unique identifier for the document. This is automatically generated by CDF, and will be the same as the corresponding value in the Files API.
+          example: 2384
+          allOf:
+          - $ref: '#/components/schemas/CogniteInternalId'
+        externalId:
+          example: haml001
+          description: The external ID for the document. This field will be the same as the value set in the Files API.
+          allOf:
+          - $ref: '#/components/schemas/CogniteExternalId'
+        instanceId:
+          description: The instance ID for documents created through Data Modeling. This field will be the same as the value set in the Files API.
+          allOf:
+          - $ref: '#/components/schemas/CogniteInstanceId'
+        title:
+          description: The title of the document
+          type: string
+          example: Hamlet
+        author:
+          description: The author of the document
+          type: string
+          example: William Shakespeare
+        producer:
+          description: The producer of the document. Many document types contain metadata indicating what software or system was used to create the document.
+          type: string
+        createdTime:
+          description: When the document was created, measured in milliseconds since 00:00:00 Thursday, 1 January 1970. We do a best effort to determine the created time for the document, and it will be derived from either the document metadata, the user-specified created time provided when uploading the file or as a last resort the creation timestamp of the underlying file resource.
+          example: 1519862400000
+          allOf:
+          - $ref: '#/components/schemas/EpochTimestamp'
+        modifiedTime:
+          description: When the document was last modified, measured in milliseconds since 00:00:00 Thursday, 1 January 1970. This holdes the user-specified modified time provided for the underlying file resource, but might in the future also be derived from document metadata.
+          example: 1519958703000
+          allOf:
+          - $ref: '#/components/schemas/EpochTimestamp'
+        lastIndexedTime:
+          description: When the document was last indexed in the documents search engine, measured in milliseconds since 00:00:00 Thursday, 1 January 1970.
+          example: 1521062805000
+          allOf:
+          - $ref: '#/components/schemas/EpochTimestamp'
+        mimeType:
+          description: Detected mime type for the document
+          type: string
+          example: text/plain
+        extension:
+          type: string
+          description: Extension of the file (always in lowercase)
+          example: pdf
+        pageCount:
+          description: Number of pages for multi-page documents
+          type: integer
+          format: int32
+          example: 2
+        type:
+          description: Detected type of document
+          type: string
+          example: Document
+        language:
+          description: The detected language used in the document
+          type: string
+          example: en
+        truncatedContent:
+          description: The textual content of the document. Truncated to 155 characters but subject to change
+          type: string
+          example: "ACT I\nSCENE I. Elsinore. A platform before the castle.\n  FRANCISCO at his post. Enter to him BERNARDO\nBERNARDO\n  Who's there?\n"
+        assetIds:
+          deprecated: true
+          description: The ids of any assets referred to in the document
+          type: array
+          example:
+          - 42
+          - 101
+          items:
+            $ref: '#/components/schemas/CogniteInternalId'
+        labels:
+          allOf:
+          - deprecated: true
+          - $ref: '#/components/schemas/LabelList'
+        sourceFile:
+          $ref: '#/components/schemas/DocumentSourceFile'
+        geoLocation:
+          allOf:
+          - deprecated: true
+          - $ref: '#/components/schemas/DocumentGeoJsonGeometry'
+          - description: 'Geolocation derived for this document. Represented using a GeoJSON Geometry.
+
+
+              The derived geolocation also includes geolocation information from a matched
+
+              asset (see assetIds property). For matched assets without geolocation information
+
+              the parent chain is followed until it finds an asset with geolocation information.
+
+              '
+    DocumentsAggregateCardinalityValuesRequest:
+      title: CardinalityValues
+      description: Find approximate number of unique values.
+      type: object
+      allOf:
+      - $ref: '#/components/schemas/DocumentSearchInAggregate'
+      - $ref: '#/components/schemas/DocumentSearchFilter'
+      - type: object
+        required:
+        - aggregate
+        - properties
+        properties:
+          aggregate:
+            type: string
+            enum:
+            - cardinalityValues
+          aggregateFilter:
+            $ref: '#/components/schemas/DocumentAggregateFilter'
+          properties:
+            type: array
+            description: List of properties for which you want to get the approximate number of unique values.
+            minItems: 1
+            maxItems: 1
+            items:
+              type: object
+              required:
+              - property
+              properties:
+                property:
+                  description: The property to get the approximate number of unique values for
+                  allOf:
+                  - $ref: '#/components/schemas/DocumentFilterProperty'
+    DocumentsAggregateUniquePropertiesRequest:
+      title: UniqueProperties
+      description: Top unique metadata property names
+      type: object
+      allOf:
+      - $ref: '#/components/schemas/DocumentSearchInAggregate'
+      - $ref: '#/components/schemas/DocumentSearchFilter'
+      - type: object
+        required:
+        - aggregate
+        - properties
+        properties:
+          aggregate:
+            type: string
+            enum:
+            - uniqueProperties
+          aggregateFilter:
+            $ref: '#/components/schemas/DocumentAggregateFilter'
+          properties:
+            type: array
+            description: List of properties for which you want to get the nested property names. The only supported property is currently `["sourceFile", "metadata"]`.
+            minItems: 1
+            maxItems: 1
+            items:
+              type: object
+              required:
+              - property
+              properties:
+                property:
+                  description: The property to list nested properties for
+                  allOf:
+                  - $ref: '#/components/schemas/DocumentFilterProperty'
+          limit:
+            description: Maximum number of items.
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 10000
+            default: 100
+    DocumentAggregateValue:
+      oneOf:
+      - type: string
+      - type: number
+      - $ref: '#/components/schemas/Label'
+    DocumentFilterGeoJsonWithin:
+      type: object
+      title: geojsonWithin
+      required:
+      - geojsonWithin
+      properties:
+        geojsonWithin:
+          required:
+          - property
+          - geometry
+          description: Matches items with geolocations that are within the provided geometry
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/DocumentFilterProperty'
+            geometry:
+              $ref: '#/components/schemas/DocumentGeoJsonGeometry'
+    DocumentFilterValueList:
+      description: One or more values you wish to find in the provided property.
+      type: array
+      minItems: 1
+      maxItems: 100
+      items:
+        $ref: '#/components/schemas/DocumentFilterValue'
+    DocumentFilterLeaf:
+      title: leaf filters
+      description: Leaf filter
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/DocumentFilterEquals'
+      - $ref: '#/components/schemas/DocumentFilterIn'
+      - $ref: '#/components/schemas/DocumentFilterContainsAny'
+      - $ref: '#/components/schemas/DocumentFilterContainsAll'
+      - $ref: '#/components/schemas/DocumentFilterRange'
+      - $ref: '#/components/schemas/DocumentFilterPrefix'
+      - $ref: '#/components/schemas/DocumentFilterSearch'
+      - $ref: '#/components/schemas/DocumentFilterExists'
+      - $ref: '#/components/schemas/DocumentFilterGeoJsonIntersects'
+      - $ref: '#/components/schemas/DocumentFilterGeoJsonDisjoint'
+      - $ref: '#/components/schemas/DocumentFilterGeoJsonWithin'
+      - $ref: '#/components/schemas/DocumentFilterInAssetSubtree'
+    DocumentFilterRange:
+      type: object
+      title: range
+      required:
+      - range
+      properties:
+        range:
+          required:
+          - property
+          description: 'Matches items that contain terms within the provided range.
+
+            Range must include both an upper and a lower bound. It is not allowed to specify both inclusive and exclusive
+
+            bounds (like `gte`, `gt`) together.
+
+            `gte`: Greater than or equal to.
+
+            `gt`: Greater than.
+
+            `lte`: Less than or equal to.
+
+            `lt`: Less than.
+
+            '
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/DocumentFilterProperty'
+            gte:
+              $ref: '#/components/schemas/DocumentFilterRangeValue'
+            gt:
+              $ref: '#/components/schemas/DocumentFilterRangeValue'
+            lte:
+              $ref: '#/components/schemas/DocumentFilterRangeValue'
+            lt:
+              $ref: '#/components/schemas/DocumentFilterRangeValue'
+          example:
+            property:
+            - createdTime
+            gte: 1609459200000
+            lt: 1640995200000
+    DocumentsAggregateCardinalityPropertiesResponse:
+      title: CardinalityProperties
+      type: object
+      description: Response for cardinalityProperties aggregate.
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 1
+          items:
+            $ref: '#/components/schemas/DocumentsAggregateCardinalityPropertiesItem'
+      example:
+        items:
+        - count: 10
+  responses:
+    DocumentSearchResponse:
+      description: The results of a search.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            properties:
+              items:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DocumentSearchItem'
+              nextCursor:
+                type: string
+                description: The cursor to get the next page of results (if available). The search endpoint only gives a limited number of results. A missing nextCursor does not imply there are no more results for the provided search.
+    DocumentsAggregateResponse:
+      description: The results of an aggregation request. The object returned depends on the aggregate specified.
+      content:
+        application/json:
+          schema:
+            type: object
+            oneOf:
+            - $ref: '#/components/schemas/DocumentsAggregateCountResponse'
+            - $ref: '#/components/schemas/DocumentsAggregateCardinalityValuesResponse'
+            - $ref: '#/components/schemas/DocumentsAggregateCardinalityPropertiesResponse'
+            - $ref: '#/components/schemas/DocumentsAggregateUniqueValuesResponse'
+            - $ref: '#/components/schemas/DocumentsAggregateUniquePropertiesResponse'
+            - $ref: '#/components/schemas/DocumentsAggregateAllUniquePropertiesResponse'
+            - $ref: '#/components/schemas/DocumentsAggregateAllUniqueValuesResponse'
+    ErrorResponse:
+      description: The response for a failed request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+    DocumentListResponse:
+      description: One page of document list results.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            properties:
+              items:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Document'
+              nextCursor:
+                type: string
+                description: The cursor to get the next page of results (if available).
+    DocumentPassagesSearchResponse:
+      description: List of most relevant document passages for a given query. The results are sorted by relevance, and contains metadata such as page numbers.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            properties:
+              items:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DocumentPassagesSearchItem'
+  securitySchemes:
+    oidc-token:
+      type: http
+      scheme: bearer
+      bearerFormat: OpenID Connect or OAuth2 token
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+    oauth2-client-credentials:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        clientCredentials:
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-auth-code:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://your-idps.authorization.url/
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-open-industrial-data:
+      type: oauth2
+      description: Auth flow for Open Industrial Data. Get your client secret from https://hub.cognite.com/open-industrial-data-211.
+      flows:
+        clientCredentials:
+          tokenUrl: https://login.microsoftonline.com/48d5043c-cf70-4c49-881c-c638f5796997/oauth2/v2.0/token
+          scopes:
+            default: https://api.cognitedata.com/.default
+    org-oidc-token:
+      type: openIdConnect
+      openIdConnectUrl: https://auth.cognite.com/.well-known/openid-configuration
+      description: 'Access token issued by the Cognite authorization server, and valid for the target organization. The token must
+
+        be an OpenID Connect token, and it can be obtained by performing an OIDC login flow toward `auth.cognite.com`.
+
+        This is a single URL for all CDF organizations.'
+x-tagGroups:
+- name: Changelog
+  tags:
+  - Changelog
+- name: Organizations and projects
+  tags:
+  - Organizations
+  - Projects
+- name: Identity and access management
+  tags:
+  - Principals
+  - Groups
+  - Security categories
+  - Sessions
+  - Token
+  - User profiles
+  - Project Deletion Reporting
+- name: Data modeling
+  tags:
+  - Data Modeling
+  - Data models
+  - Spaces
+  - Views
+  - Containers
+  - Nodes
+  - Instances
+  - Statistics
+  - Streams
+  - Records
+- name: Asset-centric data model
+  tags:
+  - Assets
+  - Time series
+  - Synthetic Time Series
+  - Data point subscriptions
+  - Events
+  - Files
+  - Sequences
+  - Geospatial
+  - Seismic
+- name: 3D
+  tags:
+  - 3D Models
+  - 3D Model Revisions
+  - 3D Files
+  - 3D Asset Mapping
+  - 3D Contextualization
+  - 3D Jobs
+  - 3D Migration
+  - 3D Scenes
+- name: Contextualization
+  tags:
+  - Entity matching
+  - Entity matching pipelines
+  - Engineering diagrams
+  - Vision
+  - Advanced joins
+- name: Cognite AI
+  tags:
+  - Agents
+  - Skills
+  - Chat Completions
+  - Document AI
+  - Models
+- name: Documents
+  tags:
+  - Documents
+  - Document preview
+- name: Data ingestion
+  tags:
+  - Raw
+  - Extraction Pipelines
+  - Extraction Pipelines Runs
+  - Extraction Pipelines Config
+  - Extractors
+- name: Data organization
+  tags:
+  - Data sets
+  - Data domains
+  - Data products
+  - Rule sets
+  - Labels
+  - Relationships
+  - Annotations
+- name: Transformations
+  tags:
+  - Transformations
+  - Transformation Jobs
+  - Transformation Schedules
+  - Transformation Notifications
+  - Query
+  - Schema
+- name: Functions
+  tags:
+  - Functions
+  - Function calls
+  - Function schedules
+- name: Hosted Extractors
+  tags:
+  - Sources
+  - Jobs
+  - Destinations
+  - Mappings
+- name: PostgreSQL Gateway
+  tags:
+  - Postgres Gateway Users
+  - Postgres Gateway Tables
+- name: SAP Writeback
+  tags:
+  - SAP Instances
+  - SAP Endpoints
+  - Schema Mappings
+  - Writeback Requests
+- name: Data workflows
+  tags:
+  - Workflows
+  - Workflow versions
+  - Workflow executions
+  - Workflow triggers
+  - Tasks
+  - Workers
+- name: Simulators
+  tags:
+  - Simulators
+  - Simulator Integrations
+  - Simulator Models
+  - Simulator Routines
+  - Simulation Runs
+  - Simulator Logs
+- name: Units
+  tags:
+  - Units
+  - Unit Systems
+- name: ''
+  tags:
+  - ''

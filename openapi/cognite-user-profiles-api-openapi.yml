@@ -1,0 +1,767 @@
+openapi: 3.1.0
+info:
+  title: Cognite 3D Asset Mapping User profiles API
+  description: "# Introduction\nThis is the reference documentation for the Cognite API with\nan overview of all the available methods.\n\n# Postman\nSelect the **Download** button to download our OpenAPI specification to get started.\n\nTo import your data into Postman, select **Import**, and the Import modal opens.\nYou can import items by dragging or dropping files or folders. You can choose how to import your API and manage the import settings in **View Import Settings**.\n\nIn the Import Settings, set the **Folder organization** to **Tags**, select\n**Enable optional parameters** to turn off the settings, and select **Always inherit authentication** to turn on the settings. Select **Import**.\n\nSet the Authorization to **Oauth2.0**. By default, the settings are for Open Industrial Data. Navigate to [Cognite Hub](https://hub.cognite.com/open-industrial-data-211) to understand how to get the credentials for use in Postman.\n\nFor more information, see [Getting Started with Postman](https://developer.cognite.com/dev/guides/postman/).\n\n# Pagination\nMost resource types can be paginated, indicated by the field `nextCursor` in the response.\nBy passing the value of `nextCursor` as the cursor you will get the next page of `limit` results.\nNote that all parameters except `cursor` has to stay the same.\n\n# Parallel retrieval\nAs general guidance, Parallel Retrieval is a technique that should be used when due to query complexity, retrieval of data in a single request is significantly slower than it would otherwise be for a simple request.  Parallel retrieval does not act as a speed multiplier on optimally running queries.  By parallelizing such requests, data retrieval performance can be tuned to meet the client application needs. \n\nCDF supports parallel retrieval through the `partition` parameter, which has the format `m/n` where `n` is the amount of partitions you would like to split the entire data set into.\nIf you want to download the entire data set by splitting it into 10 partitions, do the following in parallel with `m` running from 1 to 10:\n  - Make a request to `/events` with `partition=m/10`.\n  - Paginate through the response by following the cursor as explained above. Note that the `partition` parameter needs to be passed to all subqueries.\n\nProcessing of parallel retrieval requests is subject to concurrency quota availability. The request returns the `429` response upon exceeding concurrency limits. See the Request throttling chapter below.\n\nTo prevent unexpected problems and to maximize read throughput, you should at most use 10 partitions. \nSome CDF resources will automatically enforce a maximum of 10 partitions.\nFor more specific and detailed information, please read the ```partition``` attribute documentation for the CDF resource you're using.  \n\n# Requests throttling\nCognite Data Fusion (CDF) returns the HTTP `429` (too many requests) response status code when project capacity exceeds the limit.\n\nThe throttling can happen:\n  - If a user or a project sends too many (more than allocated) concurrent requests.\n  - If a user or a project sends a too high (more than allocated) rate of requests in a given amount of time.\n\nCognite recommends using a retry strategy based on truncated exponential backoff to handle sessions with HTTP response codes 429.\n\nCognite recommends using a reasonable number (up to 10) of  `Parallel retrieval` partitions.\n\nFollowing these strategies lets you slow down the request frequency to maximize productivity without having to re-submit/retry failing requests.\n\nSee more [here](https://docs.cognite.com/dev/concepts/resource_throttling).\n\n# API versions\n## Version headers\nThis API uses calendar versioning, and version names follow the `YYYYMMDD` format.\nYou can find the versions currently available by using the version selector at the top of this page.\n\nTo use a specific API version, you can pass the `cdf-version: $version` header along with your requests to the API.\n\n## Beta versions\nThe beta versions provide a preview of what the stable version will look like in the future.\nBeta versions contain functionality that is reasonably mature, and highly likely to become a part of the stable API.\n\nBeta versions are indicated by a `-beta` suffix after the version name. For example, the beta version header for the\n2023-01-01 version is then `cdf-version: 20230101-beta`.\n\n## Alpha versions\nAlpha versions contain functionality that is new and experimental, and not guaranteed to ever become a part of the stable API.\nThis functionality presents no guarantee of service, so its use is subject to caution.\n\nAlpha versions are indicated by an `-alpha` suffix after the version name. For example, the alpha version header for\nthe 2023-01-01 version is then `cdf-version: 20230101-alpha`."
+  version: v1
+  contact:
+    name: Cognite Support
+    url: https://support.cognite.com
+    email: support@cognite.com
+servers:
+- url: https://{cluster}.cognitedata.com/api/v1/projects/{project}
+  description: The URL for the CDF cluster to connect to
+  variables:
+    cluster:
+      enum:
+      - api
+      - az-tyo-gp-001
+      - az-eastus-1
+      - az-power-no-northeurope
+      - westeurope-1
+      - asia-northeast1-1
+      - gc-dsm-gp-001
+      default: api
+      description: The CDF cluster to connect to
+    project:
+      default: publicdata
+      description: The CDF project name.
+security:
+- oidc-token:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-client-credentials:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-open-industrial-data:
+  - https://api.cognitedata.com/.default
+- oauth2-auth-code:
+  - https://{cluster}.cognitedata.com/.default
+tags:
+- name: User profiles
+  description: 'User profiles is an authoritative source of core user profile information (email,
+
+    name, job title, etc.) for principals based on data from the identity provider
+
+    configured for the CDF project.
+
+
+    User profiles are first created (usually within a few seconds) when a principal issues
+
+    a request against a CDF API. We currently don''t support automatic exchange of user identity
+
+    information between the identity provider and CDF, but the profile data is updated regularly
+
+    with the latest data from the identity provider for the principals issuing requests against
+
+    a CDF API.
+
+
+    Note:
+
+    - Do not use other fields than `userIdentifier` (e.g. email) to uniquely identify a
+
+    principal. User profile data is mutable and is not guaranteed to be stable or unique (except
+
+    `userIdentifier`).
+
+    - Do not use user profile data for authentication or authorization purposes. It is not
+
+    guaranteed to be under the strict governance necessary for that. For example, one should not
+
+    use email address as proof of identity or job title to give access to resources.
+
+    - We strongly recommend _against_ storing any user profile data. It is intended for display
+
+    purposes only and may update at any time. Clients should fetch user profile data at demand,
+
+    and optionally cache for performance reasons.
+
+    '
+paths:
+  /profiles:
+    get:
+      deprecated: true
+      x-capability:
+      - userProfilesAcl:READ
+      tags:
+      - User profiles
+      operationId: listUserProfiles
+      summary: List all user profiles in the current project
+      description: '
+
+
+        > **Required capabilities:** `userProfilesAcl:READ`
+
+
+        Deprecated in favor of the [List principals](#tag/Principals/operation/listPrincipals) endpoint.
+
+
+        List all user profiles in the current project. This operation supports pagination by cursor.
+
+        The results are ordered alphabetically by name.'
+      parameters:
+      - name: identityType
+        in: query
+        schema:
+          $ref: '#/components/schemas/IdentityTypeFilter'
+      - name: limit
+        description: Limits the number of results to be returned. The server returns no more than 1000 results even if the specified limit is larger. The default limit is 25.
+        in: query
+        schema:
+          type: integer
+          default: 25
+          minimum: 1
+          maximum: 1000
+      - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfilesListResponse'
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: 'const response = await client.profiles.list({ limit: 1000 });'
+      - lang: Python
+        label: Python SDK
+        source: 'res = client.iam.user_profiles.list(limit=None)
+
+          '
+  /profiles/me:
+    get:
+      deprecated: true
+      x-capability:
+      - userProfilesAcl:READ
+      tags:
+      - User profiles
+      operationId: getRequesterUserProfile
+      summary: (deprecated) Get the user profile of the principal issuing the request
+      description: '
+
+
+        > **Required capabilities:** `userProfilesAcl:READ`
+
+
+        Deprecated in favor of the new [endpoint](#tag/Principals/operation/getMe).
+
+
+        Retrieves the user profile of the principal issuing the request.
+
+        If a principal doesn''t have a user profile, you get a not found (404) response code.
+
+        Note: User profiles are created asyncronously, so the endpoint might return 404 for
+
+        a new principal for a while (usually seconds) until the profile has been created.'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileItem'
+        '404':
+          description: The user profile for the requesting principal was not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfilesNotFoundResponse'
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: const response = await client.profiles.me();
+      - lang: Python
+        label: Python SDK
+        source: 'res = client.iam.user_profiles.me()
+
+          '
+  /profiles/byids:
+    post:
+      deprecated: true
+      x-capability:
+      - userProfilesAcl:READ
+      tags:
+      - User profiles
+      operationId: getUserProfilesByIds
+      summary: Retrieve profiles by ID in the current project
+      description: '
+
+
+        > **Required capabilities:** `userProfilesAcl:READ`
+
+
+        Deprecated in favor of the [Retrieve principals](#tag/Principals/operation/getPrincipalsById) endpoint.
+
+
+        Retrieve one or more user profiles indexed by the user identifier in the same CDF project.'
+      requestBody:
+        description: Specify a maximum of 1000 unique IDs.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserProfilesByIdsRequest'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfilesByIdsResponse'
+        '400':
+          description: The response for a failed request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfilesErrorResponse'
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: 'const response = await client.profiles.retrieve([{ userIdentifier: ''abcd'' }]);'
+      - lang: Python
+        label: Python SDK
+        source: 'res = client.iam.user_profiles.retrieve("foo")
+
+
+          res = client.iam.user_profiles.retrieve(["bar", "baz"])
+
+          '
+  /profiles/search:
+    post:
+      deprecated: true
+      x-capability:
+      - userProfilesAcl:READ
+      tags:
+      - User profiles
+      operationId: userProfilesSearch
+      summary: Search user profiles in the current project
+      description: '
+
+
+        > **Required capabilities:** `userProfilesAcl:READ`
+
+
+        Deprecated in favor of the [List principals](#tag/Principals/operation/listPrincipals) endpoint.
+
+
+        Search user profiles in the current project. The result set ordering and match criteria
+
+        threshold may change over time. This operation does not support pagination.'
+      requestBody:
+        description: Query for user profile search.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserProfilesSearchRequest'
+      responses:
+        '200':
+          description: List of matched user profiles. If no user profile matches, you'll receive an empty set.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfilesSearchResponse'
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: 'const response = await client.profiles.search({ search: { name: ''John'' } });'
+      - lang: Python
+        label: Python SDK
+        source: 'res = client.iam.user_profiles.search(name="Alex")
+
+          '
+  /principals/me:
+    servers:
+    - url: https://auth.cognite.com/api/v1
+    get:
+      deprecated: true
+      operationId: getRequesterProfile
+      summary: Get the user profile of the principal issuing the request
+      security:
+      - org-oidc-token: []
+      description: 'Deprecated in favor of the new [endpoint](#tag/Principals/operation/getMe).
+
+
+        Retrieves the user profile of the principal issuing the request.'
+      tags:
+      - User profiles
+      responses:
+        '200':
+          $ref: '#/components/responses/PrincipalProfileDto'
+components:
+  schemas:
+    UserProfilesSearchRequest:
+      type: object
+      properties:
+        search:
+          type: object
+          properties:
+            name:
+              description: Prefix search on name.
+              type: string
+        limit:
+          description: <- Limits the maximum number of results to be returned by single request. The default is 25.
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 1000
+          default: 25
+    IdentityType:
+      description: 'The identity type field indicates the type of principal.
+
+        - `USER`: Human user.
+
+        - `SERVICE_PRINCIPAL`: Service account.
+
+        - `INTERNAL_SERVICE`: Internal CDF service.
+
+        '
+      type: string
+      enum:
+      - USER
+      - SERVICE_PRINCIPAL
+      - INTERNAL_SERVICE
+    UserProfileItem:
+      type: object
+      required:
+      - userIdentifier
+      - lastUpdatedTime
+      properties:
+        userIdentifier:
+          type: string
+          description: 'Uniquely identifies the principal the profile is associated with.
+
+            This property is _guaranteed_ to be immutable.
+
+            '
+          nullable: false
+          example: abcd
+        givenName:
+          type: string
+          description: The user's first name.
+          nullable: true
+          example: Jane
+        surname:
+          type: string
+          description: The user's last name.
+          nullable: true
+          example: Doe
+        email:
+          type: string
+          description: 'The user''s email address (if any). The email address is is returned directly from
+
+            the identity provider and not guaranteed to be verified.
+
+            Note that the email is mutable and can be updated in the identity provider. It should
+
+            _not_ be used to uniquely identify as a user. Use the `userIdentifier` property instead.
+
+            '
+          nullable: true
+          example: jane.doe@example.com
+        displayName:
+          type: string
+          description: The display name for the user.
+          nullable: true
+          example: Jane Doe
+        jobTitle:
+          type: string
+          description: The user's job title.
+          nullable: true
+          example: Software Engineer
+        identityType:
+          $ref: '#/components/schemas/IdentityType'
+        lastUpdatedTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+    ServicePrincipal:
+      type: object
+      required:
+      - userIdentifier
+      - displayName
+      - lastUpdatedTime
+      - pictureUrl
+      - identityType
+      properties:
+        userIdentifier:
+          type: string
+          description: 'Uniquely identifies the principal the profile is associated with.
+
+            '
+          example: HByt5JcYe1jYgnN5kFSGikthqcFHJjg4kxciGBFUWbBFv4unyt
+        displayName:
+          type: string
+          description: The display name for the service account
+          example: Industrial Ops Acct 5
+        pictureUrl:
+          type: string
+          description: The avatar of the service account
+          format: url
+          example: https://auth.cognite.com/api/v1/orgs/cog-cognite/principals/HByt5JcYe1jYgnN5kFSGikthqcFHJjg4kxciGBFUWbBFv4unyt/picture?_n=1730959200&_e=1731067200&_k=EdCqRojhpCzDNF6JrrpfZgp
+        identityType:
+          title: Principal identity type
+          type: string
+          enum:
+          - SERVICE_PRINCIPAL
+    UserIdentifier:
+      type: object
+      required:
+      - userIdentifier
+      properties:
+        userIdentifier:
+          type: string
+          example: abcd
+    UserProfilesErrorResponse:
+      required:
+      - error
+      type: object
+      properties:
+        error:
+          required:
+          - code
+          - message
+          type: object
+          properties:
+            code:
+              type: integer
+              description: HTTP status code.
+            message:
+              type: string
+              description: Error message.
+            missing:
+              type: array
+              items:
+                $ref: '#/components/schemas/UserIdentifier'
+              description: List of lookup objects that do not match any results.
+            duplicated:
+              type: array
+              items:
+                $ref: '#/components/schemas/UserIdentifier'
+              description: List of objects that are not unique.
+    UserProfilesNotFoundResponse:
+      required:
+      - error
+      type: object
+      properties:
+        error:
+          required:
+          - code
+          - message
+          type: object
+          properties:
+            code:
+              type: integer
+              description: HTTP status code.
+            message:
+              type: string
+              description: Error message.
+    IdentityTypeFilter:
+      description: 'The identity type filter field indicates the type of principal the request should be filtered to show.
+
+        If no value is specified, the default value is `USER`.
+
+        - `ALL`: All types of principals.
+
+        - `USER`: Human user.
+
+        - `SERVICE_PRINCIPAL`: Service account.
+
+        - `INTERNAL_SERVICE`: Internal CDF service.
+
+        '
+      type: string
+      enum:
+      - ALL
+      - USER
+      - SERVICE_PRINCIPAL
+      - INTERNAL_SERVICE
+    UserProfilesSearchResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserProfileItem'
+    UserPrincipal:
+      type: object
+      required:
+      - userIdentifier
+      - displayName
+      - lastUpdatedTime
+      - pictureUrl
+      - identityType
+      properties:
+        userIdentifier:
+          type: string
+          description: 'Uniquely identifies the principal the profile is associated with.
+
+            '
+          example: -cFNuYkHgnn5q8pnlVlCRg
+        displayName:
+          type: string
+          description: The display name for the user.
+          example: Jane Doe
+        givenName:
+          type: string
+          description: The user's first name.
+          example: Jane
+        surname:
+          type: string
+          description: The user's last name.
+          example: Doe
+        email:
+          type: string
+          description: 'The user''s email address (if any). The email address is is returned directly from the identity provider and not guaranteed to be verified.
+
+            It should
+
+            _not_ be used to uniquely identify as a user. Use the `userIdentifier` property instead.
+
+            '
+          example: jane.doe@example.com
+        pictureUrl:
+          type: string
+          description: The avatar of the service account
+          format: url
+          example: https://auth.cognite.com/api/v1/orgs/cog-cognite/principals/HByt5JcYe1jYgnN5kFSGikthqcFHJjg4kxciGBFUWbBFv4unyt/picture?_n=1730959200&_e=1731067200&_k=EdCqRojhpCzDNF6JrrpfZgp
+        identityType:
+          title: Principal identity type
+          type: string
+          enum:
+          - USER
+        lastUpdatedTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    UserProfilesByIdsRequest:
+      description: Array of user identifiers
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserIdentifier'
+    UserProfilesListResponse:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserProfileItem'
+        nextCursor:
+          type: string
+          description: Cursor to get the next page of results (if available).
+    UserProfilesByIdsResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserProfileItem'
+  responses:
+    PrincipalProfileDto:
+      description: Principal's profile data
+      content:
+        application/json:
+          schema:
+            oneOf:
+            - $ref: '#/components/schemas/UserPrincipal'
+            - $ref: '#/components/schemas/ServicePrincipal'
+  parameters:
+    Cursor:
+      name: cursor
+      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
+
+        property, it means that there may be more results, and you should pass that value as the
+
+        `cursor` parameter in the next request.
+
+
+        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
+
+        decoded. Its internal structure is not a part of the public API, and may change without
+
+        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
+
+        '
+      in: query
+      schema:
+        type: string
+        example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+  securitySchemes:
+    oidc-token:
+      type: http
+      scheme: bearer
+      bearerFormat: OpenID Connect or OAuth2 token
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+    oauth2-client-credentials:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        clientCredentials:
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-auth-code:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://your-idps.authorization.url/
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-open-industrial-data:
+      type: oauth2
+      description: Auth flow for Open Industrial Data. Get your client secret from https://hub.cognite.com/open-industrial-data-211.
+      flows:
+        clientCredentials:
+          tokenUrl: https://login.microsoftonline.com/48d5043c-cf70-4c49-881c-c638f5796997/oauth2/v2.0/token
+          scopes:
+            default: https://api.cognitedata.com/.default
+    org-oidc-token:
+      type: openIdConnect
+      openIdConnectUrl: https://auth.cognite.com/.well-known/openid-configuration
+      description: 'Access token issued by the Cognite authorization server, and valid for the target organization. The token must
+
+        be an OpenID Connect token, and it can be obtained by performing an OIDC login flow toward `auth.cognite.com`.
+
+        This is a single URL for all CDF organizations.'
+x-tagGroups:
+- name: Changelog
+  tags:
+  - Changelog
+- name: Organizations and projects
+  tags:
+  - Organizations
+  - Projects
+- name: Identity and access management
+  tags:
+  - Principals
+  - Groups
+  - Security categories
+  - Sessions
+  - Token
+  - User profiles
+  - Project Deletion Reporting
+- name: Data modeling
+  tags:
+  - Data Modeling
+  - Data models
+  - Spaces
+  - Views
+  - Containers
+  - Nodes
+  - Instances
+  - Statistics
+  - Streams
+  - Records
+- name: Asset-centric data model
+  tags:
+  - Assets
+  - Time series
+  - Synthetic Time Series
+  - Data point subscriptions
+  - Events
+  - Files
+  - Sequences
+  - Geospatial
+  - Seismic
+- name: 3D
+  tags:
+  - 3D Models
+  - 3D Model Revisions
+  - 3D Files
+  - 3D Asset Mapping
+  - 3D Contextualization
+  - 3D Jobs
+  - 3D Migration
+  - 3D Scenes
+- name: Contextualization
+  tags:
+  - Entity matching
+  - Entity matching pipelines
+  - Engineering diagrams
+  - Vision
+  - Advanced joins
+- name: Cognite AI
+  tags:
+  - Agents
+  - Skills
+  - Chat Completions
+  - Document AI
+  - Models
+- name: Documents
+  tags:
+  - Documents
+  - Document preview
+- name: Data ingestion
+  tags:
+  - Raw
+  - Extraction Pipelines
+  - Extraction Pipelines Runs
+  - Extraction Pipelines Config
+  - Extractors
+- name: Data organization
+  tags:
+  - Data sets
+  - Data domains
+  - Data products
+  - Rule sets
+  - Labels
+  - Relationships
+  - Annotations
+- name: Transformations
+  tags:
+  - Transformations
+  - Transformation Jobs
+  - Transformation Schedules
+  - Transformation Notifications
+  - Query
+  - Schema
+- name: Functions
+  tags:
+  - Functions
+  - Function calls
+  - Function schedules
+- name: Hosted Extractors
+  tags:
+  - Sources
+  - Jobs
+  - Destinations
+  - Mappings
+- name: PostgreSQL Gateway
+  tags:
+  - Postgres Gateway Users
+  - Postgres Gateway Tables
+- name: SAP Writeback
+  tags:
+  - SAP Instances
+  - SAP Endpoints
+  - Schema Mappings
+  - Writeback Requests
+- name: Data workflows
+  tags:
+  - Workflows
+  - Workflow versions
+  - Workflow executions
+  - Workflow triggers
+  - Tasks
+  - Workers
+- name: Simulators
+  tags:
+  - Simulators
+  - Simulator Integrations
+  - Simulator Models
+  - Simulator Routines
+  - Simulation Runs
+  - Simulator Logs
+- name: Units
+  tags:
+  - Units
+  - Unit Systems
+- name: ''
+  tags:
+  - ''

@@ -1,0 +1,2421 @@
+openapi: 3.1.0
+info:
+  title: Cognite 3D Asset Mapping Containers API
+  description: "# Introduction\nThis is the reference documentation for the Cognite API with\nan overview of all the available methods.\n\n# Postman\nSelect the **Download** button to download our OpenAPI specification to get started.\n\nTo import your data into Postman, select **Import**, and the Import modal opens.\nYou can import items by dragging or dropping files or folders. You can choose how to import your API and manage the import settings in **View Import Settings**.\n\nIn the Import Settings, set the **Folder organization** to **Tags**, select\n**Enable optional parameters** to turn off the settings, and select **Always inherit authentication** to turn on the settings. Select **Import**.\n\nSet the Authorization to **Oauth2.0**. By default, the settings are for Open Industrial Data. Navigate to [Cognite Hub](https://hub.cognite.com/open-industrial-data-211) to understand how to get the credentials for use in Postman.\n\nFor more information, see [Getting Started with Postman](https://developer.cognite.com/dev/guides/postman/).\n\n# Pagination\nMost resource types can be paginated, indicated by the field `nextCursor` in the response.\nBy passing the value of `nextCursor` as the cursor you will get the next page of `limit` results.\nNote that all parameters except `cursor` has to stay the same.\n\n# Parallel retrieval\nAs general guidance, Parallel Retrieval is a technique that should be used when due to query complexity, retrieval of data in a single request is significantly slower than it would otherwise be for a simple request.  Parallel retrieval does not act as a speed multiplier on optimally running queries.  By parallelizing such requests, data retrieval performance can be tuned to meet the client application needs. \n\nCDF supports parallel retrieval through the `partition` parameter, which has the format `m/n` where `n` is the amount of partitions you would like to split the entire data set into.\nIf you want to download the entire data set by splitting it into 10 partitions, do the following in parallel with `m` running from 1 to 10:\n  - Make a request to `/events` with `partition=m/10`.\n  - Paginate through the response by following the cursor as explained above. Note that the `partition` parameter needs to be passed to all subqueries.\n\nProcessing of parallel retrieval requests is subject to concurrency quota availability. The request returns the `429` response upon exceeding concurrency limits. See the Request throttling chapter below.\n\nTo prevent unexpected problems and to maximize read throughput, you should at most use 10 partitions. \nSome CDF resources will automatically enforce a maximum of 10 partitions.\nFor more specific and detailed information, please read the ```partition``` attribute documentation for the CDF resource you're using.  \n\n# Requests throttling\nCognite Data Fusion (CDF) returns the HTTP `429` (too many requests) response status code when project capacity exceeds the limit.\n\nThe throttling can happen:\n  - If a user or a project sends too many (more than allocated) concurrent requests.\n  - If a user or a project sends a too high (more than allocated) rate of requests in a given amount of time.\n\nCognite recommends using a retry strategy based on truncated exponential backoff to handle sessions with HTTP response codes 429.\n\nCognite recommends using a reasonable number (up to 10) of  `Parallel retrieval` partitions.\n\nFollowing these strategies lets you slow down the request frequency to maximize productivity without having to re-submit/retry failing requests.\n\nSee more [here](https://docs.cognite.com/dev/concepts/resource_throttling).\n\n# API versions\n## Version headers\nThis API uses calendar versioning, and version names follow the `YYYYMMDD` format.\nYou can find the versions currently available by using the version selector at the top of this page.\n\nTo use a specific API version, you can pass the `cdf-version: $version` header along with your requests to the API.\n\n## Beta versions\nThe beta versions provide a preview of what the stable version will look like in the future.\nBeta versions contain functionality that is reasonably mature, and highly likely to become a part of the stable API.\n\nBeta versions are indicated by a `-beta` suffix after the version name. For example, the beta version header for the\n2023-01-01 version is then `cdf-version: 20230101-beta`.\n\n## Alpha versions\nAlpha versions contain functionality that is new and experimental, and not guaranteed to ever become a part of the stable API.\nThis functionality presents no guarantee of service, so its use is subject to caution.\n\nAlpha versions are indicated by an `-alpha` suffix after the version name. For example, the alpha version header for\nthe 2023-01-01 version is then `cdf-version: 20230101-alpha`."
+  version: v1
+  contact:
+    name: Cognite Support
+    url: https://support.cognite.com
+    email: support@cognite.com
+servers:
+- url: https://{cluster}.cognitedata.com/api/v1/projects/{project}
+  description: The URL for the CDF cluster to connect to
+  variables:
+    cluster:
+      enum:
+      - api
+      - az-tyo-gp-001
+      - az-eastus-1
+      - az-power-no-northeurope
+      - westeurope-1
+      - asia-northeast1-1
+      - gc-dsm-gp-001
+      default: api
+      description: The CDF cluster to connect to
+    project:
+      default: publicdata
+      description: The CDF project name.
+security:
+- oidc-token:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-client-credentials:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-open-industrial-data:
+  - https://api.cognitedata.com/.default
+- oauth2-auth-code:
+  - https://{cluster}.cognitedata.com/.default
+tags:
+- name: Containers
+paths:
+  /models/containers:
+    post:
+      tags:
+      - Containers
+      summary: Create or update containers
+      description: '
+
+
+        > **Required capabilities:** `dataModelsAcl:WRITE`
+
+
+        Add or update (upsert) containers. For unchanged container specifications, the operation completes without making any changes.  We will not update the ```lastUpdatedTime``` value for containers that remain unchanged.'
+      operationId: ApplyContainers
+      requestBody:
+        description: Containers to add or update.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContainerCreateCollection'
+        required: true
+      x-capability:
+      - dataModelsAcl:WRITE
+      responses:
+        '200':
+          $ref: '#/components/responses/ContainerCollectionResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          description: View conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpsertConflict'
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: "from cognite.client.data_classes.data_modeling import ContainerApply, ContainerProperty, Text\ncontainer = [ContainerApply(space=\"mySpace\", external_id=\"myContainer\",\n    properties={\"name\": ContainerProperty(type=Text, name=\"name\")})]\nres = client.data_modeling.containers.apply(container)\n\nfrom cognite.client.data_classes.data_modeling import Float64\nfrom cognite.client.data_classes.data_modeling.data_types import UnitReference\ncontainer = ContainerApply(\n    space=\"mySpace\",\n    external_id=\"myContainer\",\n    properties={\n        \"maxPressure\": ContainerProperty(\n            nullable=True,\n            description=\"Maximum Pump Pressure\",\n            name=\"maxPressure\",\n            type=Float64(\n                unit=UnitReference(\n                    external_id=\"pressure:bar\",\n                    source_unit=\"BAR\"\n                )\n            )\n        ),\n        \"rotationConfigurations\": ContainerProperty(\n            nullable=True,\n            description=\"Rotation Configurations\",\n            name=\"rotationConfigurations\",\n            type=Float64(\n                is_list=True,\n                unit=UnitReference(\n                    external_id=\"angular_velocity:rev-per-min\"\n                )\n            )\n        )\n    }\n)\nres = client.data_modeling.containers.apply(container)\n\nfrom cognite.client.data_classes.data_modeling.data_types import UnitReference, EnumValue\nfrom cognite.client.data_classes.data_modeling.data_types import (\n    Boolean, Date, DirectRelation, Enum, FileReference, Float32, Float64,\n    Int32, Int64, Json, SequenceReference, Text, TimeSeriesReference, Timestamp\n)\ncontainer_properties = {\n    \"prop01\": ContainerProperty(Boolean),\n    \"prop02\": ContainerProperty(Boolean(is_list=True)),\n    \"prop03\": ContainerProperty(Date),\n    \"prop04\": ContainerProperty(Date(is_list=True)),\n    \"prop05\": ContainerProperty(Timestamp),\n    \"prop06\": ContainerProperty(Timestamp(is_list=True)),\n    \"prop07\": ContainerProperty(Text),\n    \"prop08\": ContainerProperty(Text(is_list=True)),\n    # Note: DirectRelation(list) support `container`: The (optional) required type for the node\n    #       the direct relation points to.\n    \"prop09\": ContainerProperty(DirectRelation),\n    \"prop10\": ContainerProperty(DirectRelation(is_list=True)),\n    # Note: Enum also support `unknown_value`: The value to use when the enum value is unknown.\n    \"prop11\": ContainerProperty(\n        Enum({\"Closed\": EnumValue(\"Valve is closed\"),\n              \"Opened\": EnumValue(\"Valve is opened\")})),\n    # Note: Floats support unit references, e.g. `unit=UnitReference(\"pressure:bar\")`:\n    \"prop12\": ContainerProperty(Float32),\n    \"prop13\": ContainerProperty(Float32(is_list=True)),\n    \"prop14\": ContainerProperty(Float64),\n    \"prop15\": ContainerProperty(Float64(is_list=True)),\n    \"prop16\": ContainerProperty(Int32),\n    \"prop17\": ContainerProperty(Int32(is_list=True)),\n    \"prop18\": ContainerProperty(Int64),\n    \"prop19\": ContainerProperty(Int64(is_list=True)),\n    \"prop20\": ContainerProperty(Json),\n    \"prop21\": ContainerProperty(Json(is_list=True)),\n    \"prop22\": ContainerProperty(SequenceReference),\n    \"prop23\": ContainerProperty(SequenceReference(is_list=True)),\n    # Note: It is adviced to represent files and time series directly as nodes\n    #       instead of referencing existing:\n    \"prop24\": ContainerProperty(FileReference),\n    \"prop25\": ContainerProperty(FileReference(is_list=True)),\n    \"prop26\": ContainerProperty(TimeSeriesReference),\n    \"prop27\": ContainerProperty(TimeSeriesReference(is_list=True)),\n}\ncontainer = ContainerApply(\n    space=\"my-space\",\n    external_id=\"my-everything-container\",\n    properties=container_properties,\n)\n"
+    get:
+      tags:
+      - Containers
+      summary: List containers defined in the project
+      description: '
+
+
+        > **Required capabilities:** `dataModelsAcl:READ`
+
+
+        List of containers defined in the current project. You can filter the list by specifying a space.'
+      operationId: listContainers
+      parameters:
+      - $ref: '#/components/parameters/ReducedLimit'
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Space'
+      - $ref: '#/components/parameters/IncludeGlobal'
+      - $ref: '#/components/parameters/FilterUsedFor'
+      x-capability:
+      - dataModelsAcl:READ
+      responses:
+        '200':
+          $ref: '#/components/responses/ContainerCollectionResponseWithCursor'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: "container_list = client.data_modeling.containers.list(limit=5)\n\nfor container in client.data_modeling.containers:\n    container # do something with the container\n\nfor container_list in client.data_modeling.containers(chunk_size=10):\n    container_list # do something with the containers\n"
+  /models/containers/byids:
+    post:
+      tags:
+      - Containers
+      summary: Retrieve containers by their external ids
+      description: '
+
+
+        > **Required capabilities:** `dataModelsAcl:READ`
+
+
+        Retrieve up to 100 containers by their specified external ids.'
+      operationId: byExternalIdsContainers
+      requestBody:
+        description: List of external-ids of containers to retrieve.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListOfSpaceExternalIdsRequest'
+        required: true
+      x-capability:
+      - dataModelsAcl:READ
+      responses:
+        '200':
+          $ref: '#/components/responses/ContainerCollectionResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: 'res = client.data_modeling.containers.retrieve((''mySpace'', ''myContainer''))
+
+
+          from cognite.client.data_classes.data_modeling import ContainerId
+
+          res = client.data_modeling.containers.retrieve(ContainerId(space=''mySpace'', external_id=''myContainer''))
+
+          '
+  /models/containers/delete:
+    post:
+      tags:
+      - Containers
+      summary: Delete containers
+      description: '
+
+
+        > **Required capabilities:** `dataModelsAcl:WRITE`
+
+
+        Delete one or more containers. Currently limited to 100 containers at a time.'
+      operationId: deleteContainers
+      requestBody:
+        description: List of spaces and external-ids for the containers you want to delete.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListOfSpaceExternalIdsRequest'
+        required: true
+      x-capability:
+      - dataModelsAcl:WRITE
+      responses:
+        '200':
+          $ref: '#/components/responses/ListOfSpaceExternalIdsResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: 'client.data_modeling.containers.delete(("mySpace", "myContainer"))
+
+          '
+  /models/containers/indexes/delete:
+    post:
+      tags:
+      - Containers
+      summary: Delete indexes from containers
+      description: '
+
+
+        > **Required capabilities:** `dataModelsAcl:WRITE`
+
+
+        Delete one or more container indexes. Currently limited to 10 indexes at a time.'
+      operationId: deleteContainerIndexes
+      requestBody:
+        description: List of references to the indexes you want to delete.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListOfContainerSubObjectIdentifierRequest'
+        required: true
+      x-capability:
+      - dataModelsAcl:WRITE
+      responses:
+        '200':
+          $ref: '#/components/responses/ListOfContainerSubObjectIdentifierResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: "client.data_modeling.containers.delete_indexes(\n    [(ContainerId(\"mySpace\", \"myContainer\"), \"myIndex\")]\n)\n"
+  /models/containers/indexes/retry:
+    post:
+      tags:
+      - Containers
+      summary: Retry failed indexes
+      description: '
+
+
+        > **Required capabilities:** `dataModelsAcl:WRITE`
+
+
+        Triggers a retry of the given failed container indexes. This will usually entail scanning through all the data in the container, so use this sparingly. There are strict limits as to how often a given index can be retried, and how many schema entities can be in a retrying state simultaneously.'
+      operationId: retryContainerIndexes
+      requestBody:
+        description: List of references to the indexes you want to retry.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListOfContainerSubObjectIdentifierRequest'
+        required: true
+      x-capability:
+      - dataModelsAcl:WRITE
+      responses:
+        '200':
+          $ref: '#/components/responses/ListOfContainerSubObjectIdentifierResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+  /models/containers/constraints/delete:
+    post:
+      tags:
+      - Containers
+      summary: Delete constraints from containers
+      description: '
+
+
+        > **Required capabilities:** `dataModelsAcl:WRITE`
+
+
+        Delete one or more container constraints. Currently limited to 10 constraints at a time.'
+      operationId: deleteContainerConstraints
+      requestBody:
+        description: List of references to the constraints you want to delete.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListOfContainerSubObjectIdentifierRequest'
+        required: true
+      x-capability:
+      - dataModelsAcl:WRITE
+      responses:
+        '200':
+          $ref: '#/components/responses/ListOfContainerSubObjectIdentifierResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: "client.data_modeling.containers.delete_constraints(\n    [(ContainerId(\"mySpace\", \"myContainer\"), \"myConstraint\")]\n)\n"
+  /models/containers/constraints/retry:
+    post:
+      tags:
+      - Containers
+      summary: Retry failed container constraints
+      description: '
+
+
+        > **Required capabilities:** `dataModelsAcl:WRITE`
+
+
+        Triggers a revalidation of the given failed container constraints. This will usually entail scanning through all the data in the container, so use this sparingly. There are strict limits as to how often a given constraint can be revalidated, and how many schema entities can be in a retrying state simultaneously.'
+      operationId: retryContainerConstraints
+      requestBody:
+        description: List of references to the constraints you want to retry.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListOfContainerSubObjectIdentifierRequest'
+        required: true
+      x-capability:
+      - dataModelsAcl:WRITE
+      responses:
+        '200':
+          $ref: '#/components/responses/ListOfContainerSubObjectIdentifierResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+  /models/containers/properties/retry:
+    post:
+      tags:
+      - Containers
+      summary: Retry failed property constraints
+      description: '
+
+
+        > **Required capabilities:** `dataModelsAcl:WRITE`
+
+
+        Triggers a revalidation of failed constraints on the given properties. This includes `nullable`, `maxListSize` and `maxTextSize`. Revalidation usually entails scanning through all the data in the container, so use this sparingly. There are strict limits as to how often a given property can be revalidated, and how many schema entities can be in a retrying simultaneously.'
+      operationId: retryPropertyConstraints
+      requestBody:
+        description: List of references to properties with property-level constraints that you want to retry.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListOfContainerSubObjectIdentifierRequest'
+        required: true
+      x-capability:
+      - dataModelsAcl:WRITE
+      responses:
+        '200':
+          $ref: '#/components/responses/ListOfContainerSubObjectIdentifierResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+  /models/containers/inspect:
+    post:
+      tags:
+      - Containers
+      summary: Inspect containers
+      operationId: containerInspect
+      requestBody:
+        description: Which containers to inspect and the inspection operations to run.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContainerInspectRequest'
+        required: true
+      x-capability:
+      - dataModelsAcl:READ
+      responses:
+        '200':
+          $ref: '#/components/responses/ContainerInspectResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      description: '
+
+
+        > **Required capabilities:** `dataModelsAcl:READ`
+
+        '
+components:
+  schemas:
+    ConstraintCreateDefinition:
+      type: object
+      description: "Defines a constraint across the properties you include.\n\n\nYou can use constraints to enforce that;\n * Certain properties must be present,\n * A value must be unique across a single or several properties.\n\nA 'uniqueness' constraint can only apply to properties that are in the same container. Up to 10 'uniqueness' constraints can be added per container. \n\n\nA 'requires' constraint can reference other containers. As a result, the properties in those other containers must then also be set. Up to 25 'requires' constraints can be added per container. "
+      oneOf:
+      - $ref: '#/components/schemas/RequiresConstraintCreateDefinition'
+      - $ref: '#/components/schemas/UniquenessConstraintCreateDefinition'
+    RecordContainerCreateDefinition:
+      title: Record Container
+      allOf:
+      - $ref: '#/components/schemas/ContainerCommon'
+      - type: object
+        required:
+        - properties
+        properties:
+          usedFor:
+            type: string
+            description: Must be set to ```record``` for record containers. A single container cannot serve both instances (nodes/edges) and records.
+            enum:
+            - record
+          properties:
+            description: 'We index the property by a local unique identifier. The identifier has to have a length of between 1 and 255 characters.  It must also match the pattern ```^[a-zA-Z0-9][a-zA-Z0-9_-]{0,253}[a-zA-Z0-9]?$``` , and it cannot be any of the following reserved identifiers: ```space```, ```externalId```, ```createdTime```, ```lastUpdatedTime```, ```deletedTime```, ```edge_id```, ```node_id```, ```project_id```, ```property_group```, ```seq```, ```tg_table_name```, and ```extensions```. The maximum number of properties depends on the project subscription and is by default 1,000.'
+            minProperties: 1
+            additionalProperties:
+              x-additionalPropertiesName: containerPropertyIdentifier
+              allOf:
+              - $ref: '#/components/schemas/RecordContainerPropertyCreateDefinition'
+    UsedFor:
+      type: string
+      description: Should this operation apply to nodes, edges, records, or both nodes and edges. **NB!** Currently ```all``` applies to nodes and edges, but not records.
+      enum:
+      - node
+      - edge
+      - record
+      - all
+      default: node
+    InvertedIndexCreateDefinition:
+      type: object
+      required:
+      - properties
+      properties:
+        properties:
+          type: array
+          description: List of properties to define the index across
+          items:
+            type: string
+        indexType:
+          type: string
+          enum:
+          - inverted
+          default: inverted
+          description: 'An inverted index can be used to index composite values, and the queries to be handled by the index need to search for element values that appear within the composite items. So if for example you have a property X of type `int[]` and you want to efficiently query for all instances where X contains some value Y, you can create an inverted index on X. '
+    ConstraintOrIndexState:
+      type: string
+      enum:
+      - current
+      - pending
+      - failed
+    ContainerPropertyTypeDefinition:
+      type: object
+      required:
+      - type
+      properties:
+        type:
+          description: "The type of data you can store in this property. Most properties can also hold a list of values, for example, a list of integers or a list of timestamps. The supported storage types are:\n\n\n* text (allows user control of collation),\n * boolean,\n * 32-bit, and 64-bit float,\n * 32-bit, and 64-bit integer,\n * timestamp,\n * date,\n * JSON fragment,\n * direct relation to an existing node,\n * time series external-id reference,\n * file external-id reference,\n * sequence external-id reference,\n * enum.\n\n\nThe JSON fragments have to be valid JSON objects. If JSON arrays are to be stored, these must be wrapped in a JSON object. JSON values (such as string, number, boolean) should use their respective primitive form instead. The maximum allowed size for a JSON object is 40960 bytes. For lists of json values, the size of the entire list must be within this limit. The maximum allowed length of a key is 128, while the maximum allowed size of a value is 10240 bytes and you can have up to 256 key-value pairs. The  byte sizes are computed by representing the data as a UTF-8 encoded JSON string.\nDirect relations use a space external-id, the external-id for an existing node, and the external-id for the data container. E.g. ```s-spaceExternalId.uniqueNodeExternalId.containerExternalId```\nTimestamps must be a string in the format 'YYYY-MM-DDTHH:MM:SS[.millis][Z|time zone]' with optional milliseconds having precision of 1-3 decimal digits and optional timezone with format Â±HH:MM, Â±HHMM, Â±HH or Z, where Z represents UTC, Year must be between 0001 and 9999.\nDates must be a date string in the format 'YYYY-MM-DD'. Year must be between 1 and 9999. "
+          oneOf:
+          - $ref: '#/components/schemas/TextProperty'
+          - $ref: '#/components/schemas/PrimitiveProperty'
+          - $ref: '#/components/schemas/CDFExternalIdReference'
+          - $ref: '#/components/schemas/DirectNodeRelation'
+          - $ref: '#/components/schemas/EnumProperty'
+    ContainerPropertyDefinition:
+      description: Defines a property of a container.  You can reference this property in views.
+      allOf:
+      - $ref: '#/components/schemas/CorePropertyDefinition'
+      - $ref: '#/components/schemas/ContainerPropertyTypeDefinition'
+    IndexState:
+      type: object
+      required:
+      - state
+      properties:
+        state:
+          description: "This field describes the validity of the index.\n\nPossible values are:\n\n* `\"failed\"`: The index can't be built.\n  This can occur if data existing before the index was created data prevents the index from being built.\n  For example, property values in a btree index have a size limit on them.\n  Use `maxListSize` and `maxTextSize` to bound the size of btree indexed properties.\n* `\"current\"`: The index is built successfully.\n* `\"pending\"`: The index is still building.\n"
+          $ref: '#/components/schemas/ConstraintOrIndexState'
+    ContainerDefinition:
+      required:
+      - space
+      - externalId
+      - properties
+      - usedFor
+      - createdTime
+      - lastUpdatedTime
+      - isGlobal
+      allOf:
+      - $ref: '#/components/schemas/ContainerCommon'
+      - type: object
+        properties:
+          usedFor:
+            $ref: '#/components/schemas/UsedFor'
+          createdTime:
+            $ref: '#/components/schemas/EpochTimestamp'
+          lastUpdatedTime:
+            $ref: '#/components/schemas/EpochTimestamp'
+          isGlobal:
+            type: boolean
+            description: Is this a global container.
+          properties:
+            description: 'We index the property by a local unique identifier. The identifier has to have a length of between 1 and 255 characters.  It must also match the pattern ```^[a-zA-Z0-9][a-zA-Z0-9_-]{0,253}[a-zA-Z0-9]?$``` , and it cannot be any of the following reserved identifiers: ```space```, ```externalId```, ```createdTime```, ```lastUpdatedTime```, ```deletedTime```, ```edge_id```, ```node_id```, ```project_id```, ```property_group```, ```seq```, ```tg_table_name```, and ```extensions```. The maximum number of properties depends on the project subscription and is by default 100 (or 1,000 for containers with ```usedFor``` set to ```record```).'
+            minProperties: 1
+            additionalProperties:
+              x-additionalPropertiesName: containerPropertyIdentifier
+              allOf:
+              - $ref: '#/components/schemas/ContainerPropertyDefinition'
+          constraints:
+            type: object
+            description: Set of constraints applied to the container. Constraints are not supported for containers with ```usedFor``` set to ```record```.
+            additionalProperties:
+              x-additionalPropertiesName: constraint-identifier
+              allOf:
+              - $ref: '#/components/schemas/ConstraintDefinition'
+          indexes:
+            type: object
+            description: Set of indexes applied to the container. Indexes are not supported for containers with ```usedFor``` set to ```record```.
+            additionalProperties:
+              x-additionalPropertiesName: index-identifier
+              allOf:
+              - $ref: '#/components/schemas/IndexDefinition'
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
+    ConstraintDefinition:
+      type: object
+      description: "Describes a constraint across the properties included.\n\n\nConstraints enforce that;\n * Certain properties must be present,\n * A value must be unique across a single or several properties.\n\nA 'uniqueness' constraint can only apply to properties that are in the same container. Up to 10 'uniqueness' constraints can be added per container. \n\n\nA 'requires' constraint can reference other containers. As a result, the properties in those other containers must then also be set. Up to 25 'requires' constraints can be added per container. "
+      oneOf:
+      - $ref: '#/components/schemas/RequiresConstraintDefinition'
+      - $ref: '#/components/schemas/UniquenessConstraintDefinition'
+    EnumProperty:
+      type: object
+      description: 'An enum type property.
+
+
+        An enum property can only consist of predefined values.
+
+        '
+      required:
+      - type
+      - values
+      properties:
+        type:
+          type: string
+          enum:
+          - enum
+        unknownValue:
+          type: string
+          description: 'The value to use when the enum value is unknown.
+
+            This can optionally be used to provide forward-compatibility, Specifying what value to use if the client does not recognize the returned value. It is not possible to ingest the unknown value, but it must be part of the allowed values.'
+        values:
+          type: object
+          description: 'A set of all possible values for the enum property. The enum value identifier has to have a length of between 1 and 127 characters.  It must also match the pattern ```^[_A-Za-z][_0-9A-Za-z]{0,127}$```, and not be `"true"`, `"false"` or `"null"`.
+
+
+            Example: ```{ "value1": { "name": "Value 1", "description": "This is value 1" }, "value2": { } }```'
+          additionalProperties:
+            x-additionalPropertiesName: enumValueIdentifier
+            minProperties: 1
+            maxProperties: 32
+            allOf:
+            - $ref: '#/components/schemas/EnumValueProperties'
+      example:
+        unknownValue: unknown
+        values:
+          value1:
+            name: Value 1
+            description: This is value 1
+          value2: {}
+          unknown:
+            name: Unknown
+            description: Used if the client does not recognize the returned value.
+    RequiresConstraintCreateDefinition:
+      type: object
+      required:
+      - require
+      properties:
+        constraintType:
+          type: string
+          enum:
+          - requires
+          default: requires
+        require:
+          $ref: '#/components/schemas/ContainerReference'
+    UniquenessConstraintDefinition:
+      allOf:
+      - $ref: '#/components/schemas/ConstraintState'
+      - $ref: '#/components/schemas/UniquenessConstraintCreateDefinition'
+    ListOfContainerSubObjectIdentifierRequest:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/ContainerSubObjectIdentifier'
+    RequiresConstraintDefinition:
+      allOf:
+      - $ref: '#/components/schemas/ConstraintState'
+      - $ref: '#/components/schemas/RequiresConstraintCreateDefinition'
+    ContainerReference:
+      type: object
+      description: Reference to an existing container
+      required:
+      - type
+      - space
+      - externalId
+      properties:
+        type:
+          type: string
+          enum:
+          - container
+        space:
+          description: Id of the space hosting (containing) the container
+          allOf:
+          - $ref: '#/components/schemas/SpaceSpecification'
+        externalId:
+          description: External-id of the container
+          allOf:
+          - $ref: '#/components/schemas/DMSExternalId'
+    ContainerInspectRequest:
+      type: object
+      required:
+      - inspectionOperations
+      - items
+      properties:
+        inspectionOperations:
+          type: object
+          properties:
+            involvedViews:
+              type: object
+              properties:
+                allVersions:
+                  type: boolean
+                  default: false
+            totalInvolvedViewCount:
+              type: object
+              properties:
+                allVersions:
+                  type: boolean
+                  default: false
+                includeUnavailableViews:
+                  type: boolean
+                  default: true
+                  description: Whether or not to also count views which aren't available to the user. This is useful for understanding whether or not views/datamodels you don't have to access to will be affected by deleting/changing this container.
+        items:
+          type: array
+          minItems: 1
+          maxItems: 10
+          items:
+            type: object
+            required:
+            - space
+            - externalId
+            properties:
+              space:
+                $ref: '#/components/schemas/SpaceSpecification'
+              externalId:
+                description: External id for the requested container
+                allOf:
+                - $ref: '#/components/schemas/DMSExternalId'
+    UniquenessConstraintCreateDefinition:
+      type: object
+      required:
+      - properties
+      properties:
+        constraintType:
+          type: string
+          enum:
+          - uniqueness
+          default: uniqueness
+        properties:
+          type: array
+          description: List of properties included in the constraint. The order you list the properties in is significant.
+          items:
+            type: string
+        bySpace:
+          type: boolean
+          description: Whether to make the constraint space-specific
+          default: false
+    DMSExternalId:
+      type: string
+      pattern: ^[a-zA-Z]([a-zA-Z0-9_]{0,253}[a-zA-Z0-9])?$
+      minLength: 1
+      maxLength: 255
+    ListOfSpaceExternalIdsRequest:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            type: object
+            required:
+            - space
+            - externalId
+            properties:
+              externalId:
+                description: External ids for the requested items
+                allOf:
+                - $ref: '#/components/schemas/DMSExternalId'
+              space:
+                $ref: '#/components/schemas/SpaceSpecification'
+    SpaceSpecification:
+      type: string
+      pattern: ^[a-zA-Z][a-zA-Z0-9_-]{0,41}[a-zA-Z0-9]?$
+      minLength: 1
+      maxLength: 43
+    RecordCorePropertyCreateDefinition:
+      type: object
+      properties:
+        nullable:
+          type: boolean
+          description: Does this property need to be set to a value, or not?
+          default: true
+        defaultValue:
+          oneOf:
+          - type: string
+          - type: number
+          - type: boolean
+          - type: object
+          description: "Default value to use when you do not specify a value for the property.  The default value must be of the same type as what you defined for the property itself. \n\n\nWe do not currently support using default values for array/list types. "
+        description:
+          type: string
+          description: Description of the content and suggested use for this property.
+          maxLength: 1024
+        name:
+          type: string
+          description: Readable property name.
+          maxLength: 255
+    DirectNodeRelation:
+      type: object
+      description: Direct node relation
+      required:
+      - type
+      properties:
+        type:
+          type: string
+          enum:
+          - direct
+        container:
+          description: The (optional) required type for the node the direct relation points to. If specified, the node must exist before the direct relation is referenced and of the specified type. If no container specification is used, the node will be auto created with the built-in ```node``` container type, and it does not explicitly have to be created before the node that references it. For records, the container type constraint is not enforced and targets are not auto-created. Only the target space existence is validated.
+          allOf:
+          - $ref: '#/components/schemas/ContainerReference'
+        list:
+          description: 'Specifies that the data type is a list of values. The ordering of values is preserved.
+
+            '
+          type: boolean
+          default: false
+        maxListSize:
+          type: integer
+          description: Specifies the maximum number of values in the list
+    EnumValueProperties:
+      type: object
+      description: Metadata of the enum value.
+      properties:
+        name:
+          type: string
+          description: Name of the enum value.
+          maxLength: 255
+        description:
+          type: string
+          description: Description of the enum value.
+          maxLength: 1024
+    RecordTextProperty:
+      type: object
+      description: Text type
+      required:
+      - type
+      properties:
+        type:
+          type: string
+          enum:
+          - text
+        list:
+          type: boolean
+          description: 'Specifies that the data type is a list of values. The ordering of values is preserved.
+
+            '
+          default: false
+        maxListSize:
+          type: integer
+          description: Specifies the maximum number of values in the list
+        maxTextSize:
+          type: integer
+          description: Specifies the maximum size in bytes of the text property, when encoded with utf-8
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    IndexDefinition:
+      type: object
+      description: 'Indexes applied to a container.  The properties of an index always belong to the same container.
+
+
+
+        Ordering of the properties included in the index definition list is significant.  The order should match the queries you expect. The properties of an index cannot be updated after creation. If you need to change the index, it must be recreated.
+
+
+
+        Up to 10 indexes can be added on a container. '
+      oneOf:
+      - $ref: '#/components/schemas/BtreeIndexDefinition'
+      - $ref: '#/components/schemas/InvertedIndexDefinition'
+    DMSVersion:
+      type: string
+      pattern: ^[a-zA-Z0-9]([.a-zA-Z0-9_-]{0,41}[a-zA-Z0-9])?$
+      minLength: 1
+      maxLength: 43
+    CorePropertyDefinition:
+      allOf:
+      - $ref: '#/components/schemas/CorePropertyCreateDefinition'
+      - type: object
+        required:
+        - constraintState
+        properties:
+          constraintState:
+            type: object
+            description: 'Describes the validity of constraints defined on this property.
+
+              Not applicable for records.
+
+              '
+            properties:
+              nullability:
+                description: 'For properties that have isNullable set to false, this field describes the validity of the not-null constraint.
+
+                  It is not specified for nullable properties.
+
+
+                  Possible values are:
+
+
+                  * `"failed"`: The property contains null values, violating the constraint. This can occur if a property with existing nulls was made non-nullable. New null values will still be rejected.
+
+                  * `"current"`: The constraint is satisfied; all values in the property are not null.
+
+                  * `"pending"`: The constraint validity has not yet been computed.
+
+                  '
+                $ref: '#/components/schemas/ConstraintOrIndexState'
+              maxListSize:
+                description: 'For list properties with maxListSize set, this field describes the validity of the maxListSize check constraint.
+
+                  It is not specified for properties with isList = false or maxListSize = null.
+
+
+                  Possible values are:
+
+
+                  * `"failed"`: The property contains overly large lists, violating the constraint. This can occur if maxListSize was set on a property with existing values. New overly large list values will still be rejected.
+
+                  * `"current"`: The constraint is satisfied; all list values in the property are within maxListSize.
+
+                  * `"pending"`: The constraint validity has not yet been computed.
+
+                  '
+                $ref: '#/components/schemas/ConstraintOrIndexState'
+              maxTextSize:
+                description: 'For text properties with maxTextSize set, this field describes the validity of the maxTextSize check constraint.
+
+                  It is not specified for non-text properties or properties with maxTextSize = null.
+
+
+                  Possible values are:
+
+
+                  * `"failed"`: The property contains overly big text values, violating the constraint. This can occur if maxTextSize was set on a property with existing values. New overly large text values will still be rejected.
+
+                  * `"current"`: The constraint is satisfied; all text values in the property are within maxTextSize.
+
+                  * `"pending"`: The constraint validity has not yet been computed.
+
+                  '
+                $ref: '#/components/schemas/ConstraintOrIndexState'
+    NextCursorV3:
+      description: The cursor value used to return (paginate to) the next page of results, when more data is available.
+      type: string
+    IndexCreateDefinition:
+      type: object
+      description: 'You can optimize query performance by defining an index to apply to a container.  You can only create an index across properties belonging to the same container.
+
+
+
+        Ordering of the properties included in the index definition list is significant.  The order should match the queries you expect. The properties of an index cannot be updated after creation. If you need to change the index, it must be recreated.
+
+
+
+        Indexes have different requirements for the different property data types.  As a result, the create index operation will fail if you specify an invalid combination.
+
+
+
+        Up to 10 indexes can be added on a container. '
+      oneOf:
+      - $ref: '#/components/schemas/BtreeIndexCreateDefinition'
+      - $ref: '#/components/schemas/InvertedIndexCreateDefinition'
+    InstanceContainerCreateDefinition:
+      title: Instance Container
+      allOf:
+      - $ref: '#/components/schemas/ContainerCommon'
+      - type: object
+        required:
+        - properties
+        properties:
+          usedFor:
+            type: string
+            description: Should this container hold nodes, edges, or both.
+            enum:
+            - node
+            - edge
+            - all
+            default: node
+          properties:
+            description: 'We index the property by a local unique identifier. The identifier has to have a length of between 1 and 255 characters.  It must also match the pattern ```^[a-zA-Z0-9][a-zA-Z0-9_-]{0,253}[a-zA-Z0-9]?$``` , and it cannot be any of the following reserved identifiers: ```space```, ```externalId```, ```createdTime```, ```lastUpdatedTime```, ```deletedTime```, ```edge_id```, ```node_id```, ```project_id```, ```property_group```, ```seq```, ```tg_table_name```, and ```extensions```. The maximum number of properties depends on the project subscription and is by default 100.'
+            minProperties: 1
+            additionalProperties:
+              x-additionalPropertiesName: containerPropertyIdentifier
+              allOf:
+              - $ref: '#/components/schemas/ContainerPropertyCreateDefinition'
+          constraints:
+            type: object
+            description: Set of constraints to apply to the container. Constraint identifiers must be between 1 and 43 characters long.
+            additionalProperties:
+              x-additionalPropertiesName: constraint-identifier
+              allOf:
+              - $ref: '#/components/schemas/ConstraintCreateDefinition'
+          indexes:
+            type: object
+            description: Set of indexes to apply to the container. Up to 10 indexes can be added on a container. Index identifiers must be between 1 and 43 characters long.
+            additionalProperties:
+              x-additionalPropertiesName: index-identifier
+              allOf:
+              - $ref: '#/components/schemas/IndexCreateDefinition'
+    ContainerSubObjectIdentifier:
+      type: object
+      required:
+      - space
+      - containerExternalId
+      - identifier
+      properties:
+        space:
+          $ref: '#/components/schemas/SpaceSpecification'
+        containerExternalId:
+          description: External id for the container
+          allOf:
+          - $ref: '#/components/schemas/DMSExternalId'
+        identifier:
+          type: string
+    RecordContainerPropertyCreateDefinition:
+      description: Defines a property of a record container. You can reference this property in views.
+      allOf:
+      - $ref: '#/components/schemas/RecordCorePropertyCreateDefinition'
+      - $ref: '#/components/schemas/RecordContainerPropertyTypeDefinition'
+    CorePropertyCreateDefinition:
+      type: object
+      properties:
+        immutable:
+          type: boolean
+          description: Should updates to this property be rejected after the initial population? Per-property immutability is not applicable for records. For records, immutability is a stream-level concept only.
+          default: false
+        nullable:
+          type: boolean
+          description: Does this property need to be set to a value, or not?
+          default: true
+        autoIncrement:
+          type: boolean
+          description: When set to ```true```, the API will increment the property based on its highest current value (max value).  You can only use this functionality to increment properties of type `int32` or `int64`. If the property has a different data type, the API will return an error. Auto-increment is not supported for records. The value will not be auto-generated, so omitting a non-nullable auto-increment property during record ingestion will fail validation.
+          default: false
+        defaultValue:
+          oneOf:
+          - type: string
+          - type: number
+          - type: boolean
+          - type: object
+          description: "Default value to use when you do not specify a value for the property.  The default value must be of the same type as what you defined for the property itself. \n\n\nWe do not currently support using default values for array/list types. "
+        description:
+          type: string
+          description: Description of the content and suggested use for this property.
+          maxLength: 1024
+        name:
+          type: string
+          description: Readable property name.
+          maxLength: 255
+    ConstraintState:
+      type: object
+      required:
+      - state
+      properties:
+        state:
+          description: 'This field describes the validity of the constraint.
+
+
+            Possible values are:
+
+
+            * `"failed"`: The constraint is violated. This can occur if there exists data violating the constraint when the constraint was created. New data violating the constraint will still be rejected.
+
+            * `"current"`: The constraint is satisfied.
+
+            * `"pending"`: The constraint validity has not yet been computed.
+
+            '
+          $ref: '#/components/schemas/ConstraintOrIndexState'
+    ContainerCommon:
+      type: object
+      description: Container for properties you can access through views. Container specifications give details about storage related details, such as how to index the data and what constraints should be present.
+      required:
+      - space
+      - externalId
+      properties:
+        space:
+          description: Id of the space the container belongs to
+          allOf:
+          - $ref: '#/components/schemas/SpaceSpecification'
+        externalId:
+          description: External-id of the container. The values ```Query```, ```Mutation```, ```Subscription```, ```String```, ```Int32```, ```Int64```, ```Int```, ```Float32```, ```Float64```, ```Float```, ```Timestamp```, ```JSONObject```, ```Date```, ```Numeric```, ```Boolean```, ```PageInfo```, ```File```, ```Sequence``` and ```TimeSeries``` are reserved.
+          allOf:
+          - $ref: '#/components/schemas/DMSExternalId'
+        name:
+          type: string
+          description: Readable name for container meant for use in UIs
+          maxLength: 255
+        description:
+          type: string
+          description: Description of what the property contains, and how you intend to use it.
+          maxLength: 1024
+    BtreeIndexDefinition:
+      allOf:
+      - $ref: '#/components/schemas/BtreeIndexCreateDefinition'
+      - $ref: '#/components/schemas/IndexState'
+    CDFExternalIdReference:
+      type: object
+      description: 'An external-id reference to an existing CDF resource type item, such as a time series.
+
+
+        An example could be that for an existing time series stored in the CDF time series resource type with the
+
+        external-id 21PT0293, then the value would be set to "21PT029", and the type would be set to "timeseries". There
+
+        are no referential integrity guarantees for this, and the client should handle if the time series has been removed
+
+        or the client may not have access to it.
+
+
+        Currently, time series, sequence and file references are supported.
+
+        CDF external ID reference types (timeseries, file, sequence) are not allowed for containers with ```usedFor``` set to ```record```.
+
+        '
+      required:
+      - type
+      properties:
+        type:
+          type: string
+          enum:
+          - timeseries
+          - file
+          - sequence
+        list:
+          description: 'Specifies that the data type is a list of values. The ordering of values is preserved.
+
+            '
+          type: boolean
+          default: false
+        maxListSize:
+          type: integer
+          description: Specifies the maximum number of values in the list
+    BtreeIndexCreateDefinition:
+      type: object
+      required:
+      - properties
+      properties:
+        properties:
+          type: array
+          description: List of properties to define the index across
+          items:
+            type: string
+        indexType:
+          type: string
+          enum:
+          - btree
+          default: btree
+          description: "The B-tree index supports the following operations;\n\n * less than,\n * less than or equal,\n * equality (is equal),\n * larger than or equal, and\n * larger than.\n\n\nBy enabling the index to be cursorable, you can use it to efficiently query with custom sort options, and queries will emit cursors that can be used to paginate through the results. "
+        cursorable:
+          type: boolean
+          description: Whether the index can be used for cursor-based pagination
+          default: false
+        bySpace:
+          type: boolean
+          description: Whether to make the index space-specific
+          default: false
+    UpsertConflict:
+      type: object
+      required:
+      - error
+      properties:
+        error:
+          type: object
+          description: Details about the error caused by the upsert/update.
+          required:
+          - code
+          - message
+          properties:
+            code:
+              type: integer
+              description: The HTTP status code returned
+              format: int32
+              example: 409
+            message:
+              type: string
+              description: The error message returned from the service.
+            isAutoRetryable:
+              type: boolean
+              description: Whether or not the error is auto-retryable. If present and true, the client can automatically retry the request after some delay.
+    ContainerPropertyCreateDefinition:
+      description: Defines a property of a container.  You can reference this property in views.
+      allOf:
+      - $ref: '#/components/schemas/CorePropertyCreateDefinition'
+      - $ref: '#/components/schemas/ContainerPropertyTypeDefinition'
+    ViewReference:
+      type: object
+      description: Reference to a view
+      required:
+      - type
+      - space
+      - externalId
+      - version
+      properties:
+        type:
+          type: string
+          enum:
+          - view
+        space:
+          description: Id of the space that the view belongs to
+          allOf:
+          - $ref: '#/components/schemas/SpaceSpecification'
+        externalId:
+          description: External-id of the view
+          allOf:
+          - $ref: '#/components/schemas/DMSExternalId'
+        version:
+          description: Version of the view
+          allOf:
+          - $ref: '#/components/schemas/DMSVersion'
+    PrimitiveProperty:
+      type: object
+      description: 'Primitive types for the property.
+
+
+        We expect dates to be in the ISO-8601 format, while timestamps are expected to be an epoch value with
+
+        millisecond precision. JSON values have to be valid JSON fragments. The maximum allowed size for a JSON
+
+        object is 40960 bytes. For list of json values, the size of the entire list must be within this limit.
+
+        The maximum allowed length of a key is 128, while the maximum allowed size of a value is 10240 bytes
+
+        and you can have up to 256 key-value pairs.
+
+        '
+      required:
+      - type
+      properties:
+        type:
+          type: string
+          enum:
+          - boolean
+          - float32
+          - float64
+          - int32
+          - int64
+          - timestamp
+          - date
+          - json
+        unit:
+          type: object
+          description: 'The unit of the data stored in this property, can only be assign to type float32 or float64.
+
+            ExternalId needs to match with a unit in the Cognite unit catalog.
+
+            '
+          required:
+          - externalId
+          example: 'externalId: temperature:deg_c, sourceUnit: Celsius
+
+            '
+          properties:
+            externalId:
+              $ref: '#/components/schemas/NodeOrEdgeExternalId'
+            sourceUnit:
+              type: string
+        list:
+          description: 'Specifies that the data type is a list of values. The ordering of values is preserved.
+
+            '
+          type: boolean
+          default: false
+        maxListSize:
+          type: integer
+          description: Specifies the maximum number of values in the list
+    InvertedIndexDefinition:
+      allOf:
+      - $ref: '#/components/schemas/InvertedIndexCreateDefinition'
+      - $ref: '#/components/schemas/IndexState'
+    ContainerCreateDefinition:
+      oneOf:
+      - $ref: '#/components/schemas/InstanceContainerCreateDefinition'
+      - $ref: '#/components/schemas/RecordContainerCreateDefinition'
+    NodeOrEdgeExternalId:
+      type: string
+      pattern: ^[^\\x00]{1,256}$
+      minLength: 1
+      maxLength: 256
+    TextProperty:
+      type: object
+      description: Text type
+      required:
+      - type
+      properties:
+        type:
+          type: string
+          enum:
+          - text
+        list:
+          type: boolean
+          description: 'Specifies that the data type is a list of values. The ordering of values is preserved.
+
+            '
+          default: false
+        maxListSize:
+          type: integer
+          description: Specifies the maximum number of values in the list
+        maxTextSize:
+          type: integer
+          description: Specifies the maximum size in bytes of the text property, when encoded with utf-8
+        collation:
+          type: string
+          description: Collation - the set of language specific rules - used when sorting text fields. Collation is not applicable for records.
+          enum:
+          - ucs_basic
+          - und
+          - af
+          - af-NA
+          - af-ZA
+          - agq
+          - agq-CM
+          - ak
+          - ak-GH
+          - am
+          - am-ET
+          - ar
+          - ar-001
+          - ar-AE
+          - ar-BH
+          - ar-DJ
+          - ar-DZ
+          - ar-EG
+          - ar-EH
+          - ar-ER
+          - ar-IL
+          - ar-IQ
+          - ar-JO
+          - ar-KM
+          - ar-KW
+          - ar-LB
+          - ar-LY
+          - ar-MA
+          - ar-MR
+          - ar-OM
+          - ar-PS
+          - ar-QA
+          - ar-SA
+          - ar-SD
+          - ar-SO
+          - ar-SS
+          - ar-SY
+          - ar-TD
+          - ar-TN
+          - ar-YE
+          - as
+          - as-IN
+          - asa
+          - asa-TZ
+          - ast
+          - ast-ES
+          - az
+          - az-Cyrl
+          - az-Cyrl-AZ
+          - az-Latn
+          - az-Latn-AZ
+          - bas
+          - bas-CM
+          - be
+          - be-BY
+          - bem
+          - bem-ZM
+          - bez
+          - bez-TZ
+          - bg
+          - bg-BG
+          - bm
+          - bm-ML
+          - bn
+          - bn-BD
+          - bn-IN
+          - bo
+          - bo-CN
+          - bo-IN
+          - br
+          - br-FR
+          - brx
+          - brx-IN
+          - bs
+          - bs-Cyrl
+          - bs-Cyrl-BA
+          - bs-Latn
+          - bs-Latn-BA
+          - ca
+          - ca-AD
+          - ca-ES
+          - ca-FR
+          - ca-IT
+          - ccp
+          - ccp-BD
+          - ccp-IN
+          - ce
+          - ce-RU
+          - ceb
+          - ceb-PH
+          - cgg
+          - cgg-UG
+          - chr
+          - chr-US
+          - ckb
+          - ckb-IQ
+          - ckb-IR
+          - cs
+          - cs-CZ
+          - cy
+          - cy-GB
+          - da
+          - da-DK
+          - da-GL
+          - dav
+          - dav-KE
+          - de
+          - de-AT
+          - de-BE
+          - de-CH
+          - de-DE
+          - de-IT
+          - de-LI
+          - de-LU
+          - dje
+          - dje-NE
+          - dsb
+          - dsb-DE
+          - dua
+          - dua-CM
+          - dyo
+          - dyo-SN
+          - dz
+          - dz-BT
+          - ebu
+          - ebu-KE
+          - ee
+          - ee-GH
+          - ee-TG
+          - el
+          - el-CY
+          - el-GR
+          - en
+          - en-001
+          - en-150
+          - en-AE
+          - en-AG
+          - en-AI
+          - en-AS
+          - en-AT
+          - en-AU
+          - en-BB
+          - en-BE
+          - en-BI
+          - en-BM
+          - en-BS
+          - en-BW
+          - en-BZ
+          - en-CA
+          - en-CC
+          - en-CH
+          - en-CK
+          - en-CM
+          - en-CX
+          - en-CY
+          - en-DE
+          - en-DG
+          - en-DK
+          - en-DM
+          - en-ER
+          - en-FI
+          - en-FJ
+          - en-FK
+          - en-FM
+          - en-GB
+          - en-GD
+          - en-GG
+          - en-GH
+          - en-GI
+          - en-GM
+          - en-GU
+          - en-GY
+          - en-HK
+          - en-IE
+          - en-IL
+          - en-IM
+          - en-IN
+          - en-IO
+          - en-JE
+          - en-JM
+          - en-KE
+          - en-KI
+          - en-KN
+          - en-KY
+          - en-LC
+          - en-LR
+          - en-LS
+          - en-MG
+          - en-MH
+          - en-MO
+          - en-MP
+          - en-MS
+          - en-MT
+          - en-MU
+          - en-MW
+          - en-MY
+          - en-NA
+          - en-NF
+          - en-NG
+          - en-NL
+          - en-NR
+          - en-NU
+          - en-NZ
+          - en-PG
+          - en-PH
+          - en-PK
+          - en-PN
+          - en-PR
+          - en-PW
+          - en-RW
+          - en-SB
+          - en-SC
+          - en-SD
+          - en-SE
+          - en-SG
+          - en-SH
+          - en-SI
+          - en-SL
+          - en-SS
+          - en-SX
+          - en-SZ
+          - en-TC
+          - en-TK
+          - en-TO
+          - en-TT
+          - en-TV
+          - en-TZ
+          - en-UG
+          - en-UM
+          - en-US
+          - en-US-u-va-posix
+          - en-VC
+          - en-VG
+          - en-VI
+          - en-VU
+          - en-WS
+          - en-ZA
+          - en-ZM
+          - en-ZW
+          - eo
+          - eo-001
+          - es
+          - es-419
+          - es-AR
+          - es-BO
+          - es-BR
+          - es-BZ
+          - es-CL
+          - es-CO
+          - es-CR
+          - es-CU
+          - es-DO
+          - es-EA
+          - es-EC
+          - es-ES
+          - es-GQ
+          - es-GT
+          - es-HN
+          - es-IC
+          - es-MX
+          - es-NI
+          - es-PA
+          - es-PE
+          - es-PH
+          - es-PR
+          - es-PY
+          - es-SV
+          - es-US
+          - es-UY
+          - es-VE
+          - et
+          - et-EE
+          - eu
+          - eu-ES
+          - ewo
+          - ewo-CM
+          - fa
+          - fa-AF
+          - fa-IR
+          - ff
+          - ff-Adlm
+          - ff-Adlm-BF
+          - ff-Adlm-CM
+          - ff-Adlm-GH
+          - ff-Adlm-GM
+          - ff-Adlm-GN
+          - ff-Adlm-GW
+          - ff-Adlm-LR
+          - ff-Adlm-MR
+          - ff-Adlm-NE
+          - ff-Adlm-NG
+          - ff-Adlm-SL
+          - ff-Adlm-SN
+          - ff-Latn
+          - ff-Latn-BF
+          - ff-Latn-CM
+          - ff-Latn-GH
+          - ff-Latn-GM
+          - ff-Latn-GN
+          - ff-Latn-GW
+          - ff-Latn-LR
+          - ff-Latn-MR
+          - ff-Latn-NE
+          - ff-Latn-NG
+          - ff-Latn-SL
+          - ff-Latn-SN
+          - fi
+          - fi-FI
+          - fil
+          - fil-PH
+          - fo
+          - fo-DK
+          - fo-FO
+          - fr
+          - fr-BE
+          - fr-BF
+          - fr-BI
+          - fr-BJ
+          - fr-BL
+          - fr-CA
+          - fr-CD
+          - fr-CF
+          - fr-CG
+          - fr-CH
+          - fr-CI
+          - fr-CM
+          - fr-DJ
+          - fr-DZ
+          - fr-FR
+          - fr-GA
+          - fr-GF
+          - fr-GN
+          - fr-GP
+          - fr-GQ
+          - fr-HT
+          - fr-KM
+          - fr-LU
+          - fr-MA
+          - fr-MC
+          - fr-MF
+          - fr-MG
+          - fr-ML
+          - fr-MQ
+          - fr-MR
+          - fr-MU
+          - fr-NC
+          - fr-NE
+          - fr-PF
+          - fr-PM
+          - fr-RE
+          - fr-RW
+          - fr-SC
+          - fr-SN
+          - fr-SY
+          - fr-TD
+          - fr-TG
+          - fr-TN
+          - fr-VU
+          - fr-WF
+          - fr-YT
+          - fur
+          - fur-IT
+          - fy
+          - fy-NL
+          - ga
+          - ga-GB
+          - ga-IE
+          - gd
+          - gd-GB
+          - gl
+          - gl-ES
+          - gsw
+          - gsw-CH
+          - gsw-FR
+          - gsw-LI
+          - gu
+          - gu-IN
+          - guz
+          - guz-KE
+          - gv
+          - gv-IM
+          - ha
+          - ha-GH
+          - ha-NE
+          - ha-NG
+          - haw
+          - haw-US
+          - he
+          - he-IL
+          - hi
+          - hi-IN
+          - hr
+          - hr-BA
+          - hr-HR
+          - hsb
+          - hsb-DE
+          - hu
+          - hu-HU
+          - hy
+          - hy-AM
+          - ia
+          - ia-001
+          - id
+          - id-ID
+          - ig
+          - ig-NG
+          - ii
+          - ii-CN
+          - is
+          - is-IS
+          - it
+          - it-CH
+          - it-IT
+          - it-SM
+          - it-VA
+          - ja
+          - ja-JP
+          - jgo
+          - jgo-CM
+          - jmc
+          - jmc-TZ
+          - jv
+          - jv-ID
+          - ka
+          - ka-GE
+          - kab
+          - kab-DZ
+          - kam
+          - kam-KE
+          - kde
+          - kde-TZ
+          - kea
+          - kea-CV
+          - khq
+          - khq-ML
+          - ki
+          - ki-KE
+          - kk
+          - kk-KZ
+          - kkj
+          - kkj-CM
+          - kl
+          - kl-GL
+          - kln
+          - kln-KE
+          - km
+          - km-KH
+          - kn
+          - kn-IN
+          - ko
+          - ko-KP
+          - ko-KR
+          - kok
+          - kok-IN
+          - ks
+          - ks-Arab
+          - ks-Arab-IN
+          - ksb
+          - ksb-TZ
+          - ksf
+          - ksf-CM
+          - ksh
+          - ksh-DE
+          - ku
+          - ku-TR
+          - kw
+          - kw-GB
+          - ky
+          - ky-KG
+          - lag
+          - lag-TZ
+          - lb
+          - lb-LU
+          - lg
+          - lg-UG
+          - lkt
+          - lkt-US
+          - ln
+          - ln-AO
+          - ln-CD
+          - ln-CF
+          - ln-CG
+          - lo
+          - lo-LA
+          - lrc
+          - lrc-IQ
+          - lrc-IR
+          - lt
+          - lt-LT
+          - lu
+          - lu-CD
+          - luo
+          - luo-KE
+          - luy
+          - luy-KE
+          - lv
+          - lv-LV
+          - mai
+          - mai-IN
+          - mas
+          - mas-KE
+          - mas-TZ
+          - mer
+          - mer-KE
+          - mfe
+          - mfe-MU
+          - mg
+          - mg-MG
+          - mgh
+          - mgh-MZ
+          - mgo
+          - mgo-CM
+          - mi
+          - mi-NZ
+          - mk
+          - mk-MK
+          - ml
+          - ml-IN
+          - mn
+          - mn-MN
+          - mni
+          - mni-Beng
+          - mni-Beng-IN
+          - mr
+          - mr-IN
+          - ms
+          - ms-BN
+          - ms-ID
+          - ms-MY
+          - ms-SG
+          - mt
+          - mt-MT
+          - mua
+          - mua-CM
+          - my
+          - my-MM
+          - mzn
+          - mzn-IR
+          - naq
+          - naq-NA
+          - nb
+          - nb-NO
+          - nb-SJ
+          - nd
+          - nd-ZW
+          - nds
+          - nds-DE
+          - nds-NL
+          - ne
+          - ne-IN
+          - ne-NP
+          - nl
+          - nl-AW
+          - nl-BE
+          - nl-BQ
+          - nl-CW
+          - nl-NL
+          - nl-SR
+          - nl-SX
+          - nmg
+          - nmg-CM
+          - nn
+          - nn-NO
+          - nnh
+          - nnh-CM
+          - nus
+          - nus-SS
+          - nyn
+          - nyn-UG
+          - om
+          - om-ET
+          - om-KE
+          - or
+          - or-IN
+          - os
+          - os-GE
+          - os-RU
+          - pa
+          - pa-Arab
+          - pa-Arab-PK
+          - pa-Guru
+          - pa-Guru-IN
+          - pcm
+          - pcm-NG
+          - pl
+          - pl-PL
+          - ps
+          - ps-AF
+          - ps-PK
+          - pt
+          - pt-AO
+          - pt-BR
+          - pt-CH
+          - pt-CV
+          - pt-GQ
+          - pt-GW
+          - pt-LU
+          - pt-MO
+          - pt-MZ
+          - pt-PT
+          - pt-ST
+          - pt-TL
+          - qu
+          - qu-BO
+          - qu-EC
+          - qu-PE
+          - rm
+          - rm-CH
+          - rn
+          - rn-BI
+          - ro
+          - ro-MD
+          - ro-RO
+          - rof
+          - rof-TZ
+          - ru
+          - ru-BY
+          - ru-KG
+          - ru-KZ
+          - ru-MD
+          - ru-RU
+          - ru-UA
+          - rw
+          - rw-RW
+          - rwk
+          - rwk-TZ
+          - sah
+          - sah-RU
+          - saq
+          - saq-KE
+          - sat
+          - sat-Olck
+          - sat-Olck-IN
+          - sbp
+          - sbp-TZ
+          - sd
+          - sd-Arab
+          - sd-Arab-PK
+          - sd-Deva
+          - sd-Deva-IN
+          - se
+          - se-FI
+          - se-NO
+          - se-SE
+          - seh
+          - seh-MZ
+          - ses
+          - ses-ML
+          - sg
+          - sg-CF
+          - shi
+          - shi-Latn
+          - shi-Latn-MA
+          - shi-Tfng
+          - shi-Tfng-MA
+          - si
+          - si-LK
+          - sk
+          - sk-SK
+          - sl
+          - sl-SI
+          - smn
+          - smn-FI
+          - sn
+          - sn-ZW
+          - so
+          - so-DJ
+          - so-ET
+          - so-KE
+          - so-SO
+          - sq
+          - sq-AL
+          - sq-MK
+          - sq-XK
+          - sr
+          - sr-Cyrl
+          - sr-Cyrl-BA
+          - sr-Cyrl-ME
+          - sr-Cyrl-RS
+          - sr-Cyrl-XK
+          - sr-Latn
+          - sr-Latn-BA
+          - sr-Latn-ME
+          - sr-Latn-RS
+          - sr-Latn-XK
+          - su
+          - su-Latn
+          - su-Latn-ID
+          - sv
+          - sv-AX
+          - sv-FI
+          - sv-SE
+          - sw
+          - sw-CD
+          - sw-KE
+          - sw-TZ
+          - sw-UG
+          - ta
+          - ta-IN
+          - ta-LK
+          - ta-MY
+          - ta-SG
+          - te
+          - te-IN
+          - teo
+          - teo-KE
+          - teo-UG
+          - tg
+          - tg-TJ
+          - th
+          - th-TH
+          - ti
+          - ti-ER
+          - ti-ET
+          - tk
+          - tk-TM
+          - to
+          - to-TO
+          - tr
+          - tr-CY
+          - tr-TR
+          - tt
+          - tt-RU
+          - twq
+          - twq-NE
+          - tzm
+          - tzm-MA
+          - ug
+          - ug-CN
+          - uk
+          - uk-UA
+          - ur
+          - ur-IN
+          - ur-PK
+          - uz
+          - uz-Arab
+          - uz-Arab-AF
+          - uz-Cyrl
+          - uz-Cyrl-UZ
+          - uz-Latn
+          - uz-Latn-UZ
+          - vai
+          - vai-Latn
+          - vai-Latn-LR
+          - vai-Vaii
+          - vai-Vaii-LR
+          - vi
+          - vi-VN
+          - vun
+          - vun-TZ
+          - wae
+          - wae-CH
+          - wo
+          - wo-SN
+          - xh
+          - xh-ZA
+          - xog
+          - xog-UG
+          - yav
+          - yav-CM
+          - yi
+          - yi-001
+          - yo
+          - yo-BJ
+          - yo-NG
+          - yue
+          - yue-Hans
+          - yue-Hans-CN
+          - yue-Hant
+          - yue-Hant-HK
+          - zgh
+          - zgh-MA
+          - zh
+          - zh-Hans
+          - zh-Hans-CN
+          - zh-Hans-HK
+          - zh-Hans-MO
+          - zh-Hans-SG
+          - zh-Hant
+          - zh-Hant-HK
+          - zh-Hant-MO
+          - zh-Hant-TW
+          - zu
+          - zu-ZA
+          default: ucs_basic
+    ContainerInspectResultItem:
+      type: object
+      required:
+      - externalId
+      - space
+      - inspectionResults
+      properties:
+        externalId:
+          description: External ids for the requested items
+          allOf:
+          - $ref: '#/components/schemas/DMSExternalId'
+        space:
+          $ref: '#/components/schemas/SpaceSpecification'
+        inspectionResults:
+          type: object
+          properties:
+            involvedViewCount:
+              description: The total number of views mapping this container (including views you don't have access to)
+              type: integer
+            involvedViews:
+              type: array
+              description: The views you have access to which map this container.
+              items:
+                $ref: '#/components/schemas/ViewReference'
+    RecordContainerPropertyTypeDefinition:
+      type: object
+      required:
+      - type
+      properties:
+        type:
+          description: "The type of data you can store in this property. Most properties can also hold a list of values, for example, a list of integers or a list of timestamps. The supported storage types are:\n\n\n* text,\n * boolean,\n * 32-bit, and 64-bit float,\n * 32-bit, and 64-bit integer,\n * timestamp,\n * date,\n * JSON fragment,\n * direct relation to an existing node,\n * enum.\n\n\nThe JSON fragments have to be valid JSON objects. If JSON arrays are to be stored, these must be wrapped in a JSON object. JSON values (such as string, number, boolean) should use their respective primitive form instead. The maximum allowed size for a JSON object is 40960 bytes. For lists of json values, the size of the entire list must be within this limit. The maximum allowed length of a key is 128, while the maximum allowed size of a value is 10240 bytes and you can have up to 256 key-value pairs. The  byte sizes are computed by representing the data as a UTF-8 encoded JSON string.\nDirect relations use a space external-id and the external-id for an existing node. Only the target space existence is validated for records.\nTimestamps must be a string in the format 'YYYY-MM-DDTHH:MM:SS[.millis][Z|time zone]' with optional milliseconds having precision of 1-3 decimal digits and optional timezone with format Â±HH:MM, Â±HHMM, Â±HH or Z, where Z represents UTC, Year must be between 0001 and 9999.\nDates must be a date string in the format 'YYYY-MM-DD'. Year must be between 1 and 9999. "
+          oneOf:
+          - $ref: '#/components/schemas/RecordTextProperty'
+          - $ref: '#/components/schemas/PrimitiveProperty'
+          - $ref: '#/components/schemas/RecordDirectNodeRelation'
+          - $ref: '#/components/schemas/EnumProperty'
+    ContainerCreateCollection:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          description: List of containers to create/update
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/ContainerCreateDefinition'
+    RecordDirectNodeRelation:
+      type: object
+      description: Direct node relation. Only the target space existence is validated for records. Target nodes are not auto-created.
+      required:
+      - type
+      properties:
+        type:
+          type: string
+          enum:
+          - direct
+        list:
+          description: 'Specifies that the data type is a list of values. The ordering of values is preserved.
+
+            '
+          type: boolean
+          default: false
+        maxListSize:
+          type: integer
+          description: Specifies the maximum number of values in the list
+  parameters:
+    IncludeGlobal:
+      name: includeGlobal
+      in: query
+      description: If the global items of the entity should be returned. Defaults to false which excludes global items.
+      schema:
+        type: boolean
+        default: false
+    FilterUsedFor:
+      name: usedFor
+      in: query
+      description: Only include containers that have been marked as used for the specified purposes. Defaults to [node, edge, all]
+      schema:
+        type: array
+        uniqueItems: true
+        example:
+        - node
+        - edge
+        - all
+        - record
+        items:
+          $ref: '#/components/schemas/UsedFor'
+    Space:
+      in: query
+      name: space
+      description: The space to query.
+      schema:
+        type: string
+        pattern: (?!^(space|cdf|dms|pg3|shared|system|node|edge)$)(^[a-zA-Z][a-zA-Z0-9_-]{0,41}[a-zA-Z0-9]?$)
+        minLength: 1
+        maxLength: 43
+        example: timeseries
+    Cursor:
+      name: cursor
+      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
+
+        property, it means that there may be more results, and you should pass that value as the
+
+        `cursor` parameter in the next request.
+
+
+        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
+
+        decoded. Its internal structure is not a part of the public API, and may change without
+
+        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
+
+        '
+      in: query
+      schema:
+        type: string
+        example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+    ReducedLimit:
+      name: limit
+      description: Limit the number of results returned. The largest result-set returned by the server will be 1000 items, even if you specify a higher limit.
+      in: query
+      schema:
+        type: integer
+        default: 10
+        minimum: 1
+        maximum: 1000
+  responses:
+    ContainerCollectionResponseWithCursor:
+      description: List of containers
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            properties:
+              items:
+                type: array
+                description: List of containers
+                items:
+                  $ref: '#/components/schemas/ContainerDefinition'
+              nextCursor:
+                $ref: '#/components/schemas/NextCursorV3'
+    ContainerCollectionResponse:
+      description: List of containers
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            properties:
+              items:
+                type: array
+                description: List of containers
+                items:
+                  $ref: '#/components/schemas/ContainerDefinition'
+    ListOfContainerSubObjectIdentifierResponse:
+      description: List of External id(s) for the affected items
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            properties:
+              items:
+                type: array
+                items:
+                  type: object
+                  required:
+                  - space
+                  - containerExternalId
+                  - identifier
+                  properties:
+                    space:
+                      $ref: '#/components/schemas/SpaceSpecification'
+                    containerExternalId:
+                      description: External id of the container
+                      allOf:
+                      - $ref: '#/components/schemas/DMSExternalId'
+                    identifier:
+                      type: string
+    ContainerInspectResponse:
+      description: Containers along with the results of the inspection operations
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            properties:
+              items:
+                type: array
+                description: List of container inspection results
+                items:
+                  $ref: '#/components/schemas/ContainerInspectResultItem'
+    ListOfSpaceExternalIdsResponse:
+      description: List of External id(s) for the affected items
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            properties:
+              items:
+                type: array
+                minItems: 1
+                maxItems: 100
+                items:
+                  type: object
+                  required:
+                  - space
+                  - externalId
+                  properties:
+                    externalId:
+                      description: List of external id(s) for the requested items
+                      allOf:
+                      - $ref: '#/components/schemas/DMSExternalId'
+                    space:
+                      $ref: '#/components/schemas/SpaceSpecification'
+    ErrorResponse:
+      description: The response for a failed request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+  securitySchemes:
+    oidc-token:
+      type: http
+      scheme: bearer
+      bearerFormat: OpenID Connect or OAuth2 token
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+    oauth2-client-credentials:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        clientCredentials:
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-auth-code:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://your-idps.authorization.url/
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-open-industrial-data:
+      type: oauth2
+      description: Auth flow for Open Industrial Data. Get your client secret from https://hub.cognite.com/open-industrial-data-211.
+      flows:
+        clientCredentials:
+          tokenUrl: https://login.microsoftonline.com/48d5043c-cf70-4c49-881c-c638f5796997/oauth2/v2.0/token
+          scopes:
+            default: https://api.cognitedata.com/.default
+    org-oidc-token:
+      type: openIdConnect
+      openIdConnectUrl: https://auth.cognite.com/.well-known/openid-configuration
+      description: 'Access token issued by the Cognite authorization server, and valid for the target organization. The token must
+
+        be an OpenID Connect token, and it can be obtained by performing an OIDC login flow toward `auth.cognite.com`.
+
+        This is a single URL for all CDF organizations.'
+x-tagGroups:
+- name: Changelog
+  tags:
+  - Changelog
+- name: Organizations and projects
+  tags:
+  - Organizations
+  - Projects
+- name: Identity and access management
+  tags:
+  - Principals
+  - Groups
+  - Security categories
+  - Sessions
+  - Token
+  - User profiles
+  - Project Deletion Reporting
+- name: Data modeling
+  tags:
+  - Data Modeling
+  - Data models
+  - Spaces
+  - Views
+  - Containers
+  - Nodes
+  - Instances
+  - Statistics
+  - Streams
+  - Records
+- name: Asset-centric data model
+  tags:
+  - Assets
+  - Time series
+  - Synthetic Time Series
+  - Data point subscriptions
+  - Events
+  - Files
+  - Sequences
+  - Geospatial
+  - Seismic
+- name: 3D
+  tags:
+  - 3D Models
+  - 3D Model Revisions
+  - 3D Files
+  - 3D Asset Mapping
+  - 3D Contextualization
+  - 3D Jobs
+  - 3D Migration
+  - 3D Scenes
+- name: Contextualization
+  tags:
+  - Entity matching
+  - Entity matching pipelines
+  - Engineering diagrams
+  - Vision
+  - Advanced joins
+- name: Cognite AI
+  tags:
+  - Agents
+  - Skills
+  - Chat Completions
+  - Document AI
+  - Models
+- name: Documents
+  tags:
+  - Documents
+  - Document preview
+- name: Data ingestion
+  tags:
+  - Raw
+  - Extraction Pipelines
+  - Extraction Pipelines Runs
+  - Extraction Pipelines Config
+  - Extractors
+- name: Data organization
+  tags:
+  - Data sets
+  - Data domains
+  - Data products
+  - Rule sets
+  - Labels
+  - Relationships
+  - Annotations
+- name: Transformations
+  tags:
+  - Transformations
+  - Transformation Jobs
+  - Transformation Schedules
+  - Transformation Notifications
+  - Query
+  - Schema
+- name: Functions
+  tags:
+  - Functions
+  - Function calls
+  - Function schedules
+- name: Hosted Extractors
+  tags:
+  - Sources
+  - Jobs
+  - Destinations
+  - Mappings
+- name: PostgreSQL Gateway
+  tags:
+  - Postgres Gateway Users
+  - Postgres Gateway Tables
+- name: SAP Writeback
+  tags:
+  - SAP Instances
+  - SAP Endpoints
+  - Schema Mappings
+  - Writeback Requests
+- name: Data workflows
+  tags:
+  - Workflows
+  - Workflow versions
+  - Workflow executions
+  - Workflow triggers
+  - Tasks
+  - Workers
+- name: Simulators
+  tags:
+  - Simulators
+  - Simulator Integrations
+  - Simulator Models
+  - Simulator Routines
+  - Simulation Runs
+  - Simulator Logs
+- name: Units
+  tags:
+  - Units
+  - Unit Systems
+- name: ''
+  tags:
+  - ''

@@ -1,0 +1,2574 @@
+openapi: 3.1.0
+info:
+  title: Cognite 3D Asset Mapping Geospatial API
+  description: "# Introduction\nThis is the reference documentation for the Cognite API with\nan overview of all the available methods.\n\n# Postman\nSelect the **Download** button to download our OpenAPI specification to get started.\n\nTo import your data into Postman, select **Import**, and the Import modal opens.\nYou can import items by dragging or dropping files or folders. You can choose how to import your API and manage the import settings in **View Import Settings**.\n\nIn the Import Settings, set the **Folder organization** to **Tags**, select\n**Enable optional parameters** to turn off the settings, and select **Always inherit authentication** to turn on the settings. Select **Import**.\n\nSet the Authorization to **Oauth2.0**. By default, the settings are for Open Industrial Data. Navigate to [Cognite Hub](https://hub.cognite.com/open-industrial-data-211) to understand how to get the credentials for use in Postman.\n\nFor more information, see [Getting Started with Postman](https://developer.cognite.com/dev/guides/postman/).\n\n# Pagination\nMost resource types can be paginated, indicated by the field `nextCursor` in the response.\nBy passing the value of `nextCursor` as the cursor you will get the next page of `limit` results.\nNote that all parameters except `cursor` has to stay the same.\n\n# Parallel retrieval\nAs general guidance, Parallel Retrieval is a technique that should be used when due to query complexity, retrieval of data in a single request is significantly slower than it would otherwise be for a simple request.  Parallel retrieval does not act as a speed multiplier on optimally running queries.  By parallelizing such requests, data retrieval performance can be tuned to meet the client application needs. \n\nCDF supports parallel retrieval through the `partition` parameter, which has the format `m/n` where `n` is the amount of partitions you would like to split the entire data set into.\nIf you want to download the entire data set by splitting it into 10 partitions, do the following in parallel with `m` running from 1 to 10:\n  - Make a request to `/events` with `partition=m/10`.\n  - Paginate through the response by following the cursor as explained above. Note that the `partition` parameter needs to be passed to all subqueries.\n\nProcessing of parallel retrieval requests is subject to concurrency quota availability. The request returns the `429` response upon exceeding concurrency limits. See the Request throttling chapter below.\n\nTo prevent unexpected problems and to maximize read throughput, you should at most use 10 partitions. \nSome CDF resources will automatically enforce a maximum of 10 partitions.\nFor more specific and detailed information, please read the ```partition``` attribute documentation for the CDF resource you're using.  \n\n# Requests throttling\nCognite Data Fusion (CDF) returns the HTTP `429` (too many requests) response status code when project capacity exceeds the limit.\n\nThe throttling can happen:\n  - If a user or a project sends too many (more than allocated) concurrent requests.\n  - If a user or a project sends a too high (more than allocated) rate of requests in a given amount of time.\n\nCognite recommends using a retry strategy based on truncated exponential backoff to handle sessions with HTTP response codes 429.\n\nCognite recommends using a reasonable number (up to 10) of  `Parallel retrieval` partitions.\n\nFollowing these strategies lets you slow down the request frequency to maximize productivity without having to re-submit/retry failing requests.\n\nSee more [here](https://docs.cognite.com/dev/concepts/resource_throttling).\n\n# API versions\n## Version headers\nThis API uses calendar versioning, and version names follow the `YYYYMMDD` format.\nYou can find the versions currently available by using the version selector at the top of this page.\n\nTo use a specific API version, you can pass the `cdf-version: $version` header along with your requests to the API.\n\n## Beta versions\nThe beta versions provide a preview of what the stable version will look like in the future.\nBeta versions contain functionality that is reasonably mature, and highly likely to become a part of the stable API.\n\nBeta versions are indicated by a `-beta` suffix after the version name. For example, the beta version header for the\n2023-01-01 version is then `cdf-version: 20230101-beta`.\n\n## Alpha versions\nAlpha versions contain functionality that is new and experimental, and not guaranteed to ever become a part of the stable API.\nThis functionality presents no guarantee of service, so its use is subject to caution.\n\nAlpha versions are indicated by an `-alpha` suffix after the version name. For example, the alpha version header for\nthe 2023-01-01 version is then `cdf-version: 20230101-alpha`."
+  version: v1
+  contact:
+    name: Cognite Support
+    url: https://support.cognite.com
+    email: support@cognite.com
+servers:
+- url: https://{cluster}.cognitedata.com/api/v1/projects/{project}
+  description: The URL for the CDF cluster to connect to
+  variables:
+    cluster:
+      enum:
+      - api
+      - az-tyo-gp-001
+      - az-eastus-1
+      - az-power-no-northeurope
+      - westeurope-1
+      - asia-northeast1-1
+      - gc-dsm-gp-001
+      default: api
+      description: The CDF cluster to connect to
+    project:
+      default: publicdata
+      description: The CDF project name.
+security:
+- oidc-token:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-client-credentials:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-open-industrial-data:
+  - https://api.cognitedata.com/.default
+- oauth2-auth-code:
+  - https://{cluster}.cognitedata.com/.default
+tags:
+- name: Geospatial
+  description: 'The Geospatial API allows to model a problem domain when data has a geometric or geographic nature.
+
+    The geospatial data is organized in feature types that are homogeneous collections of features (geospatial items), each having the same spatial representation, such as points, lines, or polygons, and a common set of typed properties. The Geospatial API is aware of Coordinate Reference Systems, and allows transformations.
+
+    To learn more about geospatial concepts, see the [concept guide](https://developer.cognite.com/dev/concepts/resource_types/geospatial.html).'
+paths:
+  /geospatial/crs:
+    get:
+      tags:
+      - Geospatial
+      summary: List Coordinate Reference Systems
+      description: '
+
+
+        > **Required capabilities:** `geospatialCrsAcl:READ`
+
+
+        List the defined Coordinate Reference Systems. The list can be limited to the custom Coordinate Reference Systems defined for the tenant.'
+      operationId: listGeospatialCoordinateReferenceSystems
+      parameters:
+      - $ref: '#/components/parameters/geospatialFilterOnlyCustom'
+      responses:
+        '200':
+          $ref: '#/components/responses/GeospatialCoordinateReferenceSystemResponse'
+        '400':
+          $ref: '#/components/responses/GeospatialErrorResponse'
+      x-capability:
+      - geospatialCrsAcl:READ
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: 'const allCRS = await client.geospatial.crs.list({ filterOnlyCustom : true });'
+    post:
+      tags:
+      - Geospatial
+      summary: Create Coordinate Reference Systems
+      description: '
+
+
+        > **Required capabilities:** `geospatialCrsAcl:WRITE`
+
+
+        Creates custom Coordinate Reference Systems.'
+      operationId: createGeospatialCoordinateReferenceSystems
+      requestBody:
+        description: List of custom Coordinate Reference Systems to be created.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeospatialCustomCoordinateReferenceSystemSpecs'
+            examples:
+              GeospatialCreateCoordinateReferenceSystemsExample:
+                $ref: '#/components/examples/GeospatialCreateCoordinateReferenceSystemsExample'
+        required: true
+      responses:
+        '201':
+          $ref: '#/components/responses/GeospatialCustomCoordinateReferenceSystemResponse'
+        '400':
+          $ref: '#/components/responses/GeospatialErrorResponse'
+      x-capability:
+      - geospatialCrsAcl:WRITE
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: "const crsToCreate = [{\n srid: 456789,\n wkt: 'GEOGCS[\\\"WGS 84\\\",DATUM[\\\"WGS_1984\\\",SPHEROID[\\\"WGS 84\\\",6378137,298.257223563,AUTHORITY[\\\"EPSG\\\",\\\"7030\\\"]],AUTHORITY[\\\"EPSG\\\",\\\"6326\\\"]],PRIMEM[\\\"Greenwich\\\",0,AUTHORITY[\\\"EPSG\\\",\\\"8901\\\"]],UNIT[\\\"degree\\\",0.0174532925199433,AUTHORITY[\\\"EPSG\\\",\\\"9122\\\"]],AUTHORITY[\\\"EPSG\\\",\\\"4326\\\"]]',\n projString: '+proj=longlat +datum=WGS84 +no_defs \\\"\\\"'\n }];\n\nconst createdCRS = await client.geospatial.crs.create(crsToCreate);"
+  /geospatial/crs/byids:
+    post:
+      tags:
+      - Geospatial
+      summary: Get Coordinate Reference Systems
+      description: '
+
+
+        > **Required capabilities:** `geospatialCrsAcl:READ`
+
+
+        Get Coordinate Reference Systems by their Spatial Reference IDs'
+      operationId: getCoordinateReferenceSystem
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeospatialReferenceIds'
+            examples:
+              CoordinateReferenceSystemRequestExample:
+                $ref: '#/components/examples/GeospatialCoordinateReferenceSystemRequestExample'
+      responses:
+        '200':
+          $ref: '#/components/responses/GeospatialCoordinateReferenceSystemResponse'
+        '400':
+          $ref: '#/components/responses/GeospatialErrorResponse'
+      x-capability:
+      - geospatialCrsAcl:READ
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: 'const retrievedCRS = await client.geospatial.crs.retrieve([{ srid: 4326 }]);'
+  /geospatial/crs/delete:
+    post:
+      tags:
+      - Geospatial
+      summary: Delete Coordinate Reference Systems
+      description: '
+
+
+        > **Required capabilities:** `geospatialCrsAcl:WRITE`
+
+
+        Delete custom Coordinate Reference Systems.'
+      operationId: deleteGeospatialCoordinateReferenceSystems
+      requestBody:
+        description: List of custom Coordinate Reference Systems to be deleted.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeospatialReferenceIds'
+            examples:
+              CoordinateReferenceSystemRequestExample:
+                $ref: '#/components/examples/GeospatialCoordinateReferenceSystemRequestExample'
+      responses:
+        '200':
+          $ref: '#/components/responses/EmptyResponse'
+        '400':
+          $ref: '#/components/responses/GeospatialErrorResponse'
+      x-capability:
+      - geospatialCrsAcl:WRITE
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: 'await client.geospatial.crs.delete([{ srid: 4326}]);'
+  /geospatial/featuretypes:
+    post:
+      tags:
+      - Geospatial
+      summary: Create feature types
+      description: '
+
+
+        > **Required capabilities:** `geospatialAcl:WRITE`
+
+
+        Creates feature types. Each tenant can have up to 100 feature types.'
+      operationId: createFeatureTypes
+      requestBody:
+        description: List of feature types to be created. It is possible to create up to 100 feature types in one request provided the total number of feature types on the tenant will not exceed 100.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeospatialFeatureTypeSpecs'
+            examples:
+              GeospatialFeatureTypesRequestExample:
+                $ref: '#/components/examples/GeospatialFeatureTypesRequestExample'
+        required: true
+      responses:
+        '201':
+          $ref: '#/components/responses/GeospatialFeatureTypesResponse'
+        '400':
+          $ref: '#/components/responses/GeospatialErrorResponse'
+      x-capability:
+      - geospatialAcl:WRITE
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: "const featureTypes = [\n  {\n     externalId: 'ocean_temperature',\n     properties: { temperature: { type: 'DOUBLE' as const }, location: { type: 'POINT' as const, srid: 4326 } } ,\n     searchSpec: { location_idx: { properties : ['location'] } }\n  }\n];\nconst createdFeatureTypes = await client.geospatial.featureType.create(featureTypes);"
+  /geospatial/featuretypes/byids:
+    post:
+      tags:
+      - Geospatial
+      summary: Retrieve feature types
+      description: '
+
+
+        > **Required capabilities:** `geospatialAcl:READ`
+
+
+        Retrieves feature types by external ids. It is possible to retrieve up to 100 items per request, i.e. the maximum number of feature types for a tenant.'
+      operationId: getFeatureTypesByIds
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeospatialFeatureTypeExternalIds'
+            examples:
+              ExternalIdsExample:
+                $ref: '#/components/examples/GeospatialFeatureTypeExternalIdsExample'
+        required: true
+      responses:
+        '200':
+          $ref: '#/components/responses/GeospatialFeatureTypesResponse'
+        '400':
+          $ref: '#/components/responses/GeospatialErrorResponse'
+      x-capability:
+      - geospatialAcl:READ
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: 'const retrievedFeatureTypes = await client.geospatial.featureType.retrieve([ { externalId: ''ocean_temperature'' } ]);'
+  /geospatial/featuretypes/list:
+    post:
+      tags:
+      - Geospatial
+      summary: List feature types
+      description: '
+
+
+        > **Required capabilities:** `geospatialAcl:READ`
+
+
+        List all feature types'
+      operationId: listFeatureTypes
+      responses:
+        '200':
+          $ref: '#/components/responses/GeospatialFeatureTypesResponse'
+        '400':
+          $ref: '#/components/responses/GeospatialErrorResponse'
+      x-capability:
+      - geospatialAcl:READ
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: const allFeatureTypes = await client.geospatial.featureType.list();
+  /geospatial/featuretypes/update:
+    post:
+      tags:
+      - Geospatial
+      summary: Update feature types
+      description: '
+
+
+        > **Required capabilities:** `geospatialAcl:READ` `geospatialAcl:WRITE`
+
+
+        Update one or more feature types'
+      operationId: updateFeatureTypes
+      requestBody:
+        description: 'List of feature types to be updated. It is possible to add and remove properties and indexes. WARNING: removing properties will result in data loss in corresponding features.'
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeospatialUpdateFeatureTypeSpecs'
+            examples:
+              GeospatialFeatureTypesUpdateRequestExample:
+                $ref: '#/components/examples/GeospatialFeatureTypesUpdateRequestExample'
+        required: true
+      responses:
+        '200':
+          $ref: '#/components/responses/GeospatialFeatureTypesResponse'
+        '400':
+          $ref: '#/components/responses/GeospatialErrorResponse'
+      x-capability:
+      - geospatialAcl:READ
+      - geospatialAcl:WRITE
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: "const featureTypesToUpdate = [\n {\n   externalId: 'ocean_temperature',\n   update: {\n       properties: { add: { depth: { type: 'DOUBLE'} }, remove: ['temperature'] },\n       searchSpec: { add: { depth_idx: { properties: ['depth'] } } }\n   }\n }\n];\nconst updatedFeatureTypes = await client.geospatial.featureType.update(featureTypesToUpdate);"
+  /geospatial/featuretypes/delete:
+    post:
+      tags:
+      - Geospatial
+      summary: Delete feature types
+      description: '
+
+
+        > **Required capabilities:** `geospatialAcl:WRITE`
+
+
+        Delete feature types.'
+      operationId: GeospatialDeleteFeatureTypes
+      requestBody:
+        description: List of feature types to be deleted. It is possible to delete a maximum of 10 feature types per request. Feature types must not have related features. Feature types with related features can be deleted using force flag.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeospatialDeleteFeatureType'
+            examples:
+              ExternalIdsExample:
+                $ref: '#/components/examples/GeospatialFeatureTypeExternalIdsExample'
+        required: true
+      responses:
+        '200':
+          $ref: '#/components/responses/EmptyResponse'
+        '400':
+          $ref: '#/components/responses/GeospatialErrorResponse'
+      x-capability:
+      - geospatialAcl:WRITE
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: 'await client.geospatial.featureType.delete([{ externalId: ''ocean_temperature''}], { recursive : true });'
+  /geospatial/featuretypes/{featureTypeExternalId}/features:
+    post:
+      tags:
+      - Geospatial
+      summary: Create features
+      description: '
+
+
+        > **Required capabilities:** `geospatialAcl:READ` `geospatialAcl:WRITE`
+
+
+        Create features'
+      operationId: createFeatures
+      parameters:
+      - $ref: '#/components/parameters/geospatialFeatureTypeExternalId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeospatialFeatureSpecs'
+            examples:
+              GeospatialFeaturesRequestExample:
+                $ref: '#/components/examples/GeospatialFeaturesRequestExample'
+        required: true
+      responses:
+        '201':
+          $ref: '#/components/responses/GeospatialFeaturesResponse'
+        '400':
+          $ref: '#/components/responses/GeospatialErrorResponse'
+      x-capability:
+      - geospatialAcl:READ
+      - geospatialAcl:WRITE
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: "const featureTypeExternalId = 'ocean_temperature';\nconst features = [\n  { externalId: 'measurement_point_765', temperature: 5.65, location: { wkt: 'POINT(60.547602 -5.423433)' }},\n  { externalId: 'measurement_point_863', temperature: 5.03, location: { wkt: 'POINT(60.585858 -6.474416)' }},\n];\nconst createdFeatures = await client.geospatial.feature.create(featureTypeExternalId, features);"
+    get:
+      tags:
+      - Geospatial
+      summary: Get features
+      description: '
+
+
+        > **Required capabilities:** `geospatialAcl:READ`
+
+
+        Get features with paging support'
+      operationId: getFeatures
+      parameters:
+      - $ref: '#/components/parameters/geospatialFeatureTypeExternalId'
+      - $ref: '#/components/parameters/Cursor'
+      - in: query
+        name: limit
+        schema:
+          $ref: '#/components/schemas/SearchLimit'
+      - in: query
+        name: allowCrsTransformation
+        schema:
+          $ref: '#/components/schemas/GeospatialAllowCrsTransformation'
+      - in: query
+        name: allowDimensionalityMismatch
+        schema:
+          $ref: '#/components/schemas/GeospatialAllowDimensionalityMismatch'
+      responses:
+        '200':
+          $ref: '#/components/responses/GeospatialFeaturesWithCursorResponse'
+        '400':
+          $ref: '#/components/responses/GeospatialErrorResponse'
+      x-capability:
+      - geospatialAcl:READ
+  /geospatial/featuretypes/{featureTypeExternalId}/features/list:
+    post:
+      tags:
+      - Geospatial
+      summary: Filter all features
+      description: '
+
+
+        > **Required capabilities:** `geospatialAcl:READ`
+
+
+        List features based on the feature property filter passed in the body of the request. This operation supports pagination by cursor.'
+      operationId: listFeatures
+      parameters:
+      - $ref: '#/components/parameters/geospatialFeatureTypeExternalId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeospatialFeatureListRequest'
+            examples:
+              GeospatialFeatureExternalIdsExample:
+                $ref: '#/components/examples/GeospatialListExample'
+        required: true
+      responses:
+        '200':
+          $ref: '#/components/responses/GeospatialFeaturesWithCursorResponse'
+        '400':
+          $ref: '#/components/responses/GeospatialErrorResponse'
+      x-capability:
+      - geospatialAcl:READ
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: "const params = {\n filter: {\n   and: [\n     { range:{ property: 'temperature', gt:4.54 } },\n     { stWithin: { property:'location', value:'POLYGON((60.547602 -5.423433, 60.547602 -6.474416, 60.585858 -5.423433, 60.547602 -5.423433))' } }\n  ]\n },\n};\n\nconst allFeaturesList = await client.geospatial.feature.list('ocean_temperature', params);"
+  /geospatial/featuretypes/{featureTypeExternalId}/features/byids:
+    post:
+      tags:
+      - Geospatial
+      summary: Retrieve features
+      description: '
+
+
+        > **Required capabilities:** `geospatialAcl:READ`
+
+
+        Retrieves features by external ids. It is possible to retrieve up to 1000 items per request.'
+      operationId: getFeaturesByIds
+      parameters:
+      - $ref: '#/components/parameters/geospatialFeatureTypeExternalId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeospatialFeatureIdsWithOutput'
+            examples:
+              GeospatialFeatureExternalIdsExample:
+                $ref: '#/components/examples/GeospatialFeatureExternalIdsExample'
+        required: true
+      responses:
+        '200':
+          $ref: '#/components/responses/GeospatialFeaturesResponse'
+        '400':
+          $ref: '#/components/responses/GeospatialErrorResponse'
+      x-capability:
+      - geospatialAcl:READ
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: 'const featuresToRetrieve = [{ externalId: ''measurement_point_765'' }, { externalId: ''measurement_point_765'' }];
+
+          const outputParams = { output: { geometryFormat: ''GEOJSON'' as const } };
+
+
+          const retrievedFeatures = await client.geospatial.feature.retrieve(''ocean_temperature'', featuresToRetrieve, outputParams);'
+  /geospatial/featuretypes/{featureTypeExternalId}/features/update:
+    post:
+      tags:
+      - Geospatial
+      summary: Update features
+      description: '
+
+
+        > **Required capabilities:** `geospatialAcl:READ` `geospatialAcl:WRITE`
+
+
+        Update features. This is a replace operation, i.e., all feature properties have to be sent in the request body even if their values do not change.'
+      operationId: updateFeatures
+      parameters:
+      - $ref: '#/components/parameters/geospatialFeatureTypeExternalId'
+      requestBody:
+        description: List of features to update.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeospatialFeatureSpecs'
+            examples:
+              GeospatialFeaturesRequestExample:
+                $ref: '#/components/examples/GeospatialFeaturesRequestExample'
+        required: true
+      responses:
+        '200':
+          $ref: '#/components/responses/GeospatialFeaturesResponse'
+        '400':
+          $ref: '#/components/responses/GeospatialErrorResponse'
+      x-capability:
+      - geospatialAcl:READ
+      - geospatialAcl:WRITE
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: 'const featuresToDelete = [{ externalId: ''measurement_point_765'' }, { externalId: ''measurement_point_765'' }];
+
+
+          await client.geospatial.feature.delete(''ocean_temperature'', featuresToDelete);
+
+
+          const featuresToUpdate = [
+
+          { externalId: ''measurement_point_765'', temperature: 5.65, location: { wkt: ''POINT(60.547602 -5.423433)'' } },
+
+          { externalId: ''measurement_point_863'', temperature: 5.03, location: { wkt: ''POINT(60.585858 -6.474416)'' } }
+
+          ];
+
+
+          const updatedFeatures = await client.geospatial.feature.update(''ocean_temperature'', featuresToUpdate);'
+  /geospatial/featuretypes/{featureTypeExternalId}/features/delete:
+    post:
+      tags:
+      - Geospatial
+      summary: Delete features
+      description: '
+
+
+        > **Required capabilities:** `geospatialAcl:READ` `geospatialAcl:WRITE`
+
+
+        Delete features.'
+      operationId: deleteFeatures
+      parameters:
+      - $ref: '#/components/parameters/geospatialFeatureTypeExternalId'
+      requestBody:
+        description: List of features to be deleted. It is possible to post a maximum of 1000 items per request.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeospatialFeatureIds'
+            examples:
+              GeospatialFeatureExternalIdsExample:
+                $ref: '#/components/examples/GeospatialFeatureExternalIdsExample'
+        required: true
+      responses:
+        '200':
+          $ref: '#/components/responses/EmptyResponse'
+        '400':
+          $ref: '#/components/responses/GeospatialErrorResponse'
+      x-capability:
+      - geospatialAcl:READ
+      - geospatialAcl:WRITE
+  /geospatial/featuretypes/{featureTypeExternalId}/features/search:
+    post:
+      tags:
+      - Geospatial
+      summary: Search features
+      description: '
+
+
+        > **Required capabilities:** `geospatialAcl:READ`
+
+
+        Search for features based on the feature property filter passed in the body of the request. The result of the search is limited to a maximum of 1000 items. Results in excess of the limit are truncated. This means that the complete result set of the search cannot be retrieved with this method. However, for a given unmodified feature collection, the result of the search is deterministic and does not change over time.'
+      operationId: searchFeatures
+      parameters:
+      - $ref: '#/components/parameters/geospatialFeatureTypeExternalId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeospatialFeatureSearchRequest'
+            examples:
+              GeospatialSearchExample:
+                $ref: '#/components/examples/GeospatialSearchExample'
+      responses:
+        '200':
+          $ref: '#/components/responses/GeospatialFeatureSearchResponse'
+        '400':
+          $ref: '#/components/responses/GeospatialErrorResponse'
+      x-capability:
+      - geospatialAcl:READ
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: "const params = {\n filter: {\n   and: [\n     { range:{ property: 'temperature', gt:4.54 } },\n     { stWithin: { property:'location', value:'POLYGON((60.547602 -5.423433, 60.547602 -6.474416, 60.585858 -5.423433, 60.547602 -5.423433))' } }\n  ]\n },\n limit: 100,\n sort: [ 'temperature:ASC','location']\n};\n\nconst searchedFeatures = await client.geospatial.feature.search('ocean_temperature', params);"
+  /geospatial/featuretypes/{featureTypeExternalId}/features/search-streaming:
+    post:
+      tags:
+      - Geospatial
+      summary: Search and stream features
+      description: '
+
+
+        > **Required capabilities:** `geospatialAcl:READ`
+
+
+        Search for features based on the feature property filter passed in the body of the request. The streaming response format can be length prefixed, new line delimited, record separator delimited or concatenated depending on requested output (see https://en.wikipedia.org/wiki/JSON_streaming).'
+      operationId: searchFeaturesStreaming
+      parameters:
+      - $ref: '#/components/parameters/geospatialFeatureTypeExternalId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeospatialFeatureSearchStreamingRequest'
+            examples:
+              GeospatialSearchStreamingExample:
+                $ref: '#/components/examples/GeospatialSearchStreamingExample'
+      responses:
+        '200':
+          $ref: '#/components/responses/GeospatialFeatureSearchStreamingResponse'
+        '400':
+          $ref: '#/components/responses/GeospatialErrorResponse'
+      x-capability:
+      - geospatialAcl:READ
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: "const params = {\n filter: {\n   and: [\n     { range:{ property: 'temperature', gt:4.54 } },\n     { stWithin: { property:'location', value:'POLYGON((60.547602 -5.423433, 60.547602 -6.474416, 60.585858 -5.423433, 60.547602 -5.423433))' } }\n  ]\n },\n limit: 100,\n output: { jsonStreamFormat: 'NEW_LINE_DELIMITED' as const }\n};\n\nconst featureStreamString = await client.geospatial.feature.searchStream('ocean_temperature', params);"
+  /geospatial/featuretypes/{featureTypeExternalId}/features/aggregate:
+    post:
+      tags:
+      - Geospatial
+      summary: Aggregate features
+      description: '
+
+
+        > **Required capabilities:** `geospatialAcl:READ`
+
+
+        Search for features based on the feature property filter and perform requested aggregations on a given property. Aggregations are supported for all filters that do not contain `stWithin`, `stWithinProperly`, `stContains` and `stContainsProperly` search in 3D geometries.'
+      operationId: aggregateFeatures
+      parameters:
+      - $ref: '#/components/parameters/geospatialFeatureTypeExternalId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeospatialFeatureAggregateRequest'
+            examples:
+              FeatureAggregateExample:
+                $ref: '#/components/examples/GeospatialFeatureAggregateExample'
+      responses:
+        '200':
+          $ref: '#/components/responses/GeospatialFeatureAggregateResponse'
+        '400':
+          $ref: '#/components/responses/GeospatialErrorResponse'
+      x-capability:
+      - geospatialAcl:READ
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: "const aggregateParams = {\n filter: {\n   and: [\n     { range:{ property: 'temperature', gt:4.54 } },\n     { stWithin: { property:'location', value:'POLYGON((60.547602 -5.423433, 60.547602 -6.474416, 60.585858 -5.423433, 60.547602 -5.423433))' } }\n  ]\n },\n property: 'temperature',\n aggregates: ['min', 'max', 'average'],\n groupBy: ['category']\n};\n\nconst featureStream = await client.geospatial.feature.searchStream('ocean_temperature', aggregateParams);"
+  /geospatial/compute:
+    post:
+      tags:
+      - Geospatial
+      summary: Compute
+      description: '
+
+
+        > **Required capabilities:** `geospatialAcl:READ` `geospatialCrsAcl:READ`
+
+
+        Compute custom json output structures or well known binary format responses based on calculation or selection of feature properties or direct values given in the request.'
+      operationId: compute
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeospatialComputeRequest'
+            examples:
+              StTransformGeometryExample:
+                $ref: '#/components/examples/GeospatialComputeRequestExample'
+      responses:
+        '200':
+          $ref: '#/components/responses/GeospatialComputeResponse'
+      x-capability:
+      - geospatialAcl:READ
+      - geospatialCrsAcl:READ
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: "const response = await client.geospatial.compute.compute({\n  output: {\n    \"output\": {\n      stTransform: {\n        geometry: {\n          ewkt: \"SRID=4326;POLYGON((0 0,10 0,10 10,0 10,0 0))\"\n        },\n        srid: 4326,\n      }\n    }\n  }\n});"
+  /geospatial/featuretypes/{featureTypeExternalId}/features/{featureExternalId}/rasters/{rasterPropertyName}:
+    put:
+      tags:
+      - Geospatial
+      summary: Put a raster into a feature property
+      description: '
+
+
+        > **Required capabilities:** `geospatialAcl:READ` `geospatialAcl:WRITE`
+
+
+        Put a raster into a feature property. The feature property must be of type RASTER.'
+      operationId: putRaster
+      parameters:
+      - $ref: '#/components/parameters/geospatialFeatureTypeExternalId'
+      - $ref: '#/components/parameters/geospatialFeatureExternalId'
+      - $ref: '#/components/parameters/geospatialRasterPropertyName'
+      - $ref: '#/components/parameters/geospatialRasterSrid'
+      - $ref: '#/components/parameters/geospatialRasterInputFormat'
+      - $ref: '#/components/parameters/geospatialRasterPixelScaleX'
+      - $ref: '#/components/parameters/geospatialRasterPixelScaleY'
+      - $ref: '#/components/parameters/geospatialRasterAllowCrsTransformation'
+      requestBody:
+        content:
+          application/octet-stream:
+            schema:
+              format: binary
+      responses:
+        '200':
+          $ref: '#/components/responses/GeospatialRasterMetadataResponse'
+        '400':
+          $ref: '#/components/responses/GeospatialErrorResponse'
+      x-capability:
+      - geospatialAcl:READ
+      - geospatialAcl:WRITE
+    post:
+      tags:
+      - Geospatial
+      summary: Get a raster from a feature property
+      description: '
+
+
+        > **Required capabilities:** `geospatialAcl:READ`
+
+
+        Get a raster from a feature property. The feature property must be of type RASTER.'
+      operationId: getRaster
+      parameters:
+      - $ref: '#/components/parameters/geospatialFeatureTypeExternalId'
+      - $ref: '#/components/parameters/geospatialFeatureExternalId'
+      - $ref: '#/components/parameters/geospatialRasterPropertyName'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeospatialRasterOutputSpec'
+      responses:
+        '200':
+          description: The binary file of the raster in the specified format
+          content:
+            application/octet-stream:
+              schema:
+                format: binary
+        '400':
+          $ref: '#/components/responses/GeospatialErrorResponse'
+      x-capability:
+      - geospatialAcl:READ
+  /geospatial/featuretypes/{featureTypeExternalId}/features/{featureExternalId}/rasters/{rasterPropertyName}/delete:
+    post:
+      tags:
+      - Geospatial
+      summary: Delete a raster from a feature property
+      description: '
+
+
+        > **Required capabilities:** `geospatialAcl:READ` `geospatialAcl:WRITE`
+
+
+        Delete a raster from a feature property. If there is no raster already, the operation is a no-op.'
+      operationId: deleteRaster
+      parameters:
+      - $ref: '#/components/parameters/geospatialFeatureTypeExternalId'
+      - $ref: '#/components/parameters/geospatialFeatureExternalId'
+      - $ref: '#/components/parameters/geospatialRasterPropertyName'
+      responses:
+        '200':
+          $ref: '#/components/responses/EmptyResponse'
+        '400':
+          $ref: '#/components/responses/GeospatialErrorResponse'
+      x-capability:
+      - geospatialAcl:READ
+      - geospatialAcl:WRITE
+components:
+  schemas:
+    GeospatialFeatureSearchStreamingRequest:
+      description: Search and streaming feature request
+      type: object
+      properties:
+        allowCrsTransformation:
+          $ref: '#/components/schemas/GeospatialAllowCrsTransformation'
+        allowDimensionalityMismatch:
+          $ref: '#/components/schemas/GeospatialAllowDimensionalityMismatch'
+        filter:
+          $ref: '#/components/schemas/GeospatialFeatureFilter'
+        limit:
+          type: number
+        output:
+          $ref: '#/components/schemas/GeospatialOutputStreaming'
+    GeospatialPropertyType:
+      type: string
+      description: Property type
+      enum:
+      - STRING
+      - LONG
+      - DOUBLE
+      - BOOLEAN
+      - TIMESTAMP
+      - TIMESTAMPTZ
+      - GEOMETRY
+      - POINT
+      - LINESTRING
+      - POLYGON
+      - MULTIPOINT
+      - MULTILINESTRING
+      - MULTIPOLYGON
+      - GEOMETRYCOLLECTION
+      - GEOMETRYZ
+      - POINTZ
+      - LINESTRINGZ
+      - POLYGONZ
+      - MULTIPOINTZ
+      - MULTILINESTRINGZ
+      - MULTIPOLYGONZ
+      - GEOMETRYM
+      - POINTM
+      - LINESTRINGM
+      - POLYGONM
+      - MULTIPOINTM
+      - MULTILINESTRINGM
+      - MULTIPOLYGONM
+      - GEOMETRYCOLLECTIONM
+      - GEOMETRYZM
+      - POINTZM
+      - LINESTRINGZM
+      - POLYGONZM
+      - MULTIPOINTZM
+      - MULTILINESTRINGZM
+      - MULTIPOLYGONZM
+      - GEOMETRYCOLLECTIONZM
+      - RASTER
+      - JSON
+      - LONGARRAY
+    GeospatialUpdateFeatureTypeSpec:
+      type: object
+      required:
+      - externalId
+      - update
+      properties:
+        externalId:
+          $ref: '#/components/schemas/GeospatialFeatureTypeExternalId'
+        update:
+          type: object
+          properties:
+            dataSetId:
+              $ref: '#/components/schemas/SinglePatchLong'
+            properties:
+              type: object
+              description: List of properties to be added, deleted or modified in an existing feature type. Each property name has to match the following regexp pattern `/^[A-Za-z][A-Za-z0-9_]{0,31}$/`.\ The total number of properties is limited to 100 per feature type. There must not be any property name overlap in `add`, `remove` and `modify` fields.
+              properties:
+                add:
+                  type: object
+                  additionalProperties:
+                    $ref: '#/components/schemas/GeospatialFeatureTypeProperty'
+                remove:
+                  type: array
+                  description: List of properties to remove.
+                  items:
+                    $ref: '#/components/schemas/GeospatialPropertyName'
+            searchSpec:
+              type: object
+              description: Each index name has to match the following regexp pattern `/^[A-Za-z][A-Za-z0-9_]{0,31}$/`.\ The total number of indexes is limited to 5 per feature type.
+              properties:
+                add:
+                  type: object
+                  additionalProperties:
+                    $ref: '#/components/schemas/GeospatialIndexSpec'
+                remove:
+                  type: array
+                  description: List of indexes to remove.
+                  items:
+                    type: string
+    GeospatialCustomCoordinateReferenceSystem:
+      type: object
+      additionalProperties: false
+      required:
+      - srid
+      - wkt
+      - projString
+      - createdTime
+      - lastUpdatedTime
+      properties:
+        srid:
+          $ref: '#/components/schemas/GeospatialReferenceId'
+        wkt:
+          $ref: '#/components/schemas/GeospatialWellKnownText'
+        projString:
+          $ref: '#/components/schemas/GeospatialProjString'
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        lastUpdatedTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+    GeospatialFeatureNotFilter:
+      type: object
+      properties:
+        not:
+          $ref: '#/components/schemas/GeospatialFeatureFilter'
+    GeospatialRasterXyzOutputSpec:
+      type: object
+      description: XYZ specification for the output raster
+      required:
+      - format
+      properties:
+        format:
+          type: string
+          enum:
+          - XYZ
+        options:
+          type: object
+          properties:
+            SIGNIFICANT_DIGITS:
+              type: integer
+            DECIMAL_PRECISION:
+              type: integer
+    GeospatialFeatureContainsAnyFilter:
+      type: object
+      properties:
+        containsAny:
+          $ref: '#/components/schemas/GeospatialPropertyAndValues'
+    SetLongField:
+      type: object
+      required:
+      - set
+      properties:
+        set:
+          type: integer
+          format: int64
+    GeospatialPropertyReference:
+      type: object
+      description: References a feature property in the context of a filter The support for arrays is forward looking for when the geospatial api will have complex properties.
+      properties:
+        property:
+          oneOf:
+          - type: string
+          - type: array
+            items:
+              type: string
+    GeospatialError:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            anyOf:
+            - type: object
+            - type: string
+            - type: boolean
+            - type: number
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            anyOf:
+            - type: object
+            - type: string
+            - type: boolean
+            - type: number
+            additionalProperties: true
+        invalid:
+          type: array
+          description: List of objects that are not valid.
+          items:
+            anyOf:
+            - type: object
+            - type: string
+            - type: boolean
+            - type: number
+            additionalProperties: true
+        dependencies:
+          type: array
+          description: List of dependencies.
+          items:
+            anyOf:
+            - type: object
+            - type: string
+            - type: boolean
+            - type: number
+            additionalProperties: true
+    GeospatialFeatureIds:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items:
+            $ref: '#/components/schemas/GeospatialItemExternalId'
+    GeospatialFeatureTypeProperty:
+      type: object
+      required:
+      - type
+      properties:
+        type:
+          $ref: '#/components/schemas/GeospatialPropertyType'
+        description:
+          type: string
+          description: The description of the property
+          maxLength: 500
+        srid:
+          $ref: '#/components/schemas/GeospatialReferenceId'
+        size:
+          type: integer
+          description: Maximal length of string. Only valid for string type.
+          minimum: 1
+          maximum: 65536
+        optional:
+          type: boolean
+          description: Indicate if property is nullable. Default is false.
+    GeospatialRecursiveDelete:
+      type: boolean
+      example: true
+      description: Indicates if feature types should be deleted together with all related features. Optional parameter, defaults to false.
+    GeospatialRange:
+      allOf:
+      - $ref: '#/components/schemas/GeospatialRangeCondition'
+      - type: object
+        properties:
+          property:
+            $ref: '#/components/schemas/GeospatialPropertyReference'
+    GeospatialUpdateFeatureTypeSpecs:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/GeospatialUpdateFeatureTypeSpec'
+    GeospatialFeatureIdsWithOutput:
+      allOf:
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
+            minItems: 1
+            maxItems: 1000
+            items:
+              $ref: '#/components/schemas/GeospatialItemExternalId'
+          output:
+            $ref: '#/components/schemas/GeospatialOutput'
+    GeospatialFeatureListRequest:
+      description: Feature List Request
+      allOf:
+      - type: object
+        properties:
+          allowCrsTransformation:
+            $ref: '#/components/schemas/GeospatialAllowCrsTransformation'
+          allowDimensionalityMismatch:
+            $ref: '#/components/schemas/GeospatialAllowDimensionalityMismatch'
+          filter:
+            $ref: '#/components/schemas/GeospatialFeatureFilter'
+          limit:
+            $ref: '#/components/schemas/SearchLimit'
+          output:
+            $ref: '#/components/schemas/GeospatialOutput'
+      - $ref: '#/components/schemas/Cursor'
+    GeospatialCentroidAggregationOutput:
+      type: object
+      required:
+      - stCentroid
+      additionalProperties: false
+      properties:
+        stCentroid:
+          $ref: '#/components/schemas/GeospatialProperty'
+    GeospatialCustomCoordinateReferenceSystemSpecs:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/GeospatialCoordinateReferenceSystem'
+    GeospatialFeatureEqualsFilter:
+      type: object
+      properties:
+        equals:
+          $ref: '#/components/schemas/GeospatialPropertyAndValue'
+    GeospatialGeometryValueComputeFunction:
+      type: object
+      required:
+      - ewkt
+      additionalProperties: false
+      properties:
+        ewkt:
+          $ref: '#/components/schemas/GeospatialExtendedWellKnownText'
+    GeospatialReferenceId:
+      description: EPSG code, e.g. 4326. Only valid for geometry types. See https://en.wikipedia.org/wiki/Spatial_reference_system
+      type: integer
+      minimum: 0
+      maximum: 1000000
+      example: 4326
+    GeospatialFeatureAggregateRequest:
+      description: Feature Aggregation Request
+      type: object
+      properties:
+        allowDimensionalityMismatch:
+          $ref: '#/components/schemas/GeospatialAllowDimensionalityMismatch'
+        filter:
+          $ref: '#/components/schemas/GeospatialFeatureFilter'
+        aggregates:
+          type: array
+          description: This parameter is deprecated. Use `output` instead. Names of aggregate functions that are requested.
+          deprecated: true
+          items:
+            type: string
+            enum:
+            - avg
+            - count
+            - max
+            - min
+            - stCentroid
+            - stCollect
+            - stConvexHull
+            - stIntersection
+            - stUnion
+            - sum
+            - variance
+        property:
+          type: string
+          description: This parameter is deprecated. Use `output` instead. Property name.
+          deprecated: true
+        outputSrid:
+          $ref: '#/components/schemas/GeospatialReferenceId'
+        groupBy:
+          type: array
+          description: names of properties to be used for grouping by
+          items:
+            type: string
+        sort:
+          type: array
+          description: 'Sort result by the selected fields (properties or aggregates). Default sort order is ascending if not specified. Available sort direction: ASC, DESC, ASC_NULLS_FIRST, DESC_NULLS_FIRST, ASC_NULLS_LAST, DESC_NULLS_LAST.'
+          items:
+            type: string
+        output:
+          $ref: '#/components/schemas/GeospatialAggregateOutput'
+    GeospatialMaxAggregationOutput:
+      type: object
+      required:
+      - max
+      additionalProperties: false
+      properties:
+        max:
+          $ref: '#/components/schemas/GeospatialProperty'
+    GeospatialFeatureStWithinDistance3dFilter:
+      type: object
+      properties:
+        stWithinDistance3d:
+          $ref: '#/components/schemas/GeospatialPropertyValueAndDistance'
+    GeospatialFeatureMissingFilter:
+      type: object
+      properties:
+        missing:
+          $ref: '#/components/schemas/GeospatialPropertyReference'
+    DataSetId:
+      description: The dataSet Id for the item.
+      type: integer
+      minimum: 1
+      maximum: 9007199254740991
+      format: int64
+    GeospatialCoordinateReferenceSystemList:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/GeospatialCustomCoordinateReferenceSystem'
+            - $ref: '#/components/schemas/GeospatialCoordinateReferenceSystem'
+    GeospatialDeleteFeatureType:
+      type: object
+      required:
+      - items
+      properties:
+        recursive:
+          $ref: '#/components/schemas/GeospatialRecursiveDelete'
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              externalId:
+                $ref: '#/components/schemas/GeospatialFeatureTypeExternalId'
+          maxItems: 10
+          minItems: 1
+    GeospatialOutputStreaming:
+      type: object
+      description: Desired output specification for streaming.
+      properties:
+        geometryFormat:
+          type: string
+          enum:
+          - WKT
+          - GEOJSON
+          description: Desired format for geometry output. If GEOJSON is the output format, SRID 4326 must be specified explicitly for all geometrical properties. Defaults to WKT.
+        jsonStreamFormat:
+          type: string
+          enum:
+          - LENGTH_PREFIXED
+          - NEW_LINE_DELIMITED
+          - CONCATENATED
+          - RECORD_SEPARATOR_DELIMITED
+          description: optional parameter to indicate response format in search streaming endpoint. Defaults to LENGTH_PREFIXED
+        properties:
+          type: object
+          description: A property selection with specification of output format (e.g. desired output Coordinate Reference System to which geometries should be transformed). All properties will be returned when the selection is empty or contains the wildcard `*` character. When the selection contains only some of the properties, the result will contain only requested properties.
+          maxProperties: 200
+      example:
+        jsonStreamFormat: LENGTH_PREFIXED
+        properties:
+          '*': {}
+          geometry1:
+            srid: 4326
+          geometry2:
+            srid: 3857
+    GeospatialConvexHullAggregationOutput:
+      type: object
+      required:
+      - stConvexHull
+      additionalProperties: false
+      properties:
+        stConvexHull:
+          $ref: '#/components/schemas/GeospatialProperty'
+    GeospatialReferenceIds:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required:
+            - srid
+            properties:
+              srid:
+                $ref: '#/components/schemas/GeospatialReferenceId'
+          maxItems: 1000
+          minItems: 1
+    GeospatialGeometryTransformComputeFunction:
+      type: object
+      required:
+      - stTransform
+      additionalProperties: false
+      properties:
+        stTransform:
+          type: object
+          required:
+          - geometry
+          - srid
+          additionalProperties: false
+          properties:
+            geometry:
+              $ref: '#/components/schemas/GeospatialGeometryComputeFunction'
+            srid:
+              $ref: '#/components/schemas/GeospatialReferenceId'
+    GeospatialRasterOutputSpec:
+      allOf:
+      - $ref: '#/components/schemas/GeospatialRasterCommonOutputSpec'
+      - oneOf:
+        - $ref: '#/components/schemas/GeospatialRasterXyzOutputSpec'
+        - $ref: '#/components/schemas/GeospatialRasterGtiffOutputSpec'
+    GeospatialRasterGtiffOutputSpec:
+      type: object
+      description: GTiff specification for the output raster
+      required:
+      - format
+      properties:
+        format:
+          type: string
+          enum:
+          - GTiff
+        options:
+          type: object
+          properties:
+            JPEG_QUALITY:
+              type: integer
+              minimum: 1
+              maximum: 100
+    GeospatialWellKnownText:
+      type: string
+      description: Well-known text of the geometry, see https://docs.geotools.org/stable/javadocs/org/opengis/referencing/doc-files/WKT.html
+      example: POINT (0 0)
+    GeospatialAllowDimensionalityMismatch:
+      type: boolean
+      example: true
+      description: Optional parameter indicating if the spatial filter operators allow input geometries with a different dimensionality than the properties they are applied to. For instance, when set to true, if a feature type has a property of type POLYGONZM (4D), its features can be filtered using the `stContains` operator and a POLYGON (2D) value. This option defaults to false if not specified.
+    GeospatialAggregate:
+      allOf:
+      - $ref: '#/components/schemas/GeospatialFeatureProperties'
+    GeospatialFeatureTypes:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 0
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/GeospatialFeatureType'
+    GeospatialComputeFunction:
+      oneOf:
+      - $ref: '#/components/schemas/GeospatialGeometryTransformComputeFunction'
+    GeospatialSumAggregationOutput:
+      type: object
+      required:
+      - sum
+      additionalProperties: false
+      properties:
+        sum:
+          $ref: '#/components/schemas/GeospatialProperty'
+    GeospatialFeatureProperties:
+      type: object
+      maxProperties: 200
+      additionalProperties:
+        oneOf:
+        - type: string
+        - type: number
+        - type: object
+        - type: boolean
+        - type: array
+          items:
+            type: integer
+    GeospatialAllowCrsTransformation:
+      type: boolean
+      example: true
+      description: Optional parameter indicating if input geometry properties should be transformed into the respective Coordinate Reference Systems defined in the feature type specification. If the parameter is true, then input geometries will be transformed when the input and output Coordinate Reference Systems differ. When it is false, then requests with geometries in Coordinate Reference System different from the ones defined in the feature type will result in bad request response code. Transformations apply to property geometries in case of create and update feature, as well as to geometries in spatial filters in search endpoints.
+    GeospatialFeatureSearchRequest:
+      description: Feature Search Request
+      type: object
+      properties:
+        allowCrsTransformation:
+          $ref: '#/components/schemas/GeospatialAllowCrsTransformation'
+        allowDimensionalityMismatch:
+          $ref: '#/components/schemas/GeospatialAllowDimensionalityMismatch'
+        filter:
+          $ref: '#/components/schemas/GeospatialFeatureFilter'
+        limit:
+          $ref: '#/components/schemas/SearchLimit'
+        output:
+          $ref: '#/components/schemas/GeospatialOutput'
+        sort:
+          type: array
+          description: 'Sort result by selected fields. Syntax: sort:["field_1","field_2:ASC","field_3:DESC"]. Default sort order is ascending if not specified. Available sort direction: ASC, DESC, ASC_NULLS_FIRST, DESC_NULLS_FIRST, ASC_NULLS_LAST, DESC_NULLS_LAST.
+
+            '
+          items:
+            type: string
+    GeospatialFeatureAndFilter:
+      type: object
+      properties:
+        and:
+          type: array
+          items:
+            $ref: '#/components/schemas/GeospatialFeatureFilter'
+    GeospatialFeatureRegexFilter:
+      type: object
+      description: Regular expression pattern matching.
+      properties:
+        regex:
+          $ref: '#/components/schemas/GeospatialPropertyAndPattern'
+    SinglePatchLong:
+      title: set
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/SetLongField'
+      - $ref: '#/components/schemas/RemoveField'
+      description: Set a new value for the long, or remove the value.
+    GeospatialFeatureSpec:
+      allOf:
+      - $ref: '#/components/schemas/GeospatialFeatureProperties'
+      - type: object
+        required:
+        - externalId
+        properties:
+          externalId:
+            $ref: '#/components/schemas/CogniteExternalId'
+    GeospatialPropertyValueAndDistance:
+      type: object
+      properties:
+        property:
+          $ref: '#/components/schemas/GeospatialPropertyReference'
+        value: {}
+        distance:
+          type: number
+    CogniteExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
+      type: string
+      maxLength: 255
+      example: my.known.id
+    GeospatialCollectAggregationOutput:
+      type: object
+      required:
+      - stCollect
+      additionalProperties: false
+      properties:
+        stCollect:
+          $ref: '#/components/schemas/GeospatialProperty'
+    GeospatialVarianceAggregationOutput:
+      type: object
+      required:
+      - variance
+      additionalProperties: false
+      properties:
+        variance:
+          $ref: '#/components/schemas/GeospatialProperty'
+    GeospatialComputedItems:
+      type: object
+      properties:
+        items:
+          type: array
+          maxItems: 1000
+          items:
+            $ref: '#/components/schemas/GeospatialComputedItem'
+    GeospatialPropertyAndValues:
+      type: object
+      properties:
+        property:
+          $ref: '#/components/schemas/GeospatialPropertyReference'
+        values:
+          type: array
+          items:
+            anyOf:
+            - type: object
+            - type: string
+            - type: boolean
+            - type: number
+    GeospatialAggregateOutput:
+      type: object
+      additionalProperties:
+        $ref: '#/components/schemas/GeospatialAggregateOutputSpec'
+      description: A list of aggregations which are requested.
+    GeospatialFeatureTypeExternalIds:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required:
+            - externalId
+            properties:
+              externalId:
+                $ref: '#/components/schemas/GeospatialFeatureTypeExternalId'
+          maxItems: 100
+          minItems: 1
+    GeospatialIntersectionAggregationOutput:
+      type: object
+      required:
+      - stIntersection
+      additionalProperties: false
+      properties:
+        stIntersection:
+          $ref: '#/components/schemas/GeospatialProperty'
+    GeospatialFeatures:
+      allOf:
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
+            minItems: 1
+            maxItems: 1000
+            items:
+              $ref: '#/components/schemas/GeospatialFeature'
+    GeospatialFeatureType:
+      allOf:
+      - $ref: '#/components/schemas/GeospatialFeatureTypeSpec'
+      - type: object
+        required:
+        - createdTime
+        - lastUpdatedTime
+        properties:
+          createdTime:
+            $ref: '#/components/schemas/EpochTimestamp'
+          lastUpdatedTime:
+            $ref: '#/components/schemas/EpochTimestamp'
+    GeospatialFeatureSearchResult:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 0
+          maxItems: 1000
+          items:
+            $ref: '#/components/schemas/GeospatialFeature'
+    GeospatialJsonComputeOutput:
+      type: object
+      required:
+      - output
+      additionalProperties: false
+      properties:
+        output:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/GeospatialComputeFunction'
+    GeospatialFeatureStWithinFilter:
+      type: object
+      properties:
+        stWithin:
+          $ref: '#/components/schemas/GeospatialPropertyAndValue'
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    GeospatialPropertyAndValue:
+      type: object
+      properties:
+        property:
+          $ref: '#/components/schemas/GeospatialPropertyReference'
+        value: {}
+    GeospatialFeatureStIntersectsFilter:
+      type: object
+      properties:
+        stIntersects:
+          $ref: '#/components/schemas/GeospatialPropertyAndValue'
+    GeospatialUnionAggregationOutput:
+      type: object
+      required:
+      - stUnion
+      additionalProperties: false
+      properties:
+        stUnion:
+          $ref: '#/components/schemas/GeospatialProperty'
+    GeospatialRangeCondition:
+      type: object
+      description: Range condition can be open (i.e. having one of the properties) or closed (i.e. having two opposite properties). Can be applied to numeric types as well as string.
+      properties:
+        gt:
+          anyOf:
+          - type: string
+          - type: number
+        lt:
+          anyOf:
+          - type: string
+          - type: number
+        gte:
+          anyOf:
+          - type: string
+          - type: number
+        lte:
+          anyOf:
+          - type: string
+          - type: number
+      example:
+        properties:
+          gt: 12.4
+          lte: 20.1
+    GeospatialFeature:
+      allOf:
+      - $ref: '#/components/schemas/GeospatialFeatureProperties'
+      - type: object
+        properties:
+          externalId:
+            $ref: '#/components/schemas/CogniteExternalId'
+          createdTime:
+            $ref: '#/components/schemas/EpochTimestamp'
+          lastUpdatedTime:
+            $ref: '#/components/schemas/EpochTimestamp'
+    GeospatialFeatureStContainsFilter:
+      type: object
+      properties:
+        stContains:
+          $ref: '#/components/schemas/GeospatialPropertyAndValue'
+    GeospatialProperty:
+      type: object
+      properties:
+        property:
+          type: string
+    GeospatialPropertyName:
+      type: string
+      maxLength: 32
+      pattern: ^[A-Za-z0-9_]{0,31}$
+    GeospatialFeatureFilter:
+      anyOf:
+      - $ref: '#/components/schemas/GeospatialFeatureNotFilter'
+      - $ref: '#/components/schemas/GeospatialFeatureAndFilter'
+      - $ref: '#/components/schemas/GeospatialFeatureOrFilter'
+      - $ref: '#/components/schemas/GeospatialFeatureEqualsFilter'
+      - $ref: '#/components/schemas/GeospatialFeatureMissingFilter'
+      - $ref: '#/components/schemas/GeospatialFeatureLikeFilter'
+      - $ref: '#/components/schemas/GeospatialFeatureRegexFilter'
+      - $ref: '#/components/schemas/GeospatialFeatureRangeFilter'
+      - $ref: '#/components/schemas/GeospatialFeatureContainsAnyFilter'
+      - $ref: '#/components/schemas/GeospatialFeatureInFilter'
+      - $ref: '#/components/schemas/GeospatialFeatureStIntersectsFilter'
+      - $ref: '#/components/schemas/GeospatialFeatureStIntersects3dFilter'
+      - $ref: '#/components/schemas/GeospatialFeatureStWithinFilter'
+      - $ref: '#/components/schemas/GeospatialFeatureStWithinProperlyFilter'
+      - $ref: '#/components/schemas/GeospatialFeatureStContainsFilter'
+      - $ref: '#/components/schemas/GeospatialFeatureStContainsProperlyFilter'
+      - $ref: '#/components/schemas/GeospatialFeatureStWithinDistanceFilter'
+      - $ref: '#/components/schemas/GeospatialFeatureStWithinDistance3dFilter'
+    GeospatialFeatureTypeSpec:
+      type: object
+      required:
+      - externalId
+      - properties
+      properties:
+        externalId:
+          $ref: '#/components/schemas/GeospatialFeatureTypeExternalId'
+        dataSetId:
+          $ref: '#/components/schemas/DataSetId'
+        properties:
+          type: object
+          description: Each property name has to match the following regexp pattern `/^[A-Za-z][A-Za-z0-9_]{0,31}$/`.\ The number of properties is limited to 200 per feature type.
+          additionalProperties:
+            $ref: '#/components/schemas/GeospatialFeatureTypeProperty'
+          maxProperties: 200
+        searchSpec:
+          type: object
+          description: Each index name has to match the following regexp pattern `/^[A-Za-z][A-Za-z0-9_]{0,31}$/`.\ The number of indexes is limited to 10 per feature type.
+          additionalProperties:
+            $ref: '#/components/schemas/GeospatialIndexSpec'
+          maxProperties: 10
+    GeospatialExtendedWellKnownText:
+      type: string
+      description: Well-known text of the geometry prefixed with a spatial reference identifier, see https://docs.geotools.org/stable/javadocs/org/opengis/referencing/doc-files/WKT.html
+      example: SRID=4326;POINT(0 0)
+    GeospatialCountAggregationOutput:
+      type: object
+      required:
+      - count
+      additionalProperties: false
+      properties:
+        count:
+          $ref: '#/components/schemas/GeospatialProperty'
+    GeospatialRasterCommonOutputSpec:
+      type: object
+      properties:
+        srid:
+          $ref: '#/components/schemas/GeospatialReferenceId'
+        scaleX:
+          type: number
+          format: double
+        scaleY:
+          type: number
+          format: double
+    GeospatialFeatureStContainsProperlyFilter:
+      type: object
+      properties:
+        stContainsProperly:
+          $ref: '#/components/schemas/GeospatialPropertyAndValue'
+    GeospatialAggregateOutputSpec:
+      oneOf:
+      - $ref: '#/components/schemas/GeospatialMaxAggregationOutput'
+      - $ref: '#/components/schemas/GeospatialMinAggregationOutput'
+      - $ref: '#/components/schemas/GeospatialSumAggregationOutput'
+      - $ref: '#/components/schemas/GeospatialCountAggregationOutput'
+      - $ref: '#/components/schemas/GeospatialAvgAggregationOutput'
+      - $ref: '#/components/schemas/GeospatialVarianceAggregationOutput'
+      - $ref: '#/components/schemas/GeospatialCentroidAggregationOutput'
+      - $ref: '#/components/schemas/GeospatialCollectAggregationOutput'
+      - $ref: '#/components/schemas/GeospatialConvexHullAggregationOutput'
+      - $ref: '#/components/schemas/GeospatialIntersectionAggregationOutput'
+      - $ref: '#/components/schemas/GeospatialUnionAggregationOutput'
+    GeospatialGeometryComputeFunction:
+      oneOf:
+      - $ref: '#/components/schemas/GeospatialGeometryValueComputeFunction'
+    GeospatialIndexSpec:
+      type: object
+      required:
+      - properties
+      properties:
+        properties:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items:
+            $ref: '#/components/schemas/GeospatialPropertyName'
+    GeospatialFeatureStWithinProperlyFilter:
+      type: object
+      properties:
+        stWithinProperly:
+          $ref: '#/components/schemas/GeospatialPropertyAndValue'
+    GeospatialFeatureStWithinDistanceFilter:
+      type: object
+      properties:
+        stWithinDistance:
+          $ref: '#/components/schemas/GeospatialPropertyValueAndDistance'
+    GeospatialFeatureLikeFilter:
+      type: object
+      description: Simple pattern maching. Use `_` for single character and `%` for string of any length. Backslash `\` is an escape character.
+      properties:
+        like:
+          $ref: '#/components/schemas/GeospatialPropertyAndPattern'
+    GeospatialRasterMetadata:
+      type: object
+      properties:
+        srid:
+          type: integer
+        width:
+          type: integer
+        height:
+          type: integer
+        numBands:
+          type: integer
+        scaleX:
+          type: number
+          format: double
+        scaleY:
+          type: number
+          format: double
+        skewX:
+          type: number
+          format: double
+        skewY:
+          type: number
+          format: double
+        upperLeftX:
+          type: number
+          format: double
+        upperLeftY:
+          type: number
+          format: double
+    GeospatialFeatureTypeSpecs:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/GeospatialFeatureTypeSpec'
+    GeospatialFeatureRangeFilter:
+      type: object
+      properties:
+        range:
+          $ref: '#/components/schemas/GeospatialRange'
+    GeospatialFeatureSpecs:
+      allOf:
+      - type: object
+        required:
+        - items
+        properties:
+          allowCrsTransformation:
+            $ref: '#/components/schemas/GeospatialAllowCrsTransformation'
+          items:
+            type: array
+            minItems: 1
+            maxItems: 1000
+            items:
+              $ref: '#/components/schemas/GeospatialFeatureSpec'
+    GeospatialItemExternalId:
+      type: object
+      required:
+      - externalId
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+    GeospatialFeatureStIntersects3dFilter:
+      type: object
+      properties:
+        stIntersects3d:
+          $ref: '#/components/schemas/GeospatialPropertyAndValue'
+    GeospatialComputedItem:
+      type: object
+      additionalProperties:
+        oneOf:
+        - type: string
+        - type: number
+        - type: object
+        - type: boolean
+    GeospatialFeatureOrFilter:
+      type: object
+      properties:
+        or:
+          type: array
+          items:
+            $ref: '#/components/schemas/GeospatialFeatureFilter'
+    GeospatialPropertyAndPattern:
+      type: object
+      properties:
+        property:
+          $ref: '#/components/schemas/GeospatialPropertyReference'
+        pattern:
+          type: string
+    GeospatialComputeRequest:
+      oneOf:
+      - $ref: '#/components/schemas/GeospatialJsonComputeOutput'
+    GeospatialAvgAggregationOutput:
+      type: object
+      required:
+      - avg
+      additionalProperties: false
+      properties:
+        avg:
+          $ref: '#/components/schemas/GeospatialProperty'
+    GeospatialFeatureAggregates:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/GeospatialAggregate'
+    GeospatialMinAggregationOutput:
+      type: object
+      required:
+      - min
+      additionalProperties: false
+      properties:
+        min:
+          $ref: '#/components/schemas/GeospatialProperty'
+    RemoveField:
+      title: remove
+      type: object
+      required:
+      - setNull
+      properties:
+        setNull:
+          type: boolean
+          example: true
+    GeospatialOutput:
+      type: object
+      description: Desired output specification.
+      properties:
+        geometryFormat:
+          type: string
+          enum:
+          - WKT
+          - GEOJSON
+          description: Desired format for geometry output. If GEOJSON is the output format, SRID 4326 must be specified explicitly for all geometrical properties. Defaults to WKT.
+        properties:
+          type: object
+          description: A property selection with specification of output format (e.g. desired output Coordinate Reference System into which geometries should be transformed). All properties will be returned when the selection is empty or contains the wildcard `*` character. When the selection contains only some of the properties, the result will contain only requested properties.
+          maxProperties: 200
+      example:
+        properties:
+          '*': {}
+          geometry1:
+            srid: 4326
+          geometry2:
+            srid: 3857
+    GeospatialFeatureInFilter:
+      type: object
+      properties:
+        in:
+          $ref: '#/components/schemas/GeospatialPropertyAndValues'
+    GeospatialFeaturesWithCursor:
+      allOf:
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
+            minItems: 1
+            maxItems: 1000
+            items:
+              $ref: '#/components/schemas/GeospatialFeature'
+          nextCursor:
+            type: string
+            description: Cursor to get the next page of results (if available).
+      description: A list of objects along with possible cursors to get the next page of results
+    GeospatialCoordinateReferenceSystem:
+      type: object
+      additionalProperties: false
+      required:
+      - srid
+      - wkt
+      - projString
+      properties:
+        srid:
+          $ref: '#/components/schemas/GeospatialReferenceId'
+        wkt:
+          $ref: '#/components/schemas/GeospatialWellKnownText'
+        projString:
+          $ref: '#/components/schemas/GeospatialProjString'
+    GeospatialFeatureTypeExternalId:
+      type: string
+      maxLength: 32
+      pattern: ^[A-Za-z][A-Za-z0-9_]{0,31}$
+      example: ocean_measures
+    GeospatialProjString:
+      type: string
+      description: The projection specification string as described in https://proj.org/usage/quickstart.html
+    Cursor:
+      type: object
+      properties:
+        cursor:
+          type: string
+          example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
+
+        property, it means that there may be more results, and you should pass that value as the
+
+        `cursor` parameter in the next request.
+
+
+        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
+
+        decoded. Its internal structure is not a part of the public API, and may change without
+
+        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
+
+        '
+    SearchLimit:
+      description: Limits the number of results to be returned.
+      type: integer
+      default: 1000
+      minimum: 1
+      maximum: 1000
+  responses:
+    GeospatialFeaturesWithCursorResponse:
+      description: Feature list response.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/GeospatialFeaturesWithCursor'
+          examples:
+            GeospatialFeaturesResponseExample:
+              $ref: '#/components/examples/GeospatialFeaturesWithCursorResponseExample'
+    GeospatialFeatureSearchResponse:
+      description: The feature search response.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/GeospatialFeatureSearchResult'
+          examples:
+            GeospatialFeaturesResponseExample:
+              $ref: '#/components/examples/GeospatialFeaturesResponseExample'
+    GeospatialComputeResponse:
+      description: Compute response.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/GeospatialComputedItems'
+          examples:
+            GeospatialComputeResponseExample:
+              $ref: '#/components/examples/GeospatialComputeResponseExample'
+    GeospatialFeatureTypesResponse:
+      description: Feature type list response.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/GeospatialFeatureTypes'
+          examples:
+            FeatureTypesExample:
+              $ref: '#/components/examples/GeospatialFeatureTypesResponseExample'
+    GeospatialFeatureAggregateResponse:
+      description: 'The aggregate feature response. The present fields in the response body correspond to requested aggregations.
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/GeospatialFeatureAggregates'
+          examples:
+            GeospatialFeatureAggregateResponseExample:
+              $ref: '#/components/examples/GeospatialFeatureAggregateResponseExample'
+    EmptyResponse:
+      description: Empty response.
+      content:
+        application/json:
+          schema:
+            type: object
+    GeospatialErrorResponse:
+      description: Failed request reponse.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/GeospatialError'
+    GeospatialCoordinateReferenceSystemResponse:
+      description: Coordinate reference system list response.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/GeospatialCoordinateReferenceSystemList'
+          examples:
+            GeospatialCoordinateReferenceSystemResponseExample:
+              $ref: '#/components/examples/GeospatialCoordinateReferenceSystemResponseExample'
+    GeospatialRasterMetadataResponse:
+      description: 'The raster metadata.
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/GeospatialRasterMetadata'
+          examples:
+            GeospatialFeatureTasterMetadataResponseExample:
+              $ref: '#/components/examples/GeospatialRasterMetadataResponseExample'
+    GeospatialFeatureSearchStreamingResponse:
+      description: 'The feature search streaming response - it can be length prefixed, new line delimited, record separator delimited or concatenated depending on requested output.
+
+        '
+      content:
+        application/json-seq:
+          schema:
+            $ref: '#/components/schemas/GeospatialFeature'
+    GeospatialCustomCoordinateReferenceSystemResponse:
+      description: Custom coordinate reference system list response.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            properties:
+              items:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GeospatialCustomCoordinateReferenceSystem'
+    GeospatialFeaturesResponse:
+      description: Feature list response.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/GeospatialFeatures'
+          examples:
+            GeospatialFeaturesResponseExample:
+              $ref: '#/components/examples/GeospatialFeaturesResponseExample'
+  parameters:
+    geospatialRasterInputFormat:
+      in: query
+      name: format
+      required: true
+      schema:
+        type: string
+        enum:
+        - XYZ
+        example: XYZ
+      description: mandatory parameter that specifies the format of the input raster.
+    geospatialFeatureExternalId:
+      in: path
+      name: featureExternalId
+      required: true
+      schema:
+        type: string
+        maxLength: 256
+        pattern: ^[A-Za-z][A-Za-z0-9_]{0,255}$
+        example: ocean_measure_W87H62
+      description: External Id of the type provided by client. Must be unique among all feature external ids within a CDF project and feature type.
+    geospatialRasterPixelScaleY:
+      in: query
+      name: scaleY
+      required: false
+      schema:
+        type: number
+        format: double
+        example: 2
+      description: optional parameter that specifies the pixel scale y in storage. If not specified, the pixel scale remains the same as the input raster.
+    geospatialFilterOnlyCustom:
+      in: query
+      name: filterOnlyCustom
+      schema:
+        type: boolean
+        example: true
+      description: Optional parameter to only list custom Coordinate Reference Systems. Defaults to false.
+    geospatialRasterPropertyName:
+      in: path
+      name: rasterPropertyName
+      required: true
+      schema:
+        type: string
+        maxLength: 32
+        pattern: ^[A-Za-z][A-Za-z0-9_]{0,31}$
+        example: bathymetry
+      description: Raster Id of the raster property provided by client. Must be unique among all feature property names within a feature type.
+    geospatialRasterAllowCrsTransformation:
+      in: query
+      name: allowCrsTransformation
+      required: false
+      schema:
+        type: boolean
+        example: true
+      description: Optional parameter indicating if the input raster coordinates should be transformed into the Coordinate Reference Systems defined for the raster property in the feature type specification. The transformation will typically impact the pixel values. When the parameter is false, requests with rasters in Coordinate Reference System different from the ones defined in the feature type will result in bad request response code.
+    geospatialRasterSrid:
+      in: query
+      name: srid
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 999999
+        example: 3857
+      description: mandatory parameter that specifies the SRID of the coordinate reference system of a raster.
+    geospatialFeatureTypeExternalId:
+      in: path
+      name: featureTypeExternalId
+      required: true
+      schema:
+        type: string
+        maxLength: 32
+        pattern: ^[A-Za-z][A-Za-z0-9_]{0,31}$
+        example: ocean_measures
+      description: External Id of the feature type provided by client. Must be unique among all feature type external ids within a CDF project.
+    geospatialRasterPixelScaleX:
+      in: query
+      name: scaleX
+      required: false
+      schema:
+        type: number
+        format: double
+        example: 2
+      description: optional parameter that specifies the pixel scale x in storage. If not specified, the pixel scale remains the same as the input raster.
+    Cursor:
+      name: cursor
+      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
+
+        property, it means that there may be more results, and you should pass that value as the
+
+        `cursor` parameter in the next request.
+
+
+        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
+
+        decoded. Its internal structure is not a part of the public API, and may change without
+
+        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
+
+        '
+      in: query
+      schema:
+        type: string
+        example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+  examples:
+    GeospatialFeatureAggregateResponseExample:
+      value:
+        items:
+        - category: first category
+          max: 12.3
+          min: 0.5
+          average: 5.32
+        - category: second category
+          max: 14.3
+          min: 0.7
+          average: 8.32
+    GeospatialFeatureAggregateExample:
+      value:
+        filter:
+          and:
+          - range:
+              property: temperature
+              gt: 4.54
+          - stWithin:
+              property: location
+              value:
+                wkt: POLYGON((60.547602 -5.423433, 60.547602 -6.474416, 60.585858 -6.474416, 60.585858 -5.423433, 60.547602 -5.423433))
+        groupBy:
+        - category
+        sort:
+        - average:ASC
+        - category:DESC
+        output:
+          min_temperature:
+            min:
+              property: temperature
+          max_speed:
+            max:
+              property: speed
+    GeospatialComputeRequestExample:
+      value:
+        output:
+          value:
+            stTransform:
+              geometry:
+                ewkt: SRID=4326;POLYGON((0 0,10 0,10 10,0 10,0 0))
+              srid: 23031
+    GeospatialCoordinateReferenceSystemResponseExample:
+      value:
+        items:
+        - srid: 4326
+          wkt: GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4326"]]
+          projString: +proj=longlat +datum=WGS84 +no_defs ""
+          createdTime: 1633596134000
+          lastUpdatedTime: 1633596134000
+    GeospatialFeatureTypesRequestExample:
+      value:
+        items:
+        - externalId: ocean_temperature
+          properties:
+            temperature:
+              type: DOUBLE
+            location:
+              type: POINT
+              srid: 4326
+          searchSpec:
+            location_idx:
+              properties:
+              - location
+    GeospatialCoordinateReferenceSystemRequestExample:
+      value:
+        items:
+        - srid: 4326
+    GeospatialRasterMetadataResponseExample:
+      value:
+        srid: 3857
+        width: 4
+        height: 5
+        numBands: 1
+        scaleX: 1
+        scaleY: 1
+        skewX: 0
+        skewY: 0
+        upperLeftX: -0.5
+        upperLeftY: -0.5
+    GeospatialFeatureTypesResponseExample:
+      value:
+        items:
+        - externalId: ocean_temperature
+          dataSetId: 1278028
+          createdTime: 1629784673505
+          lastUpdatedTime: 1629784673505
+          properties:
+            temperature:
+              type: DOUBLE
+            location:
+              type: POINT
+              srid: 4326
+            createdTime:
+              type: LONG
+            lastUpdatedTime:
+              type: LONG
+            externalId:
+              type: STRING
+              size: 32
+          searchSpec:
+            location_idx:
+              properties:
+              - location
+            createdTimeIdx:
+              properties:
+              - createdTime
+            lastUpdatedTimeIdx:
+              properties:
+              - lastUpdatedTime
+            externalIdIdx:
+              properties:
+              - externalId
+    GeospatialListExample:
+      value:
+        filter:
+          and:
+          - range:
+              property: temperature
+              gt: 4.54
+          - stWithin:
+              property: location
+              value:
+                wkt: POLYGON((60.547602 -5.423433, 60.547602 -6.474416, 60.585858 -6.474416, 60.585858 -5.423433, 60.547602 -5.423433))
+        limit: 100
+        cursor: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+    GeospatialSearchExample:
+      value:
+        filter:
+          and:
+          - range:
+              property: temperature
+              gt: 4.54
+          - stWithin:
+              property: location
+              value:
+                wkt: POLYGON((60.547602 -5.423433, 60.547602 -6.474416, 60.585858 -6.474416, 60.585858 -5.423433, 60.547602 -5.423433))
+        limit: 100
+        sort:
+        - temperature:ASC
+        - location
+    GeospatialFeaturesResponseExample:
+      value:
+        items:
+        - externalId: measurement_point_765
+          temperature: 5.65
+          location:
+            wkt: POINT(60.547602 -5.423433)
+          createdTime: 1629784673505
+          lastUpdatedTime: 1629784673505
+        - externalId: measurement_point_863
+          temperature: 5.03
+          location:
+            wkt: POINT(60.585858 -6.474416)
+          createdTime: 1629784673505
+          lastUpdatedTime: 1629784673505
+    GeospatialFeaturesWithCursorResponseExample:
+      value:
+        items:
+        - externalId: measurement_point_765
+          temperature: 5.65
+          location:
+            wkt: POINT(60.547602 -5.423433)
+          createdTime: 1629784673505
+          lastUpdatedTime: 1629784673505
+        - externalId: measurement_point_863
+          temperature: 5.03
+          location:
+            wkt: POINT(60.585858 -6.474416)
+          createdTime: 1629784673505
+          lastUpdatedTime: 1629784673505
+        nextCursor: pwGTFXeL-JiWO8CZpgP23g
+    GeospatialFeatureTypeExternalIdsExample:
+      value:
+        items:
+        - externalId: ocean_temperature
+    GeospatialCreateCoordinateReferenceSystemsExample:
+      value:
+        items:
+        - srid: 456789
+          wkt: GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4326"]]
+          projString: +proj=longlat +datum=WGS84 +no_defs ""
+    GeospatialSearchStreamingExample:
+      value:
+        filter:
+          and:
+          - range:
+              property: temperature
+              gt: 4.54
+          - stWithin:
+              property: location
+              value:
+                wkt: POLYGON((60.547602 -5.423433, 60.547602 -6.474416, 60.585858 -6.474416, 60.585858 -5.423433, 60.547602 -5.423433))
+        limit: 100
+        output:
+          jsonStreamFormat: NEW_LINE_DELIMITED
+    GeospatialFeatureTypesUpdateRequestExample:
+      value:
+        items:
+        - externalId: ocean_temperature
+          update:
+            properties:
+              add:
+                depth:
+                  type: DOUBLE
+            searchSpec:
+              add:
+                depth_idx:
+                  properties:
+                  - depth
+    GeospatialFeatureExternalIdsExample:
+      value:
+        items:
+        - externalId: measurement_point_765
+        - externalId: measurement_point_863
+    GeospatialComputeResponseExample:
+      value:
+        items:
+        - value:
+            wkt: POLYGON((0 0,10.5 0,10.5 10.5,0 10.5,0 0))
+            srid: 23031
+    GeospatialFeaturesRequestExample:
+      value:
+        items:
+        - externalId: measurement_point_765
+          temperature: 5.65
+          location:
+            wkt: POINT(60.547602 -5.423433)
+        - externalId: measurement_point_863
+          temperature: 5.03
+          location:
+            wkt: POINT(60.585858 -6.474416)
+  securitySchemes:
+    oidc-token:
+      type: http
+      scheme: bearer
+      bearerFormat: OpenID Connect or OAuth2 token
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+    oauth2-client-credentials:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        clientCredentials:
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-auth-code:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://your-idps.authorization.url/
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-open-industrial-data:
+      type: oauth2
+      description: Auth flow for Open Industrial Data. Get your client secret from https://hub.cognite.com/open-industrial-data-211.
+      flows:
+        clientCredentials:
+          tokenUrl: https://login.microsoftonline.com/48d5043c-cf70-4c49-881c-c638f5796997/oauth2/v2.0/token
+          scopes:
+            default: https://api.cognitedata.com/.default
+    org-oidc-token:
+      type: openIdConnect
+      openIdConnectUrl: https://auth.cognite.com/.well-known/openid-configuration
+      description: 'Access token issued by the Cognite authorization server, and valid for the target organization. The token must
+
+        be an OpenID Connect token, and it can be obtained by performing an OIDC login flow toward `auth.cognite.com`.
+
+        This is a single URL for all CDF organizations.'
+x-tagGroups:
+- name: Changelog
+  tags:
+  - Changelog
+- name: Organizations and projects
+  tags:
+  - Organizations
+  - Projects
+- name: Identity and access management
+  tags:
+  - Principals
+  - Groups
+  - Security categories
+  - Sessions
+  - Token
+  - User profiles
+  - Project Deletion Reporting
+- name: Data modeling
+  tags:
+  - Data Modeling
+  - Data models
+  - Spaces
+  - Views
+  - Containers
+  - Nodes
+  - Instances
+  - Statistics
+  - Streams
+  - Records
+- name: Asset-centric data model
+  tags:
+  - Assets
+  - Time series
+  - Synthetic Time Series
+  - Data point subscriptions
+  - Events
+  - Files
+  - Sequences
+  - Geospatial
+  - Seismic
+- name: 3D
+  tags:
+  - 3D Models
+  - 3D Model Revisions
+  - 3D Files
+  - 3D Asset Mapping
+  - 3D Contextualization
+  - 3D Jobs
+  - 3D Migration
+  - 3D Scenes
+- name: Contextualization
+  tags:
+  - Entity matching
+  - Entity matching pipelines
+  - Engineering diagrams
+  - Vision
+  - Advanced joins
+- name: Cognite AI
+  tags:
+  - Agents
+  - Skills
+  - Chat Completions
+  - Document AI
+  - Models
+- name: Documents
+  tags:
+  - Documents
+  - Document preview
+- name: Data ingestion
+  tags:
+  - Raw
+  - Extraction Pipelines
+  - Extraction Pipelines Runs
+  - Extraction Pipelines Config
+  - Extractors
+- name: Data organization
+  tags:
+  - Data sets
+  - Data domains
+  - Data products
+  - Rule sets
+  - Labels
+  - Relationships
+  - Annotations
+- name: Transformations
+  tags:
+  - Transformations
+  - Transformation Jobs
+  - Transformation Schedules
+  - Transformation Notifications
+  - Query
+  - Schema
+- name: Functions
+  tags:
+  - Functions
+  - Function calls
+  - Function schedules
+- name: Hosted Extractors
+  tags:
+  - Sources
+  - Jobs
+  - Destinations
+  - Mappings
+- name: PostgreSQL Gateway
+  tags:
+  - Postgres Gateway Users
+  - Postgres Gateway Tables
+- name: SAP Writeback
+  tags:
+  - SAP Instances
+  - SAP Endpoints
+  - Schema Mappings
+  - Writeback Requests
+- name: Data workflows
+  tags:
+  - Workflows
+  - Workflow versions
+  - Workflow executions
+  - Workflow triggers
+  - Tasks
+  - Workers
+- name: Simulators
+  tags:
+  - Simulators
+  - Simulator Integrations
+  - Simulator Models
+  - Simulator Routines
+  - Simulation Runs
+  - Simulator Logs
+- name: Units
+  tags:
+  - Units
+  - Unit Systems
+- name: ''
+  tags:
+  - ''

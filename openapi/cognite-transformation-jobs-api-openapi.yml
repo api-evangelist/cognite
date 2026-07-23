@@ -1,0 +1,928 @@
+openapi: 3.1.0
+info:
+  title: Cognite 3D Asset Mapping Transformation Jobs API
+  description: "# Introduction\nThis is the reference documentation for the Cognite API with\nan overview of all the available methods.\n\n# Postman\nSelect the **Download** button to download our OpenAPI specification to get started.\n\nTo import your data into Postman, select **Import**, and the Import modal opens.\nYou can import items by dragging or dropping files or folders. You can choose how to import your API and manage the import settings in **View Import Settings**.\n\nIn the Import Settings, set the **Folder organization** to **Tags**, select\n**Enable optional parameters** to turn off the settings, and select **Always inherit authentication** to turn on the settings. Select **Import**.\n\nSet the Authorization to **Oauth2.0**. By default, the settings are for Open Industrial Data. Navigate to [Cognite Hub](https://hub.cognite.com/open-industrial-data-211) to understand how to get the credentials for use in Postman.\n\nFor more information, see [Getting Started with Postman](https://developer.cognite.com/dev/guides/postman/).\n\n# Pagination\nMost resource types can be paginated, indicated by the field `nextCursor` in the response.\nBy passing the value of `nextCursor` as the cursor you will get the next page of `limit` results.\nNote that all parameters except `cursor` has to stay the same.\n\n# Parallel retrieval\nAs general guidance, Parallel Retrieval is a technique that should be used when due to query complexity, retrieval of data in a single request is significantly slower than it would otherwise be for a simple request.  Parallel retrieval does not act as a speed multiplier on optimally running queries.  By parallelizing such requests, data retrieval performance can be tuned to meet the client application needs. \n\nCDF supports parallel retrieval through the `partition` parameter, which has the format `m/n` where `n` is the amount of partitions you would like to split the entire data set into.\nIf you want to download the entire data set by splitting it into 10 partitions, do the following in parallel with `m` running from 1 to 10:\n  - Make a request to `/events` with `partition=m/10`.\n  - Paginate through the response by following the cursor as explained above. Note that the `partition` parameter needs to be passed to all subqueries.\n\nProcessing of parallel retrieval requests is subject to concurrency quota availability. The request returns the `429` response upon exceeding concurrency limits. See the Request throttling chapter below.\n\nTo prevent unexpected problems and to maximize read throughput, you should at most use 10 partitions. \nSome CDF resources will automatically enforce a maximum of 10 partitions.\nFor more specific and detailed information, please read the ```partition``` attribute documentation for the CDF resource you're using.  \n\n# Requests throttling\nCognite Data Fusion (CDF) returns the HTTP `429` (too many requests) response status code when project capacity exceeds the limit.\n\nThe throttling can happen:\n  - If a user or a project sends too many (more than allocated) concurrent requests.\n  - If a user or a project sends a too high (more than allocated) rate of requests in a given amount of time.\n\nCognite recommends using a retry strategy based on truncated exponential backoff to handle sessions with HTTP response codes 429.\n\nCognite recommends using a reasonable number (up to 10) of  `Parallel retrieval` partitions.\n\nFollowing these strategies lets you slow down the request frequency to maximize productivity without having to re-submit/retry failing requests.\n\nSee more [here](https://docs.cognite.com/dev/concepts/resource_throttling).\n\n# API versions\n## Version headers\nThis API uses calendar versioning, and version names follow the `YYYYMMDD` format.\nYou can find the versions currently available by using the version selector at the top of this page.\n\nTo use a specific API version, you can pass the `cdf-version: $version` header along with your requests to the API.\n\n## Beta versions\nThe beta versions provide a preview of what the stable version will look like in the future.\nBeta versions contain functionality that is reasonably mature, and highly likely to become a part of the stable API.\n\nBeta versions are indicated by a `-beta` suffix after the version name. For example, the beta version header for the\n2023-01-01 version is then `cdf-version: 20230101-beta`.\n\n## Alpha versions\nAlpha versions contain functionality that is new and experimental, and not guaranteed to ever become a part of the stable API.\nThis functionality presents no guarantee of service, so its use is subject to caution.\n\nAlpha versions are indicated by an `-alpha` suffix after the version name. For example, the alpha version header for\nthe 2023-01-01 version is then `cdf-version: 20230101-alpha`."
+  version: v1
+  contact:
+    name: Cognite Support
+    url: https://support.cognite.com
+    email: support@cognite.com
+servers:
+- url: https://{cluster}.cognitedata.com/api/v1/projects/{project}
+  description: The URL for the CDF cluster to connect to
+  variables:
+    cluster:
+      enum:
+      - api
+      - az-tyo-gp-001
+      - az-eastus-1
+      - az-power-no-northeurope
+      - westeurope-1
+      - asia-northeast1-1
+      - gc-dsm-gp-001
+      default: api
+      description: The CDF cluster to connect to
+    project:
+      default: publicdata
+      description: The CDF project name.
+security:
+- oidc-token:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-client-credentials:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-open-industrial-data:
+  - https://api.cognitedata.com/.default
+- oauth2-auth-code:
+  - https://{cluster}.cognitedata.com/.default
+tags:
+- name: Transformation Jobs
+  description: Transformation jobs let you list jobs and their metrics. A maximum of 1000 jobs per transformation are retained, provided they are not older than 90 days.
+paths:
+  /transformations/jobs:
+    get:
+      tags:
+      - Transformation Jobs
+      summary: List jobs
+      operationId: getTransformationJobs
+      parameters:
+      - name: transformationId
+        in: query
+        description: List only jobs for the specified transformation. The transformation is identified by ID.
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: transformationExternalId
+        in: query
+        description: List only jobs for the specified transformation. The transformation is identified by external ID.
+        required: false
+        schema:
+          type: string
+      - name: limit
+        in: query
+        description: Limits the number of results to be returned. The maximum is 1000, default limit is 100.
+        required: false
+        schema:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 1000
+      - name: cursor
+        in: query
+        description: Cursor for paging through results.
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Response with list of jobs.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemsWithCursor_JobRead'
+        '400':
+          description: The response for a failed request.
+          content:
+            application/json:
+              schema:
+                required:
+                - error
+                type: object
+                properties:
+                  error:
+                    required:
+                    - code
+                    - message
+                    type: object
+                    properties:
+                      code:
+                        type: integer
+                        description: HTTP status code.
+                      message:
+                        type: string
+                        description: Error message.
+                      missing:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of lookup objects that do not match any results.
+                      duplicated:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of objects that are not unique.
+        '403':
+          description: The response for a forbidden request.
+          content:
+            application/json:
+              schema:
+                required:
+                - error
+                type: object
+                properties:
+                  error:
+                    required:
+                    - code
+                    - message
+                    type: object
+                    properties:
+                      code:
+                        type: integer
+                        description: HTTP status code.
+                      message:
+                        type: string
+                        description: Error message.
+                      missing:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of lookup objects that do not match any results.
+                      duplicated:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of objects that are not unique.
+      x-capability: transformationsAcl:READ
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: 'transformation_jobs_list = client.transformations.jobs.list()
+
+
+          transformation_jobs_list = client.transformations.jobs.list(transformation_id=1)
+
+          '
+      - lang: Java
+        label: Java SDK
+        source: "Iterator<List<Transformation.Job>> listJobs =   \n          client.transformations().jobs().list();  \n\n client.  \n          transformations()  \n          .jobs()  \n          .list(Request.create()  \n              .withRootParameter(\"transformationId\", 10)); \n\n client  \n          .transformations()  \n          .jobs()  \n          .list(Request.create()  \n              .withRootParameter(\"transformationExternalId\", 10)); \n\n"
+      description: '
+
+
+        > **Required capabilities:** `transformationsAcl:READ`
+
+        '
+  /transformations/jobs/byids:
+    post:
+      tags:
+      - Transformation Jobs
+      summary: Retrieve jobs by ids
+      description: '
+
+
+        > **Required capabilities:** `transformationsAcl:READ`
+
+
+        Retrieve a maximum of 1000 jobs by ids per request.'
+      operationId: getTransformationJobsByIds
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ItemsWithIgnoreUnknownIds_CogniteInternalId'
+        required: true
+      responses:
+        '200':
+          description: Response with list of jobs.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Items_JobRead'
+        '400':
+          description: The response for a failed request.
+          content:
+            application/json:
+              schema:
+                required:
+                - error
+                type: object
+                properties:
+                  error:
+                    required:
+                    - code
+                    - message
+                    type: object
+                    properties:
+                      code:
+                        type: integer
+                        description: HTTP status code.
+                      message:
+                        type: string
+                        description: Error message.
+                      missing:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of lookup objects that do not match any results.
+                      duplicated:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of objects that are not unique.
+        '403':
+          description: The response for a forbidden request.
+          content:
+            application/json:
+              schema:
+                required:
+                - error
+                type: object
+                properties:
+                  error:
+                    required:
+                    - code
+                    - message
+                    type: object
+                    properties:
+                      code:
+                        type: integer
+                        description: HTTP status code.
+                      message:
+                        type: string
+                        description: Error message.
+                      missing:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of lookup objects that do not match any results.
+                      duplicated:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of objects that are not unique.
+        '409':
+          description: The response for a conflict.
+          content:
+            application/json:
+              schema:
+                required:
+                - error
+                type: object
+                properties:
+                  error:
+                    required:
+                    - code
+                    - message
+                    type: object
+                    properties:
+                      code:
+                        type: integer
+                        description: HTTP status code.
+                      message:
+                        type: string
+                        description: Error message.
+                      missing:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of lookup objects that do not match any results.
+                      duplicated:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of objects that are not unique.
+      x-capability: transformationsAcl:READ
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: 'res = client.transformations.jobs.retrieve(id=1)
+
+          res = client.transformations.jobs.retrieve_multiple(ids=[1, 2, 3])
+
+          '
+      - lang: Java
+        label: Java SDK
+        source: "List<Item> retrieveItems = new ArrayList<>(); \nretrieveItems.add(Item.newBuilder()  \n          .setId(10)  \n          .build()); \nList<Transformation.Job> retrievedItems =  \n          client.transformations().jobs().retrieve(retrieveItems); \n\n"
+  /transformations/jobs/{id}/metrics:
+    get:
+      tags:
+      - Transformation Jobs
+      summary: List job metrics by job id
+      operationId: getTransformationJobsMetrics
+      parameters:
+      - name: id
+        in: path
+        description: The job id.
+        required: true
+        schema:
+          type: integer
+          format: int32
+      responses:
+        '200':
+          description: Metrics for how many resources has been read/written by the transformation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Items_MetricCounter'
+        '400':
+          description: The response for a failed request.
+          content:
+            application/json:
+              schema:
+                required:
+                - error
+                type: object
+                properties:
+                  error:
+                    required:
+                    - code
+                    - message
+                    type: object
+                    properties:
+                      code:
+                        type: integer
+                        description: HTTP status code.
+                      message:
+                        type: string
+                        description: Error message.
+                      missing:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of lookup objects that do not match any results.
+                      duplicated:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of objects that are not unique.
+        '403':
+          description: The response for a forbidden request.
+          content:
+            application/json:
+              schema:
+                required:
+                - error
+                type: object
+                properties:
+                  error:
+                    required:
+                    - code
+                    - message
+                    type: object
+                    properties:
+                      code:
+                        type: integer
+                        description: HTTP status code.
+                      message:
+                        type: string
+                        description: Error message.
+                      missing:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of lookup objects that do not match any results.
+                      duplicated:
+                        type: array
+                        items:
+                          oneOf:
+                          - $ref: '#/components/schemas/TransformationCogniteExternalId'
+                          - $ref: '#/components/schemas/TransformationCogniteInternalId'
+                        description: List of objects that are not unique.
+      x-capability: transformationsAcl:READ
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: 'res = client.transformations.jobs.list_metrics(id=1)
+
+          '
+      - lang: Java
+        label: Java SDK
+        source: "Iterator<List<Transformation.Job.Metric>> it =   \n          client.transformations().jobs().metrics().list(10); \n\n"
+      description: '
+
+
+        > **Required capabilities:** `transformationsAcl:READ`
+
+        '
+components:
+  schemas:
+    CogniteExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
+      type: string
+      maxLength: 255
+      example: my.known.id
+    TransformationJobStatus:
+      type: string
+      description: Status of the job at the request time.
+      enum:
+      - Completed
+      - Created
+      - Failed
+      - Running
+    AutoCreateOptions:
+      type: object
+      description: 'Options to control the automatic creation of related instances when writing to data models. By default, all options are true.
+
+        '
+      properties:
+        startNodes:
+          type: boolean
+          description: 'If true (default), missing start nodes are automatically created in the destination. If false, the transformation validates node references and returns a 400 error if a referenced start node for creating edges doesn''t exist.
+
+            '
+        endNodes:
+          type: boolean
+          description: 'If true (default), missing end nodes  are automatically created in the destination. If false, the transformation validates node references and returns a 400 error if a referenced end node for creating edges doesn''t exist.
+
+            '
+        directRelations:
+          type: boolean
+          description: 'If true (default), missing direct relation targets are automatically created in the destination. If false, the transformation validates relation references and returns a 400 error if a referenced target node doesn''t exist.
+
+            '
+    MetricCounter:
+      required:
+      - timestamp
+      - name
+      - count
+      type: object
+      properties:
+        timestamp:
+          type: integer
+          description: 'Time when this metric was recorded: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.'
+          format: int64
+        name:
+          type: string
+          description: Name of the metric. Metrics like `assets.read` mean how many items were fetched from CDF;`assets.create` and `assets.update` inform how many resources were created or updated (note that we count objects as updated even when no field is changed). `requests` says how many HTTP request were made to CDF to complete the job. `requestWithoutRetries` does not count retried requests. Normally, these two metrics should be almost equal, if there is a big difference, it may indicate a problem with rate-limiting.
+          example: assets.read
+        count:
+          type: integer
+          description: The value of this metric
+          format: int64
+    ItemsWithCursor_JobRead:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/JobRead'
+        nextCursor:
+          type: string
+          description: Cursor to get the next page of results (if available).
+    ItemsWithIgnoreUnknownIds_CogniteInternalId:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransformationCogniteInternalId'
+        ignoreUnknownIds:
+          type: boolean
+          description: Ignore IDs and external IDs that are not found. Defaults to false.
+      description: All provided IDs and external IDs must be unique.
+    SequenceRowDataSource:
+      required:
+      - type
+      - externalId
+      type: object
+      properties:
+        type:
+          type: string
+          description: The type of the destination resource indicating that the transformation will write to Sequence Rows.
+          enum:
+          - sequence_rows
+        externalId:
+          type: string
+          description: The externalId of sequence
+    EdgeType:
+      required:
+      - space
+      - externalId
+      type: object
+      properties:
+        space:
+          type: string
+          description: Space of the type
+        externalId:
+          type: string
+          description: External ID of the type
+      description: Target type of the connection definition
+    ConflictMode:
+      type: string
+      description: Behavior when the data already exists.`upsert` - Create or Update,`abort` - Create and fail when already exists,`update` - update and fail if it does not exist,`delete` - delete the matched rows.
+      enum:
+      - abort
+      - delete
+      - update
+      - upsert
+    AssetCentricDataSource:
+      required:
+      - type
+      type: object
+      properties:
+        type:
+          type: string
+          description: The type of the destination resource.
+          enum:
+          - assets
+          - events
+          - asset_hierarchy
+          - datapoints
+          - string_datapoints
+          - timeseries
+          - sequences
+          - files
+          - labels
+          - relationships
+          - data_sets
+    Items_JobRead:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/JobRead'
+    ViewDataSource:
+      required:
+      - type
+      type: object
+      properties:
+        type:
+          type: string
+          description: The type of the destination resource indicating the instance type that the transformation will write to flexible data models.
+          enum:
+          - nodes
+          - edges
+        view:
+          $ref: '#/components/schemas/ViewInfo'
+        edgeType:
+          $ref: '#/components/schemas/EdgeType'
+        instanceSpace:
+          type: string
+          description: The space where the instances(nodes/edges) will be created.
+        autoCreate:
+          $ref: '#/components/schemas/AutoCreateOptions'
+    ViewInfo:
+      required:
+      - space
+      - externalId
+      - version
+      type: object
+      properties:
+        space:
+          type: string
+          description: Space of the View
+        externalId:
+          type: string
+          description: External ID of the View
+        version:
+          type: string
+          description: Version of the View
+      description: Target view info
+    Items_MetricCounter:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MetricCounter'
+    TransformationCogniteInternalId:
+      required:
+      - id
+      type: object
+      properties:
+        id:
+          type: integer
+          description: A server-generated ID for the object.
+          format: int32
+    JobRead:
+      required:
+      - id
+      - uuid
+      - transformationId
+      - transformationExternalId
+      - sourceProject
+      - destinationProject
+      - destination
+      - conflictMode
+      - query
+      - ignoreNullFields
+      - status
+      - createdTime
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Job numeric ID.
+          format: int32
+        uuid:
+          type: string
+          description: UUID id of the job.
+        transformationId:
+          type: integer
+          description: ID of the transformation that created this job.
+          format: int32
+        transformationExternalId:
+          type: string
+          description: External ID of the transformation that created this job.
+        sourceProject:
+          type: string
+          description: CDF project which is used as source for reading data.
+        destinationProject:
+          type: string
+          description: CDF project which is used as destination for writing data.
+        destination:
+          description: Destination data type.
+          oneOf:
+          - $ref: '#/components/schemas/AssetCentricDataSource'
+          - $ref: '#/components/schemas/DataModelSource'
+          - $ref: '#/components/schemas/ViewDataSource'
+          - $ref: '#/components/schemas/RawDataSource'
+          - $ref: '#/components/schemas/SequenceRowDataSource'
+        conflictMode:
+          $ref: '#/components/schemas/ConflictMode'
+        query:
+          type: string
+          description: The SQL query being executed.
+        createdTime:
+          type: integer
+          description: 'Time when the job was created: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.'
+          format: int64
+        startedTime:
+          type: integer
+          description: 'Time when this job started executing: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.'
+          format: int64
+        finishedTime:
+          type: integer
+          description: 'Time when this job finished running: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.'
+          format: int64
+        lastSeenTime:
+          type: integer
+          description: 'Time when this job last registered running: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.'
+          format: int64
+        error:
+          type: string
+          description: If the job failed, this will be a string describing why. When null, the job did not fail.
+        ignoreNullFields:
+          type: boolean
+          description: 'How NULL values are handled on updates: ignore or setNull.'
+        status:
+          $ref: '#/components/schemas/TransformationJobStatus'
+      description: Details for the last finished job of this transformation
+    DataModelInfo:
+      required:
+      - space
+      - externalId
+      - version
+      - destinationType
+      type: object
+      properties:
+        space:
+          type: string
+          description: Space of the Data Model
+        externalId:
+          type: string
+          description: External ID of the Data Model
+        version:
+          type: string
+          description: Version of the Data Model
+        destinationType:
+          type: string
+          description: External ID of the type(view) in the data model
+        destinationRelationshipFromType:
+          type: string
+          description: Property Identifier of the connection definition in destinationType
+      description: Target data model info
+    DataModelSource:
+      required:
+      - type
+      - dataModel
+      type: object
+      properties:
+        type:
+          type: string
+          description: The type of the destination resource indicating that the transformation will write to data models
+          enum:
+          - instances
+        dataModel:
+          $ref: '#/components/schemas/DataModelInfo'
+        instanceSpace:
+          type: string
+          description: The space where the instances will be created.
+        autoCreate:
+          $ref: '#/components/schemas/AutoCreateOptions'
+    TransformationCogniteExternalId:
+      required:
+      - externalId
+      type: object
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+    RawDataSource:
+      required:
+      - type
+      - database
+      - table
+      type: object
+      properties:
+        type:
+          type: string
+          description: The type of the destination resource indicating that the transformation will write to RAW.
+          enum:
+          - raw
+        database:
+          type: string
+          description: The database name.
+        table:
+          type: string
+          description: The table name.
+  securitySchemes:
+    oidc-token:
+      type: http
+      scheme: bearer
+      bearerFormat: OpenID Connect or OAuth2 token
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+    oauth2-client-credentials:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        clientCredentials:
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-auth-code:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://your-idps.authorization.url/
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-open-industrial-data:
+      type: oauth2
+      description: Auth flow for Open Industrial Data. Get your client secret from https://hub.cognite.com/open-industrial-data-211.
+      flows:
+        clientCredentials:
+          tokenUrl: https://login.microsoftonline.com/48d5043c-cf70-4c49-881c-c638f5796997/oauth2/v2.0/token
+          scopes:
+            default: https://api.cognitedata.com/.default
+    org-oidc-token:
+      type: openIdConnect
+      openIdConnectUrl: https://auth.cognite.com/.well-known/openid-configuration
+      description: 'Access token issued by the Cognite authorization server, and valid for the target organization. The token must
+
+        be an OpenID Connect token, and it can be obtained by performing an OIDC login flow toward `auth.cognite.com`.
+
+        This is a single URL for all CDF organizations.'
+x-tagGroups:
+- name: Changelog
+  tags:
+  - Changelog
+- name: Organizations and projects
+  tags:
+  - Organizations
+  - Projects
+- name: Identity and access management
+  tags:
+  - Principals
+  - Groups
+  - Security categories
+  - Sessions
+  - Token
+  - User profiles
+  - Project Deletion Reporting
+- name: Data modeling
+  tags:
+  - Data Modeling
+  - Data models
+  - Spaces
+  - Views
+  - Containers
+  - Nodes
+  - Instances
+  - Statistics
+  - Streams
+  - Records
+- name: Asset-centric data model
+  tags:
+  - Assets
+  - Time series
+  - Synthetic Time Series
+  - Data point subscriptions
+  - Events
+  - Files
+  - Sequences
+  - Geospatial
+  - Seismic
+- name: 3D
+  tags:
+  - 3D Models
+  - 3D Model Revisions
+  - 3D Files
+  - 3D Asset Mapping
+  - 3D Contextualization
+  - 3D Jobs
+  - 3D Migration
+  - 3D Scenes
+- name: Contextualization
+  tags:
+  - Entity matching
+  - Entity matching pipelines
+  - Engineering diagrams
+  - Vision
+  - Advanced joins
+- name: Cognite AI
+  tags:
+  - Agents
+  - Skills
+  - Chat Completions
+  - Document AI
+  - Models
+- name: Documents
+  tags:
+  - Documents
+  - Document preview
+- name: Data ingestion
+  tags:
+  - Raw
+  - Extraction Pipelines
+  - Extraction Pipelines Runs
+  - Extraction Pipelines Config
+  - Extractors
+- name: Data organization
+  tags:
+  - Data sets
+  - Data domains
+  - Data products
+  - Rule sets
+  - Labels
+  - Relationships
+  - Annotations
+- name: Transformations
+  tags:
+  - Transformations
+  - Transformation Jobs
+  - Transformation Schedules
+  - Transformation Notifications
+  - Query
+  - Schema
+- name: Functions
+  tags:
+  - Functions
+  - Function calls
+  - Function schedules
+- name: Hosted Extractors
+  tags:
+  - Sources
+  - Jobs
+  - Destinations
+  - Mappings
+- name: PostgreSQL Gateway
+  tags:
+  - Postgres Gateway Users
+  - Postgres Gateway Tables
+- name: SAP Writeback
+  tags:
+  - SAP Instances
+  - SAP Endpoints
+  - Schema Mappings
+  - Writeback Requests
+- name: Data workflows
+  tags:
+  - Workflows
+  - Workflow versions
+  - Workflow executions
+  - Workflow triggers
+  - Tasks
+  - Workers
+- name: Simulators
+  tags:
+  - Simulators
+  - Simulator Integrations
+  - Simulator Models
+  - Simulator Routines
+  - Simulation Runs
+  - Simulator Logs
+- name: Units
+  tags:
+  - Units
+  - Unit Systems
+- name: ''
+  tags:
+  - ''

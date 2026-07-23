@@ -1,0 +1,2051 @@
+openapi: 3.1.0
+info:
+  title: Cognite 3D Asset Mapping Annotations API
+  description: "# Introduction\nThis is the reference documentation for the Cognite API with\nan overview of all the available methods.\n\n# Postman\nSelect the **Download** button to download our OpenAPI specification to get started.\n\nTo import your data into Postman, select **Import**, and the Import modal opens.\nYou can import items by dragging or dropping files or folders. You can choose how to import your API and manage the import settings in **View Import Settings**.\n\nIn the Import Settings, set the **Folder organization** to **Tags**, select\n**Enable optional parameters** to turn off the settings, and select **Always inherit authentication** to turn on the settings. Select **Import**.\n\nSet the Authorization to **Oauth2.0**. By default, the settings are for Open Industrial Data. Navigate to [Cognite Hub](https://hub.cognite.com/open-industrial-data-211) to understand how to get the credentials for use in Postman.\n\nFor more information, see [Getting Started with Postman](https://developer.cognite.com/dev/guides/postman/).\n\n# Pagination\nMost resource types can be paginated, indicated by the field `nextCursor` in the response.\nBy passing the value of `nextCursor` as the cursor you will get the next page of `limit` results.\nNote that all parameters except `cursor` has to stay the same.\n\n# Parallel retrieval\nAs general guidance, Parallel Retrieval is a technique that should be used when due to query complexity, retrieval of data in a single request is significantly slower than it would otherwise be for a simple request.  Parallel retrieval does not act as a speed multiplier on optimally running queries.  By parallelizing such requests, data retrieval performance can be tuned to meet the client application needs. \n\nCDF supports parallel retrieval through the `partition` parameter, which has the format `m/n` where `n` is the amount of partitions you would like to split the entire data set into.\nIf you want to download the entire data set by splitting it into 10 partitions, do the following in parallel with `m` running from 1 to 10:\n  - Make a request to `/events` with `partition=m/10`.\n  - Paginate through the response by following the cursor as explained above. Note that the `partition` parameter needs to be passed to all subqueries.\n\nProcessing of parallel retrieval requests is subject to concurrency quota availability. The request returns the `429` response upon exceeding concurrency limits. See the Request throttling chapter below.\n\nTo prevent unexpected problems and to maximize read throughput, you should at most use 10 partitions. \nSome CDF resources will automatically enforce a maximum of 10 partitions.\nFor more specific and detailed information, please read the ```partition``` attribute documentation for the CDF resource you're using.  \n\n# Requests throttling\nCognite Data Fusion (CDF) returns the HTTP `429` (too many requests) response status code when project capacity exceeds the limit.\n\nThe throttling can happen:\n  - If a user or a project sends too many (more than allocated) concurrent requests.\n  - If a user or a project sends a too high (more than allocated) rate of requests in a given amount of time.\n\nCognite recommends using a retry strategy based on truncated exponential backoff to handle sessions with HTTP response codes 429.\n\nCognite recommends using a reasonable number (up to 10) of  `Parallel retrieval` partitions.\n\nFollowing these strategies lets you slow down the request frequency to maximize productivity without having to re-submit/retry failing requests.\n\nSee more [here](https://docs.cognite.com/dev/concepts/resource_throttling).\n\n# API versions\n## Version headers\nThis API uses calendar versioning, and version names follow the `YYYYMMDD` format.\nYou can find the versions currently available by using the version selector at the top of this page.\n\nTo use a specific API version, you can pass the `cdf-version: $version` header along with your requests to the API.\n\n## Beta versions\nThe beta versions provide a preview of what the stable version will look like in the future.\nBeta versions contain functionality that is reasonably mature, and highly likely to become a part of the stable API.\n\nBeta versions are indicated by a `-beta` suffix after the version name. For example, the beta version header for the\n2023-01-01 version is then `cdf-version: 20230101-beta`.\n\n## Alpha versions\nAlpha versions contain functionality that is new and experimental, and not guaranteed to ever become a part of the stable API.\nThis functionality presents no guarantee of service, so its use is subject to caution.\n\nAlpha versions are indicated by an `-alpha` suffix after the version name. For example, the alpha version header for\nthe 2023-01-01 version is then `cdf-version: 20230101-alpha`."
+  version: v1
+  contact:
+    name: Cognite Support
+    url: https://support.cognite.com
+    email: support@cognite.com
+servers:
+- url: https://{cluster}.cognitedata.com/api/v1/projects/{project}
+  description: The URL for the CDF cluster to connect to
+  variables:
+    cluster:
+      enum:
+      - api
+      - az-tyo-gp-001
+      - az-eastus-1
+      - az-power-no-northeurope
+      - westeurope-1
+      - asia-northeast1-1
+      - gc-dsm-gp-001
+      default: api
+      description: The CDF cluster to connect to
+    project:
+      default: publicdata
+      description: The CDF project name.
+security:
+- oidc-token:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-client-credentials:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-open-industrial-data:
+  - https://api.cognitedata.com/.default
+- oauth2-auth-code:
+  - https://{cluster}.cognitedata.com/.default
+tags:
+- name: Annotations
+  description: "Annotations reflect contextual information in base CDF resource types, such as Files and Time series, that are not\npresent on the object itself. The benefits of the annotations concept are threefold:\n\n- The annotations concept is a good fit for enriching the base resources themselves, so that the overall data\n  quality is higher in a given project.\n- It is also a good fit for building reference datasets for data problems uniformly across customer projects.\n  Product teams can then use those reference datasets to train machine learning models or validate the\n  performance of their algorithms on actual customer data.\n- Given a uniform way of labelling similar concepts across projects, it becomes easy for apps to agree on a consistent\n  visual representation of those concepts."
+paths:
+  /annotations:
+    post:
+      tags:
+      - Annotations
+      summary: Create annotations
+      description: '
+
+
+        > **Required capabilities:** `annotationsAcl:WRITE`
+
+
+        Creates the given annotations.
+
+
+        ### Identifiers
+
+        An annotation _must_ reference an **annotated resource**.
+
+
+        The reference can be made by providing the internal ID of the annotated resource.
+
+
+        ### Status
+
+        The annotation _must_ have the `status` field set to either "suggested", "rejected", or "approved"
+
+
+        ### Access control
+
+        The caller _must_ have read-access on all the **annotated resources**, otherwise the call will fail.
+
+
+        ### Annotation types and Data
+
+        The annotation **type** property _must_ be set to one of the globally available annotation types.
+
+        See the documentation of the `annotationType` and `data` attributes for details.
+
+
+        The annotation **data** _must_ conform to the schema provided by the annotation type.
+
+
+        ### Creating Application and User
+
+        The creating application and its version _must_ be provided. The creating user _must_ be provided, but if the
+
+        annotation is being created by a service, this _can_ be set to `null`.'
+      operationId: annotationsCreate
+      requestBody:
+        $ref: '#/components/requestBodies/AnnotationsV2CreateRequestSchema'
+      responses:
+        '201':
+          $ref: '#/components/responses/AnnotationsV2CreateResponseSchema'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-capability:
+      - annotationsAcl:WRITE
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: "const data = {\n  pageNumber: 7,\n  textRegion: { xMin: 0, xMax: 0.1, yMin: 0, yMax: 0.2 },\n  extractedText: 'i am your father',\n};\nconst annotation = {\n  annotatedResourceType: 'file' as const,\n  annotatedResourceId: 1,\n  annotationType: 'documents.ExtractedText',\n  creatingApp: 'integration-tests',\n  creatingAppVersion: '0.0.1',\n  creatingUser: 'integration-tests',\n  status: 'suggested' as const,\n  data,\n};\nconst created = await client.annotations.create([annotation]);"
+  /annotations/suggest:
+    post:
+      tags:
+      - Annotations
+      summary: Suggest annotations
+      description: '
+
+
+        > **Required capabilities:** `annotationsAcl:SUGGEST`
+
+
+        Suggests the given annotations, i.e. creates them with `status` set to "suggested"
+
+
+        ### Identifiers
+
+        An annotation _must_ reference an **annotated resource**.
+
+
+        The reference can be made by providing the internal ID of the annotated resource.
+
+
+        ### Access control
+
+        The caller _must_ have read-access on all the **annotated resources**, otherwise the call will fail.
+
+
+        ### Annotation types and Data
+
+        The annotation **type** property _must_ be set to one of the globally available annotation types.
+
+        See the documentation of the `annotationType` and `data` attributes for details.
+
+
+        The annotation **data** _must_ conform to the schema provided by the annotation type.
+
+
+        ### Creating Application and User
+
+        The creating application and its version _must_ be provided. The creating user _must_ be provided, but if the
+
+        annotation is being created by a service, this _can_ be set to `null`.'
+      operationId: annotationsSuggest
+      requestBody:
+        $ref: '#/components/requestBodies/AnnotationsV2SuggestRequestSchema'
+      responses:
+        '201':
+          $ref: '#/components/responses/AnnotationsV2CreateResponseSchema'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-capability:
+      - annotationsAcl:SUGGEST
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: "const data = {\n  pageNumber: 7,\n  textRegion: { xMin: 0, xMax: 0.1, yMin: 0, yMax: 0.2 },\n  extractedText: 'i am your father',\n};\nconst partial = {\n  annotatedResourceType: 'file' as const,\n  annotatedResourceId: 1,\n  annotationType: 'documents.ExtractedText',\n  creatingApp: 'integration-tests',\n  creatingAppVersion: '0.0.1',\n  creatingUser: 'integration-tests',\n  data,\n};\n\nconst created = await client.annotations.suggest([partial]);"
+  /annotations/{annotationId}:
+    get:
+      tags:
+      - Annotations
+      summary: Get an annotation
+      description: 'Retrieves the referenced annotation.
+
+
+        The caller _must_ have read-access on the **annotated resource**, otherwise the call will fail.'
+      operationId: annotationsGet
+      parameters:
+      - $ref: '#/components/parameters/AnnotationId'
+      responses:
+        '200':
+          $ref: '#/components/responses/AnnotationsV2ResponseSchema'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: 'const annotationIds = [{ id: 1 }, { id: 2 }];
+
+
+          const response = await client.annotations.retrieve(annotationIds);'
+  /annotations/list:
+    post:
+      tags:
+      - Annotations
+      summary: Filter annotations
+      description: 'Lists the annotations the caller has access to, based on a filter.
+
+
+        The caller _must_ have read-access on the **annotated resources** listed in the filter, otherwise the call will
+
+        fail.'
+      operationId: annotationsFilter
+      requestBody:
+        $ref: '#/components/requestBodies/AnnotationsV2ListRequestSchema'
+      responses:
+        '200':
+          $ref: '#/components/responses/AnnotationsV2CursoredListResponseSchema'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: "const annotatedFileId = 1;\nconst limitOne = await client.annotations.list({\n  limit: 1,\n  filter: {\n   annotatedResourceType: 'file',\n   annotatedResourceIds: [{ id: 1 }],\n },\n});"
+      - lang: Python
+        label: Python SDK
+        source: 'from cognite.client.data_classes import AnnotationFilter
+
+          flt = AnnotationFilter(annotated_resource_type="file", annotated_resource_ids=[{"id": 123}])
+
+          res = client.annotations.list(flt, limit=None)
+
+          '
+  /annotations/byids:
+    post:
+      tags:
+      - Annotations
+      summary: Retrieve annotations
+      description: 'Retrieves the referenced annotations.
+
+
+        The caller _must_ have read-access on all the **annotated resources**, otherwise the call will fail.'
+      operationId: annotationsByids
+      requestBody:
+        $ref: '#/components/requestBodies/AnnotationsV2ByIdsRequestSchema'
+      responses:
+        '200':
+          $ref: '#/components/responses/AnnotationsV2ListResponseSchema'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: 'const annotationIds = [{ id: 1 }, { id: 2 }];
+
+
+          const response = await client.annotations.retrieve(annotationIds);'
+  /annotations/delete:
+    post:
+      tags:
+      - Annotations
+      summary: Delete annotations
+      description: '
+
+
+        > **Required capabilities:** `annotationsAcl:WRITE`
+
+
+        Deletes the referenced annotations completely.
+
+
+        The caller _must_ have read-access on all the **annotated resources**, otherwise the call will fail.'
+      operationId: annotationsDelete
+      requestBody:
+        $ref: '#/components/requestBodies/AnnotationsV2ByIdsRequestSchema'
+      responses:
+        '200':
+          description: Successful deletion
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-capability:
+      - annotationsAcl:WRITE
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: 'const annotationIds = [{ id: 1 }, { id: 2 }];
+
+
+          await client.annotations.delete(annotationIds);'
+  /annotations/update:
+    post:
+      tags:
+      - Annotations
+      summary: Update annotations
+      description: '
+
+
+        > **Required capabilities:** `annotationsAcl:WRITE`
+
+
+        Updates the referenced annotations.
+
+
+        The caller _must_ have read-access on all the **annotated resources**, otherwise the call will fail.'
+      operationId: annotationsUpdate
+      requestBody:
+        $ref: '#/components/requestBodies/AnnotationsV2UpdateRequestSchema'
+      responses:
+        '200':
+          $ref: '#/components/responses/AnnotationsV2UpdateResponseSchema'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-capability:
+      - annotationsAcl:WRITE
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: "const data = {\n  pageNumber: 8,\n  fileRef: { externalId: 'def_file_changed' },\n  textRegion: { xMin: 0, xMax: 0.1, yMin: 0, yMax: 0.2 },\n};\nconst changes = [\n  {\n    id: 1,\n    update: {\n      data: {\n        set: data,\n      },\n    },\n  },\n];\n\nconst updatedResp = await client.annotations.update(changes);"
+components:
+  schemas:
+    ResourceReference:
+      type: object
+      description: A reference to another CDF resource. _Either_ the internal _or_ the external ID _must_ be provided (not both).
+      properties:
+        id:
+          allOf:
+          - $ref: '#/components/schemas/CogniteInternalId'
+          example: null
+        externalId:
+          allOf:
+          - $ref: '#/components/schemas/CogniteExternalId'
+          example: abc-1066
+    AnnotationsV2UpdateItemSchema:
+      type: object
+      description: An update object to apply to an annotation
+      required:
+      - id
+      - update
+      properties:
+        id:
+          $ref: '#/components/schemas/AnnotationId'
+        update:
+          $ref: '#/components/schemas/AnnotationsV2UpdateDataSchema'
+    Annotations.AssetRef:
+      additionalProperties: false
+      description: A reference to an asset. Either the internal ID or the external ID must be provided (exactly one).
+      oneOf:
+      - required:
+        - id
+      - required:
+        - externalId
+      properties:
+        id:
+          default: null
+          description: The internal ID of the referenced resource
+          type: integer
+        externalId:
+          default: null
+          description: The external ID of the referenced resource
+          maxLength: 256
+          type: string
+      title: primitives.references.AssetRef
+      type: object
+    AnnotationsV2CreateSchema:
+      allOf:
+      - $ref: '#/components/schemas/AnnotationsV2SuggestSchema'
+      - type: object
+        required:
+        - status
+        properties:
+          status:
+            $ref: '#/components/schemas/Status'
+    CogniteExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
+      type: string
+      maxLength: 255
+      example: my.known.id
+    Annotations.Point:
+      additionalProperties: false
+      description: Point in a 2D-Cartesian coordinate system with origin at the top-left corner of the page
+      properties:
+        confidence:
+          default: null
+          description: The confidence score for the primitive. It should be between 0 and 1.
+          maximum: 1
+          minimum: 0
+          type: number
+        x:
+          description: The abscissa of the point in a coordinate system with origin at the top-left corner of the page. Normalized in (0,1).
+          maximum: 1
+          minimum: 0
+          type: number
+        y:
+          description: The ordinate of the point in a coordinate system with origin at the top-left corner of the page. Normalized in (0,1).
+          maximum: 1
+          minimum: 0
+          type: number
+      required:
+      - x
+      - y
+      title: primitives.geometry2d.Point
+      type: object
+    AnnotationData:
+      description: 'The annotation information. The format of this object is decided by and validated against the `annotationType`
+
+        attribute.'
+      oneOf:
+      - $ref: '#/components/schemas/Annotations.BoundingVolume'
+      - $ref: '#/components/schemas/Annotations.Classification'
+      - $ref: '#/components/schemas/Annotations.Detection'
+      - $ref: '#/components/schemas/Annotations.ExtractedText'
+      - $ref: '#/components/schemas/Annotations.FileLink'
+      - $ref: '#/components/schemas/Annotations.IsoPlanAnnotation'
+      - $ref: '#/components/schemas/Annotations.Junction'
+      - $ref: '#/components/schemas/Annotations.KeypointCollection'
+      - $ref: '#/components/schemas/Annotations.Line'
+      - $ref: '#/components/schemas/Annotations.ObjectDetection'
+      - $ref: '#/components/schemas/Annotations.TextRegion'
+      - $ref: '#/components/schemas/Annotations.UnhandledSymbolObject'
+      - $ref: '#/components/schemas/Annotations.UnhandledTextObject'
+      - $ref: '#/components/schemas/Annotations.cogmono__annotation_types__diagrams__AssetLink'
+      - $ref: '#/components/schemas/Annotations.cogmono__annotation_types__diagrams__InstanceLink'
+      - $ref: '#/components/schemas/Annotations.cogmono__annotation_types__images__AssetLink'
+      - $ref: '#/components/schemas/Annotations.cogmono__annotation_types__images__InstanceLink'
+      example:
+        assetRef:
+          externalId: abc
+        symbolRegion:
+          xMin: 0.1
+          xMax: 0.2
+          yMin: 0.1
+          yMax: 0.2
+        textRegion:
+          xMin: 0.2
+          xMax: 0.3
+          yMin: 0.2
+          yMax: 0.3
+        pageNumber: 43
+    Annotations.BoundingBox:
+      additionalProperties: false
+      description: A plain rectangle
+      properties:
+        confidence:
+          default: null
+          description: The confidence score for the primitive. It should be between 0 and 1.
+          maximum: 1
+          minimum: 0
+          type: number
+        xMin:
+          description: Minimum abscissa of the bounding box (left edge). Must be strictly less than x_max.
+          maximum: 1
+          minimum: 0
+          type: number
+        xMax:
+          description: Maximum abscissa of the bounding box (right edge). Must be strictly more than x_min.
+          maximum: 1
+          minimum: 0
+          type: number
+        yMin:
+          description: Minimum ordinate of the bounding box (bottom edge). Must be strictly less than y_max.
+          maximum: 1
+          minimum: 0
+          type: number
+        yMax:
+          description: Maximum ordinate of the bounding box (top edge). Must be strictly more than y_min.
+          maximum: 1
+          minimum: 0
+          type: number
+      required:
+      - xMin
+      - xMax
+      - yMin
+      - yMax
+      title: primitives.geometry2d.BoundingBox
+      type: object
+    Annotations.Line:
+      additionalProperties: false
+      description: Models a line in an engineering diagram
+      properties:
+        label:
+          description: The label describing what type of object it is
+          maxLength: 128
+          minLength: 1
+          type: string
+        pageNumber:
+          default: 1
+          description: The number of the page on which this annotation is located. The first page has number 1.
+          maximum: 100000
+          minimum: 1
+          type: integer
+        polyline:
+          $ref: '#/components/schemas/Annotations.PolyLine'
+          description: The polyline representing the line
+      required:
+      - label
+      - polyline
+      title: diagrams.Line
+      type: object
+    AnnotationsV2ReferenceSchema:
+      type: object
+      description: A reference to an existing annotation
+      required:
+      - id
+      properties:
+        id:
+          $ref: '#/components/schemas/AnnotationId'
+    Annotations.FileLink:
+      additionalProperties: false
+      description: Models a link to a CDF File referenced in an engineering diagram
+      properties:
+        description:
+          default: null
+          description: The description of a primitive
+          maxLength: 500
+          type: string
+        pageNumber:
+          default: 1
+          description: The number of the page on which this annotation is located. The first page has number 1.
+          maximum: 100000
+          minimum: 1
+          type: integer
+        fileRef:
+          $ref: '#/components/schemas/Annotations.FileRef'
+          description: The file this annotation is pointing to
+        symbolRegion:
+          $ref: '#/components/schemas/Annotations.BoundingBox'
+          default: null
+          description: The location of the symbol representing the file
+        textRegion:
+          $ref: '#/components/schemas/Annotations.BoundingBox'
+          description: The location of the text mentioning the file
+        text:
+          default: null
+          description: The extracted text
+          maxLength: 128
+          minLength: 1
+          type: string
+        symbol:
+          default: null
+          description: The symbol found in the file
+          maxLength: 128
+          minLength: 1
+          type: string
+      required:
+      - fileRef
+      - textRegion
+      title: diagrams.FileLink
+      type: object
+    Status:
+      type: string
+      description: The status of the annotation
+      enum:
+      - suggested
+      - approved
+      - rejected
+      example: approved
+    CogniteInternalId:
+      description: A server-generated ID for the object.
+      type: integer
+      minimum: 1
+      maximum: 9007199254740991
+      format: int64
+    Annotations.TextRegion:
+      additionalProperties: false
+      description: Models an extracted text region in an image
+      properties:
+        confidence:
+          default: null
+          description: The confidence score for the primitive. It should be between 0 and 1.
+          maximum: 1
+          minimum: 0
+          type: number
+        text:
+          description: The extracted text
+          maxLength: 128
+          minLength: 1
+          type: string
+        textRegion:
+          $ref: '#/components/schemas/Annotations.BoundingBox'
+          description: The location of the extracted text
+      required:
+      - text
+      - textRegion
+      title: images.TextRegion
+      type: object
+    Annotations.KeypointCollection:
+      additionalProperties: false
+      description: 'Models a collection of keypoints represented by a label, a dictionary of
+
+        keypoints (mapping from a (unique) label name to a keypoint), and
+
+        optionally a confidence value and an attributes dictionary.'
+      properties:
+        attributes:
+          additionalProperties:
+            discriminator:
+              mapping:
+                boolean: '#/components/schemas/Annotations.Boolean'
+                numerical: '#/components/schemas/Annotations.Numerical'
+              propertyName: type
+            oneOf:
+            - $ref: '#/components/schemas/Annotations.Boolean'
+            - $ref: '#/components/schemas/Annotations.Numerical'
+          default: null
+          description: Additional attributes data for a compound.
+          type: object
+        label:
+          description: The label describing what type of object it is
+          maxLength: 128
+          minLength: 1
+          type: string
+        confidence:
+          default: null
+          description: The confidence score for the primitive. It should be between 0 and 1.
+          maximum: 1
+          minimum: 0
+          type: number
+        keypoints:
+          additionalProperties:
+            $ref: '#/components/schemas/Annotations.Keypoint'
+          description: The detected keypoints
+          type: object
+      required:
+      - label
+      - keypoints
+      title: images.KeypointCollection
+      type: object
+    Annotations.IsoPlanAnnotation:
+      additionalProperties: false
+      description: Model a custom link in a engineering diagram where it capture details from the texts and linked to assets when necessary
+      properties:
+        pageNumber:
+          default: 1
+          description: The number of the page on which this annotation is located. The first page has number 1.
+          maximum: 100000
+          minimum: 1
+          type: integer
+        fileRef:
+          $ref: '#/components/schemas/Annotations.FileRef'
+          default: null
+          description: The asset this annotation is pointing at. Store the id of the file assets to generate downloadable URL.
+        text:
+          default: null
+          description: The pattern identified by the detection API results.
+          maxLength: 128
+          minLength: 1
+          type: string
+        textRegion:
+          $ref: '#/components/schemas/Annotations.BoundingBox'
+          default: null
+          description: The location of the hotspot represented with a bounding box.
+        indirectRelation:
+          default: null
+          description: Relation connecting this hotspot to a tag in case the hotspot has no tag. E.g. 'second valve upstreams of'. This references the 'indirectExternalId'.
+          maxLength: 128
+          minLength: 1
+          type: string
+        indirectExternalId:
+          $ref: '#/components/schemas/Annotations.AssetRef'
+          default: null
+          description: The indirectExternalId is the external id of the equipment used to identify the hotspot indirectly. Exa. this is the <indirectRelation> of <indirectExternalId>.
+        lineExternalId:
+          $ref: '#/components/schemas/Annotations.AssetRef'
+          default: null
+          description: The id of the Pipe that the hotspot belongs to.
+        detail:
+          default: null
+          description: Detail describing the equipment.
+          maxLength: 128
+          minLength: 1
+          type: string
+        subDetail:
+          default: null
+          description: Use to save the fluid code of pipes Exa. LO for Lube oil and etc.
+          maxLength: 128
+          minLength: 1
+          type: string
+        sourceType:
+          default: null
+          description: Use to identify whether the annotation is user created one or ditected via pipeline.
+          enum:
+          - pipeline
+          - user
+          type: string
+        linkedResourceInternalId:
+          default: null
+          description: Stores Functional Locations' (FLOC) ID linked to the annotation.
+          type: integer
+        linkedResourceExternalId:
+          default: null
+          description: Stores Functional Locations (FLOC) external ID linked to the annotation.
+          maxLength: 128
+          minLength: 1
+          type: string
+        linkedResourceType:
+          default: null
+          description: Stores Functional Location (FLOC) type the annotation linked to.
+          enum:
+          - asset
+          - file
+          type: string
+        type:
+          default: null
+          description: Type of equipment, valve, pump etc.
+          maxLength: 128
+          minLength: 1
+          type: string
+        relativePosition:
+          default: null
+          description: Indicate the relative position of an annotation.
+          maxLength: 128
+          minLength: 1
+          type: string
+        revision:
+          default: null
+          description: Keeps track of the modification to an annotation.
+          maxLength: 128
+          minLength: 1
+          type: string
+        sizeAndClass:
+          $ref: '#/components/schemas/Annotations.SizeAndClassType'
+          default: null
+          description: Stores the dimensions of a valve or spade.
+        oldAnnotationId:
+          default: null
+          description: Keep track of data link with old annotations.
+          maxLength: 128
+          minLength: 1
+          type: string
+        vertices:
+          $ref: '#/components/schemas/Annotations.PolyLine'
+          default: null
+          description: Stores the (x,y) coordinate pairs of a line or polyline.
+      title: isoplan.IsoPlanAnnotation
+      type: object
+    AnnotationType:
+      type: string
+      description: The type of the annotation. This uniquely decides what the structure of the `data` block will be.
+      enum:
+      - pointcloud.BoundingVolume
+      - images.Classification
+      - forms.Detection
+      - documents.ExtractedText
+      - diagrams.FileLink
+      - isoplan.IsoPlanAnnotation
+      - diagrams.Junction
+      - images.KeypointCollection
+      - diagrams.Line
+      - images.ObjectDetection
+      - images.TextRegion
+      - diagrams.UnhandledSymbolObject
+      - diagrams.UnhandledTextObject
+      - diagrams.AssetLink
+      - diagrams.InstanceLink
+      - images.AssetLink
+      - images.InstanceLink
+      example: pointcloud.BoundingVolume
+    AnnotatedResourceType:
+      type: string
+      description: The annotated CDF resource type. Files as well as 3d-Models are supported.
+      enum:
+      - file
+      - threedmodel
+      example: file
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
+    AnnotationsV2SuggestSchema:
+      type: object
+      required:
+      - annotatedResourceType
+      - annotatedResourceId
+      - annotationType
+      - creatingApp
+      - creatingAppVersion
+      - creatingUser
+      - data
+      properties:
+        annotatedResourceType:
+          $ref: '#/components/schemas/AnnotatedResourceType'
+        annotatedResourceId:
+          $ref: '#/components/schemas/AnnotatedResourceId'
+        annotationType:
+          $ref: '#/components/schemas/AnnotationType'
+        creatingApp:
+          $ref: '#/components/schemas/Application'
+        creatingAppVersion:
+          $ref: '#/components/schemas/SemanticVersion'
+        creatingUser:
+          $ref: '#/components/schemas/User'
+        data:
+          $ref: '#/components/schemas/AnnotationData'
+    Annotations.PolyLine:
+      additionalProperties: false
+      description: A polygonal chain consisting of _n_ vertices
+      properties:
+        confidence:
+          default: null
+          description: The confidence score for the primitive. It should be between 0 and 1.
+          maximum: 1
+          minimum: 0
+          type: number
+        vertices:
+          items:
+            $ref: '#/components/schemas/Annotations.Point'
+          maxItems: 1000
+          minItems: 2
+          type: array
+      required:
+      - vertices
+      title: primitives.geometry2d.PolyLine
+      type: object
+    Annotations.Boolean:
+      additionalProperties: false
+      description: The boolean value of something
+      properties:
+        description:
+          default: null
+          description: The description of a primitive
+          maxLength: 500
+          type: string
+        type:
+          const: boolean
+          type: string
+        value:
+          description: The boolean value
+          type: boolean
+      required:
+      - type
+      - value
+      title: primitives.attributes.Boolean
+      type: object
+    Annotations.View:
+      additionalProperties: false
+      description: Defines a DMS source (e.g. view)
+      properties:
+        type:
+          const: view
+          type: string
+        space:
+          description: Id of the space that the view belongs to
+          maxLength: 43
+          minLength: 1
+          pattern: ^[a-zA-Z][a-zA-Z0-9_-]{0,41}[a-zA-Z0-9]?$
+          type: string
+        externalId:
+          description: External id of the view
+          maxLength: 255
+          minLength: 1
+          pattern: ^[a-zA-Z]([a-zA-Z0-9_]{0,253}[a-zA-Z0-9])?$
+          type: string
+        version:
+          description: Version of the view
+          maxLength: 43
+          minLength: 1
+          pattern: ^[a-zA-Z0-9]([a-zA-Z0-9_-]{0,41}[a-zA-Z0-9])?$
+          type: string
+      required:
+      - type
+      - space
+      - externalId
+      - version
+      title: primitives.references.View
+      type: object
+    Annotations.Box:
+      additionalProperties: false
+      description: 'A box in 3D space, defined by a 4x4 row-major homogeneous transformation matrix that rotates,
+
+        translates and scales a box centered at the origin to its location and orientation in 3D space.
+
+        The box that is transformed is the axis-aligned cube spanning the volume between
+
+        the points (-1, -1, -1) and (1, 1, 1).'
+      properties:
+        label:
+          default: null
+          description: The label describing what type of object it is
+          maxLength: 128
+          minLength: 1
+          type: string
+        confidence:
+          default: null
+          description: The confidence score for the primitive. It should be between 0 and 1.
+          maximum: 1
+          minimum: 0
+          type: number
+        matrix:
+          description: The homogeneous transformation matrix
+          items:
+            type: number
+          maxItems: 16
+          minItems: 16
+          type: array
+      required:
+      - matrix
+      title: primitives.geometry3d.Box
+      type: object
+    Annotations.Classification:
+      additionalProperties: false
+      description: 'Models an image classification represented by a label, and optionally a
+
+        confidence value.'
+      properties:
+        label:
+          description: The label describing what type of object it is
+          maxLength: 128
+          minLength: 1
+          type: string
+        confidence:
+          default: null
+          description: The confidence score for the primitive. It should be between 0 and 1.
+          maximum: 1
+          minimum: 0
+          type: number
+      required:
+      - label
+      title: images.Classification
+      type: object
+    AnnotationsV2UpdateDataSchema:
+      type: object
+      description: 'Each fields represent a "delta" that will be applied onto the corresponding field of the original
+
+        annotation.
+
+
+
+        ### Updating Annotation Type or Data
+
+        Ensure that the new annotation data conforms to the new annotation type, otherwise the call will fail.'
+      properties:
+        annotationType:
+          type: object
+          required:
+          - set
+          properties:
+            set:
+              $ref: '#/components/schemas/AnnotationType'
+        data:
+          type: object
+          required:
+          - set
+          properties:
+            set:
+              $ref: '#/components/schemas/AnnotationData'
+        status:
+          type: object
+          required:
+          - set
+          properties:
+            set:
+              $ref: '#/components/schemas/Status'
+      example:
+        data:
+          set:
+            assetRef:
+              externalId: abc
+            symbolRegion:
+              xMin: 0.1
+              xMax: 0.2
+              yMin: 0.1
+              yMax: 0.2
+            textRegion:
+              xMin: 0.4
+              xMax: 0.5
+              yMin: 0.4
+              yMax: 0.5
+            pageNumber: 43
+    SemanticVersion:
+      type: string
+      description: A version number in the SemVer sense. See [semver.org](https://semver.org/) for the specification.
+      example: 1.2.1
+      minLength: 1
+      maxLength: 255
+    Annotations.Numerical:
+      additionalProperties: false
+      description: The numerical value of something
+      properties:
+        description:
+          default: null
+          description: The description of a primitive
+          maxLength: 500
+          type: string
+        type:
+          const: numerical
+          type: string
+        value:
+          anyOf:
+          - type: integer
+          - type: number
+          description: The numerical value
+      required:
+      - type
+      - value
+      title: primitives.attributes.Numerical
+      type: object
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    Annotations.InstanceRef:
+      additionalProperties: false
+      description: 'A reference to an DMS instance,
+
+        defined by the instance itself and the sources (views)
+
+        that define how the data should be interpreted'
+      properties:
+        sources:
+          description: References to views
+          items:
+            discriminator:
+              mapping:
+                view: '#/components/schemas/Annotations.View'
+              propertyName: type
+            oneOf:
+            - $ref: '#/components/schemas/Annotations.View'
+          maxItems: 10
+          type: array
+        instanceType:
+          description: The type of instance, an edge or a node.
+          enum:
+          - node
+          - edge
+          type: string
+        externalId:
+          description: External id of the instance
+          maxLength: 255
+          minLength: 1
+          pattern: ^[^\x00]{1,255}$
+          type: string
+        space:
+          description: Id of the space that the instance belongs to
+          maxLength: 43
+          minLength: 1
+          pattern: ^[a-zA-Z][a-zA-Z0-9_-]{0,41}[a-zA-Z0-9]?$
+          type: string
+      required:
+      - sources
+      - instanceType
+      - externalId
+      - space
+      title: primitives.references.InstanceRef
+      type: object
+    AnnotationsV2FilterSchema:
+      type: object
+      description: A filter to apply on annotations
+      required:
+      - annotatedResourceType
+      - annotatedResourceIds
+      properties:
+        annotatedResourceType:
+          $ref: '#/components/schemas/AnnotatedResourceType'
+        annotatedResourceIds:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResourceReference'
+          minItems: 1
+          maxItems: 1000
+        annotationType:
+          $ref: '#/components/schemas/AnnotationType'
+        creatingApp:
+          $ref: '#/components/schemas/Application'
+        creatingAppVersion:
+          $ref: '#/components/schemas/SemanticVersion'
+        creatingUser:
+          $ref: '#/components/schemas/User'
+        status:
+          $ref: '#/components/schemas/Status'
+        data:
+          description: 'Filter annotations by their data keys and values (case-sensitive). Concretely, by providing this field, we check for all annotations that contains the data filter as a subset.
+
+            If `annotationType` is not specified, the data filter will applied across all annotation types.'
+          example:
+            label: cat
+            fileRef:
+              externalId: abc
+          type: object
+      example:
+        annotatedResourceType: file
+        annotatedResourceIds:
+        - id: 1066
+        - id: 1067
+        status: approved
+        data:
+          label: cat
+    Annotations.BoundingVolume:
+      additionalProperties: false
+      description: A bounding volume represents a region in a point cloud
+      properties:
+        label:
+          default: null
+          description: The label describing what type of object it is
+          maxLength: 128
+          minLength: 1
+          type: string
+        confidence:
+          default: null
+          description: The confidence score for the primitive. It should be between 0 and 1.
+          maximum: 1
+          minimum: 0
+          type: number
+        instanceRef:
+          $ref: '#/components/schemas/Annotations.InstanceRef'
+          default: null
+          description: The Data Modeling Instance this annotation is pointing to
+        assetRef:
+          $ref: '#/components/schemas/Annotations.AssetRef'
+          default: null
+          description: The asset this annotation is pointing to
+        region:
+          description: The region of the annotation defined by a list of geometry primitives (cylinder and box).
+          items:
+            $ref: '#/components/schemas/Annotations.cogmono__annotation_types__primitives__geometry3d__Geometry'
+          maxItems: 1000
+          minItems: 1
+          type: array
+      required:
+      - region
+      title: pointcloud.BoundingVolume
+      type: object
+    Annotations.cogmono__annotation_types__images__InstanceLink:
+      additionalProperties: false
+      description: Models a link to an Data Modeling Instance referenced in an image
+      properties:
+        confidence:
+          default: null
+          description: The confidence score for the primitive. It should be between 0 and 1.
+          maximum: 1
+          minimum: 0
+          type: number
+        instanceRef:
+          $ref: '#/components/schemas/Annotations.InstanceRef'
+          description: The Data Modeling Instance this annotation is pointing to
+        text:
+          description: The extracted text
+          maxLength: 128
+          minLength: 1
+          type: string
+        textRegion:
+          $ref: '#/components/schemas/Annotations.BoundingBox'
+          description: The location of the text mentioning the Data Modeling Instance
+        objectRegion:
+          $ref: '#/components/schemas/Annotations.cogmono__annotation_types__primitives__geometry2d__Geometry'
+          default: null
+          description: "\n    A geometry represented by exactly *one of* ` bounding_box`, `polygon` and\n    `polyline` which, respectively, represents a BoundingBox, Polygon and\n    PolyLine.\n    "
+      required:
+      - instanceRef
+      - text
+      - textRegion
+      title: images.InstanceLink
+      type: object
+    StrCursor:
+      type: string
+      description: A cursor pointing to another page of results
+      minLength: 1
+      maxLength: 255
+      example: MzE1NjAwMDcxNzQ0ODI5
+    AnnotatedResourceId:
+      description: The internal ID of the annotated resource.
+      allOf:
+      - $ref: '#/components/schemas/CogniteInternalId'
+      example: 1337
+    Annotations.Keypoint:
+      additionalProperties: false
+      description: 'A point attached with additional information such as a confidence value and
+
+        various attribute(s).'
+      properties:
+        attributes:
+          additionalProperties:
+            discriminator:
+              mapping:
+                boolean: '#/components/schemas/Annotations.Boolean'
+                numerical: '#/components/schemas/Annotations.Numerical'
+              propertyName: type
+            oneOf:
+            - $ref: '#/components/schemas/Annotations.Boolean'
+            - $ref: '#/components/schemas/Annotations.Numerical'
+          default: null
+          description: Additional attributes data for a compound.
+          type: object
+        confidence:
+          default: null
+          description: The confidence score for the primitive. It should be between 0 and 1.
+          maximum: 1
+          minimum: 0
+          type: number
+        point:
+          $ref: '#/components/schemas/Annotations.Point'
+          description: The position of the keypoint
+      required:
+      - point
+      title: primitives.geometry2d.Keypoint
+      type: object
+    Annotations.Cylinder:
+      additionalProperties: false
+      description: A cylinder in 3D space, defined by the centers of the two end surfaces and the radius.
+      properties:
+        label:
+          default: null
+          description: The label describing what type of object it is
+          maxLength: 128
+          minLength: 1
+          type: string
+        confidence:
+          default: null
+          description: The confidence score for the primitive. It should be between 0 and 1.
+          maximum: 1
+          minimum: 0
+          type: number
+        centerA:
+          description: The center of the first cap.
+          items:
+            type: number
+          maxItems: 3
+          minItems: 3
+          type: array
+        centerB:
+          description: The center of the second cap.
+          items:
+            type: number
+          maxItems: 3
+          minItems: 3
+          type: array
+        radius:
+          description: The radius of the cylinder.
+          minimum: 0
+          type: number
+      required:
+      - centerA
+      - centerB
+      - radius
+      title: primitives.geometry3d.Cylinder
+      type: object
+    Annotations.FileRef:
+      additionalProperties: false
+      description: A reference to a file. Either the internal ID or the external ID must be provided (exactly one).
+      oneOf:
+      - required:
+        - id
+      - required:
+        - externalId
+      properties:
+        id:
+          default: null
+          description: The internal ID of the referenced resource
+          type: integer
+        externalId:
+          default: null
+          description: The external ID of the referenced resource
+          maxLength: 256
+          type: string
+      title: primitives.references.FileRef
+      type: object
+    Annotations.cogmono__annotation_types__images__AssetLink:
+      additionalProperties: false
+      description: Models a link to a CDF Asset referenced in an image
+      properties:
+        confidence:
+          default: null
+          description: The confidence score for the primitive. It should be between 0 and 1.
+          maximum: 1
+          minimum: 0
+          type: number
+        assetRef:
+          $ref: '#/components/schemas/Annotations.AssetRef'
+          description: The asset this annotation is pointing to
+        text:
+          description: The extracted text
+          maxLength: 128
+          minLength: 1
+          type: string
+        textRegion:
+          $ref: '#/components/schemas/Annotations.BoundingBox'
+          description: The location of the text mentioning the asset
+        objectRegion:
+          $ref: '#/components/schemas/Annotations.cogmono__annotation_types__primitives__geometry2d__Geometry'
+          default: null
+          description: "\n    A geometry represented by exactly *one of* ` bounding_box`, `polygon` and\n    `polyline` which, respectively, represents a BoundingBox, Polygon and\n    PolyLine.\n    "
+      required:
+      - assetRef
+      - text
+      - textRegion
+      title: images.AssetLink
+      type: object
+    AnnotationId:
+      allOf:
+      - $ref: '#/components/schemas/CogniteInternalId'
+      description: Server-generated identifier for the annotation
+      example: 4096
+    Annotations.cogmono__annotation_types__diagrams__InstanceLink:
+      additionalProperties: false
+      description: Models a link to an FDM instance referenced in an engineering diagram
+      properties:
+        description:
+          default: null
+          description: The description of a primitive
+          maxLength: 500
+          type: string
+        pageNumber:
+          default: 1
+          description: The number of the page on which this annotation is located. The first page has number 1.
+          maximum: 100000
+          minimum: 1
+          type: integer
+        instanceRef:
+          $ref: '#/components/schemas/Annotations.InstanceRef'
+          description: The FDM instance this annotation is pointing to
+        symbolRegion:
+          $ref: '#/components/schemas/Annotations.BoundingBox'
+          default: null
+          description: Optional location of a symbol
+        symbol:
+          default: null
+          description: The symbol found in the file
+          maxLength: 128
+          minLength: 1
+          type: string
+        text:
+          description: The extracted text
+          maxLength: 128
+          minLength: 1
+          type: string
+        textRegion:
+          $ref: '#/components/schemas/Annotations.BoundingBox'
+          description: The location of the text mentioning the file
+      required:
+      - instanceRef
+      - text
+      - textRegion
+      title: diagrams.InstanceLink
+      type: object
+    AnnotationsV2CursoredListResponseSchema:
+      type: object
+      description: A cursored list of existing annotations
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnnotationsV2ResponseSchema'
+        nextCursor:
+          allOf:
+          - $ref: '#/components/schemas/StrCursor'
+          nullable: true
+          type: string
+          example: null
+    Application:
+      type: string
+      description: The application name or identifier. This is neither checked nor enforced.
+      example: cognite-vision
+      minLength: 1
+      maxLength: 255
+    Annotations.SizeAndClassType:
+      additionalProperties: false
+      description: Store the dimension, units and class of a given annotation
+      properties:
+        size:
+          default: null
+          description: The size of the valve or spade
+          type: number
+        unit:
+          default: null
+          description: The units of the size (mm/inches)
+          maxLength: 128
+          minLength: 1
+          type: string
+        classType:
+          default: null
+          description: The class type of the valve or spade
+          maxLength: 128
+          minLength: 1
+          type: string
+      title: primitives.dimensions.SizeAndClassType
+      type: object
+    AnnotationsV2ResponseSchema:
+      type: object
+      required:
+      - id
+      - createdTime
+      - lastUpdatedTime
+      - annotatedResourceType
+      - annotatedResourceId
+      - annotationType
+      - creatingApp
+      - creatingAppVersion
+      - creatingUser
+      - data
+      - status
+      properties:
+        id:
+          $ref: '#/components/schemas/AnnotationId'
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        lastUpdatedTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        annotatedResourceType:
+          $ref: '#/components/schemas/AnnotatedResourceType'
+        annotatedResourceId:
+          $ref: '#/components/schemas/AnnotatedResourceId'
+        annotationType:
+          $ref: '#/components/schemas/AnnotationType'
+        creatingApp:
+          $ref: '#/components/schemas/Application'
+        creatingAppVersion:
+          $ref: '#/components/schemas/SemanticVersion'
+        creatingUser:
+          $ref: '#/components/schemas/User'
+        data:
+          $ref: '#/components/schemas/AnnotationData'
+        status:
+          $ref: '#/components/schemas/Status'
+    Annotations.Detection:
+      additionalProperties: false
+      description: 'Represents a detection of a field value in a form.
+
+        A field is identified by a field_name, optionally component_name and component_type if the field belongs to a subcomponent.
+
+        The bounding_box indicates the position of the detection. The content of the field is given by the value, and optionally
+
+        an unnormalized_value and the unit.'
+      properties:
+        confidence:
+          default: null
+          description: The confidence score for the primitive. It should be between 0 and 1.
+          maximum: 1
+          minimum: 0
+          type: number
+        pageNumber:
+          default: 1
+          description: The number of the page on which this annotation is located. The first page has number 1.
+          maximum: 100000
+          minimum: 1
+          type: integer
+        boundingBox:
+          $ref: '#/components/schemas/Annotations.BoundingBox'
+          description: Bounding box of the detection area
+        componentType:
+          default: null
+          description: Type of subcomponent that the detection belongs to
+          maxLength: 128
+          minLength: 1
+          type: string
+        componentName:
+          default: null
+          description: Name of subcomponent that the detection belongs to
+          maxLength: 128
+          minLength: 1
+          type: string
+        fieldName:
+          description: Name of field that has been detected
+          maxLength: 128
+          minLength: 1
+          type: string
+        value:
+          description: The value that has been detected
+          maxLength: 128
+          type: string
+        valueUnnormalized:
+          default: null
+          description: The value that has been detected, before normalization. Optional.
+          maxLength: 128
+          type: string
+        unit:
+          default: null
+          description: The unit of the value field. Optional.
+          maxLength: 128
+          minLength: 1
+          type: string
+      required:
+      - boundingBox
+      - fieldName
+      - value
+      title: forms.Detection
+      type: object
+    Annotations.cogmono__annotation_types__primitives__geometry3d__Geometry:
+      additionalProperties: false
+      description: A 3D geometry model represented by exactly *one of* `cylinder` and `box`.
+      properties:
+        cylinder:
+          $ref: '#/components/schemas/Annotations.Cylinder'
+          default: null
+        box:
+          $ref: '#/components/schemas/Annotations.Box'
+          default: null
+      title: primitives.geometry3d.Geometry
+      type: object
+    User:
+      type: string
+      description: 'A username, or email, or name. This is not checked nor enforced. If the value is null, it means the
+
+        annotation was created by a service.'
+      nullable: true
+      example: john.doe@cognite.com
+      minLength: 1
+      maxLength: 255
+    Annotations.cogmono__annotation_types__primitives__geometry2d__Geometry:
+      additionalProperties: false
+      description: 'A geometry represented by exactly *one of* ` bounding_box`, `polygon` and
+
+        `polyline` which, respectively, represents a BoundingBox, Polygon and
+
+        PolyLine.'
+      properties:
+        boundingBox:
+          $ref: '#/components/schemas/Annotations.BoundingBox'
+          default: null
+        polygon:
+          $ref: '#/components/schemas/Annotations.Polygon'
+          default: null
+        polyline:
+          $ref: '#/components/schemas/Annotations.PolyLine'
+          default: null
+      title: primitives.geometry2d.Geometry
+      type: object
+    Annotations.ObjectDetection:
+      additionalProperties: false
+      description: 'Models an image object detection represented by a label, a geometry, and
+
+        optionally a confidence value.'
+      properties:
+        attributes:
+          additionalProperties:
+            discriminator:
+              mapping:
+                boolean: '#/components/schemas/Annotations.Boolean'
+                numerical: '#/components/schemas/Annotations.Numerical'
+              propertyName: type
+            oneOf:
+            - $ref: '#/components/schemas/Annotations.Boolean'
+            - $ref: '#/components/schemas/Annotations.Numerical'
+          default: null
+          description: Additional attributes data for a compound.
+          type: object
+        boundingBox:
+          $ref: '#/components/schemas/Annotations.BoundingBox'
+          default: null
+        polygon:
+          $ref: '#/components/schemas/Annotations.Polygon'
+          default: null
+        polyline:
+          $ref: '#/components/schemas/Annotations.PolyLine'
+          default: null
+        label:
+          description: The label describing what type of object it is
+          maxLength: 128
+          minLength: 1
+          type: string
+        confidence:
+          default: null
+          description: The confidence score for the primitive. It should be between 0 and 1.
+          maximum: 1
+          minimum: 0
+          type: number
+      required:
+      - label
+      title: images.ObjectDetection
+      type: object
+    Annotations.UnhandledSymbolObject:
+      additionalProperties: false
+      description: Models an extracted symbol region in an engineering diagram
+      properties:
+        description:
+          default: null
+          description: The description of a primitive
+          maxLength: 500
+          type: string
+        pageNumber:
+          default: 1
+          description: The number of the page on which this annotation is located. The first page has number 1.
+          maximum: 100000
+          minimum: 1
+          type: integer
+        symbolRegion:
+          $ref: '#/components/schemas/Annotations.BoundingBox'
+          description: The location of the symbol
+        symbol:
+          description: The symbol found in the file
+          maxLength: 128
+          minLength: 1
+          type: string
+      required:
+      - symbolRegion
+      - symbol
+      title: diagrams.UnhandledSymbolObject
+      type: object
+    Annotations.UnhandledTextObject:
+      additionalProperties: false
+      description: Models an extracted text region in an engineering diagram
+      properties:
+        description:
+          default: null
+          description: The description of a primitive
+          maxLength: 500
+          type: string
+        pageNumber:
+          default: 1
+          description: The number of the page on which this annotation is located. The first page has number 1.
+          maximum: 100000
+          minimum: 1
+          type: integer
+        textRegion:
+          $ref: '#/components/schemas/Annotations.BoundingBox'
+          description: The location of the text
+        text:
+          description: The extracted text
+          maxLength: 128
+          minLength: 1
+          type: string
+      required:
+      - textRegion
+      - text
+      title: diagrams.UnhandledTextObject
+      type: object
+    Annotations.ExtractedText:
+      additionalProperties: false
+      description: Represents text extracted from a document. Annotations of this type are low-level and not specific to any domain.
+      properties:
+        pageNumber:
+          default: 1
+          description: The number of the page on which this annotation is located. The first page has number 1.
+          maximum: 100000
+          minimum: 1
+          type: integer
+        textRegion:
+          $ref: '#/components/schemas/Annotations.BoundingBox'
+          description: The location of the extracted text
+        extractedText:
+          description: The extracted text
+          maxLength: 1024
+          minLength: 1
+          type: string
+      required:
+      - textRegion
+      - extractedText
+      title: documents.ExtractedText
+      type: object
+    AnnotationsV2ListResponseSchema:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          description: A list of annotations
+          items:
+            $ref: '#/components/schemas/AnnotationsV2ResponseSchema'
+    Annotations.Junction:
+      additionalProperties: false
+      description: Models a junction between lines in an engineering diagram
+      properties:
+        pageNumber:
+          default: 1
+          description: The number of the page on which this annotation is located. The first page has number 1.
+          maximum: 100000
+          minimum: 1
+          type: integer
+        position:
+          $ref: '#/components/schemas/Annotations.Point'
+          description: The point representing the junction
+      required:
+      - position
+      title: diagrams.Junction
+      type: object
+    Annotations.cogmono__annotation_types__diagrams__AssetLink:
+      additionalProperties: false
+      description: Models a link to a CDF Asset referenced in an engineering diagram
+      properties:
+        description:
+          default: null
+          description: The description of a primitive
+          maxLength: 500
+          type: string
+        pageNumber:
+          default: 1
+          description: The number of the page on which this annotation is located. The first page has number 1.
+          maximum: 100000
+          minimum: 1
+          type: integer
+        assetRef:
+          $ref: '#/components/schemas/Annotations.AssetRef'
+          description: The asset this annotation is pointing to
+        symbolRegion:
+          $ref: '#/components/schemas/Annotations.BoundingBox'
+          default: null
+          description: The location of the symbol representing the asset
+        textRegion:
+          $ref: '#/components/schemas/Annotations.BoundingBox'
+          description: The location of the text mentioning the asset
+        text:
+          default: null
+          description: The extracted text
+          maxLength: 128
+          minLength: 1
+          type: string
+        symbol:
+          default: null
+          description: The symbol representing the asset
+          maxLength: 128
+          minLength: 1
+          type: string
+      required:
+      - assetRef
+      - textRegion
+      title: diagrams.AssetLink
+      type: object
+    Annotations.Polygon:
+      additionalProperties: false
+      description: 'A _closed_ polygon represented by _n_ vertices. In other words, we assume
+
+        that the first and last vertex are connected.'
+      properties:
+        confidence:
+          default: null
+          description: The confidence score for the primitive. It should be between 0 and 1.
+          maximum: 1
+          minimum: 0
+          type: number
+        vertices:
+          items:
+            $ref: '#/components/schemas/Annotations.Point'
+          maxItems: 1000
+          minItems: 3
+          type: array
+      required:
+      - vertices
+      title: primitives.geometry2d.Polygon
+      type: object
+  requestBodies:
+    AnnotationsV2CreateRequestSchema:
+      description: A request for creating annotations
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            properties:
+              items:
+                type: array
+                description: A list of annotations to create
+                minimum: 1
+                maximum: 1000
+                items:
+                  $ref: '#/components/schemas/AnnotationsV2CreateSchema'
+    AnnotationsV2UpdateRequestSchema:
+      description: A request for updating existing annotations
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            properties:
+              items:
+                type: array
+                minimum: 1
+                maximum: 1000
+                items:
+                  $ref: '#/components/schemas/AnnotationsV2UpdateItemSchema'
+    AnnotationsV2SuggestRequestSchema:
+      description: A request for suggesting annotations, i.e., creating them with the "suggested" `status`
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            properties:
+              items:
+                type: array
+                description: A list of annotations to suggest
+                minimum: 1
+                maximum: 1000
+                items:
+                  $ref: '#/components/schemas/AnnotationsV2SuggestSchema'
+    AnnotationsV2ByIdsRequestSchema:
+      description: A request referencing existing annotations
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            properties:
+              items:
+                type: array
+                description: A list of existing annotation references
+                minimum: 1
+                maximum: 1000
+                items:
+                  $ref: '#/components/schemas/AnnotationsV2ReferenceSchema'
+    AnnotationsV2ListRequestSchema:
+      description: A request specifying the annotation listing behavior
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - filter
+            properties:
+              cursor:
+                allOf:
+                - $ref: '#/components/schemas/StrCursor'
+                nullable: true
+                type: string
+              limit:
+                type: integer
+                minimum: 1
+                default: 25
+                maximum: 1000
+              filter:
+                $ref: '#/components/schemas/AnnotationsV2FilterSchema'
+  responses:
+    AnnotationsV2CreateResponseSchema:
+      description: Successful creation
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/AnnotationsV2ListResponseSchema'
+    AnnotationsV2ResponseSchema:
+      description: Successful retrieval
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/AnnotationsV2ResponseSchema'
+    AnnotationsV2CursoredListResponseSchema:
+      description: Successful retrieval
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/AnnotationsV2CursoredListResponseSchema'
+    AnnotationsV2ListResponseSchema:
+      description: Successful retrieval
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/AnnotationsV2ListResponseSchema'
+    ErrorResponse:
+      description: The response for a failed request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+    AnnotationsV2UpdateResponseSchema:
+      description: Successful update
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/AnnotationsV2ListResponseSchema'
+  parameters:
+    AnnotationId:
+      name: annotationId
+      in: path
+      required: true
+      description: The internal ID of the annotation
+      schema:
+        $ref: '#/components/schemas/AnnotationId'
+  securitySchemes:
+    oidc-token:
+      type: http
+      scheme: bearer
+      bearerFormat: OpenID Connect or OAuth2 token
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+    oauth2-client-credentials:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        clientCredentials:
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-auth-code:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://your-idps.authorization.url/
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-open-industrial-data:
+      type: oauth2
+      description: Auth flow for Open Industrial Data. Get your client secret from https://hub.cognite.com/open-industrial-data-211.
+      flows:
+        clientCredentials:
+          tokenUrl: https://login.microsoftonline.com/48d5043c-cf70-4c49-881c-c638f5796997/oauth2/v2.0/token
+          scopes:
+            default: https://api.cognitedata.com/.default
+    org-oidc-token:
+      type: openIdConnect
+      openIdConnectUrl: https://auth.cognite.com/.well-known/openid-configuration
+      description: 'Access token issued by the Cognite authorization server, and valid for the target organization. The token must
+
+        be an OpenID Connect token, and it can be obtained by performing an OIDC login flow toward `auth.cognite.com`.
+
+        This is a single URL for all CDF organizations.'
+x-tagGroups:
+- name: Changelog
+  tags:
+  - Changelog
+- name: Organizations and projects
+  tags:
+  - Organizations
+  - Projects
+- name: Identity and access management
+  tags:
+  - Principals
+  - Groups
+  - Security categories
+  - Sessions
+  - Token
+  - User profiles
+  - Project Deletion Reporting
+- name: Data modeling
+  tags:
+  - Data Modeling
+  - Data models
+  - Spaces
+  - Views
+  - Containers
+  - Nodes
+  - Instances
+  - Statistics
+  - Streams
+  - Records
+- name: Asset-centric data model
+  tags:
+  - Assets
+  - Time series
+  - Synthetic Time Series
+  - Data point subscriptions
+  - Events
+  - Files
+  - Sequences
+  - Geospatial
+  - Seismic
+- name: 3D
+  tags:
+  - 3D Models
+  - 3D Model Revisions
+  - 3D Files
+  - 3D Asset Mapping
+  - 3D Contextualization
+  - 3D Jobs
+  - 3D Migration
+  - 3D Scenes
+- name: Contextualization
+  tags:
+  - Entity matching
+  - Entity matching pipelines
+  - Engineering diagrams
+  - Vision
+  - Advanced joins
+- name: Cognite AI
+  tags:
+  - Agents
+  - Skills
+  - Chat Completions
+  - Document AI
+  - Models
+- name: Documents
+  tags:
+  - Documents
+  - Document preview
+- name: Data ingestion
+  tags:
+  - Raw
+  - Extraction Pipelines
+  - Extraction Pipelines Runs
+  - Extraction Pipelines Config
+  - Extractors
+- name: Data organization
+  tags:
+  - Data sets
+  - Data domains
+  - Data products
+  - Rule sets
+  - Labels
+  - Relationships
+  - Annotations
+- name: Transformations
+  tags:
+  - Transformations
+  - Transformation Jobs
+  - Transformation Schedules
+  - Transformation Notifications
+  - Query
+  - Schema
+- name: Functions
+  tags:
+  - Functions
+  - Function calls
+  - Function schedules
+- name: Hosted Extractors
+  tags:
+  - Sources
+  - Jobs
+  - Destinations
+  - Mappings
+- name: PostgreSQL Gateway
+  tags:
+  - Postgres Gateway Users
+  - Postgres Gateway Tables
+- name: SAP Writeback
+  tags:
+  - SAP Instances
+  - SAP Endpoints
+  - Schema Mappings
+  - Writeback Requests
+- name: Data workflows
+  tags:
+  - Workflows
+  - Workflow versions
+  - Workflow executions
+  - Workflow triggers
+  - Tasks
+  - Workers
+- name: Simulators
+  tags:
+  - Simulators
+  - Simulator Integrations
+  - Simulator Models
+  - Simulator Routines
+  - Simulation Runs
+  - Simulator Logs
+- name: Units
+  tags:
+  - Units
+  - Unit Systems
+- name: ''
+  tags:
+  - ''

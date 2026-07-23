@@ -1,0 +1,670 @@
+openapi: 3.1.0
+info:
+  title: Cognite 3D Asset Mapping SAP Endpoints API
+  description: "# Introduction\nThis is the reference documentation for the Cognite API with\nan overview of all the available methods.\n\n# Postman\nSelect the **Download** button to download our OpenAPI specification to get started.\n\nTo import your data into Postman, select **Import**, and the Import modal opens.\nYou can import items by dragging or dropping files or folders. You can choose how to import your API and manage the import settings in **View Import Settings**.\n\nIn the Import Settings, set the **Folder organization** to **Tags**, select\n**Enable optional parameters** to turn off the settings, and select **Always inherit authentication** to turn on the settings. Select **Import**.\n\nSet the Authorization to **Oauth2.0**. By default, the settings are for Open Industrial Data. Navigate to [Cognite Hub](https://hub.cognite.com/open-industrial-data-211) to understand how to get the credentials for use in Postman.\n\nFor more information, see [Getting Started with Postman](https://developer.cognite.com/dev/guides/postman/).\n\n# Pagination\nMost resource types can be paginated, indicated by the field `nextCursor` in the response.\nBy passing the value of `nextCursor` as the cursor you will get the next page of `limit` results.\nNote that all parameters except `cursor` has to stay the same.\n\n# Parallel retrieval\nAs general guidance, Parallel Retrieval is a technique that should be used when due to query complexity, retrieval of data in a single request is significantly slower than it would otherwise be for a simple request.  Parallel retrieval does not act as a speed multiplier on optimally running queries.  By parallelizing such requests, data retrieval performance can be tuned to meet the client application needs. \n\nCDF supports parallel retrieval through the `partition` parameter, which has the format `m/n` where `n` is the amount of partitions you would like to split the entire data set into.\nIf you want to download the entire data set by splitting it into 10 partitions, do the following in parallel with `m` running from 1 to 10:\n  - Make a request to `/events` with `partition=m/10`.\n  - Paginate through the response by following the cursor as explained above. Note that the `partition` parameter needs to be passed to all subqueries.\n\nProcessing of parallel retrieval requests is subject to concurrency quota availability. The request returns the `429` response upon exceeding concurrency limits. See the Request throttling chapter below.\n\nTo prevent unexpected problems and to maximize read throughput, you should at most use 10 partitions. \nSome CDF resources will automatically enforce a maximum of 10 partitions.\nFor more specific and detailed information, please read the ```partition``` attribute documentation for the CDF resource you're using.  \n\n# Requests throttling\nCognite Data Fusion (CDF) returns the HTTP `429` (too many requests) response status code when project capacity exceeds the limit.\n\nThe throttling can happen:\n  - If a user or a project sends too many (more than allocated) concurrent requests.\n  - If a user or a project sends a too high (more than allocated) rate of requests in a given amount of time.\n\nCognite recommends using a retry strategy based on truncated exponential backoff to handle sessions with HTTP response codes 429.\n\nCognite recommends using a reasonable number (up to 10) of  `Parallel retrieval` partitions.\n\nFollowing these strategies lets you slow down the request frequency to maximize productivity without having to re-submit/retry failing requests.\n\nSee more [here](https://docs.cognite.com/dev/concepts/resource_throttling).\n\n# API versions\n## Version headers\nThis API uses calendar versioning, and version names follow the `YYYYMMDD` format.\nYou can find the versions currently available by using the version selector at the top of this page.\n\nTo use a specific API version, you can pass the `cdf-version: $version` header along with your requests to the API.\n\n## Beta versions\nThe beta versions provide a preview of what the stable version will look like in the future.\nBeta versions contain functionality that is reasonably mature, and highly likely to become a part of the stable API.\n\nBeta versions are indicated by a `-beta` suffix after the version name. For example, the beta version header for the\n2023-01-01 version is then `cdf-version: 20230101-beta`.\n\n## Alpha versions\nAlpha versions contain functionality that is new and experimental, and not guaranteed to ever become a part of the stable API.\nThis functionality presents no guarantee of service, so its use is subject to caution.\n\nAlpha versions are indicated by an `-alpha` suffix after the version name. For example, the alpha version header for\nthe 2023-01-01 version is then `cdf-version: 20230101-alpha`."
+  version: v1
+  contact:
+    name: Cognite Support
+    url: https://support.cognite.com
+    email: support@cognite.com
+servers:
+- url: https://{cluster}.cognitedata.com/api/v1/projects/{project}
+  description: The URL for the CDF cluster to connect to
+  variables:
+    cluster:
+      enum:
+      - api
+      - az-tyo-gp-001
+      - az-eastus-1
+      - az-power-no-northeurope
+      - westeurope-1
+      - asia-northeast1-1
+      - gc-dsm-gp-001
+      default: api
+      description: The CDF cluster to connect to
+    project:
+      default: publicdata
+      description: The CDF project name.
+security:
+- oidc-token:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-client-credentials:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-open-industrial-data:
+  - https://api.cognitedata.com/.default
+- oauth2-auth-code:
+  - https://{cluster}.cognitedata.com/.default
+tags:
+- name: SAP Endpoints
+  description: 'An SAP **endpoint** represents a configuration to an SAP S/4HANA OData endpoint (and its related OData entity) the API will send the writeback requests.
+
+    It defines which SAP Instance destination and which schema mapping should be used when processing a writeback request.
+
+
+    Supported SAP entities:
+
+    * [Maintenance Notifications](https://api.sap.com/api/OP_API_MAINTNOTIFICATION/overview)
+
+    * [Attachments](https://api.sap.com/api/OP_API_CV_ATTACHMENT_SRV_0001/overview)'
+paths:
+  /writeback/sap/endpoints:
+    get:
+      tags:
+      - SAP Endpoints
+      operationId: list_endpoints
+      x-capability:
+      - sapWritebackAcl:READ
+      parameters:
+      - $ref: '#/components/parameters/Writeback100Limit'
+      - $ref: '#/components/parameters/Cursor'
+      description: '
+
+
+        > **Required capabilities:** `sapWritebackAcl:READ`
+
+
+        List all SAP endpoints in a given CDF project. If more instances exist than what the limit specifies, a pagination cursor is returned in the response body.'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemsWithCursor_Endpoint_'
+          description: List of endpoints and an optional cursor.
+        '400':
+          $ref: '#/components/responses/400ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+          description: Validation Error
+      summary: List SAP Endpoints
+    post:
+      tags:
+      - SAP Endpoints
+      operationId: create_endpoints
+      x-capability:
+      - sapWritebackAcl:WRITE
+      description: '
+
+
+        > **Required capabilities:** `sapWritebackAcl:WRITE`
+
+
+        Create up to 100 SAP endpoints.'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Items_CreateEndpoint_'
+        required: true
+        description: Endpoint to create.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Items_Endpoint_'
+          description: List of created endpoints
+        '400':
+          $ref: '#/components/responses/400ErrorResponse'
+          description: Response for a failed request
+        '422':
+          $ref: '#/components/responses/WritebackValidationError'
+      summary: Create SAP Endpoints
+  /writeback/sap/endpoints/byids:
+    post:
+      tags:
+      - SAP Endpoints
+      operationId: retrieve_endpoints
+      x-capability:
+      - sapWritebackAcl:READ
+      description: '
+
+
+        > **Required capabilities:** `sapWritebackAcl:READ`
+
+
+        Retrieve a list of up to 100 SAP endpoints by their external ID, optionally ignoring unknown IDs.'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WritebackItemsWithIgnoreUnknownIds_ExternalId_'
+        required: true
+        description: List of external IDs of SAP endpoint configurations to retrieve.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Items_Endpoint_'
+          description: List of retrieved SAP endpoint configurations.
+        '400':
+          $ref: '#/components/responses/400ErrorResponse'
+        '422':
+          $ref: '#/components/responses/WritebackValidationError'
+      summary: Retrieve SAP Endpoints
+  /writeback/sap/endpoints/delete:
+    post:
+      tags:
+      - SAP Endpoints
+      operationId: delete_endpoints
+      x-capability:
+      - sapWritebackAcl:WRITE
+      description: '
+
+
+        > **Required capabilities:** `sapWritebackAcl:WRITE`
+
+
+        Delete a list of SAP endpoint configurations by their external ID. This operation will fail if any endpoint in the request is associated to a SAP instance configuration.'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WritebackItemsWithIgnoreUnknownIds_ExternalId_'
+        required: true
+        description: A list of External IDs for SAP endpoint configurations to delete.
+      responses:
+        '200':
+          $ref: '#/components/responses/EmptyResponse'
+          description: Empty response
+        '400':
+          $ref: '#/components/responses/400ErrorResponse'
+        '422':
+          $ref: '#/components/responses/WritebackValidationError'
+      summary: Delete SAP Endpoints
+  /writeback/sap/endpoints/verify:
+    post:
+      tags:
+      - SAP Endpoints
+      operationId: verify_endpoints
+      x-capability:
+      - sapWritebackAcl:WRITE
+      description: '
+
+
+        > **Required capabilities:** `sapWritebackAcl:WRITE`
+
+
+        Verify the connectivity between the writeback API, and the SAP endpoint destination.'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WritebackExternalIdWrapper'
+        required: true
+        description: SAP Endpoint external ID which the connection test should be verified.
+      responses:
+        '200':
+          $ref: '#/components/responses/ConnectionCheck'
+          description: Connection Check Result
+        '400':
+          $ref: '#/components/responses/400ErrorResponse'
+        '422':
+          $ref: '#/components/responses/WritebackValidationError'
+      summary: Verify SAP Endpoint
+components:
+  schemas:
+    WritebackItemsWithIgnoreUnknownIds_ExternalId_:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/WritebackExternalIdWrapper'
+          title: Items
+          type: array
+          maxItems: 100
+          minItems: 1
+        ignoreUnknownIds:
+          type: boolean
+          title: IgnoreUnknownIds
+          description: Ignore IDs and external IDs that are not found
+      required:
+      - items
+      title: ItemsWithIgnoreUnknownIds_ExternalId
+      type: object
+    ItemsWithCursor_Endpoint_:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/Endpoint'
+          title: Items
+          type: array
+          maxItems: 100
+          minItems: 0
+        nextCursor:
+          type: string
+          title: Next cursor
+          description: Cursor for pagination
+      required:
+      - items
+      title: EndpointListWithCursor
+      type: object
+    CogniteExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
+      type: string
+      maxLength: 255
+      example: my.known.id
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
+    WritebackValidationErrorContent:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 422
+        message:
+          type: string
+          description: Error message.
+          example: 'Extra inputs are not permitted: type'
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    WritebackExternalIdWrapper:
+      additionalProperties: false
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+      required:
+      - externalId
+      title: WritebackExternalIdWrapper
+      type: object
+    Endpoint:
+      additionalProperties: false
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        endpointType:
+          title: endpointType
+          type: string
+          description: SAP OData endpoint type
+          enum:
+          - notification
+          - attachment
+        instanceId:
+          title: Instance ID
+          description: ID of the SAP instance the endpoint should connect to.
+          type: string
+          maxLength: 255
+        mappingId:
+          title: SchemaMapping ID
+          description: ID of the schema mapping used by this endpoint to transform the writeback request.
+          type: string
+          maxLength: 255
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        lastUpdatedTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+      required:
+      - externalId
+      - endpointType
+      - instanceId
+      - lastUpdatedTime
+      - createdTime
+      title: Endpoint
+      type: object
+    CreateEndpoint:
+      additionalProperties: false
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        endpointType:
+          title: endpointType
+          type: string
+          description: SAP OData endpoint
+          enum:
+          - notification
+          - attachment
+        instanceId:
+          title: Instance ID
+          description: External ID of the SAP instance the endpoint should connect to.
+          type: string
+          maxLength: 255
+        mappingId:
+          title: SchemaMapping ID
+          description: External ID of the schema mapping this endpoint should use to transform the writeback request.
+          type: string
+          maxLength: 255
+      required:
+      - externalId
+      - endpointType
+      - instanceId
+      title: Instance
+      type: object
+    Items_Endpoint_:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/Endpoint'
+          title: Items
+          type: array
+          maxItems: 100
+          minItems: 0
+      required:
+      - items
+      title: InstanceList
+      type: object
+    Items_CreateEndpoint_:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/CreateEndpoint'
+          title: Items
+          type: array
+          minLength: 1
+          maxLength: 100
+      required:
+      - items
+      title: CreateEndpoint list
+      type: object
+    ConnectionCheckContent:
+      type: object
+      required:
+      - status
+      - error_message
+      description: Cognite API error.
+      properties:
+        status:
+          type: string
+          title: status
+          description: Connectivity status between the writeback API and the SAP destination endpoint. `success` means that the CDF writeback API has successfully connected to the SAP endpoint destination.
+          default: success
+        detail:
+          type: string
+          description: Description of the connection check
+  responses:
+    ConnectionCheck:
+      description: Connection Check Result
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                $ref: '#/components/schemas/ConnectionCheckContent'
+    WritebackValidationError:
+      description: Validation Error
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/WritebackValidationErrorContent'
+    ErrorResponse:
+      description: The response for a failed request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+    400ErrorResponse:
+      description: The response for a bad request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: 400
+              message: '`null` values aren''t allowed.'
+    EmptyResponse:
+      description: Empty response.
+      content:
+        application/json:
+          schema:
+            type: object
+  parameters:
+    Cursor:
+      name: cursor
+      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
+
+        property, it means that there may be more results, and you should pass that value as the
+
+        `cursor` parameter in the next request.
+
+
+        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
+
+        decoded. Its internal structure is not a part of the public API, and may change without
+
+        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
+
+        '
+      in: query
+      schema:
+        type: string
+        example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+    Writeback100Limit:
+      name: limit
+      description: Limits the number of results to be returned. The maximum results returned by the server is 100 even if you specify a higher limit.
+      in: query
+      schema:
+        type: integer
+        default: 100
+        minimum: 1
+        maximum: 100
+  securitySchemes:
+    oidc-token:
+      type: http
+      scheme: bearer
+      bearerFormat: OpenID Connect or OAuth2 token
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+    oauth2-client-credentials:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        clientCredentials:
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-auth-code:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://your-idps.authorization.url/
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-open-industrial-data:
+      type: oauth2
+      description: Auth flow for Open Industrial Data. Get your client secret from https://hub.cognite.com/open-industrial-data-211.
+      flows:
+        clientCredentials:
+          tokenUrl: https://login.microsoftonline.com/48d5043c-cf70-4c49-881c-c638f5796997/oauth2/v2.0/token
+          scopes:
+            default: https://api.cognitedata.com/.default
+    org-oidc-token:
+      type: openIdConnect
+      openIdConnectUrl: https://auth.cognite.com/.well-known/openid-configuration
+      description: 'Access token issued by the Cognite authorization server, and valid for the target organization. The token must
+
+        be an OpenID Connect token, and it can be obtained by performing an OIDC login flow toward `auth.cognite.com`.
+
+        This is a single URL for all CDF organizations.'
+x-tagGroups:
+- name: Changelog
+  tags:
+  - Changelog
+- name: Organizations and projects
+  tags:
+  - Organizations
+  - Projects
+- name: Identity and access management
+  tags:
+  - Principals
+  - Groups
+  - Security categories
+  - Sessions
+  - Token
+  - User profiles
+  - Project Deletion Reporting
+- name: Data modeling
+  tags:
+  - Data Modeling
+  - Data models
+  - Spaces
+  - Views
+  - Containers
+  - Nodes
+  - Instances
+  - Statistics
+  - Streams
+  - Records
+- name: Asset-centric data model
+  tags:
+  - Assets
+  - Time series
+  - Synthetic Time Series
+  - Data point subscriptions
+  - Events
+  - Files
+  - Sequences
+  - Geospatial
+  - Seismic
+- name: 3D
+  tags:
+  - 3D Models
+  - 3D Model Revisions
+  - 3D Files
+  - 3D Asset Mapping
+  - 3D Contextualization
+  - 3D Jobs
+  - 3D Migration
+  - 3D Scenes
+- name: Contextualization
+  tags:
+  - Entity matching
+  - Entity matching pipelines
+  - Engineering diagrams
+  - Vision
+  - Advanced joins
+- name: Cognite AI
+  tags:
+  - Agents
+  - Skills
+  - Chat Completions
+  - Document AI
+  - Models
+- name: Documents
+  tags:
+  - Documents
+  - Document preview
+- name: Data ingestion
+  tags:
+  - Raw
+  - Extraction Pipelines
+  - Extraction Pipelines Runs
+  - Extraction Pipelines Config
+  - Extractors
+- name: Data organization
+  tags:
+  - Data sets
+  - Data domains
+  - Data products
+  - Rule sets
+  - Labels
+  - Relationships
+  - Annotations
+- name: Transformations
+  tags:
+  - Transformations
+  - Transformation Jobs
+  - Transformation Schedules
+  - Transformation Notifications
+  - Query
+  - Schema
+- name: Functions
+  tags:
+  - Functions
+  - Function calls
+  - Function schedules
+- name: Hosted Extractors
+  tags:
+  - Sources
+  - Jobs
+  - Destinations
+  - Mappings
+- name: PostgreSQL Gateway
+  tags:
+  - Postgres Gateway Users
+  - Postgres Gateway Tables
+- name: SAP Writeback
+  tags:
+  - SAP Instances
+  - SAP Endpoints
+  - Schema Mappings
+  - Writeback Requests
+- name: Data workflows
+  tags:
+  - Workflows
+  - Workflow versions
+  - Workflow executions
+  - Workflow triggers
+  - Tasks
+  - Workers
+- name: Simulators
+  tags:
+  - Simulators
+  - Simulator Integrations
+  - Simulator Models
+  - Simulator Routines
+  - Simulation Runs
+  - Simulator Logs
+- name: Units
+  tags:
+  - Units
+  - Unit Systems
+- name: ''
+  tags:
+  - ''

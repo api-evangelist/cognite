@@ -1,0 +1,732 @@
+openapi: 3.1.0
+info:
+  title: Cognite 3D Asset Mapping 3D Jobs API
+  description: "# Introduction\nThis is the reference documentation for the Cognite API with\nan overview of all the available methods.\n\n# Postman\nSelect the **Download** button to download our OpenAPI specification to get started.\n\nTo import your data into Postman, select **Import**, and the Import modal opens.\nYou can import items by dragging or dropping files or folders. You can choose how to import your API and manage the import settings in **View Import Settings**.\n\nIn the Import Settings, set the **Folder organization** to **Tags**, select\n**Enable optional parameters** to turn off the settings, and select **Always inherit authentication** to turn on the settings. Select **Import**.\n\nSet the Authorization to **Oauth2.0**. By default, the settings are for Open Industrial Data. Navigate to [Cognite Hub](https://hub.cognite.com/open-industrial-data-211) to understand how to get the credentials for use in Postman.\n\nFor more information, see [Getting Started with Postman](https://developer.cognite.com/dev/guides/postman/).\n\n# Pagination\nMost resource types can be paginated, indicated by the field `nextCursor` in the response.\nBy passing the value of `nextCursor` as the cursor you will get the next page of `limit` results.\nNote that all parameters except `cursor` has to stay the same.\n\n# Parallel retrieval\nAs general guidance, Parallel Retrieval is a technique that should be used when due to query complexity, retrieval of data in a single request is significantly slower than it would otherwise be for a simple request.  Parallel retrieval does not act as a speed multiplier on optimally running queries.  By parallelizing such requests, data retrieval performance can be tuned to meet the client application needs. \n\nCDF supports parallel retrieval through the `partition` parameter, which has the format `m/n` where `n` is the amount of partitions you would like to split the entire data set into.\nIf you want to download the entire data set by splitting it into 10 partitions, do the following in parallel with `m` running from 1 to 10:\n  - Make a request to `/events` with `partition=m/10`.\n  - Paginate through the response by following the cursor as explained above. Note that the `partition` parameter needs to be passed to all subqueries.\n\nProcessing of parallel retrieval requests is subject to concurrency quota availability. The request returns the `429` response upon exceeding concurrency limits. See the Request throttling chapter below.\n\nTo prevent unexpected problems and to maximize read throughput, you should at most use 10 partitions. \nSome CDF resources will automatically enforce a maximum of 10 partitions.\nFor more specific and detailed information, please read the ```partition``` attribute documentation for the CDF resource you're using.  \n\n# Requests throttling\nCognite Data Fusion (CDF) returns the HTTP `429` (too many requests) response status code when project capacity exceeds the limit.\n\nThe throttling can happen:\n  - If a user or a project sends too many (more than allocated) concurrent requests.\n  - If a user or a project sends a too high (more than allocated) rate of requests in a given amount of time.\n\nCognite recommends using a retry strategy based on truncated exponential backoff to handle sessions with HTTP response codes 429.\n\nCognite recommends using a reasonable number (up to 10) of  `Parallel retrieval` partitions.\n\nFollowing these strategies lets you slow down the request frequency to maximize productivity without having to re-submit/retry failing requests.\n\nSee more [here](https://docs.cognite.com/dev/concepts/resource_throttling).\n\n# API versions\n## Version headers\nThis API uses calendar versioning, and version names follow the `YYYYMMDD` format.\nYou can find the versions currently available by using the version selector at the top of this page.\n\nTo use a specific API version, you can pass the `cdf-version: $version` header along with your requests to the API.\n\n## Beta versions\nThe beta versions provide a preview of what the stable version will look like in the future.\nBeta versions contain functionality that is reasonably mature, and highly likely to become a part of the stable API.\n\nBeta versions are indicated by a `-beta` suffix after the version name. For example, the beta version header for the\n2023-01-01 version is then `cdf-version: 20230101-beta`.\n\n## Alpha versions\nAlpha versions contain functionality that is new and experimental, and not guaranteed to ever become a part of the stable API.\nThis functionality presents no guarantee of service, so its use is subject to caution.\n\nAlpha versions are indicated by an `-alpha` suffix after the version name. For example, the alpha version header for\nthe 2023-01-01 version is then `cdf-version: 20230101-alpha`."
+  version: v1
+  contact:
+    name: Cognite Support
+    url: https://support.cognite.com
+    email: support@cognite.com
+servers:
+- url: https://{cluster}.cognitedata.com/api/v1/projects/{project}
+  description: The URL for the CDF cluster to connect to
+  variables:
+    cluster:
+      enum:
+      - api
+      - az-tyo-gp-001
+      - az-eastus-1
+      - az-power-no-northeurope
+      - westeurope-1
+      - asia-northeast1-1
+      - gc-dsm-gp-001
+      default: api
+      description: The CDF cluster to connect to
+    project:
+      default: publicdata
+      description: The CDF project name.
+security:
+- oidc-token:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-client-credentials:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-open-industrial-data:
+  - https://api.cognitedata.com/.default
+- oauth2-auth-code:
+  - https://{cluster}.cognitedata.com/.default
+tags:
+- name: 3D Jobs
+paths:
+  /3d/jobs:
+    post:
+      tags:
+      - 3D Jobs
+      summary: Create a job using 3D source data
+      description: '
+
+
+        > **Required capabilities:** `datamodels:READ(cdf_cdm, cdf_cdm_3d)` `datamodelinstances:WRITE`
+
+
+        Creates a job to be run using a 3D source. Currently supported in data-modeling projects only.
+
+        The user defines a dms instance they want the job to run against, and defines it as the source of the job.
+
+        Inside the job you define the space a job will exist in, and its external id, this is not populated into dms.
+
+        The job external id should be created by the client, and be unique.
+
+        If the job result is stored in dms, it will be stored using the space of the job.
+
+        A session nonce is required by the request.
+
+
+        Job types with supported job sources:
+
+        - Job Type: ImageTextDetection, Job Source type: Cognite360ImageCollection'
+      requestBody:
+        description: The job with a given source. Currently supports only one job to be created at the time.
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - $ref: '#/components/schemas/Create360ContextualizationJobRequest'
+      responses:
+        '201':
+          description: A list of the created jobs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateJobResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-capability:
+      - datamodels:READ(cdf_cdm, cdf_cdm_3d)
+      - datamodelinstances:WRITE
+  /3d/jobs/list:
+    post:
+      tags:
+      - 3D Jobs
+      summary: List jobs
+      description: '
+
+
+        > **Required capabilities:** `datamodels:READ(cdf_cdm, cdf_cdm_3d)` `datamodelinstances:READ`
+
+
+        List jobs for your project.'
+      requestBody:
+        description: A cursor for paginating the list of jobs.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListJobsRequest'
+      responses:
+        '200':
+          description: A flattened list of jobs with their source
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListJobsWithCursorResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-capability:
+      - datamodels:READ(cdf_cdm, cdf_cdm_3d)
+      - datamodelinstances:READ
+  /3d/jobs/delete:
+    post:
+      tags:
+      - 3D Jobs
+      summary: Delete jobs
+      description: '
+
+
+        > **Required capabilities:** `datamodels:READ(cdf_cdm, cdf_cdm_3d)` `datamodelinstances:WRITE`
+
+
+        Delete jobs in your project. The job instance results won''t be deleted by this operation.'
+      requestBody:
+        description: List of space and externalIds for jobs you want to delete
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteJobsRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/EmptyResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-capability:
+      - datamodels:READ(cdf_cdm, cdf_cdm_3d)
+      - datamodelinstances:WRITE
+  /3d/job/results/list:
+    post:
+      tags:
+      - 3D Jobs
+      summary: List Job Results
+      description: List the results of a job
+      requestBody:
+        description: The job space and externalId for the job you want results for
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListJobResultsRequest'
+      responses:
+        '200':
+          description: A list of results for the job
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListJobResultsWithCursorResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+  /3d/job/result/rejections:
+    post:
+      tags:
+      - 3D Jobs
+      summary: Update Job Result Rejections
+      description: 'Job Instance Results have internal unique keys you can reject
+
+        to allow yourself to filter away job results items you are no longer
+
+        interested in'
+      requestBody:
+        description: 'The Job space and externalId and the ResultInstanceId with the operation you
+
+          want to perform on the result.
+
+
+          Only one operation can be done at the time:
+
+          - add
+
+          - remove'
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateJobResultRejectionsRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/EmptyResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+  /3d/job/result/rejections/list:
+    post:
+      tags:
+      - 3D Jobs
+      summary: List Job Result Rejections
+      description: A list of internal keys that are to be considered rejected
+      requestBody:
+        description: 'The Job space and externalId and the ResultInstanceId which you want the
+
+          rejections from'
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListJobResultRejectionsRequest'
+      responses:
+        '200':
+          description: A List of rejected keys objects
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListJobResultRejectionsWithCursorResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+components:
+  schemas:
+    NextCursor:
+      type: string
+      description: Cursor to get the next page of results (if available).
+    ResultList:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResultWithType'
+    UpdateJobResultRejectionsRequest:
+      oneOf:
+      - $ref: '#/components/schemas/AddJobResultRejections'
+      - $ref: '#/components/schemas/RemoveJobResultRejections'
+    CogniteInstanceId:
+      description: The ID of an [instance in Cognite Data Models](https://docs.cognite.com/cdf/dm/dm_concepts/dm_spaces_instances#instance).
+      type: object
+      required:
+      - space
+      - externalId
+      properties:
+        space:
+          type: string
+          minLength: 1
+          maxLength: 43
+        externalId:
+          type: string
+          minLength: 1
+          maxLength: 255
+    RemoveJobResultRejections:
+      type: object
+      required:
+      - job
+      - result
+      - remove
+      properties:
+        job:
+          $ref: '#/components/schemas/JobIdentifier'
+        result:
+          $ref: '#/components/schemas/InstanceReference'
+        remove:
+          type: array
+          items:
+            type: string
+    NextCursorData:
+      type: object
+      properties:
+        nextCursor:
+          $ref: '#/components/schemas/NextCursor'
+    Create360ContextualizationJobRequest:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          maxItems: 1
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/Create360ContextualizationJobItem'
+    ListJobResultRejectionsWithCursorResponse:
+      allOf:
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
+            items:
+              $ref: '#/components/schemas/RejectedKey'
+      - $ref: '#/components/schemas/NextCursorData'
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
+    ImageTextDetectionJob:
+      allOf:
+      - $ref: '#/components/schemas/Job'
+      - type: object
+        required:
+        - type
+        - configuration
+        - source
+        properties:
+          type:
+            type: string
+            summary: ImageTextDetection
+            description: 'The image text detection job type is used to run OCR (Optical Character Recognition) on
+
+              360-degree images stored in a 360-image collection.'
+            enum:
+            - ImageTextDetection
+          source:
+            allOf:
+            - type: object
+              required:
+              - type
+              properties:
+                type:
+                  type: string
+                  enum:
+                  - Cognite360ImageCollection
+            - $ref: '#/components/schemas/InstanceReference'
+          configuration:
+            type: object
+            description: Job configuration for the ImageTextDetection job type. Currently, no additional configuration is supported for this job type.
+            properties: {}
+    ResultWithType:
+      allOf:
+      - type: object
+        required:
+        - type
+        properties:
+          type:
+            $ref: '#/components/schemas/ResultType'
+      - $ref: '#/components/schemas/InstanceReference'
+    ResultType:
+      type: string
+      enum:
+      - CogniteFile
+    ListJobResultRejectionsRequest:
+      allOf:
+      - type: object
+        required:
+        - job
+        - result
+        properties:
+          job:
+            $ref: '#/components/schemas/JobIdentifier'
+          result:
+            $ref: '#/components/schemas/InstanceReference'
+      - $ref: '#/components/schemas/Cursor'
+    ListJobsWithCursorResponse:
+      allOf:
+      - $ref: '#/components/schemas/JobsList'
+      - $ref: '#/components/schemas/NextCursorData'
+    AddJobResultRejections:
+      type: object
+      required:
+      - job
+      - result
+      - add
+      properties:
+        job:
+          $ref: '#/components/schemas/JobIdentifier'
+        result:
+          $ref: '#/components/schemas/InstanceReference'
+        add:
+          type: array
+          items:
+            type: string
+    JobItem:
+      allOf:
+      - $ref: '#/components/schemas/Jobs'
+      - type: object
+        required:
+        - status
+        - createdAt
+        properties:
+          status:
+            type: string
+            enum:
+            - Scheduled
+            - Started
+            - Failed
+            - Succeeded
+            - Cancelled
+            description: Status of the job
+          createdAt:
+            type: integer
+            format: int64
+            description: Timestamp when the job was created
+    SpaceSpecification:
+      type: string
+      pattern: ^[a-zA-Z][a-zA-Z0-9_-]{0,41}[a-zA-Z0-9]?$
+      minLength: 1
+      maxLength: 43
+    Job:
+      type: object
+      required:
+      - space
+      - externalId
+      - name
+      properties:
+        space:
+          $ref: '#/components/schemas/SpaceSpecification'
+        externalId:
+          $ref: '#/components/schemas/JobExternalId'
+        name:
+          type: string
+    JobsList:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/JobItem'
+    DeleteJobsRequest:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/JobIdentifier'
+    ListJobResultsRequest:
+      allOf:
+      - type: object
+        required:
+        - job
+        properties:
+          job:
+            $ref: '#/components/schemas/JobIdentifier'
+      - $ref: '#/components/schemas/Cursor'
+    Jobs:
+      oneOf:
+      - $ref: '#/components/schemas/ImageTextDetectionJob'
+    JobExternalId:
+      type: string
+      pattern: ^[^\x00]{1,256}$
+      minLength: 1
+      maxLength: 256
+    JobIdentifier:
+      type: object
+      required:
+      - space
+      - externalId
+      properties:
+        space:
+          $ref: '#/components/schemas/SpaceSpecification'
+        externalId:
+          $ref: '#/components/schemas/JobExternalId'
+    InstanceReference:
+      type: object
+      required:
+      - instanceId
+      properties:
+        instanceId:
+          $ref: '#/components/schemas/CogniteInstanceId'
+    RejectedKey:
+      type: object
+      required:
+      - rejectedKey
+      properties:
+        rejectedKey:
+          type: string
+    Create360ContextualizationJobItem:
+      allOf:
+      - $ref: '#/components/schemas/ImageTextDetectionJob'
+      - type: object
+        required:
+        - nonce
+        properties:
+          nonce:
+            title: Nonce
+            type: string
+            description: Session nonce for a recently created CDF Session.
+    ListJobResultsWithCursorResponse:
+      allOf:
+      - $ref: '#/components/schemas/ResultList'
+      - $ref: '#/components/schemas/NextCursorData'
+    Cursor:
+      type: object
+      properties:
+        cursor:
+          type: string
+          example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
+
+        property, it means that there may be more results, and you should pass that value as the
+
+        `cursor` parameter in the next request.
+
+
+        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
+
+        decoded. Its internal structure is not a part of the public API, and may change without
+
+        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
+
+        '
+    CreateJobResponse:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/JobItem'
+    ListJobsRequest:
+      allOf:
+      - $ref: '#/components/schemas/Cursor'
+  responses:
+    ErrorResponse:
+      description: The response for a failed request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+    EmptyResponse:
+      description: Empty response.
+      content:
+        application/json:
+          schema:
+            type: object
+  securitySchemes:
+    oidc-token:
+      type: http
+      scheme: bearer
+      bearerFormat: OpenID Connect or OAuth2 token
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+    oauth2-client-credentials:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        clientCredentials:
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-auth-code:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://your-idps.authorization.url/
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-open-industrial-data:
+      type: oauth2
+      description: Auth flow for Open Industrial Data. Get your client secret from https://hub.cognite.com/open-industrial-data-211.
+      flows:
+        clientCredentials:
+          tokenUrl: https://login.microsoftonline.com/48d5043c-cf70-4c49-881c-c638f5796997/oauth2/v2.0/token
+          scopes:
+            default: https://api.cognitedata.com/.default
+    org-oidc-token:
+      type: openIdConnect
+      openIdConnectUrl: https://auth.cognite.com/.well-known/openid-configuration
+      description: 'Access token issued by the Cognite authorization server, and valid for the target organization. The token must
+
+        be an OpenID Connect token, and it can be obtained by performing an OIDC login flow toward `auth.cognite.com`.
+
+        This is a single URL for all CDF organizations.'
+x-tagGroups:
+- name: Changelog
+  tags:
+  - Changelog
+- name: Organizations and projects
+  tags:
+  - Organizations
+  - Projects
+- name: Identity and access management
+  tags:
+  - Principals
+  - Groups
+  - Security categories
+  - Sessions
+  - Token
+  - User profiles
+  - Project Deletion Reporting
+- name: Data modeling
+  tags:
+  - Data Modeling
+  - Data models
+  - Spaces
+  - Views
+  - Containers
+  - Nodes
+  - Instances
+  - Statistics
+  - Streams
+  - Records
+- name: Asset-centric data model
+  tags:
+  - Assets
+  - Time series
+  - Synthetic Time Series
+  - Data point subscriptions
+  - Events
+  - Files
+  - Sequences
+  - Geospatial
+  - Seismic
+- name: 3D
+  tags:
+  - 3D Models
+  - 3D Model Revisions
+  - 3D Files
+  - 3D Asset Mapping
+  - 3D Contextualization
+  - 3D Jobs
+  - 3D Migration
+  - 3D Scenes
+- name: Contextualization
+  tags:
+  - Entity matching
+  - Entity matching pipelines
+  - Engineering diagrams
+  - Vision
+  - Advanced joins
+- name: Cognite AI
+  tags:
+  - Agents
+  - Skills
+  - Chat Completions
+  - Document AI
+  - Models
+- name: Documents
+  tags:
+  - Documents
+  - Document preview
+- name: Data ingestion
+  tags:
+  - Raw
+  - Extraction Pipelines
+  - Extraction Pipelines Runs
+  - Extraction Pipelines Config
+  - Extractors
+- name: Data organization
+  tags:
+  - Data sets
+  - Data domains
+  - Data products
+  - Rule sets
+  - Labels
+  - Relationships
+  - Annotations
+- name: Transformations
+  tags:
+  - Transformations
+  - Transformation Jobs
+  - Transformation Schedules
+  - Transformation Notifications
+  - Query
+  - Schema
+- name: Functions
+  tags:
+  - Functions
+  - Function calls
+  - Function schedules
+- name: Hosted Extractors
+  tags:
+  - Sources
+  - Jobs
+  - Destinations
+  - Mappings
+- name: PostgreSQL Gateway
+  tags:
+  - Postgres Gateway Users
+  - Postgres Gateway Tables
+- name: SAP Writeback
+  tags:
+  - SAP Instances
+  - SAP Endpoints
+  - Schema Mappings
+  - Writeback Requests
+- name: Data workflows
+  tags:
+  - Workflows
+  - Workflow versions
+  - Workflow executions
+  - Workflow triggers
+  - Tasks
+  - Workers
+- name: Simulators
+  tags:
+  - Simulators
+  - Simulator Integrations
+  - Simulator Models
+  - Simulator Routines
+  - Simulation Runs
+  - Simulator Logs
+- name: Units
+  tags:
+  - Units
+  - Unit Systems
+- name: ''
+  tags:
+  - ''

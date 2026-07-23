@@ -1,0 +1,802 @@
+openapi: 3.1.0
+info:
+  title: Cognite 3D Asset Mapping Organizations API
+  description: "# Introduction\nThis is the reference documentation for the Cognite API with\nan overview of all the available methods.\n\n# Postman\nSelect the **Download** button to download our OpenAPI specification to get started.\n\nTo import your data into Postman, select **Import**, and the Import modal opens.\nYou can import items by dragging or dropping files or folders. You can choose how to import your API and manage the import settings in **View Import Settings**.\n\nIn the Import Settings, set the **Folder organization** to **Tags**, select\n**Enable optional parameters** to turn off the settings, and select **Always inherit authentication** to turn on the settings. Select **Import**.\n\nSet the Authorization to **Oauth2.0**. By default, the settings are for Open Industrial Data. Navigate to [Cognite Hub](https://hub.cognite.com/open-industrial-data-211) to understand how to get the credentials for use in Postman.\n\nFor more information, see [Getting Started with Postman](https://developer.cognite.com/dev/guides/postman/).\n\n# Pagination\nMost resource types can be paginated, indicated by the field `nextCursor` in the response.\nBy passing the value of `nextCursor` as the cursor you will get the next page of `limit` results.\nNote that all parameters except `cursor` has to stay the same.\n\n# Parallel retrieval\nAs general guidance, Parallel Retrieval is a technique that should be used when due to query complexity, retrieval of data in a single request is significantly slower than it would otherwise be for a simple request.  Parallel retrieval does not act as a speed multiplier on optimally running queries.  By parallelizing such requests, data retrieval performance can be tuned to meet the client application needs. \n\nCDF supports parallel retrieval through the `partition` parameter, which has the format `m/n` where `n` is the amount of partitions you would like to split the entire data set into.\nIf you want to download the entire data set by splitting it into 10 partitions, do the following in parallel with `m` running from 1 to 10:\n  - Make a request to `/events` with `partition=m/10`.\n  - Paginate through the response by following the cursor as explained above. Note that the `partition` parameter needs to be passed to all subqueries.\n\nProcessing of parallel retrieval requests is subject to concurrency quota availability. The request returns the `429` response upon exceeding concurrency limits. See the Request throttling chapter below.\n\nTo prevent unexpected problems and to maximize read throughput, you should at most use 10 partitions. \nSome CDF resources will automatically enforce a maximum of 10 partitions.\nFor more specific and detailed information, please read the ```partition``` attribute documentation for the CDF resource you're using.  \n\n# Requests throttling\nCognite Data Fusion (CDF) returns the HTTP `429` (too many requests) response status code when project capacity exceeds the limit.\n\nThe throttling can happen:\n  - If a user or a project sends too many (more than allocated) concurrent requests.\n  - If a user or a project sends a too high (more than allocated) rate of requests in a given amount of time.\n\nCognite recommends using a retry strategy based on truncated exponential backoff to handle sessions with HTTP response codes 429.\n\nCognite recommends using a reasonable number (up to 10) of  `Parallel retrieval` partitions.\n\nFollowing these strategies lets you slow down the request frequency to maximize productivity without having to re-submit/retry failing requests.\n\nSee more [here](https://docs.cognite.com/dev/concepts/resource_throttling).\n\n# API versions\n## Version headers\nThis API uses calendar versioning, and version names follow the `YYYYMMDD` format.\nYou can find the versions currently available by using the version selector at the top of this page.\n\nTo use a specific API version, you can pass the `cdf-version: $version` header along with your requests to the API.\n\n## Beta versions\nThe beta versions provide a preview of what the stable version will look like in the future.\nBeta versions contain functionality that is reasonably mature, and highly likely to become a part of the stable API.\n\nBeta versions are indicated by a `-beta` suffix after the version name. For example, the beta version header for the\n2023-01-01 version is then `cdf-version: 20230101-beta`.\n\n## Alpha versions\nAlpha versions contain functionality that is new and experimental, and not guaranteed to ever become a part of the stable API.\nThis functionality presents no guarantee of service, so its use is subject to caution.\n\nAlpha versions are indicated by an `-alpha` suffix after the version name. For example, the alpha version header for\nthe 2023-01-01 version is then `cdf-version: 20230101-alpha`."
+  version: v1
+  contact:
+    name: Cognite Support
+    url: https://support.cognite.com
+    email: support@cognite.com
+servers:
+- url: https://{cluster}.cognitedata.com/api/v1/projects/{project}
+  description: The URL for the CDF cluster to connect to
+  variables:
+    cluster:
+      enum:
+      - api
+      - az-tyo-gp-001
+      - az-eastus-1
+      - az-power-no-northeurope
+      - westeurope-1
+      - asia-northeast1-1
+      - gc-dsm-gp-001
+      default: api
+      description: The CDF cluster to connect to
+    project:
+      default: publicdata
+      description: The CDF project name.
+security:
+- oidc-token:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-client-credentials:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-open-industrial-data:
+  - https://api.cognitedata.com/.default
+- oauth2-auth-code:
+  - https://{cluster}.cognitedata.com/.default
+tags:
+- name: Organizations
+  description: 'An **organization** is used to group CDF projects and facilitate their management.
+
+
+    An organization holds users, projects, and perhaps other organizations. The organization ID is what the users enter
+
+    when logging into Cognite apps, such as Cognite Data Fusion. The organization has one IdP configuration, which is used
+
+    for both interactive login and service account authentication against all projects in the organization.
+
+
+    ### External identity providers (IdP)
+
+    CDF supports interfacing with external IdPs to manage users and groups. The following vendors are supported:
+
+    - Microsoft Entra ID (formerly known as Azure AD or Azure Active Directory)
+
+    - Auth0
+
+    - Keycloak
+
+
+    ### Users
+
+    If a user can log into the external IdP configured for the organization, then they have access to the CDF organization.
+
+    Which of the organization''s projects they have access to, and what they may do inside those projects, is determined by
+
+    the access settings within each project.
+
+
+    After a user has logged into the organization for the first time, they will be visible in the organization''s user list.
+
+    Users can see each other, which enables them to collaborate on projects.
+
+
+    ### Organization hierarchy
+
+    An organization can have child organizations. The ownership relationship is materialized through the `parentId`
+
+    field of the organization resource.
+
+
+    ### Projects
+
+    An organization holds CDF projects. The users that are logged into the organization can see all the projects in the
+
+    organization, but what they can actually do within each project is controlled by the project''s access control lists
+
+    (ACLs) and other access control settings.
+
+
+    ### Allowed clusters
+
+    An organization has a list of clusters on which it can hold projects. This is the `allowedClusters` field on the
+
+    resource.
+
+
+    ### Organization admins
+
+    An organization can have admins, which are identified principals that can perform an extended set of modifications on
+
+    the organization, such as creating projects, changing who the admins are, and so on.
+
+
+    Admins are identified by the `adminGroupId` field on the organization resource, which is the ID of a group that is
+
+    managed in the external IdP.
+
+
+    The different organization API endpoints have different access rules, which are documented under each endpoint.
+
+    The general rule is that admins of a given organization have control over most aspects of the organization itself
+
+    and full control of any sub-organizations.
+
+
+    ### Authentication for this API
+
+    Organizations are global, which means that they are not tied to specific projects or clusters.
+
+    API requests against organizations are directed to `auth.cognite.com`, instead of a specific cluster and projects
+
+    as for other resources.
+
+
+    Only OAuth tokens issued by `https://auth.cognite.com` (such as the ones issued when logging into Fusion) are accepted
+
+    by the organizations API.
+
+
+    It is also possible to obtain a token by initiating a login flow against the authorization server directly. See
+
+    the "Authorizations" sections for more information.
+
+    '
+paths:
+  /api/v1/orgs/{org}/orgs:
+    servers:
+    - url: https://auth.cognite.com
+    post:
+      operationId: createChildOrg
+      summary: Create an organization
+      security:
+      - org-oidc-token: []
+      description: 'Create a child organization under the specified organization.
+
+
+        #### Access control
+
+        Requires the caller to be an admin in the parent organization (i.e. the one on the path), or any of its ancestors.
+
+        In addition, the flag `adminsCanCreateOrgsInSubtree` must be set to `true` in that organization.
+
+
+        _Example:_ Assume an organization hierarchy like: `org-a` -> `org-b` -> `org-c`.
+
+        To create a new organization under `org-c`, which means calling ''POST /api/v1/orgs/org-c/orgs'', the caller must be an
+
+        admin in at least one of `org-a`, `org-b`, or `org-c`, and `adminsCanCreateOrgsInSubtree` must be `true` in that same organization.'
+      tags:
+      - Organizations
+      parameters:
+      - $ref: '#/components/parameters/OrgId'
+      requestBody:
+        $ref: '#/components/requestBodies/OrganizationRequestDto'
+      responses:
+        '201':
+          $ref: '#/components/responses/OrganizationResponseDto'
+        '403':
+          description: 'Creation forbidden: The caller is not allowed to create sub-organizations.'
+    get:
+      operationId: listChildOrgs
+      summary: List child organizations
+      security:
+      - org-oidc-token: []
+      description: 'List all child organizations under the specified parent organization.
+
+
+        #### Access control
+
+        Requires the caller to be an admin in the parent organization (i.e. the one on the path), or any of its ancestors.
+
+
+        _Example:_ Assume an organization hierarchy like: `org-a` -> `org-b` -> `org-c`.
+
+        To list child organizations under `org-b`, which means calling ''GET /api/v1/orgs/org-b/orgs'', the caller must be an
+
+        admin in `org-a` or `org-b`.'
+      tags:
+      - Organizations
+      parameters:
+      - $ref: '#/components/parameters/OrgId'
+      responses:
+        '200':
+          $ref: '#/components/responses/OrganizationListResponse'
+  /api/v1/orgs/{org}:
+    servers:
+    - url: https://auth.cognite.com
+    get:
+      operationId: getOrg
+      summary: Retrieve an organization
+      security:
+      - org-oidc-token: []
+      description: 'Retrieve an organization by its ID.
+
+
+        #### Access control
+
+        Requires the caller to be an admin in the organization, or any of its ancestors.
+
+
+        _Example:_ Assume an organization hierarchy like: `org-a` -> `org-b` -> `org-c`.
+
+        To retrieve `org-c`, which means calling ''GET /api/v1/orgs/org-c'', the caller must be an admin in `org-a`, `org-b` or
+
+        `org-c`.'
+      tags:
+      - Organizations
+      parameters:
+      - $ref: '#/components/parameters/OrgId'
+      responses:
+        '200':
+          $ref: '#/components/responses/OrganizationWithContactPersonsResponseDto'
+  /api/v1/orgs/{org}/delete:
+    servers:
+    - url: https://auth.cognite.com
+    post:
+      operationId: deleteOrg
+      summary: Delete an organization
+      security:
+      - org-oidc-token: []
+      description: 'Delete an organization. Users will be locked out of the organization immediately. This also applies to the caller.
+
+
+        The organization cannot contain sub-organizations or projects at the time of deletion.
+
+
+        This is a soft-delete, so Cognite Support can restore the organization in case of accidents.
+
+
+        #### Access control
+
+        Requires the caller to be an admin in the organization, or any of its ancestors.
+
+
+        _Example:_ Assume an organization hierarchy like: `org-a` -> `org-b` -> `org-c`.
+
+        To delete `org-c`, which means calling ''POST /api/v1/orgs/org-c/delete'', the caller must be an admin in `org-a`, `org-b` or
+
+        `org-c`.'
+      tags:
+      - Organizations
+      parameters:
+      - $ref: '#/components/parameters/OrgId'
+      responses:
+        '200':
+          description: Successful deletion
+          content:
+            application/json:
+              schema:
+                type: object
+components:
+  schemas:
+    OrganizationRequestItem:
+      type: object
+      required:
+      - id
+      - idp
+      properties:
+        id:
+          allOf:
+          - description: The ID of the new organization
+            example: new-org
+          - $ref: '#/components/schemas/OrgId'
+        idp:
+          $ref: '#/components/schemas/IdentityProvider'
+        adminGroupId:
+          allOf:
+          - $ref: '#/components/schemas/ExternalGroupId'
+          - description: The ID of the externally managed group that contains the organization's admins.
+            default: null
+        adminsCanCreateOrgsInSubtree:
+          type: boolean
+          description: 'Whether admins of the new organization are allowed to create organizations in the subtree of the
+
+            organization.'
+          default: false
+        adminsCanCreateProjectsInSubtree:
+          type: boolean
+          description: 'Whether admins of the new organization are allowed to create CDF projects in the subtree of the
+
+            organization.'
+          default: false
+        allowedClusters:
+          type: array
+          description: 'The clusters on which the admins of the organization will be able to create projects.
+
+            This must be a (non-strict) subset of the `allowedClusters` set of the parent organization.'
+          default: []
+          example:
+          - westeurope-1
+          - asia-northeast1-1
+          items:
+            $ref: '#/components/schemas/ClusterName'
+    ExternalGroupId:
+      type: string
+      description: The ID of a group managed by the external identity provider
+      minLength: 3
+      maxLength: 64
+      example: my-external-group
+    ExtraAuthParameter:
+      type: object
+      description: Extra parameters to send to the external IdP
+      required:
+      - name
+      - value
+      properties:
+        name:
+          type: string
+          description: The name of the parameter
+        value:
+          type: string
+          description: The value of the parameter
+    AWSCognitoIdP:
+      allOf:
+      - $ref: '#/components/schemas/IdpBase'
+      - type: object
+        description: AWS Cognito IdP configuration
+        required:
+        - idpVendor
+        - clientId
+        - clientSecret
+        properties:
+          idpVendor:
+            type: string
+            enum:
+            - AWS_COGNITO
+          clientId:
+            type: string
+            description: The client ID of the AWS Cognito application
+          clientSecret:
+            type: string
+            format: password
+            description: The client secret of the AWS Cognito application
+    ClusterName:
+      type: string
+      description: A CDF cluster name
+      minLength: 1
+      maxLength: 32
+      pattern: ^[a-z0-9-]{1,32}$
+      example: westeurope-1
+    KeycloakIdp:
+      allOf:
+      - $ref: '#/components/schemas/IdpBase'
+      - type: object
+        description: Keycloak IdP configuration
+        required:
+        - idpVendor
+        - clientId
+        properties:
+          idpVendor:
+            type: string
+            enum:
+            - KEYCLOAK
+          clientId:
+            type: string
+            description: The client ID of the Keycloak application
+    IdentityProvider:
+      description: Configuration for an external OIDC-compliant IdP.
+      oneOf:
+      - $ref: '#/components/schemas/AzureAdIdp'
+      - $ref: '#/components/schemas/Auth0Idp'
+      - $ref: '#/components/schemas/KeycloakIdp'
+      - $ref: '#/components/schemas/SAuthIdp'
+      - $ref: '#/components/schemas/AWSCognitoIdP'
+      - $ref: '#/components/schemas/OktaIdP'
+    OktaIdP:
+      allOf:
+      - $ref: '#/components/schemas/IdpBase'
+      - type: object
+        description: Okta IdP configuration
+        required:
+        - idpVendor
+        - clientId
+        - clientSecret
+        - groupsClaimName
+        - accessTokenAudience
+        properties:
+          idpVendor:
+            type: string
+            enum:
+            - OKTA
+          clientId:
+            type: string
+            description: The client ID of the Okta application.
+          clientSecret:
+            type: string
+            description: The client secret of the Okta application. It is write-only and cannot be read.
+          groupsClaimName:
+            description: The name of the claim that contains the groups in the token
+            type: string
+            pattern: ^[a-z0-9][a-z0-9_\-./:]{0,31}(?<![^a-z0-9])$
+            minLength: 1
+            maxLength: 32
+            example: my-groups-claim
+          accessTokenAudience:
+            type: string
+            description: The expected value of the `aud` claim in the Okta access tokens.
+    AzureAdIdp:
+      allOf:
+      - type: object
+        description: Azure AD IdP configuration
+        required:
+        - idpVendor
+        properties:
+          idpVendor:
+            type: string
+            enum:
+            - AZURE_AD
+          issuer:
+            example: https://login.microsoftonline.com/some-tenant-id/v2.0
+            description: The issuer for the external IdP. For Azure AD, it conforms to the example URL and contains the tenant ID.
+      - $ref: '#/components/schemas/IdpBase'
+    OrgId:
+      type: string
+      description: The ID of an organization
+      minLength: 3
+      maxLength: 64
+      example: my-org
+      pattern: ^([a-z][a-z0-9-]{1,62}[a-z0-9])$
+    OrganizationWithContactPersons:
+      allOf:
+      - $ref: '#/components/schemas/Organization'
+      - description: An organization
+    Organization:
+      description: An organization
+      type: object
+      required:
+      - id
+      - parentId
+      - idp
+      - adminsCanCreateOrgsInSubtree
+      - adminsCanCreateProjectsInSubtree
+      - allowedClusters
+      properties:
+        id:
+          $ref: '#/components/schemas/OrgId'
+        parentId:
+          allOf:
+          - description: The ID of the parent organization
+          - $ref: '#/components/schemas/OrgId'
+        idp:
+          $ref: '#/components/schemas/IdentityProvider'
+        adminGroupId:
+          allOf:
+          - $ref: '#/components/schemas/ExternalGroupId'
+          - description: The ID of the externally managed group that contains the organization's admins.
+            default: null
+        adminsCanCreateOrgsInSubtree:
+          type: boolean
+          description: 'Whether admins of the new organization are allowed to create organizations in the subtree of the
+
+            organization.'
+          default: false
+        adminsCanCreateProjectsInSubtree:
+          type: boolean
+          description: 'Whether admins of the new organization are allowed to create CDF projects in the subtree of the
+
+            organization.'
+          default: false
+        allowedClusters:
+          type: array
+          description: 'The clusters on which the admins of the organization will be able to create projects.
+
+            This must be a (non-strict) subset of the `allowedClusters` set of the parent organization.'
+          default: []
+          example:
+          - westeurope-1
+          - asia-northeast1-1
+          items:
+            $ref: '#/components/schemas/ClusterName'
+    Auth0Idp:
+      allOf:
+      - $ref: '#/components/schemas/IdpBase'
+      - type: object
+        description: Auth0 IdP configuration
+        required:
+        - idpVendor
+        - clientId
+        - clientSecret
+        - groupsClaimName
+        properties:
+          idpVendor:
+            type: string
+            enum:
+            - AUTH0
+          clientId:
+            type: string
+            description: The client ID of the Auth0 application
+          clientSecret:
+            type: string
+            format: password
+            description: The client secret of the Auth0 application. It is write-only and cannot be read.
+          groupsClaimName:
+            description: The name of the claim that contains the groups in the token
+            type: string
+            pattern: ^[a-z0-9][a-z0-9_\-./:]{0,31}(?<![^a-z0-9])$
+            minLength: 1
+            maxLength: 32
+            example: my-groups-claim
+          extraAuthParameters:
+            type: array
+            description: Extra parameters to be sent to the Auth0 token endpoint
+            items:
+              $ref: '#/components/schemas/ExtraAuthParameter'
+    IdpBase:
+      type: object
+      required:
+      - issuer
+      properties:
+        issuer:
+          type: string
+          format: url
+          example: https://login.microsoftonline.com/some-tenant-id/v2.0
+          description: The issuer for the external IdP.
+    SAuthIdp:
+      allOf:
+      - $ref: '#/components/schemas/IdpBase'
+      - type: object
+        description: SAuth IdP configuration
+        required:
+        - idpVendor
+        - clientId
+        - clientSecret
+        - appKey
+        - groupsUrl
+        - idTokenAudience
+        - extraScope
+        properties:
+          idpVendor:
+            type: string
+            enum:
+            - SAUTH
+          clientId:
+            type: string
+            description: The client ID of the SAuth application
+          clientSecret:
+            type: string
+            format: password
+            description: The client secret of the SAuth application. It is write-only and cannot be read.
+          appKey:
+            type: string
+            format: password
+            description: The app key of the SAuth application. It is write-only and cannot be read.
+          groupsUrl:
+            type: string
+            description: The URL for the group membership callback endpoint of the SAuth server.
+          idTokenAudience:
+            type: string
+            description: The expected value of the `aud` claim in the SAuth identity tokens.
+          extraScope:
+            type: string
+            description: The extra scope to request from SAuth, in addition to the standard scopes `openid offline_access profile email`.
+  responses:
+    OrganizationListResponse:
+      description: A list of organizations
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            properties:
+              items:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Organization'
+              nextCursor:
+                type: string
+                description: 'The cursor to get the next page of results (if available). Note that the server
+
+                  may choose to paginate the results even though no limit can be specified by the user.'
+    OrganizationResponseDto:
+      description: A successfully created organization
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            properties:
+              items:
+                type: array
+                minItems: 1
+                maxItems: 1
+                items:
+                  $ref: '#/components/schemas/Organization'
+    OrganizationWithContactPersonsResponseDto:
+      description: An organization
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/OrganizationWithContactPersons'
+  requestBodies:
+    OrganizationRequestDto:
+      description: A request to create an organization.
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            properties:
+              items:
+                type: array
+                minItems: 1
+                maxItems: 1
+                items:
+                  $ref: '#/components/schemas/OrganizationRequestItem'
+  parameters:
+    OrgId:
+      name: org
+      in: path
+      description: ID of an organization
+      required: true
+      schema:
+        $ref: '#/components/schemas/OrgId'
+  securitySchemes:
+    oidc-token:
+      type: http
+      scheme: bearer
+      bearerFormat: OpenID Connect or OAuth2 token
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+    oauth2-client-credentials:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        clientCredentials:
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-auth-code:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://your-idps.authorization.url/
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-open-industrial-data:
+      type: oauth2
+      description: Auth flow for Open Industrial Data. Get your client secret from https://hub.cognite.com/open-industrial-data-211.
+      flows:
+        clientCredentials:
+          tokenUrl: https://login.microsoftonline.com/48d5043c-cf70-4c49-881c-c638f5796997/oauth2/v2.0/token
+          scopes:
+            default: https://api.cognitedata.com/.default
+    org-oidc-token:
+      type: openIdConnect
+      openIdConnectUrl: https://auth.cognite.com/.well-known/openid-configuration
+      description: 'Access token issued by the Cognite authorization server, and valid for the target organization. The token must
+
+        be an OpenID Connect token, and it can be obtained by performing an OIDC login flow toward `auth.cognite.com`.
+
+        This is a single URL for all CDF organizations.'
+x-tagGroups:
+- name: Changelog
+  tags:
+  - Changelog
+- name: Organizations and projects
+  tags:
+  - Organizations
+  - Projects
+- name: Identity and access management
+  tags:
+  - Principals
+  - Groups
+  - Security categories
+  - Sessions
+  - Token
+  - User profiles
+  - Project Deletion Reporting
+- name: Data modeling
+  tags:
+  - Data Modeling
+  - Data models
+  - Spaces
+  - Views
+  - Containers
+  - Nodes
+  - Instances
+  - Statistics
+  - Streams
+  - Records
+- name: Asset-centric data model
+  tags:
+  - Assets
+  - Time series
+  - Synthetic Time Series
+  - Data point subscriptions
+  - Events
+  - Files
+  - Sequences
+  - Geospatial
+  - Seismic
+- name: 3D
+  tags:
+  - 3D Models
+  - 3D Model Revisions
+  - 3D Files
+  - 3D Asset Mapping
+  - 3D Contextualization
+  - 3D Jobs
+  - 3D Migration
+  - 3D Scenes
+- name: Contextualization
+  tags:
+  - Entity matching
+  - Entity matching pipelines
+  - Engineering diagrams
+  - Vision
+  - Advanced joins
+- name: Cognite AI
+  tags:
+  - Agents
+  - Skills
+  - Chat Completions
+  - Document AI
+  - Models
+- name: Documents
+  tags:
+  - Documents
+  - Document preview
+- name: Data ingestion
+  tags:
+  - Raw
+  - Extraction Pipelines
+  - Extraction Pipelines Runs
+  - Extraction Pipelines Config
+  - Extractors
+- name: Data organization
+  tags:
+  - Data sets
+  - Data domains
+  - Data products
+  - Rule sets
+  - Labels
+  - Relationships
+  - Annotations
+- name: Transformations
+  tags:
+  - Transformations
+  - Transformation Jobs
+  - Transformation Schedules
+  - Transformation Notifications
+  - Query
+  - Schema
+- name: Functions
+  tags:
+  - Functions
+  - Function calls
+  - Function schedules
+- name: Hosted Extractors
+  tags:
+  - Sources
+  - Jobs
+  - Destinations
+  - Mappings
+- name: PostgreSQL Gateway
+  tags:
+  - Postgres Gateway Users
+  - Postgres Gateway Tables
+- name: SAP Writeback
+  tags:
+  - SAP Instances
+  - SAP Endpoints
+  - Schema Mappings
+  - Writeback Requests
+- name: Data workflows
+  tags:
+  - Workflows
+  - Workflow versions
+  - Workflow executions
+  - Workflow triggers
+  - Tasks
+  - Workers
+- name: Simulators
+  tags:
+  - Simulators
+  - Simulator Integrations
+  - Simulator Models
+  - Simulator Routines
+  - Simulation Runs
+  - Simulator Logs
+- name: Units
+  tags:
+  - Units
+  - Unit Systems
+- name: ''
+  tags:
+  - ''

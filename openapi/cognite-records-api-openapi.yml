@@ -1,0 +1,2998 @@
+openapi: 3.1.0
+info:
+  title: Cognite 3D Asset Mapping Records API
+  description: "# Introduction\nThis is the reference documentation for the Cognite API with\nan overview of all the available methods.\n\n# Postman\nSelect the **Download** button to download our OpenAPI specification to get started.\n\nTo import your data into Postman, select **Import**, and the Import modal opens.\nYou can import items by dragging or dropping files or folders. You can choose how to import your API and manage the import settings in **View Import Settings**.\n\nIn the Import Settings, set the **Folder organization** to **Tags**, select\n**Enable optional parameters** to turn off the settings, and select **Always inherit authentication** to turn on the settings. Select **Import**.\n\nSet the Authorization to **Oauth2.0**. By default, the settings are for Open Industrial Data. Navigate to [Cognite Hub](https://hub.cognite.com/open-industrial-data-211) to understand how to get the credentials for use in Postman.\n\nFor more information, see [Getting Started with Postman](https://developer.cognite.com/dev/guides/postman/).\n\n# Pagination\nMost resource types can be paginated, indicated by the field `nextCursor` in the response.\nBy passing the value of `nextCursor` as the cursor you will get the next page of `limit` results.\nNote that all parameters except `cursor` has to stay the same.\n\n# Parallel retrieval\nAs general guidance, Parallel Retrieval is a technique that should be used when due to query complexity, retrieval of data in a single request is significantly slower than it would otherwise be for a simple request.  Parallel retrieval does not act as a speed multiplier on optimally running queries.  By parallelizing such requests, data retrieval performance can be tuned to meet the client application needs. \n\nCDF supports parallel retrieval through the `partition` parameter, which has the format `m/n` where `n` is the amount of partitions you would like to split the entire data set into.\nIf you want to download the entire data set by splitting it into 10 partitions, do the following in parallel with `m` running from 1 to 10:\n  - Make a request to `/events` with `partition=m/10`.\n  - Paginate through the response by following the cursor as explained above. Note that the `partition` parameter needs to be passed to all subqueries.\n\nProcessing of parallel retrieval requests is subject to concurrency quota availability. The request returns the `429` response upon exceeding concurrency limits. See the Request throttling chapter below.\n\nTo prevent unexpected problems and to maximize read throughput, you should at most use 10 partitions. \nSome CDF resources will automatically enforce a maximum of 10 partitions.\nFor more specific and detailed information, please read the ```partition``` attribute documentation for the CDF resource you're using.  \n\n# Requests throttling\nCognite Data Fusion (CDF) returns the HTTP `429` (too many requests) response status code when project capacity exceeds the limit.\n\nThe throttling can happen:\n  - If a user or a project sends too many (more than allocated) concurrent requests.\n  - If a user or a project sends a too high (more than allocated) rate of requests in a given amount of time.\n\nCognite recommends using a retry strategy based on truncated exponential backoff to handle sessions with HTTP response codes 429.\n\nCognite recommends using a reasonable number (up to 10) of  `Parallel retrieval` partitions.\n\nFollowing these strategies lets you slow down the request frequency to maximize productivity without having to re-submit/retry failing requests.\n\nSee more [here](https://docs.cognite.com/dev/concepts/resource_throttling).\n\n# API versions\n## Version headers\nThis API uses calendar versioning, and version names follow the `YYYYMMDD` format.\nYou can find the versions currently available by using the version selector at the top of this page.\n\nTo use a specific API version, you can pass the `cdf-version: $version` header along with your requests to the API.\n\n## Beta versions\nThe beta versions provide a preview of what the stable version will look like in the future.\nBeta versions contain functionality that is reasonably mature, and highly likely to become a part of the stable API.\n\nBeta versions are indicated by a `-beta` suffix after the version name. For example, the beta version header for the\n2023-01-01 version is then `cdf-version: 20230101-beta`.\n\n## Alpha versions\nAlpha versions contain functionality that is new and experimental, and not guaranteed to ever become a part of the stable API.\nThis functionality presents no guarantee of service, so its use is subject to caution.\n\nAlpha versions are indicated by an `-alpha` suffix after the version name. For example, the alpha version header for\nthe 2023-01-01 version is then `cdf-version: 20230101-alpha`."
+  version: v1
+  contact:
+    name: Cognite Support
+    url: https://support.cognite.com
+    email: support@cognite.com
+servers:
+- url: https://{cluster}.cognitedata.com/api/v1/projects/{project}
+  description: The URL for the CDF cluster to connect to
+  variables:
+    cluster:
+      enum:
+      - api
+      - az-tyo-gp-001
+      - az-eastus-1
+      - az-power-no-northeurope
+      - westeurope-1
+      - asia-northeast1-1
+      - gc-dsm-gp-001
+      default: api
+      description: The CDF cluster to connect to
+    project:
+      default: publicdata
+      description: The CDF project name.
+security:
+- oidc-token:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-client-credentials:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-open-industrial-data:
+  - https://api.cognitedata.com/.default
+- oauth2-auth-code:
+  - https://{cluster}.cognitedata.com/.default
+tags:
+- name: Records
+  description: "Records are mutable or immutable data objects (depending on the stream template) stored in a stream. Records are created by ingesting data into a stream.\nRecords are shaped similarly to instances in the Data Modeling service, and their schema is defined by the containers referenced as sources.\nEach record is associated with a space. Space-based access control applies to records.\nThis section specifies the `records` resource and uses the following Data Modeling concepts:\n  - [Spaces](https://docs.cognite.com/cdf/dm/dm_concepts/dm_spaces_instances#space)\n  - [Containers](https://docs.cognite.com/cdf/dm/dm_concepts/dm_containers_views_datamodels#containers)\n\n**Note:** Every `record` has a required top-level `externalId` property, which can be used\nin some queries to retrieve or aggregate records (for filtering or sorting).\nFor mutable records, `externalId` (together with `space`) uniquely identifies a record for write operations (create, upsert, delete).\nFor immutable records, the records API does not enforce uniqueness of the `space` + `externalId` pair, so multiple records may share the same identifier.\n\n## Rate and concurrency limits\n\nBoth the rate of requests (denoted as requests per second, or â\x80\x98**rps**â\x80\x99) and the number of concurrent (parallel)\nrequests are governed by limits for all CDF API endpoints. If a request exceeds a limit,\nit will be throttled with a `429: Too Many Requests` response. See [Resource throttling](https://docs.cognite.com/dev/concepts/resource_throttling) for limit types and how to avoid throttling.\n\nLimits apply to the API endpoints for this service.\nSome request types consume more resources (compute, storage I/O) than others. For example, ingest requests\nare less resource-intensive than analytical requests (Aggregate, Retrieve).\n\nLimits for query endpoints (Sync, Retrieve, Aggregate) are hierarchical:\n- All query endpoints share a common **Query request budget** (shown in the tables below)\n- The Retrieve endpoint has an **additional** dedicated budget that is checked first\n- The Aggregate endpoint has an **additional** dedicated budget that is checked first\n\nThe Sync endpoint only checks the Query request budget. The Retrieve and Aggregate endpoints\nmust pass both their dedicated budget check AND the Query request budget check.\n\nFor example, with mutable streams you can make up to 40 rps total across all query endpoints\n(Query budget limit), but only up to 20 of those can be Retrieve requests (Retrieve budget limit)\nand only up to 15 can be Aggregate requests (Aggregate budget limit).\nThat means you could send 20 Retrieve + 15 Aggregate + 5 Sync = 40 total RPS.\n\nQuery performance and rate limits vary between mutable and immutable streams because of\ntheir different storage characteristics.\n\nMutable streams provide consistent high-performance queries and higher rate limits\n(see \"mutable streams\" limits in the tables below).\n\nImmutable streams are optimized for ingesting very large amounts of data,\nwhich results in lower query performance and stricter rate limits than mutable streams\n(see \"immutable streams\" limits in the tables below).\n\nWhen designing data access patterns, use mutable streams for high-performance queries and higher rate limits, or immutable streams when the priority\nis high-volume ingestion and long-term storage.\n\nThe amount of data returned in responses from query endpoints (Sync, Retrieve, Aggregate)\nis also limited. Prefer reading only the data you need: use an appropriate `filter` and limit which `sources` are retrieved, rather than\nretrieving large result sets that you will not use.\n\nThe version limits for the records endpoints are shown in the tables below.\nThese limits are subject to change, pending review of consumption patterns and resource availability over time:\n\n  <table >\n    <thead>\n      <tr>\n        <th colspan=\"3\" style=\"text-align: center; background-color: #e0e0e0; padding: 10px; font-weight: bold;\">Ingest request budget</th>\n      </tr>\n      <tr>\n        <th></th>\n        <th style=\"text-align: center;\">Overall</th>\n        <th style=\"text-align: center;\">Per ID</th>\n      </tr>\n    </thead>\n    <tbody>\n      <tr>\n        <td><strong>Requests per second</strong></td>\n        <td style=\"text-align: center;\">40</td>\n        <td style=\"text-align: center;\">30</td>\n      </tr>\n      <tr>\n        <td><strong>Concurrent requests</strong></td>\n        <td style=\"text-align: center;\">20</td>\n        <td style=\"text-align: center;\">15</td>\n      </tr>\n    </tbody>\n  </table>\n\n  <table >\n    <thead>\n      <tr>\n        <th colspan=\"3\" style=\"text-align: center; background-color: #e0e0e0; padding: 10px; font-weight: bold;\">Query request budget</th>\n      </tr>\n      <tr>\n        <th></th>\n        <th style=\"text-align: center;\">Overall</th>\n        <th style=\"text-align: center;\">Per ID</th>\n      </tr>\n    </thead>\n    <tbody>\n      <tr>\n        <td><strong>Requests per second: mutable streams</strong></td>\n        <td style=\"text-align: center;\">40</td>\n        <td style=\"text-align: center;\">30</td>\n      </tr>\n      <tr>\n        <td><strong>Concurrent requests: mutable streams</strong></td>\n        <td style=\"text-align: center;\">30</td>\n        <td style=\"text-align: center;\">22</td>\n      </tr>\n      <tr>\n        <td><strong>Requests per second: immutable streams</strong></td>\n        <td style=\"text-align: center;\">10</td>\n        <td style=\"text-align: center;\">7</td>\n      </tr>\n      <tr>\n        <td><strong>Concurrent requests: immutable streams</strong></td>\n        <td style=\"text-align: center;\">10</td>\n        <td style=\"text-align: center;\">7</td>\n      </tr>\n      <tr>\n        <td><strong>Response MB per second</strong></td>\n        <td style=\"text-align: center;\">4</td>\n        <td style=\"text-align: center;\">3</td>\n      </tr>\n    </tbody>\n  </table>\n\n<p style=\"margin-top: 20px;\">\n  <strong>Additional dedicated budgets for Retrieve and Aggregate endpoints:</strong>\n</p>\n\n<p style=\"margin-top: 10px;\">\n  The Retrieve and Aggregate endpoints have dedicated budgets that are checked <em>in addition to</em>\n  the Query request budget shown above. A request to these endpoints must pass both budget checks.\n</p>\n\n  <table >\n    <thead>\n      <tr>\n        <th colspan=\"3\" style=\"text-align: center; background-color: #e0e0e0; padding: 10px; font-weight: bold;\">Retrieve request budget</th>\n      </tr>\n      <tr>\n        <th></th>\n        <th style=\"text-align: center;\">Overall</th>\n        <th style=\"text-align: center;\">Per ID</th>\n      </tr>\n    </thead>\n    <tbody>\n      <tr>\n        <td><strong>Requests per second: mutable streams</strong></td>\n        <td style=\"text-align: center;\">20</td>\n        <td style=\"text-align: center;\">15</td>\n      </tr>\n      <tr>\n        <td><strong>Concurrent requests: mutable streams</strong></td>\n        <td style=\"text-align: center;\">20</td>\n        <td style=\"text-align: center;\">15</td>\n      </tr>\n      <tr>\n        <td><strong>Requests per second: immutable streams</strong></td>\n        <td style=\"text-align: center;\">10</td>\n        <td style=\"text-align: center;\">7</td>\n      </tr>\n      <tr>\n        <td><strong>Concurrent requests: immutable streams</strong></td>\n        <td style=\"text-align: center;\">10</td>\n        <td style=\"text-align: center;\">7</td>\n      </tr>\n    </tbody>\n  </table>\n\n<p style=\"margin-top: 10px; font-style: italic; font-size: 0.9em;\">\n  Note: Retrieve endpoint requests are checked against both this budget and the Query request budget above.\n</p>\n\n  <table >\n    <thead>\n      <tr>\n        <th colspan=\"3\" style=\"text-align: center; background-color: #e0e0e0; padding: 10px; font-weight: bold;\">Aggregate request budget</th>\n      </tr>\n      <tr>\n        <th></th>\n        <th style=\"text-align: center;\">Overall</th>\n        <th style=\"text-align: center;\">Per ID</th>\n      </tr>\n    </thead>\n    <tbody>\n      <tr>\n        <td><strong>Requests per second: mutable streams</strong></td>\n        <td style=\"text-align: center;\">15</td>\n        <td style=\"text-align: center;\">12</td>\n      </tr>\n      <tr>\n        <td><strong>Concurrent requests: mutable streams</strong></td>\n        <td style=\"text-align: center;\">10</td>\n        <td style=\"text-align: center;\">7</td>\n      </tr>\n      <tr>\n        <td><strong>Requests per second: immutable streams</strong></td>\n        <td style=\"text-align: center;\">5</td>\n        <td style=\"text-align: center;\">4</td>\n      </tr>\n      <tr>\n        <td><strong>Concurrent requests: immutable streams</strong></td>\n        <td style=\"text-align: center;\">5</td>\n        <td style=\"text-align: center;\">4</td>\n      </tr>\n    </tbody>\n  </table>\n\n<p style=\"margin-top: 10px; font-style: italic; font-size: 0.9em;\">\n  Note: Aggregate endpoint requests are checked against both this budget and the Query request budget above.\n</p>\n\n<p style=\"margin-top: 20px;\">\n  <strong>Summary:</strong>\n</p>\n<ul style=\"margin-top: 10px;\">\n  <li><strong>Sync endpoint:</strong> Only limited by Query request budget</li>\n  <li><strong>Retrieve endpoint:</strong> Limited by Retrieve request budget AND Query request budget</li>\n  <li><strong>Aggregate endpoint:</strong> Limited by Aggregate request budget AND Query request budget</li>\n</ul>"
+paths:
+  /streams/{streamId}/records:
+    post:
+      tags:
+      - Records
+      summary: Ingest records into a stream
+      description: '
+
+
+        > **Required capabilities:** `streamRecordsAcl:WRITE` `dataModelsAcl:READ`
+
+
+        Before a user can add records, all referenced schema elements (Spaces, Containers, Properties) must be defined/created in [Data Modeling](https://docs.cognite.com/cdf/dm)
+
+
+        To add records, the user must have capabilities to access (read) the referenced containers as well as capabilities to access (write) the referenced record ```space```.
+
+
+        Batches of records are ingested into a ```stream```.
+
+
+        Under normal ingestion operation, and where the data ```stream``` does not contain any duplicated records,
+
+        the record will be created, and the properties defined in each of the containers in the ```sources``` array will be populated.
+
+
+        For immutable streams a duplicate record is defined as one which is being written to the same ```space```,
+
+        which uses the same container definitions in the ```sources``` array,
+
+        and all the properties (names and values) are the same.
+
+
+        For immutable streams under most circumstances, when duplicate records are encountered during ingestion, the duplicate is discarded.
+
+        However there are rare occasions when certain internal database operations occur, a duplicate may be stored.
+
+
+        For mutable streams duplicated record identifiers (```space``` + ```externalId```) are not allowed
+
+        and a request which tries to create a record with existing identifier will be rejected.
+
+
+        **Note:** The maximum total request size is 10MB.
+
+        '
+      operationId: ingestRecords
+      parameters:
+      - $ref: '#/components/parameters/StreamId'
+      requestBody:
+        description: 'Records to ingest into a stream.
+
+          '
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IngestRecordsRequest'
+        required: true
+      x-capability:
+      - streamRecordsAcl:WRITE
+      - dataModelsAcl:READ
+      responses:
+        '202':
+          $ref: '#/components/responses/RecordsIngestResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          description: 'Some mutable records with the specified `space` and `externalId` already exist in the stream.
+
+            But some records might have been created successfully.
+
+            Which records were successfully created and which were rejected with a conflict can be understood from the response content.
+
+
+            **Note:** the error may appear due to some HTTP request retries (in intermediate components like SDK, Load balancers, Application Gateway, etc),
+
+            so better to check which records are in the stream when you receive this error.
+
+            `.../records/filter` or `.../records/sync` endpoints with a filter by `space` and `externalId` can be used to check the stored state of the conflicting records.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordsPartialSuccessResponse'
+        '422':
+          description: 'Some mutable record identifiers (`space` and `externalId`) are duplicated in the request.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnprocessableRecords'
+        '500':
+          description: 'If at least one record was not ingested due to an internal error, and all other errors in the `failed` list were non-retryable,
+
+            this error code will be returned.
+
+
+            **Note:** Record operations are not transactional. This means that during batch ingestion,
+
+            some records may be created successfully even if the creation of others fails.
+
+            The response body indicates which records were successfully created and which were not.
+
+
+            An internal server error usually indicates an issue that requires investigation. A simple retry might not help,
+
+            but a few retries could be a reasonable approach.
+
+
+            **Note:** If you choose to retry on a 500 error, it is recommended to retry only the failed records rather than the entire request.
+
+            For mutable streams this helps avoid receiving 409 status codes records that were already successfully created in a previous attempt.
+
+            For immutable streams, this helps prevent accidental duplicate records from appearing in the stream (in rare cases when the deduplication mechanism fails).
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordsPartialSuccessResponse'
+        '503':
+          description: 'If at least one record was not ingested due to the service being temporarily unavailable,
+
+            this error code will be returned.
+
+
+            **Note:** Record operations are not transactional. This means that during batch ingestion, some records may be created successfully
+
+            even if the creation of others fails. The response body indicates which records were successfully created and which were not.
+
+
+            A "service temporarily unavailable" error usually indicates a temporary issue, and several retries may help complete the record creation.
+
+
+            **Note:** It is recommended to retry ingestion of only the failed records rather than the entire request.
+
+            For mutable streams, this helps avoid receiving 409 status codes for records that were already successfully created in a previous attempt.
+
+            For immutable streams, this helps prevent accidental duplicate records from appearing in the stream (in rare cases when the deduplication mechanism fails).
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordsPartialSuccessResponse'
+  /streams/{streamId}/records/upsert:
+    post:
+      tags:
+      - Records
+      summary: Upsert (create or update) records into a stream
+      description: '
+
+
+        > **Required capabilities:** `streamRecordsAcl:WRITE` `dataModelsAcl:READ`
+
+
+        **Note:** This endpoint is only available for mutable streams.
+
+
+        Before a user can upsert records, all referenced schema elements (Spaces, Containers, Properties) must be defined/created in [Data Modeling](https://docs.cognite.com/cdf/dm).
+
+
+        To upsert records, the user must have capabilities to access (read) the referenced containers as well as capabilities to access (write) the referenced record ```space```.
+
+
+        Batches of records are ingested or updated into a ```stream```.
+
+
+        Under normal upsert operation, the record will be created or updated, and the properties defined in each of the containers in the ```sources``` array will be populated.
+
+
+        If record identifiers (```space``` + ```externalId```) are already in the stream, records are fully updated (no partial updates for this endpoint).
+
+        Otherwise, records are created.
+
+
+        **Note:** The maximum total request size is 10MB.
+
+        '
+      operationId: upsertRecords
+      parameters:
+      - $ref: '#/components/parameters/StreamId'
+      requestBody:
+        description: 'Records to upsert into a stream.
+
+          '
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IngestRecordsRequest'
+        required: true
+      x-capability:
+      - streamRecordsAcl:WRITE
+      - dataModelsAcl:READ
+      responses:
+        '202':
+          $ref: '#/components/responses/RecordsIngestResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          description: 'Some records with the specified `space` and `externalId` are being concurrently modified by this and other requests.
+
+            But some records might have been created or updated successfully.
+
+            Which records were successfully upserted and which were rejected with a conflict can be understood from the response content.
+
+
+            **Note:** better to check which records are in the stream when you receive this error.
+
+            `.../records/filter` or `.../records/sync` endpoints with a filter by `space` and `externalId` can be used
+
+            to check the stored state of the conflicting records.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordsPartialSuccessResponse'
+        '422':
+          description: 'Some record identifiers (`space` and `externalId`) are duplicated in the request or attempt to modify records in an immutable stream.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnprocessableRecords'
+        '500':
+          description: 'If at least one record was not upserted due to an internal error, and all other errors in the `failed` list were non-retryable,
+
+            this error code will be returned.
+
+
+            **Note:** Record operations are not transactional. This means that during batch upsert,
+
+            some records may be created/updated successfully even if the creation/updating of others fails.
+
+            The response body indicates which records were successfully upserted and which were not.
+
+
+            An internal server error usually indicates an issue that requires investigation. A simple retry might not help,
+
+            but a few retries could be a reasonable approach.
+
+
+            **Note:** If you choose to retry on a 500 error, it is recommended to retry only the failed records rather than the entire request.
+
+            This helps avoid receiving 409 status codes or overriding records to outdated state (if multiple threads update records in your app).
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordsPartialSuccessResponse'
+        '503':
+          description: 'If at least one record was not upserted due to the service being temporarily unavailable,
+
+            this error code will be returned.
+
+
+            **Note:** Record operations are not transactional. This means that during batch upsert, some records may be created/updated successfully
+
+            even if the creation/updating of others fails. The response body indicates which records were successfully upserted and which were not.
+
+
+            A "service temporarily unavailable" error usually indicates a temporary issue, and several retries may help complete the record upserting.
+
+
+            **Note:** It is recommended to retry only the failed records rather than the entire request.
+
+            This helps avoid receiving 409 status codes or overriding records to outdated state (if multiple threads update records in your app).
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordsPartialSuccessResponse'
+  /streams/{streamId}/records/delete:
+    post:
+      tags:
+      - Records
+      summary: Delete records from a stream
+      description: '
+
+
+        > **Required capabilities:** `streamRecordsAcl:WRITE`
+
+
+        **Note:** This endpoint is only available for mutable streams.
+
+
+        To delete records, the user must have capabilities to access (write to) the referenced record ```space```.
+
+
+        Batches of records are deleted from a ```stream``` with implicit `ignoreUnknownIds=true` semantic.
+
+
+        The record operations are eventually consistent,
+
+        but under normal conditions deleted records stop being returned by other endpoints within a few seconds.
+
+        Sync endpoint is returning a "tombstone" record (which only has a few top level fields and a deleted status)
+
+        for at least 3 days since deleting the actual record.
+
+        '
+      operationId: deleteRecords
+      parameters:
+      - $ref: '#/components/parameters/StreamId'
+      requestBody:
+        description: 'Records to delete from a stream.
+
+          '
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteRecordsRequest'
+        required: true
+      x-capability:
+      - streamRecordsAcl:WRITE
+      responses:
+        '200':
+          $ref: '#/components/responses/RecordsDeleteResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '422':
+          description: 'Some record identifiers (`space` and `externalId`) are duplicated in the request or attempt to delete records from an immutable stream.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnprocessableRecords'
+        '500':
+          description: 'If at least one record was not deleted due to an internal error, and all other errors in the `failed` list were non-retryable,
+
+            this error code will be returned.
+
+
+            **Note:** Record operations are not transactional. This means that during batch delete,
+
+            some records may be deleted successfully even if the deletion of others fails.
+
+            The response body indicates which records were successfully deleted and which were not.
+
+
+            An internal server error usually indicates an issue that requires investigation. A simple retry might not help,
+
+            but a few retries could be a reasonable approach.
+
+
+            **Note:** If you choose to retry on a 500 error, it is recommended to retry only the failed records rather than the entire request.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordsPartialSuccessResponse'
+        '503':
+          description: 'If at least one record was not deleted due to the service being temporarily unavailable,
+
+            this error code will be returned.
+
+
+            **Note:** Record operations are not transactional. This means that during batch delete, some records may be deleted successfully
+
+            even if the deletion of others fails. The response body indicates which records were successfully deleted and which were not.
+
+
+            A "service temporarily unavailable" error usually indicates a temporary issue, and several retries may help complete the records deletion.
+
+
+            **Note:** It is recommended to retry deletion of only the failed records rather than the entire request.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordsPartialSuccessResponse'
+  /streams/{streamId}/records/filter:
+    post:
+      tags:
+      - Records
+      summary: Retrieve records from a stream
+      description: '
+
+
+        > **Required capabilities:** `streamRecordsAcl:READ` `dataModelsAcl:READ`
+
+
+        Filter the records from the ```stream```.
+
+        '
+      operationId: filterRecords
+      parameters:
+      - $ref: '#/components/parameters/StreamId'
+      requestBody:
+        description: 'Filter records based on the last updated time, on the space and on container(s) properties.
+
+          The response supports custom sorting. Otherwise, the records in the response are sorted by last updated time.
+
+          '
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FilterRecordsRequest'
+        required: true
+      x-capability:
+      - streamRecordsAcl:READ
+      - dataModelsAcl:READ
+      responses:
+        '200':
+          $ref: '#/components/responses/RecordsFilterResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+  /streams/{streamId}/records/aggregate:
+    post:
+      tags:
+      - Records
+      summary: Aggregate records data from a stream
+      description: "\n\n> **Required capabilities:** `streamRecordsAcl:READ` `dataModelsAcl:READ`\n\nAggregate data for records from the ```stream```.\n\nYou can use an optional filter specification to limit the results.\n\nThe Records API supports three main groups of aggregates:\n\n*Metric aggregates*: ```sum```, ```min```, ```max```, ```count```, etc.\n\n*Bucket aggregates* (result records are aggregated into groups (buckets) â\x80\x94 similar to the Data Model Instances ```groupBy``` concept):\n  ```uniqueValues``` (group by property values), ```timeHistogram``` (group by date/time ranges), ```filters``` (group by filter criteria), etc.\n\n*Pipeline aggregates*: ```movingFunction```.\n**Note:** The pipeline aggregate applies to the results of another histogram aggregate.\n  It applies to metrics (such as count, min, max, sum, etc.), not to the records in the parent aggregate buckets.\n  This differs from sub-aggregates, which apply directly to records within each bucket.\n\nEvery aggregate request can contain multiple aggregate entries.\nEvery bucket aggregate can contain multiple sub-aggregates (of any type), which are applied to records in each bucket of the parent aggregate.\n\n<u>Example:</u>\n\nImagine there is paddle-tennis players `game_statistics` container with model:\n```\n{\n  game_id: Long,\n  game_time: Instant,\n  player_name: String,\n  points_scored: Int,\n  ...\n}\n```\n\nTo get the following data:\n```\nfor each day\n    calculate average number of points scored by players in all games on that day\n    and for each player\n        calculate the total number of points scored by the player in all games they participated in on that day\n        and find the max number of points scored by the player in all games they participated in on that day\nand find the max number of points scored by players in all games they participated in during the entire search period.\n```\n\nUse aggregates like these (meta language):\n```\ntimeHistogram(daily, game_time) // group by (form buckets) 1-day range based on `game_time` property values\n    avg(points_scored)          // inside every day group calculate average value in `points_scored` property\n    uniqueValues(player_name)   // inside every day group group by (form buckets) player names\n        sum(points_scored)      // inside every player group which is inside every day group calculate the sum of points scored\n        max(points_scored)      // inside every player group which is inside every day group find the maximum of points scored\nmax(points_scored)              // find the maximum number of points scored across all statistic records (without any grouping)\n```\n\nOr the same in Cognite Records Aggregates DSL (Json):\n```\n{\n  \"my_groups_by_1d_range\": {\n    \"timeHistogram\": {\n      \"calendarInterval\": \"1d\",\n      \"property\": [ \"paddle\", \"game_statistics\", \"game_time\" ],\n      \"aggregates\": {\n        \"my_groups_by_player_name\": {\n          \"uniqueValues\": {\n            \"property\": [ \"paddle\", \"game_statistics\", \"player_name\" ],\n            \"aggregates\": {\n              \"my_player_daily_scores_sum\": {\n                \"sum\": { \"property\": [ \"paddle\", \"game_statistics\", \"points_scored\" ] }\n              },\n              \"my_player_daily_scores_maximum\": {\n                \"max\": { \"property\": [ \"paddle\", \"game_statistics\", \"points_scored\" ] }\n              }\n            }\n          }\n        },\n        \"my_daily_scores_average\": {\n          \"avg\": { \"property\": [ \"paddle\", \"game_statistics\", \"points_scored\" ] }\n        }\n      }\n    }\n  },\n  \"my_scores_maximum_across_all_games\": {\n    \"max\": { \"property\": [ \"paddle\", \"game_statistics\", \"points_scored\" ] }\n  }\n}\n```\n\nand the response would be\n```\n{\n  \"my_groups_by_1d_range\": {\n    \"timeHistogramBuckets\": [\n      {\n        \"count\": 13\n        \"intervalStart\": \"2025-05-25T00:00:00Z\",\n        \"aggregates\": {\n          \"my_groups_by_player_name\": {\n            \"uniqueValueBuckets\": [\n              {\n                \"count\": 3\n                \"value\": \"Vasya Rogov\",\n                \"aggregates\": {\n                  \"my_player_daily_scores_sum\": {\n                    \"sum\": 57\n                  },\n                  \"my_player_daily_scores_maximum\": {\n                    \"max\": 25\n                  }\n                }\n              },\n              {\n                \"count\": 5\n                \"value\": \"Vinni Pooh\",\n                \"aggregates\": {\n                  \"my_player_daily_scores_sum\": {\n                    \"sum\": 53\n                  },\n                  \"my_player_daily_scores_maximum\": {\n                    \"max\": 21\n                  }\n                }\n              },\n              ...\n            ]\n          },\n          \"my_daily_scores_average\": {\n            \"avg\": 33\n          }\n        }\n      },\n      {\n        \"count\": 7\n        \"intervalStart\": \"2025-05-26T00:00:00Z\",\n        \"aggregates\": {\n          \"my_groups_by_player_name\": {\n            \"uniqueValueBuckets\": [\n              {\n                \"count\": 1\n                \"value\": \"Vasya Rogov\",\n                \"aggregates\": {\n                  \"my_player_daily_scores_sum\": {\n                    \"sum\": 24\n                  },\n                  \"my_player_daily_scores_maximum\": {\n                    \"max\": 24\n                  }\n                }\n              },\n              {\n                \"count\": 2\n                \"value\": \"Pyatochok\",\n                \"aggregates\": {\n                  \"my_player_daily_scores_sum\": {\n                    \"sum\": 42\n                  },\n                  \"my_player_daily_scores_maximum\": {\n                    \"max\": 23\n                  }\n                }\n              },\n              ...\n            ]\n          },\n          \"my_daily_scores_average\": {\n            \"avg\": 22\n          }\n        }\n      },\n      ...\n    ]\n  },\n  \"my_scores_maximum_across_all_games\": {\n    \"max\": 42\n  }\n}\n```\n"
+      operationId: aggregateRecords
+      parameters:
+      - $ref: '#/components/parameters/StreamId'
+      requestBody:
+        description: 'Aggregation specification.
+
+          '
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AggregateRecordsRequest'
+        required: true
+      x-capability:
+      - streamRecordsAcl:READ
+      - dataModelsAcl:READ
+      responses:
+        '200':
+          $ref: '#/components/responses/RecordsAggregationResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+  /streams/{streamId}/records/sync:
+    post:
+      tags:
+      - Records
+      summary: Sync records from a stream
+      description: '
+
+
+        > **Required capabilities:** `streamRecordsAcl:READ` `dataModelsAcl:READ`
+
+
+        Subscribe to changes for records from the ```stream```, matching a supplied filter.
+
+        '
+      operationId: syncRecords
+      parameters:
+      - $ref: '#/components/parameters/StreamId'
+      requestBody:
+        description: 'Change filter specification.
+
+          '
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SyncRecordsRequest'
+        required: true
+      x-capability:
+      - streamRecordsAcl:READ
+      - dataModelsAcl:READ
+      responses:
+        '200':
+          $ref: '#/components/responses/RecordsSyncResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+components:
+  schemas:
+    FilterPropertySpaceAndExternalIdTopLevelIla:
+      title: filterPropertyWithSpaceAndExternalIdTopLevel
+      description: "Property a client wants to use in the filter.\nTo represent fully qualified properties, Records use arrays of strings.\nThe filter supports container level properties and two top level properties (`[\"space\"]` and `[\"externalId\"]`).\n\nSo the property array has 1 or 3 segments.\n1 segment property is top level property. And currently, only `space` and `externalId`\ntop level properties are supported in the filter.\n3 segment property is container level property.\nThe property array for container level property has always 3 segments:\n- the first segment is the space that the container belongs to,\n- the second segment is the container external id,\n- the third segment is the property id inside the container.\n\n<u>Example:</u>\n\nYou have the schema\n```\n{\n  \"mySpace\": {\n    \"myContainer\": {\n      \"myProperty\": {...}\n    }\n  }\n}\n```\n\nUse `[\"mySpace\", \"myContainer\", \"myProperty\"]` array to filter the records based on `myProperty` property.\n"
+      minItems: 1
+      example:
+      - space
+      allOf:
+      - $ref: '#/components/schemas/BasePropertyIla'
+    AggregatesDefinitionIla:
+      type: object
+      title: aggregatesDictionary
+      minProperties: 1
+      maxProperties: 5
+      additionalProperties:
+        x-additionalPropertiesName: aggregate-id
+        title: aggregateDictionary
+        type: object
+        description: 'An aggregate. It''s an aggregate identifier which map to an aggregator function, and some fields to use for the aggregator function.
+
+
+          The identifiers should match the next constraints:
+
+          - pattern: "^[^\\[\\]>.]{1,255}$"
+
+          - maxLength: 255
+
+          - minLength: 1
+
+
+          **NB!** Values `_count` and `_bucket_count` cannot be used as aggregate identifiers.
+
+
+          **NB!** Aggregate identifiers should be unique within the aggregate tree.
+
+          '
+        oneOf:
+        - $ref: '#/components/schemas/AvgAggregateIla'
+        - $ref: '#/components/schemas/CountAggregateIla'
+        - $ref: '#/components/schemas/MinAggregateIla'
+        - $ref: '#/components/schemas/MaxAggregateIla'
+        - $ref: '#/components/schemas/SumAggregateIla'
+        - $ref: '#/components/schemas/UniqueValuesAggregateIla'
+        - $ref: '#/components/schemas/NumberHistogramAggregateIla'
+        - $ref: '#/components/schemas/TimeHistogramAggregateIla'
+        - $ref: '#/components/schemas/FiltersAggregateIla'
+        - $ref: '#/components/schemas/MovingFunctionAggregateIla'
+      propertyNames:
+        maxLength: 255
+        minLength: 1
+      example:
+        my_avg_aggregate1:
+          avg:
+            property:
+            - mySpace
+            - myContainer
+            - manufacturer
+        my_terms_aggregate2:
+          uniqueValues:
+            property:
+            - mySpace
+            - myContainer
+            - manufacturer
+            aggregates:
+              my_sub_aggregate1:
+                min:
+                  property:
+                  - mySpace
+                  - myContainer
+                  - price
+              my_sub_aggregate2:
+                max:
+                  property:
+                  - mySpace
+                  - myContainer
+                  - price
+              my_sub_aggregate3:
+                uniqueValues:
+                  property:
+                  - mySpace
+                  - myContainer
+                  - region
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
+    RecordPrimitivePropertyType:
+      type: object
+      description: 'Primitive property types.
+
+
+        We expect dates and timestamps to be ISO-8601 formatted strings
+
+        (e.g. `2025-06-15T10:00:00Z`, `2025-06-15T10:00:00.000Z`, or `2025-06-15T12:00:00+02:00`).
+
+        Milliseconds are optional (1-3 decimal digits). Epoch milliseconds are not accepted for
+
+        container-level timestamp properties. JSON values have to be valid JSON fragments.
+
+        The maximum allowed size for a JSON object is 40960 bytes.
+
+        For list of json values, the size of the entire list must be within this limit.
+
+        The maximum allowed length of a key is 128, while the maximum allowed size of a value is
+
+        10240 bytes and you can have up to 256 key-value pairs.
+
+        '
+      required:
+      - type
+      - list
+      properties:
+        type:
+          type: string
+          enum:
+          - boolean
+          - float32
+          - float64
+          - int32
+          - int64
+          - timestamp
+          - date
+          - json
+        list:
+          type: boolean
+          description: 'Specifies that the data type is a list of values. The ordering of values is preserved.
+
+            '
+          default: false
+        maxListSize:
+          type: integer
+          description: 'Specifies the maximum number of values in the list
+
+            '
+        unit:
+          allOf:
+          - $ref: '#/components/schemas/RecordUnitReference'
+    UniqueValuesAggregateIla:
+      type: object
+      title: uniqueValues
+      required:
+      - uniqueValues
+      properties:
+        uniqueValues:
+          type: object
+          description: "Request unique value buckets aggregate on the specified property.\nEach bucket is defined by `value` attribute and has the records `count` in the bucket.\n\n<u>Example:</u>\n\n```\n{\n  \"my_group_by_player_name\": {\n    \"uniqueValues\": {\n      \"property\": [ \"football\", \"game_statistics\", \"player_name\" ],\n      \"aggregates\": {\n        \"my_player_scores_sum\": {\n          \"sum\": { \"property\": [ \"football\", \"game_statistics\", \"points_scored\" ] }\n        },\n        \"my_player_scores_maximum\": {\n          \"max\": { \"property\": [ \"football\", \"game_statistics\", \"points_scored\" ] }\n        }\n      }\n    }\n  }\n}\n```\n"
+          required:
+          - property
+          properties:
+            property:
+              title: aggregateProperty
+              allOf:
+              - $ref: '#/components/schemas/UniqueValuesAggregatePropertyIla'
+            aggregates:
+              description: 'A dictionary of requested aggregates with client defined names/identifiers.
+
+                '
+              allOf:
+              - $ref: '#/components/schemas/AggregatesDefinitionIla'
+            size:
+              type: integer
+              description: 'The number of top buckets returned. The default limit is 10 items.
+
+                '
+              minimum: 1
+              maximum: 2000
+              default: 10
+          additionalProperties: false
+      additionalProperties: false
+    RecordsPartialSuccessResponse:
+      type: object
+      title: partialSuccessResponse
+      description: 'Contains generic description of the result as well as per record detailed results.
+
+        '
+      required:
+      - error
+      properties:
+        error:
+          type: object
+          title: error
+          description: 'Error details including HTTP status code, message, and per-record operation results.
+
+            '
+          required:
+          - code
+          - message
+          - partial
+          properties:
+            code:
+              type: integer
+              description: 'HTTP status code.
+
+                '
+              format: int32
+              example: 409
+              enum:
+              - 409
+              - 500
+              - 503
+            message:
+              type: string
+              description: 'The error message which describes the issue.
+
+                '
+            partial:
+              type: array
+              title: perRecordResults
+              description: 'List of per record operation results.
+
+                The order of results in the list may not match the order of Records in the request.
+
+                Therefore, record-level request-response mapping should be done using the
+
+                Record identifier (`space` + `externalId`).
+
+                '
+              minItems: 1
+              maxItems: 1000
+              items:
+                allOf:
+                - $ref: '#/components/schemas/RecordOperationResult'
+    DMSExternalId:
+      type: string
+      pattern: ^[a-zA-Z]([a-zA-Z0-9_]{0,253}[a-zA-Z0-9])?$
+      minLength: 1
+      maxLength: 255
+    MatchAllFilter:
+      type: object
+      title: matchAll
+      required:
+      - matchAll
+      properties:
+        matchAll:
+          description: All the listed items must match the clause.
+          type: object
+          maxProperties: 0
+    ContainsAnyFilterIla:
+      type: object
+      title: containsAny
+      required:
+      - containsAny
+      properties:
+        containsAny:
+          type: object
+          description: 'Matches records where the property contains one or more of the given values.
+
+            Only apply this filter to multivalued properties.
+
+            '
+          required:
+          - property
+          - values
+          properties:
+            property:
+              allOf:
+              - $ref: '#/components/schemas/FilterPropertyNoTopLevelIla'
+            values:
+              title: values
+              allOf:
+              - $ref: '#/components/schemas/RawPropertyValueListIla'
+    BoolFilterIla:
+      type: object
+      title: boolFilter
+      description: 'Build a new query by combining other queries, using boolean operators. We support the `and`, `or`, and
+
+        `not` boolean operators.
+
+        '
+      oneOf:
+      - type: object
+        title: and
+        required:
+        - and
+        properties:
+          and:
+            type: array
+            description: 'All the sub-clauses in the query must return a matching record.
+
+              '
+            minItems: 1
+            maxItems: 99
+            items:
+              allOf:
+              - $ref: '#/components/schemas/FilterDefinitionIla'
+      - type: object
+        title: or
+        required:
+        - or
+        properties:
+          or:
+            type: array
+            description: 'One or more of the sub-clauses in the query must return a matching record.
+
+              '
+            minItems: 1
+            maxItems: 99
+            items:
+              allOf:
+              - $ref: '#/components/schemas/FilterDefinitionIla'
+      - type: object
+        title: not
+        required:
+        - not
+        properties:
+          not:
+            type: object
+            title: not
+            description: 'None of the sub-clauses in the query can return a matching record.
+
+              '
+            allOf:
+            - $ref: '#/components/schemas/FilterDefinitionIla'
+    MinAggregateResultIla:
+      type: object
+      title: minResult
+      required:
+      - min
+      properties:
+        min:
+          type: number
+          description: 'The lowest - min - value for the specified in the request property.
+
+            '
+          example: 13.42
+    RecordPropertyTypeDefinition:
+      description: 'Properties of a container.
+
+        '
+      allOf:
+      - $ref: '#/components/schemas/RecordContainerPropertyDefinition'
+    BasePropertyIla:
+      type: array
+      maxItems: 3
+      items:
+        type: string
+        minLength: 1
+        maxLength: 255
+    SumAggregateIla:
+      type: object
+      title: sum
+      required:
+      - sum
+      properties:
+        sum:
+          type: object
+          description: "Calculates the sum from the values of the specified property.\n\n<u>Example:</u>\n\n```\n{\n  \"my_player_scores_sum\": {\n    \"sum\": { \"property\": [ \"football\", \"game_statistics\", \"points_scored\" ] }\n  }\n}\n```\n"
+          required:
+          - property
+          properties:
+            property:
+              title: aggregateProperty
+              allOf:
+              - $ref: '#/components/schemas/AggregatePropertyIla'
+          additionalProperties: false
+      additionalProperties: false
+    FilterPropertyCreatedAndLastUpdatedTimeTopLevelIla:
+      title: filterPropertyWithCreatedAndLastUpdatedTimeTopLevel
+      description: "Property a client wants to use in the filter.\nTo represent fully qualified properties, Records use arrays of strings.\nThe filter supports container level properties and two top level properties (`[\"createdTime\"]` and `[\"lastUpdatedTime\"]`).\n\nSo the property array has 1 or 3 segments.\n1 segment property is top level property. And currently, only `createdTime` and `lastUpdatedTime`\ntop level properties are supported in the filter.\n3 segment property is container level property.\nThe property array for container level property has always 3 segments:\n- the first segment is the space that the container belongs to,\n- the second segment is the container external id,\n- the third segment is the property id inside the container.\n\n<u>Example:</u>\n\nYou have the schema\n```\n{\n  \"mySpace\": {\n    \"myContainer\": {\n      \"myProperty\": {...}\n    }\n  }\n}\n```\n\nUse `[\"mySpace\", \"myContainer\", \"myProperty\"]` array to filter the records based on `myProperty` property.\n"
+      minItems: 1
+      example:
+      - createdTime
+      allOf:
+      - $ref: '#/components/schemas/BasePropertyIla'
+    InFilterIla:
+      type: object
+      title: in
+      required:
+      - in
+      properties:
+        in:
+          type: object
+          description: 'Matches records where the property **exactly** matches one of the given values.
+
+            Only apply this filter to properties containing a single value.
+
+            '
+          required:
+          - property
+          - values
+          properties:
+            property:
+              allOf:
+              - $ref: '#/components/schemas/FilterPropertyAllTopLevelIla'
+            values:
+              title: values
+              allOf:
+              - $ref: '#/components/schemas/RawPropertyValueListIla'
+    FilterDefinitionIla:
+      type: object
+      title: filter
+      description: 'A filter Domain Specific Language (DSL) used to create advanced filter queries.
+
+
+        **Note:** the max number of nodes in the filter tree is 100 and the max tree depth is 10.
+
+        '
+      oneOf:
+      - $ref: '#/components/schemas/BoolFilterIla'
+      - $ref: '#/components/schemas/LeafFilterIla'
+      example:
+        and:
+        - containsAll:
+            property:
+            - mySpace
+            - myContainer
+            - myProperty
+            values:
+            - 10011
+            - 10012
+        - range:
+            property:
+            - my_space
+            - my_container
+            - my_weight
+            gte: 0
+    SourceSelector:
+      type: array
+      title: propertiesPerContainer
+      description: 'List of containers and their properties which values should be selected for the response.
+
+        '
+      minItems: 1
+      maxItems: 10
+      items:
+        type: object
+        title: propertiesForContainer
+        required:
+        - source
+        - properties
+        properties:
+          source:
+            allOf:
+            - $ref: '#/components/schemas/ContainerReferenceIla'
+          properties:
+            type: array
+            title: containerProperties
+            description: 'Properties to return for the specified container. Use "*" to return all properties.
+
+              '
+            minItems: 1
+            maxItems: 1000
+            items:
+              type: string
+              minLength: 1
+              maxLength: 255
+              example: someProperty
+    LastUpdatedTimeFilter:
+      type: object
+      title: lastUpdatedTime
+      description: "Matches records with the last updated time within the provided range.\nThis attribute is mandatory for immutable streams but it's optional for **mutable** streams.\nThe maximum time interval that can be defined by the attribute\nis limited by the stream settings. If more data needs to be queried than allowed by the stream\nsettings, it should be done with multiple requests. For example, if stream allows querying\nup to 1 month of data, but a quarterly report is needed, the solution is to make 3 requests, one for\neach month, and then aggregate the responses.\n\nThe range must include at least a left (`gt` or `gte`) bound.\nIt is not allowed to specify two upper or lower bounds, e.g. `gte` and `gt`, in the same filter.\n\n  `gte`: Greater than or equal to.\n  `gt`: Greater than.\n  `lte`: Less than or equal to.\n  `lt`: Less than.\n\n**Note:** `lastUpdatedTime` is a CDF generated timestamp that marks the moment a record is stored in the API\n\nThe range bounds can be specified in two formats:\n- **String**: An ISO-8601 formatted date-time string (e.g., `2030-05-15T18:00:00.00Z`).\n- **Integer**: The number of milliseconds since the Unix epoch (e.g., `1705341600000`).\n"
+      properties:
+        gte:
+          allOf:
+          - $ref: '#/components/schemas/LastUpdatedTimeRangeValue'
+        gt:
+          allOf:
+          - $ref: '#/components/schemas/LastUpdatedTimeRangeValue'
+        lte:
+          allOf:
+          - $ref: '#/components/schemas/LastUpdatedTimeRangeValue'
+        lt:
+          allOf:
+          - $ref: '#/components/schemas/LastUpdatedTimeRangeValue'
+      example:
+        gt: 1705341600000
+        lt: '2030-05-15T18:00:00.00Z'
+    MaxAggregateResultIla:
+      type: object
+      title: maxResult
+      required:
+      - max
+      properties:
+        max:
+          type: number
+          description: 'The highest - max - value for the specified in the request property.
+
+            '
+          example: 77.7
+    NumberHistogramAggregateResultIla:
+      type: object
+      title: numberHistogramResult
+      properties:
+        numberHistogramBuckets:
+          type: array
+          description: 'The histogram from the values of the specified in the request property.
+
+            '
+          items:
+            type: object
+            required:
+            - count
+            - intervalStart
+            properties:
+              count:
+                type: integer
+                format: int64
+                description: 'The count of items with the value from the bucket interval in the property.
+
+                  '
+                example: 100
+              intervalStart:
+                type: number
+                description: 'The number which represents the start of the bucket interval (the next bucket start point is the end point for this bucket).
+
+                  '
+                example: 42.7
+              aggregates:
+                allOf:
+                - $ref: '#/components/schemas/AggregatesResultDefinitionIla'
+    RecordDirectRelationPropertyType:
+      type: object
+      description: 'Direct node relation. Only the target space existence is validated for records.
+
+        Target nodes are not auto-created.
+
+        '
+      required:
+      - type
+      - list
+      properties:
+        type:
+          type: string
+          enum:
+          - direct
+        list:
+          description: 'Specifies that the data type is a list of values. The ordering of values is preserved.
+
+            '
+          type: boolean
+          default: false
+        maxListSize:
+          type: integer
+          description: 'Specifies the maximum number of values in the list
+
+            '
+        container:
+          allOf:
+          - $ref: '#/components/schemas/ContainerReference'
+    AvgAggregateIla:
+      type: object
+      title: avg
+      required:
+      - avg
+      properties:
+        avg:
+          type: object
+          description: "Calculates the average from the data stored by the specified property. This\naggregation uses an average mean calculation, and not an integral mean.\n\n<u>Example:</u>\n\n```\n{\n  \"my_player_age_avg\": {\n    \"avg\": { \"property\": [ \"football\", \"game_statistics\", \"player_age\" ] }\n  }\n}\n```\n"
+          required:
+          - property
+          properties:
+            property:
+              title: aggregateProperty
+              allOf:
+              - $ref: '#/components/schemas/AggregatePropertyIla'
+          additionalProperties: false
+      additionalProperties: false
+    ContainerReferenceIla:
+      type: object
+      title: containerReference
+      description: 'Reference to a container.
+
+        '
+      example:
+        type: container,
+        space: mySpace,
+        externalId: myContainer
+      allOf:
+      - $ref: '#/components/schemas/ContainerReference'
+    AvgAggregateResultIla:
+      type: object
+      title: avgResult
+      required:
+      - avg
+      properties:
+        avg:
+          type: number
+          description: 'The average value from the data stored by the specified in the request property.
+
+            '
+          example: 42.7
+    AggregateValue:
+      oneOf:
+      - type: string
+        description: A string which find in the provided property.
+      - type: number
+        description: A number which find in the provided property.
+      - type: integer
+        format: int64
+        description: An integer number which find in the provided property.
+      - type: boolean
+        description: A boolean value which find in the provided property.
+    SortPropertyIla:
+      title: sortProperty
+      description: "Property a client wants to sort on.\nTo represent fully qualified properties, Records use arrays of strings.\nThe Records sorting supports both container and top level properties.\n\nThe property array has 1 or 3 segments.\n1 segment property is a top level property. The following top level properties are supported:\n`[\"space\"]`, `[\"externalId\"]`, `[\"createdTime\"]`, `[\"lastUpdatedTime\"]`.\n3 segment property is a container level property.\nThe property array for container level property always has 3 segments:\n- the first segment is the space that the container belongs to,\n- the second segment is the container external id,\n- the third segment is the property id inside the container.\n\n<u>Example:</u>\n\nYou have the schema\n```\n{\n  \"mySpace\": {\n    \"myContainer\": {\n      \"myProperty\": {...}\n    }\n  }\n}\n```\n\nUse `[\"mySpace\", \"myContainer\", \"myProperty\"]` array to sort the records on `myProperty` property.\n"
+      minItems: 1
+      example:
+      - space
+      allOf:
+      - $ref: '#/components/schemas/BasePropertyIla'
+    IngestRecordsRequest:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          title: recordItems
+          description: 'List of records to write.
+
+            '
+          minItems: 1
+          maxItems: 1000
+          items:
+            allOf:
+            - $ref: '#/components/schemas/RecordIngest'
+    ContainerReference:
+      type: object
+      description: Reference to an existing container
+      required:
+      - type
+      - space
+      - externalId
+      properties:
+        type:
+          type: string
+          enum:
+          - container
+        space:
+          description: Id of the space hosting (containing) the container
+          allOf:
+          - $ref: '#/components/schemas/SpaceSpecification'
+        externalId:
+          description: External-id of the container
+          allOf:
+          - $ref: '#/components/schemas/DMSExternalId'
+    TimeHistogramAggregateIla:
+      type: object
+      title: timeHistogram
+      required:
+      - timeHistogram
+      properties:
+        timeHistogram:
+          type: object
+          description: "A time histogram aggregator function. This function will generate a histogram from the values of the specified\nproperty. It uses the specified calendar or fixed interval as defined in the request arguments.\nThe request attribute calendarInterval or fixedInterval must be specified but not both.\n\n<u>Example:</u>\n\n```\n{\n  \"my_daily_histogram\": {\n    \"timeHistogram\": {\n      \"calendarInterval\": \"1d\",\n      \"property\": [ \"football\", \"game_statistics\", \"game_date\" ],\n      \"aggregates\": {\n        \"my_group_by_player_name\": {\n          \"uniqueValues\": {\n            \"property\": [ \"football\", \"game_statistics\", \"player_name\" ],\n            \"aggregates\": {\n              \"my_player_daily_scores_sum\": {\n                \"sum\": {\n                  \"property\": [ \"football\", \"game_statistics\", \"points_scored\" ]\n                }\n              }\n            }\n          }\n        }\n      }\n    }\n  }\n}\n```\n"
+          required:
+          - property
+          properties:
+            calendarInterval:
+              type: string
+              enum:
+              - 1s
+              - 1m
+              - 1h
+              - 1d
+              - 1w
+              - 1M
+              - 1q
+              - 1y
+              description: 'The calendar interval between each bucket.
+
+                '
+              example: 1q
+            fixedInterval:
+              type: string
+              description: 'The interval between each bucket. It must be a correct duration representation: 3m, 400h, 25d, etc.
+
+                '
+              example: 42m
+              minLength: 1
+              maxLength: 100
+            hardBounds:
+              type: object
+              description: 'To limit the range of buckets in the histogram. It is particularly useful
+
+                in the case of open data ranges that can result in a very large number of buckets.
+
+                One or both bounds must be specified.
+
+                The returned buckets are those whose keys fall within [min, max) (min inclusive, max exclusive).
+
+                Unlike the `lastUpdatedTime` range filter, only ISO 8601 date-time strings are accepted
+
+                (epoch milliseconds are not supported).
+
+                '
+              properties:
+                min:
+                  type: string
+                  description: 'The lower bound (inclusive) for time histogram bucket keys in the response.
+
+                    Must be an ISO 8601 date-time string with timezone
+
+                    (e.g. `2024-05-15T20:00:00Z`, `2024-05-15T20:00:00.000Z`, or `2024-05-15T20:00:00+02:00`).
+
+                    Epoch milliseconds are not supported.
+
+                    '
+                  example: '2024-05-15T20:00:00Z'
+                  minLength: 1
+                  maxLength: 100
+                max:
+                  type: string
+                  description: 'The upper bound (exclusive) for time histogram bucket keys in the response.
+
+                    Must be an ISO 8601 date-time string with timezone
+
+                    (e.g. `2024-05-16T20:00:00Z`, `2024-05-16T20:00:00.000Z`, or `2024-05-16T20:00:00+02:00`).
+
+                    Epoch milliseconds are not supported.
+
+                    '
+                  example: '2024-05-16T20:00:00Z'
+                  minLength: 1
+                  maxLength: 100
+            property:
+              title: aggregateProperty
+              allOf:
+              - $ref: '#/components/schemas/TimeHistogramAggregatePropertyIla'
+            aggregates:
+              description: 'A dictionary of requested aggregates with client defined names/identifiers.
+
+                '
+              allOf:
+              - $ref: '#/components/schemas/AggregatesDefinitionIla'
+          additionalProperties: false
+      additionalProperties: false
+    SpaceSpecification:
+      type: string
+      pattern: ^[a-zA-Z][a-zA-Z0-9_-]{0,41}[a-zA-Z0-9]?$
+      minLength: 1
+      maxLength: 43
+    FilterPropertyAllTopLevelIla:
+      title: filterPropertyWithAllTopLevel
+      description: "Property a client wants to use in the filter.\nTo represent fully qualified properties, Records use arrays of strings.\nThe filter supports container level properties and all top level properties\n(`[\"space\"]`, `[\"externalId\"]`, `[\"createdTime\"]` and `[\"lastUpdatedTime\"]`).\n\nSo the property array has 1 or 3 segments.\n1 segment property is top level property. And currently, `space`, `externalId`,\n`createdTime` and `lastUpdatedTime` top level properties are supported in the filter.\n3 segment property is container level property.\nThe property array for container level property has always 3 segments:\n- the first segment is the space that the container belongs to,\n- the second segment is the container external id,\n- the third segment is the property id inside the container.\n\n<u>Example:</u>\n\nYou have the schema\n```\n{\n  \"mySpace\": {\n    \"myContainer\": {\n      \"myProperty\": {...}\n    }\n  }\n}\n```\n\nUse `[\"mySpace\", \"myContainer\", \"myProperty\"]` array to filter the records based on `myProperty` property.\n"
+      minItems: 1
+      example:
+      - createdTime
+      allOf:
+      - $ref: '#/components/schemas/BasePropertyIla'
+    Sort:
+      type: object
+      title: sortsSpecification
+      properties:
+        sort:
+          type: array
+          title: orderedSortSpecList
+          description: 'Ordered list of sorting specifications (property, direction, etc) to sort on.
+
+            '
+          minItems: 1
+          maxItems: 5
+          items:
+            allOf:
+            - $ref: '#/components/schemas/PropertySort'
+    RecordIngest:
+      type: object
+      title: recordItem
+      description: 'Record to write.
+
+        '
+      required:
+      - space
+      - sources
+      - externalId
+      properties:
+        space:
+          allOf:
+          - $ref: '#/components/schemas/RecordSpace'
+        externalId:
+          allOf:
+          - $ref: '#/components/schemas/RecordExternalId'
+        sources:
+          type: array
+          title: propertiesPerContainer
+          description: 'List of source properties to write. The properties are from the container(s) making up this ```record```.
+
+            '
+          minItems: 1
+          maxItems: 100
+          items:
+            allOf:
+            - $ref: '#/components/schemas/RecordData'
+    MinMaxAggregatePropertyIla:
+      title: aggregateProperty
+      description: "Property a client wants to aggregate.\nTo represent fully qualified properties, Records use arrays of strings.\n\nThe aggregate supports container level properties, as well as `[\"createdTime\"]`\nand `[\"lastUpdatedTime\"]` top level properties.\n\nA container level property is defined by 3 segments:\n  - the first segment is the space that the container belongs to,\n  - the second segment is the container external id,\n  - the third segment is the property id inside the container.\n\n<u>Example:</u>\n\nYou have the schema\n```\n{\n  \"mySpace\": {\n    \"myContainer\": {\n      \"myProperty\": {...}\n    }\n  }\n}\n```\n\nUse `[\"mySpace\", \"myContainer\", \"myProperty\"]` array to aggregate the values for `myProperty` property.\n"
+      minItems: 1
+      example:
+      - mySpace
+      - myContainer
+      - myProperty
+      allOf:
+      - $ref: '#/components/schemas/BasePropertyIla'
+    RecordSpaceTypeInformation:
+      type: object
+      description: Spaces
+      additionalProperties:
+        x-additionalPropertiesName: container-external-id
+        allOf:
+        - $ref: '#/components/schemas/RecordContainerTypeInformation'
+    RecordContainerPropertyDefinition:
+      type: object
+      description: 'Type and configuration of a property.
+
+        '
+      required:
+      - nullable
+      - defaultValue
+      - type
+      properties:
+        nullable:
+          type: boolean
+          description: 'Can this property have a null value.
+
+            '
+          default: true
+        defaultValue:
+          oneOf:
+          - type: string
+          - type: number
+          - type: boolean
+          - type: object
+          - type: 'null'
+          description: 'Default value that will be used if a value for this property is not explicitly specified.
+
+            '
+        description:
+          type: string
+          description: 'Description of the content and suggested use for this property.
+
+            '
+          maxLength: 1024
+        name:
+          type: string
+          description: 'Readable property name.
+
+            '
+          maxLength: 255
+        type:
+          oneOf:
+          - $ref: '#/components/schemas/RecordTextPropertyType'
+          - $ref: '#/components/schemas/RecordDirectRelationPropertyType'
+          - $ref: '#/components/schemas/RecordPrimitivePropertyType'
+          - $ref: '#/components/schemas/RecordEnumPropertyType'
+    RecordEnumValue:
+      type: object
+      description: 'Metadata for a single enum value.
+
+        '
+      properties:
+        name:
+          type: string
+          description: 'Human-readable name for the enum value.
+
+            '
+          maxLength: 255
+        description:
+          type: string
+          description: 'Description of the enum value.
+
+            '
+          maxLength: 1024
+    EqualsFilterIla:
+      type: object
+      title: equals
+      required:
+      - equals
+      properties:
+        equals:
+          type: object
+          description: 'Matches records that contain the exact value in the provided property.
+
+            Only apply this filter to properties containing a single value.
+
+            '
+          required:
+          - property
+          - value
+          properties:
+            property:
+              allOf:
+              - $ref: '#/components/schemas/FilterPropertyAllTopLevelIla'
+            value:
+              title: value
+              allOf:
+              - $ref: '#/components/schemas/RawPropertyValueV3'
+    RecordUnitReference:
+      type: object
+      title: unitReference
+      required:
+      - externalId
+      properties:
+        externalId:
+          type: string
+          description: 'Unit reference.
+
+            '
+    LastUpdatedTimeRangeValue:
+      oneOf:
+      - type: string
+        minLength: 1
+        maxLength: 100
+      - type: integer
+      title: lastUpdatedTimeRangeBound
+      description: 'Timestamp value you wish to find in the ```record``` last updated time using a range clause.
+
+        '
+    SumAggregateResultIla:
+      type: object
+      title: sumResult
+      required:
+      - sum
+      properties:
+        sum:
+          type: number
+          description: 'The sum from the values of the specified in the request property.
+
+            '
+          example: 777
+    RecordContainerTypeInformation:
+      type: object
+      description: Containers belonging to a space
+      additionalProperties:
+        x-additionalPropertiesName: property-identifier
+        allOf:
+        - $ref: '#/components/schemas/RecordPropertyTypeDefinition'
+    FilterRecordsRequest:
+      allOf:
+      - type: object
+        description: 'Defines a filter request. This will let you fetch records with some necessary properties filtered by different criteria.
+
+          '
+        properties:
+          lastUpdatedTime:
+            allOf:
+            - $ref: '#/components/schemas/LastUpdatedTimeFilter'
+          filter:
+            allOf:
+            - $ref: '#/components/schemas/FilterDefinitionIla'
+          sources:
+            allOf:
+            - $ref: '#/components/schemas/SourceSelector'
+      - $ref: '#/components/schemas/RecordTargetUnits'
+      - $ref: '#/components/schemas/RecordIncludeTyping'
+      - $ref: '#/components/schemas/LimitWithDefault10'
+      - $ref: '#/components/schemas/Sort'
+    RecordTypeInformation:
+      type: object
+      description: 'Property type information. This attribute is present only if
+
+        `includeTyping` was set to `true` in request.
+
+        '
+      additionalProperties:
+        x-additionalPropertiesName: space-name
+        allOf:
+        - $ref: '#/components/schemas/RecordSpaceTypeInformation'
+    RecordTextPropertyType:
+      type: object
+      description: 'Primitive property type.
+
+        '
+      required:
+      - type
+      - list
+      properties:
+        type:
+          type: string
+          enum:
+          - text
+        list:
+          description: 'Specifies that the data type is a list of values. The ordering of values is preserved.
+
+            '
+          type: boolean
+          default: false
+        maxListSize:
+          type: integer
+          description: 'Specifies the maximum number of values in the list
+
+            '
+        maxTextSize:
+          type: integer
+          description: 'Specifies the maximum size in bytes of the text property, when encoded with utf-8
+
+            '
+    CountAggregateIla:
+      title: count
+      type: object
+      required:
+      - count
+      properties:
+        count:
+          type: object
+          description: "Counts the number of items. When you specify a property, it returns the number of non-null values for that property.\n\n<u>Example:</u>\n\nTo get number of records with non-null value in \"nullable_property\":\n```\n{\n  \"my_nullable_property_count\": {\n    \"count\": { \"property\": [ \"football\", \"game_statistics\", \"nullable_property\" ] }\n  }\n}\n```\n"
+          properties:
+            property:
+              title: aggregateProperty
+              allOf:
+              - $ref: '#/components/schemas/AggregatePropertyIla'
+          additionalProperties: false
+      additionalProperties: false
+    RawPropertyValueV3:
+      title: raw value
+      description: A value matching the data type of the defined property
+      oneOf:
+      - type: string
+        title: string
+        description: 'A string value without `null` characters and 128KB maximum size.
+
+          Or a date string in the format `YYYY-MM-DD`.
+
+          Or a timestamp string in the format: `YYYY-MM-DDTHH:MM:SS[.millis][Z|time zone]`.
+
+          '
+        maxLength: 128000
+      - type: number
+        title: number
+        description: A number value matching the data type (integer(32/64), float, doable, etc) of the defined property.
+      - type: boolean
+        title: boolean
+        description: A boolean value - `true` or `false`.
+      - type: object
+        title: object
+        description: A JSON value. General limits for the JSON object are the next. The max key length is 128. The max number of keys 256. The max object total size is 40,960B. The max value size is 10,240B.
+      - type: object
+        title: direct relation
+        description: A JSON value matching the direct relation type. Direct relation json object requires and allows only `space` and `externalId` attributes of the related instance.
+      - type: array
+        title: array of strings
+        description: 'An array of string values without `null` characters in each item and sum of individual elements is no more than 128KB.
+
+          Each item can be a date string in the format `YYYY-MM-DD` or a timestamp string in the format: `YYYY-MM-DDTHH:MM:SS[.millis][Z|time zone]`.
+
+          '
+        minItems: 1
+        maxItems: 1000
+        items:
+          type: string
+      - type: array
+        title: array of booleans
+        description: An array of boolean values.
+        minItems: 1
+        maxItems: 1000
+        items:
+          type: boolean
+      - type: array
+        title: array of numbers
+        description: An array of number values.
+        minItems: 1
+        maxItems: 1000
+        items:
+          type: number
+      - type: array
+        title: array of direct relations
+        description: An array of direct relations.
+        minItems: 1
+        maxItems: 100
+        items:
+          type: object
+      - type: array
+        title: array of objects
+        description: An array of JSON objects. General limits for the JSON array are the next. The max JSON total size is 40,960B. Other JSON objects constraints are applicable to each item in the array (see object).
+        minItems: 1
+        maxItems: 1000
+        items:
+          type: object
+    SyncRecord:
+      type: object
+      title: syncRecordItem
+      description: 'Sync record item.
+
+        '
+      required:
+      - space
+      - externalId
+      - createdTime
+      - lastUpdatedTime
+      - status
+      properties:
+        space:
+          allOf:
+          - $ref: '#/components/schemas/RecordSpace'
+        externalId:
+          allOf:
+          - $ref: '#/components/schemas/RecordExternalId'
+        createdTime:
+          title: createdTime
+          example: 1720616232
+          allOf:
+          - $ref: '#/components/schemas/EpochTimestamp'
+        lastUpdatedTime:
+          title: lastUpdatedTime
+          example: 1720616232
+          allOf:
+          - $ref: '#/components/schemas/EpochTimestamp'
+        properties:
+          type: object
+          title: spaceToContainers
+          description: 'Spaces to containers to properties and their values for the requested containers.
+
+            **Note:** The attribute is omitted for deleted records in mutable streams.
+
+            '
+          additionalProperties:
+            x-additionalPropertiesName: space-name
+            allOf:
+            - $ref: '#/components/schemas/ContainerWithData'
+        status:
+          type: string
+          description: 'The attribute represents the current record status.
+
+            '
+          enum:
+          - created
+          - updated
+          - deleted
+    MovingFunctionAggregateIla:
+      type: object
+      title: movingFunction
+      required:
+      - movingFunction
+      properties:
+        movingFunction:
+          type: object
+          description: "Given an ordered series of data, the Moving Function aggregation will slide a window across the data and allow the user to specify a function\nthat is executed on each window of data.\nA number of common functions are predefined such as min/max, moving averages, etc. Customer defined functions are not allowed now.\nThe aggregate must be embedded inside of a numberHistogram or timeHistogram aggregate. It can be embedded like any other metric aggregate.\n\nThe idea of this pipeline aggregate is borrowed from Elasticsearch.\nThe information about the concept can be read [here](https://www.elastic.co/guide/en/elasticsearch/reference/8.18/search-aggregations-pipeline-movfn-aggregation.html).\n\n<u>Example:</u>\n\nImagine there is an `error_log` container which represents errors in a service and has the following model:\n```\n{\n  \"timestamp\": Instant,\n  \"severity\": Long,\n  \"message\": String,\n  ...\n}\n```\n\nLet's assume you have a daily error log count aggregate\n```\n{\n  \"my_daily_error_logs\": {\n    \"timeHistogram\": {\n      \"calendarInterval\": \"1d\",\n      \"property\": [ \"logs\", \"error_log\", \"timestamp\" ]\n    }\n  }\n}\n```\n\nwhich returns the following result:\n```\n{\n  \"my_daily_error_logs\": {\n    \"timeHistogramBuckets\": [\n      {\n        \"intervalStart\": \"2025-05-25T00:00:00Z\",\n        \"count\": 10\n      },\n      {\n        \"intervalStart\": \"2025-05-26T00:00:00Z\",\n        \"count\": 5\n      },\n      {\n        \"intervalStart\": \"2025-05-27T00:00:00Z\",\n        \"count\": 12\n      },\n      {\n        \"intervalStart\": \"2025-05-28T00:00:00Z\",\n        \"count\": 1\n      },\n      {\n        \"intervalStart\": \"2025-05-29T00:00:00Z\",\n        \"count\": 20\n      },\n      ...\n    ]\n  }\n}\n```\n\nIf you would like to get the average number of error logs during the last 3 days,\nyou may add a ```movingFunction``` pipeline aggregate to your request:\n```\n{\n  \"my_daily_error_logs\": {\n    \"timeHistogram\": {\n      \"calendarInterval\": \"1d\",\n      \"property\": [ \"logs\", \"error_log\", \"timestamp\" ],\n      \"aggregates\": {\n        \"my_moving_last_3days_average_errors_count\": {\n          \"movingFunction\": {\n            \"bucketsPath\": \"_count\",\n            \"window\": 3,\n            \"function\": \"MovingFunctions.unweightedAvg\"\n          }\n        }\n      }\n    }\n  }\n}\n```\n\nwhich would return the following result:\n```\n{\n  \"my_daily_error_logs\": {\n    \"timeHistogramBuckets\": [\n      {\n        \"intervalStart\": \"2025-05-25T00:00:00Z\",\n        \"count\": 10,\n        \"aggregates\": {\n          \"my_moving_last_3days_average_errors_count\": {\n            // Note: in case of `MovingFunctions.unweightedAvg`,\n            //  the first bucket always contains 0 as `fnValue`\n            //  because to calculate the average at least 2 buckets are necessary.\n            \"fnValue\": 0\n          }\n        }\n      },\n      {\n        \"intervalStart\": \"2025-05-26T00:00:00Z\",\n        \"count\": 5,\n        \"aggregates\": {\n          \"my_moving_last_3days_average_errors_count\": {\n            // Note: the window is 3 but to calculate the average value for the second bucket\n            //  only 2 buckets are used.\n            \"fnValue\": 7.5\n          }\n        }\n      },\n      {\n        \"intervalStart\": \"2025-05-27T00:00:00Z\",\n        \"count\": 12,\n        \"aggregates\": {\n          \"my_moving_last_3days_average_errors_count\": {\n            \"fnValue\": 9\n          }\n        }\n      },\n      {\n        \"intervalStart\": \"2025-05-28T00:00:00Z\",\n        \"count\": 1,\n        \"aggregates\": {\n          \"my_moving_last_3days_average_errors_count\": {\n            \"fnValue\": 6\n          }\n        }\n      },\n      {\n        \"intervalStart\": \"2025-05-29T00:00:00Z\",\n        \"count\": 20,\n        \"aggregates\": {\n          \"my_moving_last_3days_average_errors_count\": {\n            \"fnValue\": 11\n          }\n        }\n      },\n      ...\n    ]\n  }\n}\n```\n\nIf you also would like get the average daily maximum severity value of error logs during the entire period (covered by buckets),\nyou may add one more ```movingFunction``` pipeline aggregate and one ```max``` metric sub-aggregate to your request:\n```\n{\n  \"my_daily_error_logs\": {\n    \"timeHistogram\": {\n      \"calendarInterval\": \"1d\",\n      \"property\": [ \"logs\", \"error_log\", \"timestamp\" ],\n      \"aggregates\": {\n        \"my_max_daily_severity\": {\n          \"max\": { \"property\": [ \"logs\", \"error_log\", \"severity\" ] }\n        },\n        \"my_moving_average_max_daily_errors_severity\": {\n          \"movingFunction\": {\n            \"bucketsPath\": \"my_max_daily_severity\",\n            \"window\": 100000, // all buckets must be inside the single window\n            \"function\": \"MovingFunctions.unweightedAvg\"\n          }\n        },\n        \"my_moving_last_3days_average_errors_count\": {\n          \"movingFunction\": {\n            \"bucketsPath\": \"_count\",\n            \"window\": 3,\n            \"function\": \"MovingFunctions.unweightedAvg\"\n          }\n        }\n      }\n    }\n  }\n}\n```\n\nwhich would return the following result:\n```\n{\n  \"my_daily_error_logs\": {\n    \"timeHistogramBuckets\": [\n      {\n        \"intervalStart\": \"2025-05-25T00:00:00Z\",\n        \"count\": 10,\n        \"aggregates\": {\n          \"my_max_daily_severity\": {\n            \"max\": 13\n          },\n          \"my_moving_average_max_daily_errors_severity\": {\n            // for the chosen moving function the first bucket always contains 0\n            \"fnValue\": 0\n          },\n          \"my_moving_last_3days_average_errors_count\": {\n            // for the chosen moving function the first bucket is always contains 0\n            \"fnValue\": 0\n          }\n        }\n      },\n      {\n        \"intervalStart\": \"2025-05-26T00:00:00Z\",\n        \"count\": 5,\n        \"aggregates\": {\n          \"my_max_daily_severity\": {\n            \"max\": 7\n          },\n          \"my_moving_average_max_daily_errors_severity\": {\n            \"fnValue\": 10\n          },\n          \"my_moving_last_3days_average_errors_count\": {\n            \"fnValue\": 7.5\n          }\n        }\n      },\n      {\n        \"intervalStart\": \"2025-05-27T00:00:00Z\",\n        \"count\": 12,\n        \"aggregates\": {\n          \"my_max_daily_severity\": {\n            \"max\": 100\n          },\n          \"my_moving_average_max_daily_errors_severity\": {\n            \"fnValue\": 40\n          },\n          \"my_moving_last_3days_average_errors_count\": {\n            \"fnValue\": 9\n          }\n        }\n      },\n      {\n        \"intervalStart\": \"2025-05-28T00:00:00Z\",\n        \"count\": 1,\n        \"aggregates\": {\n          \"my_max_daily_severity\": {\n            \"max\": 1\n          },\n          \"my_moving_average_max_daily_errors_severity\": {\n            \"fnValue\": 30.25\n          },\n          \"my_moving_last_3days_average_errors_count\": {\n            \"fnValue\": 6\n          }\n        }\n      },\n      {\n        \"intervalStart\": \"2025-05-29T00:00:00Z\",\n        \"count\": 20,\n        \"aggregates\": {\n          \"my_max_daily_severity\": {\n            \"max\": 1\n          },\n          \"my_moving_average_max_daily_errors_severity\": {\n            \"fnValue\": 24.4\n          },\n          \"my_moving_last_3days_average_errors_count\": {\n            \"fnValue\": 11\n          }\n        }\n      },\n      ...\n    ]\n  }\n}\n```\n\n*Note*: The last bucket contains the average value across all previous buckets\nbecause the sliding window is bigger than the number of buckets returned.\nThis trick can be used with all supported moving functions when it's necessary\nto use a pipeline aggregate which is not supported by Records API now.\nFor instance, ```sumBucket``` aggregate has not been supported yet by Records\nbut the ```movingFunction::MovingFunctions.sum``` with big enough ```window``` can be used instead.\n"
+          required:
+          - bucketsPath
+          - window
+          - function
+          properties:
+            bucketsPath:
+              type: string
+              description: 'Path to the metric of interest from other aggregation.
+
+
+                <u>`buckets_path` syntax:</u>
+
+
+                ```
+
+                AGG_SEPARATOR       =  `>` ;
+
+                AGG_NAME            =  <the name of the aggregation> ;
+
+                MULTIBUCKET_KEY     =  `[<KEY_NAME>]`
+
+                KEY_NAME            =  <the name of the bucket key in the multi-bucket aggregate result> ;
+
+                PATH                =  <AGG_NAME><MULTIBUCKET_KEY>?(<AGG_SEPARATOR><AGG_NAME>)* ;
+
+                ```
+
+
+                **Note:** Use reserved word ```_count``` to access count of records in the bucket.
+
+                Example: ```"bucketsPath": "_count"``` for moving function parent,
+
+                or ```"bucketsPath": "my_sub_aggr_grouped_by_name>_count"``` for sibling sub aggregates.
+
+                '
+              maxLength: 1280
+              minLength: 1
+              example: multi_bucket_aggr["top_bucket"]>sub_aggr>sub_sub_aggr
+            window:
+              type: integer
+              minimum: 1
+              description: 'The size of window to "slide" across the histogram.
+
+                '
+              example: 42
+            function:
+              type: string
+              enum:
+              - MovingFunctions.max
+              - MovingFunctions.min
+              - MovingFunctions.sum
+              - MovingFunctions.unweightedAvg
+              - MovingFunctions.linearWeightedAvg
+              description: 'The function that should be executed on each window of data.
+
+                '
+              example: MovingFunctions.sum
+          additionalProperties: false
+      additionalProperties: false
+    TimeHistogramAggregatePropertyIla:
+      title: aggregateProperty
+      description: "Property a client wants to aggregate.\nTo represent fully qualified properties, Records use arrays of strings.\n\nThe aggregate supports container level properties, as well as `[\"createdTime\"]`\nand `[\"lastUpdatedTime\"]` top level properties.\n\nA container level property is defined by 3 segments:\n  - the first segment is the space that the container belongs to,\n  - the second segment is the container external id,\n  - the third segment is the property id inside the container.\n\n<u>Example:</u>\n\nYou have the schema\n```\n{\n  \"mySpace\": {\n    \"myContainer\": {\n      \"myProperty\": {...}\n    }\n  }\n}\n```\n\nUse `[\"mySpace\", \"myContainer\", \"myProperty\"]` array to aggregate the values for `myProperty` property.\n"
+      minItems: 1
+      example:
+      - mySpace
+      - myContainer
+      - myProperty
+      allOf:
+      - $ref: '#/components/schemas/BasePropertyIla'
+    ExistsFilterIla:
+      type: object
+      title: exists
+      required:
+      - exists
+      properties:
+        exists:
+          type: object
+          description: 'Will match records that have a value in the specified property.
+
+            '
+          required:
+          - property
+          properties:
+            property:
+              allOf:
+              - $ref: '#/components/schemas/FilterPropertyNoTopLevelIla'
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    TimeHistogramAggregateResultIla:
+      type: object
+      title: timeHistogramResult
+      properties:
+        timeHistogramBuckets:
+          type: array
+          description: 'The histogram from the values of the specified in the request property.
+
+            '
+          items:
+            type: object
+            required:
+            - count
+            - intervalStart
+            properties:
+              count:
+                type: integer
+                format: int64
+                description: 'The count of items with the value from the bucket interval in the property.
+
+                  '
+                example: 100
+              intervalStart:
+                type: string
+                description: 'The time point which represent the start of the bucket interval (the next bucket start point is the end point for this bucket).
+
+                  '
+                example: '2024-05-16T00:00:00Z'
+              aggregates:
+                allOf:
+                - $ref: '#/components/schemas/AggregatesResultDefinitionIla'
+    RecordSpace:
+      description: 'Id of the space that the ```record``` belongs to.
+
+        '
+      example: mySpace
+      allOf:
+      - $ref: '#/components/schemas/SpaceSpecification'
+    Record:
+      type: object
+      title: recordItem
+      description: 'Record item.
+
+        '
+      required:
+      - space
+      - externalId
+      - createdTime
+      - lastUpdatedTime
+      - properties
+      properties:
+        space:
+          allOf:
+          - $ref: '#/components/schemas/RecordSpace'
+        externalId:
+          allOf:
+          - $ref: '#/components/schemas/RecordExternalId'
+        createdTime:
+          title: createdTime
+          example: 1720616232
+          allOf:
+          - $ref: '#/components/schemas/EpochTimestamp'
+        lastUpdatedTime:
+          title: lastUpdatedTime
+          example: 1720616232
+          allOf:
+          - $ref: '#/components/schemas/EpochTimestamp'
+        properties:
+          type: object
+          title: spaceToContainers
+          description: 'Spaces to containers to properties and their values for the requested containers.
+
+            '
+          additionalProperties:
+            x-additionalPropertiesName: space-name
+            allOf:
+            - $ref: '#/components/schemas/ContainerWithData'
+    RangeFilterIla:
+      type: object
+      title: range
+      required:
+      - range
+      properties:
+        range:
+          type: object
+          description: "Matches records that contain terms within the provided range.\n\nThe range must include an upper and/or a lower bound. It is not allowed to specify two upper or lower bounds, e.g. `gte` and `gt`, in the same filter.\n\n  `gte`: Greater than or equal to.\n  `gt`: Greater than.\n  `lte`: Less than or equal to.\n  `lt`: Less than.\n"
+          required:
+          - property
+          properties:
+            property:
+              allOf:
+              - $ref: '#/components/schemas/FilterPropertyCreatedAndLastUpdatedTimeTopLevelIla'
+            gte:
+              allOf:
+              - $ref: '#/components/schemas/RangeValue'
+            gt:
+              allOf:
+              - $ref: '#/components/schemas/RangeValue'
+            lte:
+              allOf:
+              - $ref: '#/components/schemas/RangeValue'
+            lt:
+              allOf:
+              - $ref: '#/components/schemas/RangeValue'
+    PrefixFilterIla:
+      type: object
+      title: prefix
+      required:
+      - prefix
+      properties:
+        prefix:
+          type: object
+          description: 'Matches records that have the prefix in the identified property. This filter is only supported for
+
+            single value text properties.
+
+            '
+          required:
+          - property
+          - value
+          properties:
+            property:
+              allOf:
+              - $ref: '#/components/schemas/FilterPropertySpaceAndExternalIdTopLevelIla'
+            value:
+              type: string
+              title: prefixValue
+              minLength: 1
+              maxLength: 500
+    LeafFilterIla:
+      type: object
+      title: leafFilter
+      description: 'Leaf filter which is used in boolean filters to build advanced queries to filter out some records.
+
+        '
+      oneOf:
+      - $ref: '#/components/schemas/MatchAllFilter'
+      - $ref: '#/components/schemas/ExistsFilterIla'
+      - $ref: '#/components/schemas/EqualsFilterIla'
+      - $ref: '#/components/schemas/HasDataFilterIla'
+      - $ref: '#/components/schemas/PrefixFilterIla'
+      - $ref: '#/components/schemas/RangeFilterIla'
+      - $ref: '#/components/schemas/InFilterIla'
+      - $ref: '#/components/schemas/ContainsAllFilterIla'
+      - $ref: '#/components/schemas/ContainsAnyFilterIla'
+    PropertyValueGroupV3:
+      type: object
+      description: 'Group of property values indexed by a local unique identifier. The identifier has to have a length of between 1 and 255 characters.  It must also match the pattern ```^[a-zA-Z0-9][a-zA-Z0-9_-]{0,253}[a-zA-Z0-9]?$``` , and it cannot be any of the following reserved identifiers: ```space```, ```externalId```, ```createdTime```, ```lastUpdatedTime```, ```deletedTime```, and ```extensions```. The maximum number of properties depends on your subscription, and is by default 100.'
+      minProperties: 1
+      additionalProperties:
+        x-additionalPropertiesName: property-identifier
+        allOf:
+        - $ref: '#/components/schemas/RawPropertyValueV3'
+      example:
+        someStringProperty: someStringValue
+        someDirectRelation:
+          space: mySpace
+          externalId: someNode
+        someIntArrayProperty:
+        - 1
+        - 2
+        - 3
+        - 4
+    MovingFunctionAggregateResultIla:
+      type: object
+      title: movingFunctionResult
+      required:
+      - fnValue
+      properties:
+        fnValue:
+          type: number
+          description: 'The moving function value from the parent histogram aggregate buckets data
+
+            located by the specified in the request buckets path.
+
+            '
+          example: 42.7
+    MinAggregateIla:
+      type: object
+      title: min
+      required:
+      - min
+      properties:
+        min:
+          type: object
+          description: "The function will calculate, and return, the lowest - min - value for a property.\n\n<u>Example:</u>\n\n```\n{\n  \"my_player_age_min\": {\n    \"min\": { \"property\": [ \"football\", \"game_statistics\", \"player_age\" ] }\n  }\n}\n```\n"
+          required:
+          - property
+          properties:
+            property:
+              title: aggregateProperty
+              allOf:
+              - $ref: '#/components/schemas/MinMaxAggregatePropertyIla'
+          additionalProperties: false
+      additionalProperties: false
+    SyncRecordsRequest:
+      allOf:
+      - type: object
+        properties:
+          sources:
+            allOf:
+            - $ref: '#/components/schemas/SourceSelector'
+          filter:
+            allOf:
+            - $ref: '#/components/schemas/FilterDefinitionIla'
+          cursor:
+            type: string
+            description: 'A cursor returned from the previous sync request.
+
+              '
+            minLength: 1
+            maxLength: 100000
+            example: c29tZSBjdXJzb3I=
+          initializeCursor:
+            type: string
+            description: 'The format is "`duration`-ago", where duration is a correct duration representation: 3m, 400h, 25d, etc.
+
+              For instance, "2d-ago" will give a stream of changes ingested up to 2 days ago.
+
+
+              If ```cursor``` is not set, ```initializeCursor``` is used to choose a shift where to start the stream reading.
+
+              If ```initializeCursor``` is not set, the ```cursor``` is required. If the ```cursor``` is provided, ```initializeCursor``` is ignored.
+
+
+              Note that ```initializeCursor``` is not exact; a deviation up to few seconds can occur.
+
+              '
+            minLength: 6
+            maxLength: 100
+            example: 42d-ago
+      - $ref: '#/components/schemas/RecordTargetUnits'
+      - $ref: '#/components/schemas/RecordIncludeTyping'
+      - $ref: '#/components/schemas/LimitWithDefault10'
+    TargetUnitProperty:
+      title: targetUnitProperty
+      description: "Property to convert to the target unit or unit system.\nTo represent fully qualified properties, Records use arrays of strings.\n\nTarget units support only container level properties.\n\nA container level property is defined by 3 segments:\n  - the first segment is the space that the container belongs to,\n  - the second segment is the container external id,\n  - the third segment is the property id inside the container.\n\n<u>Example:</u>\n\nYou have the schema\n```\n{\n  \"mySpace\": {\n    \"myContainer\": {\n      \"myProperty\": {...}\n    }\n  }\n}\n```\n\nUse `[\"mySpace\", \"myContainer\", \"myProperty\"]` array to aggregate the values for `myProperty` property.\n"
+      minItems: 3
+      example:
+      - mySpace
+      - myContainer
+      - myProperty
+      allOf:
+      - $ref: '#/components/schemas/BasePropertyIla'
+    RecordOperationResult:
+      type: object
+      title: recordOperationResult
+      description: 'Result of processing an individual record from the request
+
+        '
+      required:
+      - space
+      - externalId
+      - code
+      properties:
+        space:
+          allOf:
+          - $ref: '#/components/schemas/RecordSpace'
+        externalId:
+          allOf:
+          - $ref: '#/components/schemas/RecordExternalId'
+        code:
+          type: integer
+          description: 'The code which matches an HTTP status that can represent record operation result.
+
+            A 202 code means that the operation was successful, while any other code means that
+
+            the operation failed.
+
+            '
+          format: int32
+          example: 409
+          enum:
+          - 202
+          - 409
+          - 500
+          - 503
+        message:
+          type: string
+          description: 'The error message which describes the issue. Only present when the operation failed.
+
+            '
+    FilterPropertyNoTopLevelIla:
+      title: filterPropertyNoTopLevel
+      description: "Property a client wants to use in the filter.\nTo represent fully qualified properties, Records use arrays of strings.\nThe filter supports container level properties only.\n\nSo the property array always has 3 segments:\n - the first segment is the space that the container belongs to,\n - the second segment is the container external id,\n - the third segment is the property id inside the container.\n\n<u>Example:</u>\n\nYou have the schema\n```\n{\n  \"mySpace\": {\n    \"myContainer\": {\n      \"myProperty\": {...}\n    }\n  }\n}\n```\n\nUse `[\"mySpace\", \"myContainer\", \"myProperty\"]` array to filter the records based on `myProperty` property.\n"
+      minItems: 3
+      example:
+      - mySpace
+      - myContainer
+      - myProperty
+      allOf:
+      - $ref: '#/components/schemas/BasePropertyIla'
+    RecordDelete:
+      type: object
+      title: recordItem
+      description: 'Record to delete.
+
+        '
+      required:
+      - space
+      - externalId
+      properties:
+        space:
+          allOf:
+          - $ref: '#/components/schemas/RecordSpace'
+        externalId:
+          allOf:
+          - $ref: '#/components/schemas/RecordExternalId'
+    HasDataFilterIla:
+      type: object
+      title: hasData
+      required:
+      - hasData
+      properties:
+        hasData:
+          type: array
+          title: containerItems
+          minItems: 1
+          maxItems: 10
+          description: 'Matches records where data is present in the referenced containers.
+
+            '
+          items:
+            allOf:
+            - $ref: '#/components/schemas/ContainerReferenceIla'
+    UniqueValuesAggregatePropertyIla:
+      title: aggregateProperty
+      description: "Property a client wants to aggregate.\nTo represent fully qualified properties, Records use arrays of strings.\n\nThe aggregate supports container level properties, as well as `[\"space\"]`\ntop level property.\n\nA container level property is defined by 3 segments:\n  - the first segment is the space that the container belongs to,\n  - the second segment is the container external id,\n  - the third segment is the property id inside the container.\n\n<u>Example:</u>\n\nYou have the schema\n```\n{\n  \"mySpace\": {\n    \"myContainer\": {\n      \"myProperty\": {...}\n    }\n  }\n}\n```\n\nUse `[\"mySpace\", \"myContainer\", \"myProperty\"]` array to aggregate the values for `myProperty` property.\n"
+      minItems: 1
+      example:
+      - mySpace
+      - myContainer
+      - myProperty
+      allOf:
+      - $ref: '#/components/schemas/BasePropertyIla'
+    AggregatesResultDefinitionIla:
+      type: object
+      title: aggregatesResultDictionary
+      description: "A dictionary of the results for the requested aggregates mapped by the aggregates identifiers.\n\n<u>Example:</u>\n\n```\n{\n  \"my_aggr_1\": {\n    \"avg\": 42\n  },\n  \"my_aggr_2\": {\n    \"max\": 69\n  },\n}\n```\n"
+      additionalProperties:
+        x-additionalPropertiesName: aggregate-id
+        type: object
+        title: aggregateResultDictionary
+        description: 'Requested aggregate result. It''s the aggregate identifier from the request and a set of fields to represent aggregated data.
+
+          '
+        oneOf:
+        - $ref: '#/components/schemas/AvgAggregateResultIla'
+        - $ref: '#/components/schemas/CountAggregateResultIla'
+        - $ref: '#/components/schemas/MinAggregateResultIla'
+        - $ref: '#/components/schemas/MaxAggregateResultIla'
+        - $ref: '#/components/schemas/SumAggregateResultIla'
+        - $ref: '#/components/schemas/UniqueValuesAggregateResultIla'
+        - $ref: '#/components/schemas/NumberHistogramAggregateResultIla'
+        - $ref: '#/components/schemas/TimeHistogramAggregateResultIla'
+        - $ref: '#/components/schemas/FiltersAggregateResultIla'
+        - $ref: '#/components/schemas/MovingFunctionAggregateResultIla'
+      example:
+        my_avg_aggregate1:
+          avg: 42
+        my_terms_aggregate2:
+          uniqueValueBuckets:
+          - value: Cognite
+            count: 42
+            aggregates:
+              my_sub_aggregate1:
+                min: 13
+              my_sub_aggregate2:
+                max: 69
+              my_sub_aggregate3:
+                uniqueValueBuckets:
+                - value: us1
+                  count: 42
+                - value: ie1
+                  count: 7
+          - value: AkerBP
+            count: 21
+            aggregates:
+              my_sub_aggregate1:
+                min: 99
+              my_sub_aggregate2:
+                max: 999
+              my_sub_aggregate3:
+                uniqueValueBuckets:
+                - value: us1
+                  count: 11
+    ContainerWithData:
+      type: object
+      title: containerToProperties
+      description: 'Container holding properties.
+
+        '
+      additionalProperties:
+        description: 'Properties in the container of the ```record```.
+
+          '
+        x-additionalPropertiesName: container-identifier
+        title: propertyToValues
+        allOf:
+        - $ref: '#/components/schemas/PropertyValueGroupV3'
+    UniqueValuesAggregateResultIla:
+      type: object
+      title: uniqueValuesResult
+      properties:
+        uniqueValueBuckets:
+          type: array
+          description: 'Unique value buckets on of the specified in the request property.
+
+            '
+          items:
+            type: object
+            required:
+            - count
+            - value
+            properties:
+              count:
+                type: integer
+                format: int64
+                description: 'The count of items with the value in the property.
+
+                  '
+                example: 42
+              value:
+                title: aggregateValue
+                allOf:
+                - $ref: '#/components/schemas/AggregateValue'
+              aggregates:
+                allOf:
+                - $ref: '#/components/schemas/AggregatesResultDefinitionIla'
+    RecordIncludeTyping:
+      type: object
+      title: includeTyping
+      properties:
+        includeTyping:
+          type: boolean
+          description: 'If set to `true`, property type information will be included into response.
+
+            Only following properties are included:
+
+            - mentioned in `items` response parameter (for `/filter` and `/sync` responses)
+
+            - mentioned in `filter` request parameter
+
+            - mentioned in `targetUnits` request parameter
+
+            - mentioned in `aggregates` request parameter (for `/aggregate` request )
+
+            '
+          example: true
+    RawPropertyValueListIla:
+      description: A list of values describing the type of the defined property
+      type: array
+      minItems: 1
+      maxItems: 100
+      items:
+        allOf:
+        - $ref: '#/components/schemas/RawPropertyValueV3'
+    RecordTargetUnits:
+      type: object
+      title: targetUnits
+      properties:
+        targetUnits:
+          description: 'Properties to convert to another unit. The API can only convert to another unit,
+
+            if a unit has been defined as part of the type on the underlying container being queried.
+
+
+            Use `unitSystemName` to convert all properties to the target unit system without
+
+            specifying each property individually.
+
+
+            **NB!** Unit conversion is applied to both the response and the request. For example, let''s assume
+
+            there is a `temperature` property with its unit defined as `temperature:deg_c`. If
+
+            one requests conversion of this property to `temperature:k` unit,
+
+            then all values of this property in response will be converted to Kelvin.
+
+            But also **all** values of this property in request (e.g. in a `filter`)
+
+            are expected to be provided in Kelvin.
+
+            '
+          oneOf:
+          - type: object
+            title: unitSystemName
+            required:
+            - unitSystemName
+            properties:
+              unitSystemName:
+                type: string
+                description: 'Name of the unit system. All properties that can be converted will be converted to this unit system.
+
+                  '
+          - type: object
+            title: properties
+            required:
+            - properties
+            properties:
+              properties:
+                type: array
+                description: 'List of properties and units to convert these properties to.
+
+                  '
+                minItems: 1
+                maxItems: 1000
+                uniqueItems: true
+                items:
+                  allOf:
+                  - $ref: '#/components/schemas/PropertySpecificTargetUnit'
+    AggregatePropertyIla:
+      title: aggregateProperty
+      description: "Property a client wants to aggregate.\nTo represent fully qualified properties, Records use arrays of strings.\n\nThe aggregate supports only container level properties.\nSo the property array always has 3 segments:\n  - the first segment is the space that the container belongs to,\n  - the second segment is the container external id,\n  - the third segment is the property id inside the container.\n\n<u>Example:</u>\n\nYou have the schema\n```\n{\n  \"mySpace\": {\n    \"myContainer\": {\n      \"myProperty\": {...}\n    }\n  }\n}\n```\n\nUse `[\"mySpace\", \"myContainer\", \"myProperty\"]` array to aggregate the values for `myProperty` property.\n"
+      minItems: 3
+      example:
+      - mySpace
+      - myContainer
+      - myProperty
+      allOf:
+      - $ref: '#/components/schemas/BasePropertyIla'
+    NumberHistogramAggregateIla:
+      type: object
+      title: numberHistogram
+      required:
+      - numberHistogram
+      properties:
+        numberHistogram:
+          type: object
+          description: "A histogram aggregator function. This function will generate a histogram from the values of the specified\nproperty. It uses the specified interval as defined in your `interval` argument.\n\n<u>Example:</u>\n\nTo get explicit count of players with salaries grouped by $1K and the money which a club spend on each the group:\n```\n{\n  \"my_salaries_histogram\": {\n    \"numberHistogram\": {\n      \"interval\": \"1000\",\n      \"property\": [ \"football\", \"player\", \"salary\" ],\n      \"aggregates\": {\n        \"my_salaries_sum\": {\n          \"sum\": { \"property\": [ \"football\", \"player\", \"salary\" ] }\n        }\n      }\n    }\n  }\n}\n```\n"
+          required:
+          - property
+          - interval
+          properties:
+            interval:
+              type: number
+              description: 'The interval between each bucket.
+
+                '
+            hardBounds:
+              type: object
+              description: 'To limit the range of buckets in the histogram.
+
+                It is particularly useful in the case of open data ranges that can result in a
+
+                very large number of buckets. One or both bounds must be specified.
+
+                The returned buckets are those whose keys fall within [min, max] (both inclusive).
+
+                '
+              properties:
+                min:
+                  type: number
+                  description: 'The lower bound (inclusive) for histogram bucket keys in the response.
+
+                    Buckets with keys below this value are excluded.
+
+                    '
+                  example: 42
+                max:
+                  type: number
+                  description: 'The upper bound (inclusive) for histogram bucket keys in the response.
+
+                    Buckets with keys above this value are excluded.
+
+                    '
+                  example: 777
+            property:
+              title: aggregateProperty
+              allOf:
+              - $ref: '#/components/schemas/AggregatePropertyIla'
+            aggregates:
+              description: 'A dictionary of requested aggregates with client defined names/identifiers.
+
+                '
+              allOf:
+              - $ref: '#/components/schemas/AggregatesDefinitionIla'
+          additionalProperties: false
+      additionalProperties: false
+    FiltersAggregateIla:
+      type: object
+      title: filters
+      required:
+      - filters
+      properties:
+        filters:
+          type: object
+          description: "A multi-bucket aggregation where each bucket contains the records that match a filter from `filters list`.\n\n**Note:** The only 30 such buckets (filter defined) are allowed across all Filters aggregates in a single request.\n\n<u>Example:</u>\n\nTo find the maximum scores earned by a player in all games before 2025-05-15T18:00:00.00Z and after it:\n```\n{\n  \"my_filters\": {\n    \"filters\": {\n      \"filters\": [\n        {\n          \"range\": {\n            \"property\": [ \"football\", \"game_statistics\", \"game_date\" ],\n            \"gte\": \"2025-05-15T18:00:00.00Z\"\n          }\n        },\n        {\n          \"range\": {\n            \"property\": [ \"football\", \"game_statistics\", \"game_date\" ],\n            \"lt\": \"2025-05-15T18:00:00.00Z\"\n          }\n        }\n      ],\n      \"aggregates\": {\n        \"my_player_scores_max\": {\n          \"max\": { \"property\": [ \"football\", \"game_statistics\", \"points_scored\" ] }\n        }\n      }\n    }\n  }\n}\n```\n"
+          required:
+          - filters
+          properties:
+            filters:
+              type: array
+              description: 'List of filters from which to build buckets.
+
+                '
+              minItems: 1
+              maxItems: 10
+              items:
+                allOf:
+                - $ref: '#/components/schemas/FilterDefinitionIla'
+            aggregates:
+              description: 'A dictionary of requested aggregates with client defined names/identifiers.
+
+                '
+              allOf:
+              - $ref: '#/components/schemas/AggregatesDefinitionIla'
+          additionalProperties: false
+      additionalProperties: false
+    FiltersAggregateResultIla:
+      type: object
+      title: filtersResult
+      properties:
+        filterBuckets:
+          type: array
+          description: 'Filter buckets of the specified in the request filters.
+
+            '
+          items:
+            type: object
+            required:
+            - count
+            properties:
+              count:
+                type: integer
+                format: int64
+                description: 'The count of items matching the filter for the bucket.
+
+                  '
+                example: 42
+              aggregates:
+                allOf:
+                - $ref: '#/components/schemas/AggregatesResultDefinitionIla'
+    MaxAggregateIla:
+      type: object
+      title: max
+      required:
+      - max
+      properties:
+        max:
+          type: object
+          description: "The function will calculate, and return, the highest - max - value for the property.\n\n<u>Example:</u>\n\n```\n{\n  \"my_player_scores_max\": {\n    \"max\": { \"property\": [ \"football\", \"game_statistics\", \"points_scored\" ] }\n  },\n  \"my_player_age_max\": {\n    \"max\": { \"property\": [ \"football\", \"game_statistics\", \"player_age\" ] }\n  }\n}\n```\n"
+          required:
+          - property
+          properties:
+            property:
+              title: aggregateProperty
+              allOf:
+              - $ref: '#/components/schemas/MinMaxAggregatePropertyIla'
+          additionalProperties: false
+      additionalProperties: false
+    RangeValue:
+      title: rangeBound
+      description: Value you wish to find in the provided property using a range clause.
+      oneOf:
+      - type: string
+        title: string
+      - type: number
+        title: number
+      - type: integer
+        title: integer
+    RecordEnumPropertyType:
+      type: object
+      description: 'Enumeration property type.
+
+
+        Values are stored and compared as case-sensitive strings. Only values declared in
+
+        the `values` map are accepted on ingestion. If `unknownValue` is set, it is used
+
+        as a forward-compatibility marker for values not present in `values` - it will be
+
+        returned when reading a value that is not among the declared values.
+
+        '
+      required:
+      - type
+      - list
+      - values
+      properties:
+        type:
+          type: string
+          enum:
+          - enum
+        list:
+          description: 'Specifies that the data type is a list of values. The ordering of values is preserved.
+
+            '
+          type: boolean
+          default: false
+        maxListSize:
+          type: integer
+          description: 'Specifies the maximum number of values in the list
+
+            '
+        values:
+          type: object
+          description: "Declared enum values. Keys are the accepted string values on ingestion (1â\x80\x9332 entries).\nEach key must match `^[_A-Za-z][_0-9A-Za-z]{0,127}$` and may not be `true`, `false`,\nor `null`.\n"
+          minProperties: 1
+          maxProperties: 32
+          propertyNames:
+            pattern: ^[_A-Za-z][_0-9A-Za-z]{0,127}$
+          additionalProperties:
+            $ref: '#/components/schemas/RecordEnumValue'
+        unknownValue:
+          type: string
+          description: 'Forward-compatibility marker returned when a stored value is not found in `values`.
+
+            Must itself be a key present in `values`.
+
+            '
+    PropertySpecificTargetUnit:
+      type: object
+      title: propertySpecificTargetUnit
+      description: 'Property and unit or unit system to convert this proeprty to.
+
+        '
+      required:
+      - property
+      - unit
+      properties:
+        property:
+          title: targetUnitProperty
+          allOf:
+          - $ref: '#/components/schemas/TargetUnitProperty'
+        unit:
+          type: object
+          title: targetUnitOrSystem
+          description: 'Target unit or unit system to convert the property to.
+
+            '
+          oneOf:
+          - type: object
+            title: unitSystemName
+            required:
+            - unitSystemName
+            properties:
+              unitSystemName:
+                type: string
+                description: 'Target system to convert data to. Can be used instead of targetUnit to identify the unit to convert to.
+
+                  '
+          - allOf:
+            - $ref: '#/components/schemas/RecordUnitReference'
+    DeleteRecordsRequest:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          title: recordItems
+          description: 'List of records to delete.
+
+            '
+          minItems: 1
+          maxItems: 1000
+          items:
+            allOf:
+            - $ref: '#/components/schemas/RecordDelete'
+    UnprocessableRecords:
+      type: object
+      required:
+      - error
+      properties:
+        error:
+          type: object
+          description: 'Details about the unprocessable records.
+
+            '
+          required:
+          - code
+          - message
+          properties:
+            code:
+              type: integer
+              description: 'The HTTP status code returned.
+
+                '
+              format: int32
+              example: 422
+              enum:
+              - 422
+            message:
+              type: string
+              description: 'The error which describes the issue.
+
+                '
+            duplicated:
+              type: array
+              description: 'Record identifier items list that are not unique in the request.
+
+                '
+              items:
+                type: object
+                title: duplicateItem
+                description: 'Duplicate records info.
+
+                  '
+                required:
+                - externalId
+                properties:
+                  externalId:
+                    type: string
+                    title: recordId
+                    description: 'Record identifier string in a format: `<space>.<externalId>`.
+
+                      '
+                    example: mySpace.myRecord1
+              minItems: 1
+              maxItems: 1000
+    AggregateRecordsRequest:
+      description: 'Defines an aggregation request. This will let you aggregate supported data types. The request
+
+        supports filters, and allows optional search matching.
+
+        '
+      allOf:
+      - type: object
+        required:
+        - aggregates
+        properties:
+          lastUpdatedTime:
+            allOf:
+            - $ref: '#/components/schemas/LastUpdatedTimeFilter'
+          filter:
+            allOf:
+            - $ref: '#/components/schemas/FilterDefinitionIla'
+          aggregates:
+            description: "A dictionary of requested aggregates with client defined names/identifiers.\n\n<u>Example:</u>\n\n```\n{\n  \"my_aggr_1\": {\n    \"min\": {\"property\": [\"space1\", \"container1\", \"property1\"]}\n  },\n  \"my_aggr_2\": {\n    \"uniqueValues\": {\n      \"property\": [\"space1\", \"container2\", \"property1\"],\n      \"aggregates\": {\n        \"my_sub_aggr\": {\n          \"avg\": {\"property\": [\"space2\", \"container1\", \"property3\"]}\n        }\n      }\n    }\n  },\n}\n```\n\nMax number of (sub-)aggregate trees on a level is 5, Max aggregate tree depth is 5.\nMax number of aggregates in the forest is 16.\n"
+            allOf:
+            - $ref: '#/components/schemas/AggregatesDefinitionIla'
+      - $ref: '#/components/schemas/RecordTargetUnits'
+      - $ref: '#/components/schemas/RecordIncludeTyping'
+    LimitWithDefault10:
+      type: object
+      title: limit
+      properties:
+        limit:
+          type: integer
+          description: 'Limits the number of results to return.
+
+            '
+          default: 10
+          minimum: 1
+          maximum: 1000
+          example: 42
+    RecordData:
+      type: object
+      description: 'Property values for the identified/specified container.
+
+        '
+      required:
+      - source
+      - properties
+      properties:
+        source:
+          allOf:
+          - $ref: '#/components/schemas/ContainerReferenceIla'
+        properties:
+          title: containerProperties
+          allOf:
+          - $ref: '#/components/schemas/PropertyValueGroupV3'
+    PropertySort:
+      type: object
+      title: sortSpecification
+      description: 'Sorting spec for a property.
+
+        '
+      required:
+      - property
+      properties:
+        property:
+          allOf:
+          - $ref: '#/components/schemas/SortPropertyIla'
+        direction:
+          type: string
+          default: ascending
+          enum:
+          - ascending
+          - descending
+          example: descending
+    ContainsAllFilterIla:
+      type: object
+      title: containsAll
+      required:
+      - containsAll
+      properties:
+        containsAll:
+          type: object
+          description: 'Matches records where the property contains all the given values.
+
+            Only apply this filter to multivalued properties.
+
+            '
+          required:
+          - property
+          - values
+          properties:
+            property:
+              allOf:
+              - $ref: '#/components/schemas/FilterPropertyNoTopLevelIla'
+            values:
+              title: values
+              allOf:
+              - $ref: '#/components/schemas/RawPropertyValueListIla'
+    CountAggregateResultIla:
+      type: object
+      title: countResult
+      required:
+      - count
+      properties:
+        count:
+          type: integer
+          format: int64
+          description: 'The number of non-null values for specified in the request property.
+
+            '
+          example: 42
+    RecordExternalId:
+      type: string
+      pattern: ^[^\\x00]{1,256}$
+      description: 'The identifier (in scope of a space) of a ```record``` which is stored in a ```stream```.
+
+        **Note:** For *mutable* records, the property value must be unique within the scope of the space the record belongs to.
+
+        **Note:** Duplicate ```space + externalId``` pair values are allowed for *immutable* records, even within a single batched create records request.
+
+        '
+      minLength: 1
+      maxLength: 256
+      example: some_id
+  responses:
+    RecordsAggregationResponse:
+      description: 'Aggregated query results.
+
+        '
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - aggregates
+            properties:
+              aggregates:
+                allOf:
+                - $ref: '#/components/schemas/AggregatesResultDefinitionIla'
+              typing:
+                $ref: '#/components/schemas/RecordTypeInformation'
+    RecordsFilterResponse:
+      description: 'List of matching records.
+
+
+        **Note:** The maximum total response size is 20MB.
+
+        '
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            properties:
+              items:
+                type: array
+                title: recordItems
+                description: 'List of records.
+
+                  '
+                items:
+                  allOf:
+                  - $ref: '#/components/schemas/Record'
+              typing:
+                $ref: '#/components/schemas/RecordTypeInformation'
+    ErrorResponse:
+      description: The response for a failed request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+    RecordsSyncResponse:
+      description: 'The next chunk of matching the filter records starting from the cursor in the request.
+
+
+        **Note:** The maximum total response size is 10MB.
+
+        '
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            - nextCursor
+            - hasNext
+            properties:
+              items:
+                type: array
+                title: recordItems
+                description: 'List of records.
+
+                  '
+                items:
+                  allOf:
+                  - $ref: '#/components/schemas/SyncRecord'
+              nextCursor:
+                type: string
+                title: nextCursor
+                description: 'A cursor to use in the next request as a starting point to get the next chunk of records.
+
+                  '
+                example: c29tZSBjdXJzb3I=
+              hasNext:
+                type: boolean
+                title: hasNext
+                description: 'The attribute indicates if there are more records to read in the storage or the cursor points to the last item.
+
+                  '
+                example: true
+              typing:
+                $ref: '#/components/schemas/RecordTypeInformation'
+    RecordsIngestResponse:
+      description: 'An empty response is returned if all records from the request are successfully accepted to be created or updated.
+
+        '
+      content:
+        application/json:
+          schema:
+            type: object
+            title: emptyResponse
+            description: 'Empty JSON object indicates all records are successfully accepted.
+
+              '
+    RecordsDeleteResponse:
+      description: 'An empty response is returned if all records from the request are successfully deleted.
+
+        '
+      content:
+        application/json:
+          schema:
+            type: object
+            title: emptyResponse
+            description: 'Empty JSON object indicates all records are successfully accepted to be deleted.
+
+              '
+  parameters:
+    StreamId:
+      name: streamId
+      in: path
+      description: 'An identifier of the stream where the records are stored.
+
+        '
+      required: true
+      schema:
+        type: string
+        pattern: ^[a-z]([a-z0-9_-]{0,98}[a-z0-9])?$
+        minLength: 1
+        maxLength: 100
+        example: test1
+  securitySchemes:
+    oidc-token:
+      type: http
+      scheme: bearer
+      bearerFormat: OpenID Connect or OAuth2 token
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+    oauth2-client-credentials:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        clientCredentials:
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-auth-code:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://your-idps.authorization.url/
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-open-industrial-data:
+      type: oauth2
+      description: Auth flow for Open Industrial Data. Get your client secret from https://hub.cognite.com/open-industrial-data-211.
+      flows:
+        clientCredentials:
+          tokenUrl: https://login.microsoftonline.com/48d5043c-cf70-4c49-881c-c638f5796997/oauth2/v2.0/token
+          scopes:
+            default: https://api.cognitedata.com/.default
+    org-oidc-token:
+      type: openIdConnect
+      openIdConnectUrl: https://auth.cognite.com/.well-known/openid-configuration
+      description: 'Access token issued by the Cognite authorization server, and valid for the target organization. The token must
+
+        be an OpenID Connect token, and it can be obtained by performing an OIDC login flow toward `auth.cognite.com`.
+
+        This is a single URL for all CDF organizations.'
+x-tagGroups:
+- name: Changelog
+  tags:
+  - Changelog
+- name: Organizations and projects
+  tags:
+  - Organizations
+  - Projects
+- name: Identity and access management
+  tags:
+  - Principals
+  - Groups
+  - Security categories
+  - Sessions
+  - Token
+  - User profiles
+  - Project Deletion Reporting
+- name: Data modeling
+  tags:
+  - Data Modeling
+  - Data models
+  - Spaces
+  - Views
+  - Containers
+  - Nodes
+  - Instances
+  - Statistics
+  - Streams
+  - Records
+- name: Asset-centric data model
+  tags:
+  - Assets
+  - Time series
+  - Synthetic Time Series
+  - Data point subscriptions
+  - Events
+  - Files
+  - Sequences
+  - Geospatial
+  - Seismic
+- name: 3D
+  tags:
+  - 3D Models
+  - 3D Model Revisions
+  - 3D Files
+  - 3D Asset Mapping
+  - 3D Contextualization
+  - 3D Jobs
+  - 3D Migration
+  - 3D Scenes
+- name: Contextualization
+  tags:
+  - Entity matching
+  - Entity matching pipelines
+  - Engineering diagrams
+  - Vision
+  - Advanced joins
+- name: Cognite AI
+  tags:
+  - Agents
+  - Skills
+  - Chat Completions
+  - Document AI
+  - Models
+- name: Documents
+  tags:
+  - Documents
+  - Document preview
+- name: Data ingestion
+  tags:
+  - Raw
+  - Extraction Pipelines
+  - Extraction Pipelines Runs
+  - Extraction Pipelines Config
+  - Extractors
+- name: Data organization
+  tags:
+  - Data sets
+  - Data domains
+  - Data products
+  - Rule sets
+  - Labels
+  - Relationships
+  - Annotations
+- name: Transformations
+  tags:
+  - Transformations
+  - Transformation Jobs
+  - Transformation Schedules
+  - Transformation Notifications
+  - Query
+  - Schema
+- name: Functions
+  tags:
+  - Functions
+  - Function calls
+  - Function schedules
+- name: Hosted Extractors
+  tags:
+  - Sources
+  - Jobs
+  - Destinations
+  - Mappings
+- name: PostgreSQL Gateway
+  tags:
+  - Postgres Gateway Users
+  - Postgres Gateway Tables
+- name: SAP Writeback
+  tags:
+  - SAP Instances
+  - SAP Endpoints
+  - Schema Mappings
+  - Writeback Requests
+- name: Data workflows
+  tags:
+  - Workflows
+  - Workflow versions
+  - Workflow executions
+  - Workflow triggers
+  - Tasks
+  - Workers
+- name: Simulators
+  tags:
+  - Simulators
+  - Simulator Integrations
+  - Simulator Models
+  - Simulator Routines
+  - Simulation Runs
+  - Simulator Logs
+- name: Units
+  tags:
+  - Units
+  - Unit Systems
+- name: ''
+  tags:
+  - ''

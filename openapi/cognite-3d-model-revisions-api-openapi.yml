@@ -1,0 +1,1644 @@
+openapi: 3.1.0
+info:
+  title: Cognite 3D Asset Mapping 3D Model Revisions API
+  description: "# Introduction\nThis is the reference documentation for the Cognite API with\nan overview of all the available methods.\n\n# Postman\nSelect the **Download** button to download our OpenAPI specification to get started.\n\nTo import your data into Postman, select **Import**, and the Import modal opens.\nYou can import items by dragging or dropping files or folders. You can choose how to import your API and manage the import settings in **View Import Settings**.\n\nIn the Import Settings, set the **Folder organization** to **Tags**, select\n**Enable optional parameters** to turn off the settings, and select **Always inherit authentication** to turn on the settings. Select **Import**.\n\nSet the Authorization to **Oauth2.0**. By default, the settings are for Open Industrial Data. Navigate to [Cognite Hub](https://hub.cognite.com/open-industrial-data-211) to understand how to get the credentials for use in Postman.\n\nFor more information, see [Getting Started with Postman](https://developer.cognite.com/dev/guides/postman/).\n\n# Pagination\nMost resource types can be paginated, indicated by the field `nextCursor` in the response.\nBy passing the value of `nextCursor` as the cursor you will get the next page of `limit` results.\nNote that all parameters except `cursor` has to stay the same.\n\n# Parallel retrieval\nAs general guidance, Parallel Retrieval is a technique that should be used when due to query complexity, retrieval of data in a single request is significantly slower than it would otherwise be for a simple request.  Parallel retrieval does not act as a speed multiplier on optimally running queries.  By parallelizing such requests, data retrieval performance can be tuned to meet the client application needs. \n\nCDF supports parallel retrieval through the `partition` parameter, which has the format `m/n` where `n` is the amount of partitions you would like to split the entire data set into.\nIf you want to download the entire data set by splitting it into 10 partitions, do the following in parallel with `m` running from 1 to 10:\n  - Make a request to `/events` with `partition=m/10`.\n  - Paginate through the response by following the cursor as explained above. Note that the `partition` parameter needs to be passed to all subqueries.\n\nProcessing of parallel retrieval requests is subject to concurrency quota availability. The request returns the `429` response upon exceeding concurrency limits. See the Request throttling chapter below.\n\nTo prevent unexpected problems and to maximize read throughput, you should at most use 10 partitions. \nSome CDF resources will automatically enforce a maximum of 10 partitions.\nFor more specific and detailed information, please read the ```partition``` attribute documentation for the CDF resource you're using.  \n\n# Requests throttling\nCognite Data Fusion (CDF) returns the HTTP `429` (too many requests) response status code when project capacity exceeds the limit.\n\nThe throttling can happen:\n  - If a user or a project sends too many (more than allocated) concurrent requests.\n  - If a user or a project sends a too high (more than allocated) rate of requests in a given amount of time.\n\nCognite recommends using a retry strategy based on truncated exponential backoff to handle sessions with HTTP response codes 429.\n\nCognite recommends using a reasonable number (up to 10) of  `Parallel retrieval` partitions.\n\nFollowing these strategies lets you slow down the request frequency to maximize productivity without having to re-submit/retry failing requests.\n\nSee more [here](https://docs.cognite.com/dev/concepts/resource_throttling).\n\n# API versions\n## Version headers\nThis API uses calendar versioning, and version names follow the `YYYYMMDD` format.\nYou can find the versions currently available by using the version selector at the top of this page.\n\nTo use a specific API version, you can pass the `cdf-version: $version` header along with your requests to the API.\n\n## Beta versions\nThe beta versions provide a preview of what the stable version will look like in the future.\nBeta versions contain functionality that is reasonably mature, and highly likely to become a part of the stable API.\n\nBeta versions are indicated by a `-beta` suffix after the version name. For example, the beta version header for the\n2023-01-01 version is then `cdf-version: 20230101-beta`.\n\n## Alpha versions\nAlpha versions contain functionality that is new and experimental, and not guaranteed to ever become a part of the stable API.\nThis functionality presents no guarantee of service, so its use is subject to caution.\n\nAlpha versions are indicated by an `-alpha` suffix after the version name. For example, the alpha version header for\nthe 2023-01-01 version is then `cdf-version: 20230101-alpha`."
+  version: v1
+  contact:
+    name: Cognite Support
+    url: https://support.cognite.com
+    email: support@cognite.com
+servers:
+- url: https://{cluster}.cognitedata.com/api/v1/projects/{project}
+  description: The URL for the CDF cluster to connect to
+  variables:
+    cluster:
+      enum:
+      - api
+      - az-tyo-gp-001
+      - az-eastus-1
+      - az-power-no-northeurope
+      - westeurope-1
+      - asia-northeast1-1
+      - gc-dsm-gp-001
+      default: api
+      description: The CDF cluster to connect to
+    project:
+      default: publicdata
+      description: The CDF project name.
+security:
+- oidc-token:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-client-credentials:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-open-industrial-data:
+  - https://api.cognitedata.com/.default
+- oauth2-auth-code:
+  - https://{cluster}.cognitedata.com/.default
+tags:
+- name: 3D Model Revisions
+paths:
+  /3d/models/{modelId}/revisions:
+    get:
+      tags:
+      - 3D Model Revisions
+      summary: List 3D revisions
+      description: '
+
+
+        > **Required capabilities:** `threedAcl:READ`
+
+
+        Retrieves a list of all revisions of a model. This operation supports pagination. You can also filter revisions if they are marked as published or not by using the query param published.'
+      operationId: get3DRevisions
+      parameters:
+      - $ref: '#/components/parameters/ModelId'
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+      - name: published
+        in: query
+        description: Filter based on published status.
+        schema:
+          type: boolean
+      responses:
+        '200':
+          description: A list of revisions of the model.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Revision3DWithCursorResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-capability:
+      - threedAcl:READ
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: const revisions3D = await client.revisions3D.list(324566546546346);
+      - lang: Python
+        label: Python SDK
+        source: 'res = client.three_d.revisions.list(model_id=1, published=True, limit=100)
+
+          '
+      - lang: Java
+        label: Java SDK
+        source: "List<ThreeDModelRevision> listResults = new ArrayList<>(); \nclient.threeD() \n          .models() \n          .revisions()\n          .list(1L) \n          .forEachRemaining(model -> listResults.addAll(model)); \n\n"
+    post:
+      tags:
+      - 3D Model Revisions
+      summary: Create 3D revisions
+      description: '
+
+
+        > **Required capabilities:** `threedAcl:CREATE`
+
+
+        Creates revision(s) and starts processing job(s).
+
+
+        Check beta API documentation for information about additional options.
+
+
+        Hybrid projects: Use the CreateRevision3DClassicAndHybridBody to create revisions.
+
+
+        DataModelOnly: Please use the 3d/jobs endpoint (Beta for now) to create the revision(s) and start jobs. CreateRevision3DDmsOnlyBody will eventually be deprecated.
+
+        '
+      operationId: create3DRevisions
+      parameters:
+      - $ref: '#/components/parameters/ModelId'
+      requestBody:
+        description: 'The revisions to create.
+
+          '
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - $ref: '#/components/schemas/CreateRevision3DClassicAndHybridBody'
+              - $ref: '#/components/schemas/CreateRevision3DDmsOnlyBody'
+      responses:
+        '201':
+          description: A list of created revisions.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Revision3DList'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-capability:
+      - threedAcl:CREATE
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: 'const revisions = await client.revisions3D.create(4234325345643654, [{ fileId: 8252999965991682 }, { fileId: 6305529564379596 }]);'
+      - lang: Python
+        label: Python SDK
+        source: 'from cognite.client.data_classes import ThreeDModelRevisionWrite
+
+          my_revision = ThreeDModelRevisionWrite(file_id=1)
+
+          res = client.three_d.revisions.create(model_id=1, revision=my_revision)
+
+          '
+      - lang: Java
+        label: Java SDK
+        source: "Path fileAOriginal = Paths.get(\"./src/test/resources/csv-data.txt\"); \nList<FileContainer> fileContainerInput = new ArrayList<>(); \nFileMetadata fileMetadata = FileMetadata.newBuilder() \n          .setExternalId(\"10\") \n          .setName(\"test_file_.test\") \n          .setSource(\"sdk-data-generator\") \n          .putMetadata(\"type\", \"sdk-data-generator\") \n     .build(); \n\n FileContainer fileContainer = FileContainer.newBuilder() \n          .setFileMetadata(fileMetadata) \n          .setFileBinary(FileBinary.newBuilder() \n               .setBinaryUri(fileAOriginal.toUri().toString())) \n          .build(); \n fileContainerInput.add(fileContainer); \n\n List<FileMetadata> uploadFileResult = \n          client.files().upload(fileContainerInput); \n\nThreeDModelRevision.Camera camera = ThreeDModelRevision.Camera.newBuilder() \n .addPosition(2.707411050796509).addPosition(-4.514726638793945).addPosition(1.5695604085922241) \n .addTarget(0.0).addTarget(-0.002374999923631549).addTarget(1.5695604085922241) \n.build(); \nThreeDModelRevision revision = ThreeDModelRevision.newBuilder() \n .setFileId(uploadFileResult.get(0).getId()).setCamera(camera).addRotation(new Random().nextInt(100) / 100.0) \n.build(); \nList<ThreeDModelRevision> listUpsert = \n          client.threeD() \n          .models() \n          .revisions() \n          .upsert(10L, List.of(revision)); \n\n"
+  /3d/models/{modelId}/revisions/update:
+    post:
+      tags:
+      - 3D Model Revisions
+      summary: Update 3D revisions
+      operationId: update3DRevisions
+      parameters:
+      - $ref: '#/components/parameters/ModelId'
+      requestBody:
+        description: List of changes.
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - $ref: '#/components/schemas/UpdateRevision3DClassicBody'
+              - $ref: '#/components/schemas/UpdateRevision3DDmsOnlyBody'
+      responses:
+        '200':
+          description: Corresponding revisions after applying the updates.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Revision3DList'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-capability:
+      - threedAcl:UPDATE
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: "const revisionsToUpdate = [{\n id: 6305529564379596,\n update: {\n   rotation: {\n     set: [1, 2, 3]\n   },\n   translation: {\n     set: [4, 5, 6]\n   },\n   scale: {\n     set: [0.5, 0.3, 0.2]\n   }\n }\n}];\nconst updated = await client.revisions3D.update(8252999965991682, revisionsToUpdate);"
+      - lang: Python
+        label: Python SDK
+        source: 'revision = client.three_d.revisions.retrieve(model_id=1, id=1)
+
+          revision.status = "New Status"
+
+          res = client.three_d.revisions.update(model_id=1, item=revision)
+
+
+          from cognite.client.data_classes import ThreeDModelRevisionUpdate
+
+          my_update = ThreeDModelRevisionUpdate(id=1).published.set(False).metadata.add({"key": "value"})
+
+          res = client.three_d.revisions.update(model_id=1, item=my_update)
+
+          '
+      - lang: Java
+        label: Java SDK
+        source: "ThreeDModelRevision th = ThreeDModelRevision.newBuilder().setId(10).setRotation(1,10).build(); \nList<ThreeDModelRevision> tdUpdateResults = \nclient.threeD() \n          .models() \n          .revisions() \n          .upsert(10L, List.of(th)); \n\n"
+      description: '
+
+
+        > **Required capabilities:** `threedAcl:UPDATE`
+
+        '
+  /3d/models/{modelId}/revisions/delete:
+    post:
+      tags:
+      - 3D Model Revisions
+      summary: Delete 3D revisions
+      operationId: delete3DRevisions
+      parameters:
+      - $ref: '#/components/parameters/ModelId'
+      requestBody:
+        description: List of revisions ids to delete.
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - $ref: '#/components/schemas/DataIdentifiers'
+              - $ref: '#/components/schemas/OneDataDmsIdentifier'
+        required: true
+      responses:
+        '200':
+          $ref: '#/components/responses/EmptyResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-capability:
+      - threedAcl:DELETE
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: 'await client.revisions3D.delete(8252999965991682, [{ id: 4190022127342195 }]);'
+      - lang: Python
+        label: Python SDK
+        source: 'res = client.three_d.revisions.delete(model_id=1, id=1)
+
+          '
+      - lang: Java
+        label: Java SDK
+        source: "List<Item> byInternalIds = List.of(Item.newBuilder().setId(10).build()); \nList<Item> deleteItemsResults = client.threeD().models().revisions().delete(20L, byInternalIds); \n\nList<Item> byExternalIds = List.of(Item.newBuilder().setExternalId(\"10\").build()); \nList<Item> deleteItemsResults = client.threeD().models().revisions().delete(20L, byExternalIds); \n\n"
+      description: '
+
+
+        > **Required capabilities:** `threedAcl:DELETE`
+
+        '
+  /3d/models/{modelId}/revisions/{revisionId}:
+    get:
+      tags:
+      - 3D Model Revisions
+      summary: Retrieve a 3D revision
+      operationId: get3DRevision
+      parameters:
+      - $ref: '#/components/parameters/ModelId'
+      - $ref: '#/components/parameters/RevisionId'
+      responses:
+        '200':
+          description: A revision object
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Revision3D'
+      x-capability:
+      - threedAcl:READ
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: const revisions3D = await client.revisions3D.retrieve(8252999965991682, 4190022127342195)
+      - lang: Python
+        label: Python SDK
+        source: 'res = client.three_d.revisions.retrieve(model_id=1, id=1)
+
+          '
+      - lang: Java
+        label: Java SDK
+        source: "List<Item> byInternalIds = List.of(Item.newBuilder().setId(10).build()); \nList<ThreeDModelRevision> resultsByInternalIds = client.threeD().models().revisions().retrieve(10L, byInternalIds); \n\nList<Item> byExternalIds = List.of(Item.newBuilder().setExternalId(\"10\").build()); \nList<ThreeDModelRevision> resultsByExternalIds = client.threeD().models().revisions().retrieve(10L, byExternalIds); \n\n"
+      description: '
+
+
+        > **Required capabilities:** `threedAcl:READ`
+
+        '
+  /3d/models/{modelId}/revisions/{revisionId}/logs:
+    get:
+      tags:
+      - 3D Model Revisions
+      summary: List 3D revision logs
+      description: '
+
+
+        > **Required capabilities:** `threedAcl:READ`
+
+
+        List log entries for the revision'
+      operationId: get3DLogs
+      parameters:
+      - $ref: '#/components/parameters/ModelId'
+      - $ref: '#/components/parameters/RevisionId'
+      - name: severity
+        in: query
+        schema:
+          type: integer
+          format: int64
+          description: Minimum severity to retrieve (3 = INFO, 5 = WARN, 7 = ERROR).
+          default: 5
+      responses:
+        '200':
+          description: A list of log entries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RevisionLog3DResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-capability:
+      - threedAcl:READ
+  /3d/models/{modelId}/revisions/{revisionId}/thumbnail:
+    post:
+      tags:
+      - 3D Model Revisions
+      summary: Update 3D revision thumbnail
+      operationId: updateThumbnail
+      parameters:
+      - $ref: '#/components/parameters/ModelId'
+      - $ref: '#/components/parameters/RevisionId'
+      requestBody:
+        description: The request body containing the file ID of the thumbnail image (from Files API).
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRevision3DThumbnail'
+      responses:
+        '200':
+          $ref: '#/components/responses/EmptyResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-capability:
+      - threedAcl:UPDATE
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: await client.revisions3D.updateThumbnail(8252999965991682, 4190022127342195, 3243334242324);
+      - lang: Python
+        label: Python SDK
+        source: 'res = client.three_d.revisions.update_thumbnail(model_id=1, revision_id=1, file_id=1)
+
+          '
+      - lang: Java
+        label: Java SDK
+        source: "FileMetadata fileMetadata = FileMetadata.newBuilder() \n .setExternalId(\"10\") \n .setName(\"CAMARO_THUMBNAIL_TEST_SDK_JAVA.png\") \n .setSource(\"sdk-data-generator\") \n .setUploaded(true) \n .setMimeType(\"image/png\") \n .putMetadata(\"type\", \"sdk-data-generator\") \n .putMetadata(\"sdk-data-generator\", \"sdk-data-generator\") \n .build(); \n byte[] fileByteA = bytes of file; \n List<FileContainer> list = List.of(FileContainer.newBuilder().setFileMetadata(fileMetadata).setFileBinary(FileBinary.newBuilder() \n          .setBinary(ByteString.copyFrom(fileByteA))).build()); \nList<FileMetadata> uploadFileResult = client.files().upload(list); \n\nBoolean updated = client \n          .threeD() \n          .models() \n          .revisions() \n          .updateThumbnail(model.getId(), revision.getId(), uploadFileResult.get(0).getId()); \n\n"
+      description: '
+
+
+        > **Required capabilities:** `threedAcl:UPDATE`
+
+        '
+  /3d/models/{modelId}/revisions/{revisionId}/outputs:
+    get:
+      tags:
+      - 3D Model Revisions
+      summary: List available outputs
+      description: '
+
+
+        > **Required capabilities:** `threedAcl:READ`
+
+
+        Retrieve a list of available outputs for a processed 3D model. An output can be a format that can be consumed by a viewer (e.g. Reveal) or import in external tools. Each of the outputs will have an associated version which is used to identify the version of output format (not the revision of the processed output). Note that the structure of the outputs will vary and is not covered here.'
+      operationId: list3dModelOutputs
+      parameters:
+      - $ref: '#/components/parameters/ModelId'
+      - $ref: '#/components/parameters/RevisionId'
+      - name: format
+        in: query
+        description: 'Format identifier, e.g. ''ept-pointcloud'' (point cloud). Well known formats are:
+
+          ''ept-pointcloud'' (point cloud data) or ''reveal-directory'' (output supported by Reveal).
+
+          ''all-outputs'' can be used to retrieve all outputs for a 3D revision. Note that some of
+
+          the outputs are internal, where the format and availability might change without warning.
+
+          '
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Returns a list of outputs and available versions per output for the given revision.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Model3DOutputResponseList'
+      x-capability:
+      - threedAcl:READ
+  /3d/models/{modelId}/revisions/{revisionId}/nodes:
+    get:
+      tags:
+      - 3D Model Revisions
+      summary: List 3D nodes
+      description: '
+
+
+        > **Required capabilities:** `threedAcl:READ`
+
+
+        Retrieves a list of nodes from the hierarchy in the 3D model. You can also request a specific subtree with the ''nodeId'' query parameter and limit the depth of the resulting subtree with the ''depth'' query parameter. By default, nodes are returned in order of ascending treeIndex. We suggest trying to set the query parameter `sortByNodeId` to `true` to check whether it makes your use case faster. The `partition` parameter can only be used if `sortByNodeId` is set to `true`. This operation supports pagination. If the model revision is still being processed, you will get a HTTP status 400 when accessing nodes too early. Wait until the retrieve revision response returns "status":"Done" before calling nodes endpoints.'
+      operationId: get3DNodes
+      parameters:
+      - $ref: '#/components/parameters/ModelId'
+      - $ref: '#/components/parameters/RevisionId'
+      - $ref: '#/components/parameters/partition'
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+      - name: depth
+        in: query
+        description: Get sub nodes up to this many levels below the specified node. Depth 0 is the root node.
+        schema:
+          type: integer
+          format: int32
+      - name: nodeId
+        in: query
+        description: ID of a node that are the root of the subtree you request (default is the root node).
+        schema:
+          type: integer
+          format: int64
+      - name: sortByNodeId
+        in: query
+        description: Enable sorting by nodeId. When this parameter is `true`, nodes will be listed in order of ascending nodeId. Enabling this option will likely result in faster response for many requests.
+        schema:
+          type: boolean
+          default: false
+      - name: properties
+        in: query
+        description: 'Example: `{"category1":{"property1":"value1"}}`
+
+
+          Filter for node properties. Only nodes that match all the given properties exactly will be listed.
+
+          The filter must be a JSON object with the same format as the `properties` field.
+
+          '
+        schema:
+          type: string
+          format: jsonObject(jsonObject(string))
+      responses:
+        '200':
+          description: A list of nodes of a revision.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Node3DWithCursorResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-capability:
+      - threedAcl:READ
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: const nodes3d = await client.revisions3D.list3DNodes(8252999965991682, 4190022127342195);
+      - lang: Python
+        label: Python SDK
+        source: 'res = client.three_d.revisions.list_nodes(model_id=1, revision_id=1, limit=10)
+
+          '
+      - lang: Java
+        label: Java SDK
+        source: "List<ThreeDModelRevision> listResults = new ArrayList<>(); \nclient.threeD() \n          .models() \n          .revisions() \n          .nodes() \n          .list(model.getId(), revision.getId()) \n          .forEachRemaining(val -> listResults.addAll(val)); \n\n"
+  /3d/models/{modelId}/revisions/{revisionId}/nodes/list:
+    post:
+      tags:
+      - 3D Model Revisions
+      summary: Filter 3D nodes
+      description: '
+
+
+        > **Required capabilities:** `threedAcl:READ`
+
+
+        List nodes in a project, filtered by node names or node property values specified by supplied filters. This operation supports pagination and partitions. If the model revision is still being processed, you will get a HTTP status 400 when accessing nodes too early. Wait until the retrieve revision response returns "status":"Done" before calling nodes endpoints.'
+      operationId: filter3DNodes
+      parameters:
+      - $ref: '#/components/parameters/ModelId'
+      - $ref: '#/components/parameters/RevisionId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - $ref: '#/components/schemas/Node3DPropertyFilterBody'
+              - $ref: '#/components/schemas/Node3DNameFilterBody'
+        required: true
+      responses:
+        '200':
+          description: A list of nodes satisfying the supplied node property filters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Node3DWithCursorResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-capability:
+      - threedAcl:READ
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: "const query = {\n filter: {\n   properties: {\n     Items: {\n       Type: [\"Cylinder\"]\n     }\n   }\n },\n partition: \"1/10\"\n};\nconst nodes3d = await client.revisions3D.filter3DNodes(8252999965991682, 4190022127342195, query);"
+      - lang: Python
+        label: Python SDK
+        source: 'res = client.three_d.revisions.filter_nodes(model_id=1, revision_id=1, properties={ "PDMS": { "Area": ["AB76", "AB77", "AB78"], "Type": ["PIPE", "BEND", "PIPESUP"] } }, limit=10)
+
+          '
+      - lang: Java
+        label: Java SDK
+        source: "//without parameters \nIterator<List<ThreeDNode>> itFilter = client.threeD() \n          .models() \n          .revisions() \n          .nodes() \n          .filter(model.getId(), revision.getId()); \n List<ThreeDNode> listResults = itFilter.next(); \n\n//with parameters \nRequest request = Request.create() \n          .withFilterParameter(\"properties\", createFilterPropertiesWithCategories()); \n\nList<ThreeDNode> listResults = new ArrayList<>(); \nclient.threeD() \n          .models() \n          .revisions() \n          .nodes() \n          .filter(model.getId(), revision.getId(), request) \n          .forEachRemaining(val -> listResults.addAll(val)); \n\nprivate ThreeDNode.PropertiesFilter createFilterPropertiesWithCategories() { \n     ThreeDNode.PropertiesFilter.Categories.CategoriesValues.Builder catValBuilder = \n          ThreeDNode.PropertiesFilter.Categories.CategoriesValues.newBuilder(); \n     catValBuilder.addValuesString(\"Box\"); \n     ThreeDNode.PropertiesFilter.Categories.Builder catBuilder = \n          ThreeDNode.PropertiesFilter.Categories.newBuilder(); \n     catBuilder.setName(\"Item\"); \n     catBuilder.putValues(\"Type\", catValBuilder.build()); \n     ThreeDNode.PropertiesFilter.Builder propsBuilder = \n          ThreeDNode.PropertiesFilter.newBuilder(); \n     propsBuilder.addCategories(catBuilder.build()); \n     return propsBuilder.build(); \n } \n\n"
+  /3d/models/{modelId}/revisions/{revisionId}/nodes/byids:
+    post:
+      tags:
+      - 3D Model Revisions
+      summary: Get 3D nodes by ID
+      description: '
+
+
+        > **Required capabilities:** `threedAcl:READ`
+
+
+        Retrieves specific nodes given by a list of IDs.'
+      operationId: get3DNodesById
+      parameters:
+      - $ref: '#/components/parameters/ModelId'
+      - $ref: '#/components/parameters/RevisionId'
+      requestBody:
+        description: The request body containing the IDs of the nodes to retrieve. Will return error 400 if the revision is still being processed.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Node3DIds'
+        required: true
+      responses:
+        '200':
+          description: A list of nodes.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Node3DList'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-capability:
+      - threedAcl:READ
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: 'const nodes3d = await client.revisions3D.retrieve3DNodes(8252999965991682, 4190022127342195, [{id: 123}, {id: 456}]);'
+      - lang: Java
+        label: Java SDK
+        source: "List<Item> byInternalIds = List.of(Item.newBuilder().setId(10).build()); \nList<ThreeDNode> nodesByIds = client.threeD() \n          .models() \n          .revisions() \n          .nodes() \n          .retrieve(model.getId(), revision.getId(), byInternalIds); \n\nList<Item> byExternalIds = List.of(Item.newBuilder().setExternalId(\"10\").build()); \n List<ThreeDNode> nodesByIds = client.threeD() \n          .models() \n          .revisions() \n          .nodes() \n          .retrieve(model.getId(), revision.getId(), byExternalIds); \n\n"
+  /3d/models/{modelId}/revisions/{revisionId}/nodes/{nodeId}/ancestors:
+    get:
+      tags:
+      - 3D Model Revisions
+      summary: List 3D ancestor nodes
+      description: '
+
+
+        > **Required capabilities:** `threedAcl:READ`
+
+
+        Retrieves a list of ancestor nodes of a given node, including itself, in the hierarchy of the 3D model. This operation supports pagination. Will return error 400 if the revision is still being processed.'
+      operationId: get3DNodeAncestors
+      parameters:
+      - $ref: '#/components/parameters/ModelId'
+      - $ref: '#/components/parameters/RevisionId'
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+      - name: nodeId
+        in: path
+        description: ID of the node to get the ancestors of.
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: A list of ancestor nodes.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Node3DWithCursorResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+      x-capability:
+      - threedAcl:READ
+      x-code-samples:
+      - lang: JavaScript
+        label: JavaScript SDK
+        source: const nodes3d = await client.revisions3D.list3DNodeAncestors(8252999965991682, 4190022127342195, 572413075141081);
+      - lang: Python
+        label: Python SDK
+        source: 'res = client.three_d.revisions.list_ancestor_nodes(model_id=1, revision_id=1, node_id=5, limit=10)
+
+          '
+      - lang: Java
+        label: Java SDK
+        source: "List<ThreeDNode> listResultsAncestorNodes = new ArrayList<>(); \nclient.threeD() \n          .models() \n          .revisions() \n          .nodes() \n          .list(model.getId(), revision.getId(), nodeDrawn.getId()) \n          .forEachRemaining(val -> listResultsAncestorNodes.addAll(val)); \n\n"
+components:
+  schemas:
+    NextCursor:
+      type: string
+      description: Cursor to get the next page of results (if available).
+    Revision3DList:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Revision3D'
+    Revision3DWithCursorResponse:
+      allOf:
+      - $ref: '#/components/schemas/Revision3DList'
+      - $ref: '#/components/schemas/NextCursorData'
+    Node3DNameFilterBody:
+      description: Filter request for nodes. Filters nodes with properties matching ones in a list of alternatives.
+      allOf:
+      - type: object
+        properties:
+          filter:
+            $ref: '#/components/schemas/Node3DNameFilter'
+      - $ref: '#/components/schemas/Limit'
+      - $ref: '#/components/schemas/Cursor'
+      - $ref: '#/components/schemas/PartitionObject'
+    TreeIndex:
+      type: integer
+      minimum: 0
+      description: The index of the node in the 3D model hierarchy, starting from 0. The tree is traversed in a depth-first order.
+      format: int64
+      example: 3
+    CogniteInstanceId:
+      description: The ID of an [instance in Cognite Data Models](https://docs.cognite.com/cdf/dm/dm_concepts/dm_spaces_instances#instance).
+      type: object
+      required:
+      - space
+      - externalId
+      properties:
+        space:
+          type: string
+          minLength: 1
+          maxLength: 43
+        externalId:
+          type: string
+          minLength: 1
+          maxLength: 255
+    SetRevisionScale:
+      type: object
+      properties:
+        set:
+          maxItems: 3
+          minItems: 3
+          type: array
+          items:
+            type: number
+            description: Global scale to be applied to the entire model. The scale is expressed by units in XYZ order.
+            format: double
+    SetRevisionTranslation:
+      type: object
+      properties:
+        set:
+          maxItems: 3
+          minItems: 3
+          type: array
+          items:
+            type: number
+            description: Global translation to be applied to the entire model, to offset the position. The translation is expressed by units in XYZ order.
+            format: double
+    NextCursorData:
+      type: object
+      properties:
+        nextCursor:
+          $ref: '#/components/schemas/NextCursor'
+    CogniteInternalId:
+      description: A server-generated ID for the object.
+      type: integer
+      minimum: 1
+      maximum: 9007199254740991
+      format: int64
+    CreateRevision3DDmsOnly:
+      type: object
+      required:
+      - fileId
+      - nonce
+      properties:
+        nonce:
+          title: Nonce
+          type: string
+          description: Session nonce for recently created CDF session.
+        fileId:
+          type: integer
+          description: The file id to a file uploaded to Cognite's Files API. Can only be set on revision creation, and can never be updated.
+          format: int64
+    Node3DIds:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Node3DId'
+          maxItems: 1000
+          minItems: 1
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
+    BoundingBox3D:
+      type: object
+      required:
+      - min
+      - max
+      properties:
+        max:
+          maxItems: 3
+          minItems: 3
+          type: array
+          items:
+            type: number
+            description: The maximal coordinates of the bounding box.
+            format: double
+        min:
+          maxItems: 3
+          minItems: 3
+          type: array
+          items:
+            type: number
+            description: The minimal coordinates of the bounding box.
+            format: double
+      description: The bounding box of the subtree with this sector as the root sector. Is null if there are no geometries in the subtree.
+    RevisionLog3D:
+      type: object
+      required:
+      - timestamp
+      - severity
+      - type
+      properties:
+        timestamp:
+          $ref: '#/components/schemas/CreatedTime'
+        severity:
+          type: integer
+          description: How severe is the message (3 = INFO, 5 = WARN, 7 = ERROR).
+          example: 7
+        type:
+          type: string
+          description: Main computer parsable log entry type
+          example: CONVERTER/FAILED
+        info:
+          type: string
+          description: Optional extra information related to the log entry
+    DataIdentifiers:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          uniqueItems: true
+          type: array
+          description: List of ID objects
+          items:
+            $ref: '#/components/schemas/DataIdentifier'
+          maxItems: 1000
+          minItems: 1
+    UpdateRevision3DThumbnail:
+      type: object
+      required:
+      - fileId
+      properties:
+        fileId:
+          type: integer
+          description: File ID of thumbnail file in Files API. _Only JPEG and PNG files are supported_.
+          format: int64
+      description: Request body for the updateModelRevisionThumbnail endpoint.
+    Node3DNameFilter:
+      type: object
+      description: Filter used in searching for nodes by name.
+      properties:
+        names:
+          type: array
+          items:
+            type: string
+            description: The names of the nodes you want returned
+            maxItems: 1000
+            minItems: 1
+          example:
+          - PIPE-9MM-HG
+          - VALVE-HL3
+          - US-DIV-2
+    Limit:
+      type: object
+      properties:
+        limit:
+          description: Limits the number of results to return.
+          type: integer
+          default: 100
+          minimum: 1
+          maximum: 1000
+    CreateRevision3DClassicAndHybridBody:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items:
+            $ref: '#/components/schemas/CreateRevision3D'
+    ObjectPatchSet:
+      title: set
+      type: object
+      required:
+      - set
+      properties:
+        set:
+          uniqueItems: true
+          type: object
+          description: Set the key-value pairs. All existing key-value pairs will be removed.
+          additionalProperties:
+            type: string
+          example:
+            key1: value1
+            key2: value2
+    Node3DId:
+      type: object
+      required:
+      - id
+      properties:
+        id:
+          type: integer
+          description: The ID of the node.
+          format: int64
+          example: 1000
+    UpdateRevision3D:
+      allOf:
+      - $ref: '#/components/schemas/DataIdentifier'
+      - type: object
+        properties:
+          update:
+            type: object
+            properties:
+              published:
+                type: object
+                properties:
+                  set:
+                    type: boolean
+                    description: True if the revision is marked as published.
+              rotation:
+                $ref: '#/components/schemas/SetRevisionRotation'
+              scale:
+                $ref: '#/components/schemas/SetRevisionScale'
+              translation:
+                $ref: '#/components/schemas/SetRevisionTranslation'
+              camera:
+                $ref: '#/components/schemas/SetRevisionCameraProperties'
+              metadata:
+                allOf:
+                - description: 'Custom, application specific metadata. String key -> String value. Limits: Maximum length of key is 32 bytes, value 512 bytes, up to 16 key-value pairs.'
+                - $ref: '#/components/schemas/ObjectPatch'
+    Node3DPropertyFilterBody:
+      description: Filter request for nodes. Filters nodes with properties matching ones in a list of alternatives.
+      allOf:
+      - type: object
+        properties:
+          filter:
+            $ref: '#/components/schemas/Node3DPropertyFilter'
+      - $ref: '#/components/schemas/Limit'
+      - $ref: '#/components/schemas/Cursor'
+      - $ref: '#/components/schemas/PartitionObject'
+    Node3DWithCursorResponse:
+      allOf:
+      - $ref: '#/components/schemas/Node3DList'
+      - $ref: '#/components/schemas/NextCursorData'
+    RevisionLog3DResponse:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/RevisionLog3D'
+    UpdateRevision3DDmsOnlyBody:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 1
+          items:
+            $ref: '#/components/schemas/UpdateRevision3DDmsOnly'
+    OneDataDmsIdentifier:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          uniqueItems: true
+          type: array
+          description: List of ID objects
+          items:
+            $ref: '#/components/schemas/InstanceReference'
+          maxItems: 1
+          minItems: 1
+    Node3DList:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Node3D'
+    ObjectPatch:
+      type: object
+      description: Custom, application specific metadata. String key -> String value.
+      oneOf:
+      - $ref: '#/components/schemas/ObjectPatchSet'
+      - $ref: '#/components/schemas/ObjectPatchAddRemove'
+    DataIdentifier:
+      type: object
+      required:
+      - id
+      properties:
+        id:
+          $ref: '#/components/schemas/CogniteInternalId'
+    CreatedTime:
+      type: integer
+      description: The creation time of the resource, in milliseconds since January 1, 1970 at 00:00 UTC.
+      format: int64
+      example: 0
+    Metadata3D:
+      type: object
+      description: 'Custom, application specific metadata. String key -> String value. Limits: Maximum length of key is 32 bytes, value 512 bytes, up to 16 key-value pairs.'
+      additionalProperties:
+        type: string
+    Partition:
+      description: 'Splits the data set into `N` partitions.
+
+        The attribute is specified as a "M/N" string, where `M` is a natural number in the interval of `[1, N]`.
+
+        You need to follow the cursors within each partition in order to receive all the data.
+
+
+        To prevent unexpected problems and maximize read throughput, you should at most use 10 (N <= 10) partitions.
+
+
+        When using more than 10 partitions, CDF may reduce the number of partitions silently.
+
+        For example, CDF may reduce the number of partitions to `K = 10` so if you specify an `X/N` `partition` value where `X = 8` and `N = 20` - i.e. `"partition": "8/20"`- then
+
+        CDF will change `N` to `N = K = 10` and process the request.
+
+        But if you  specify the `X/N` `partition` value where `X = 11` (`X > K`) and `N = 20` - i.e. `"partition": "11/20"`- then
+
+        CDF will reply with an empty result list and no cursor in the response.\
+
+
+        In future releases of the resource APIs, Cognite may reject requests if you specify more than 10 partitions.
+
+        When Cognite enforces this behavior, the requests will result in a 400 Bad Request status.
+
+        '
+      type: string
+      example: 1/10
+    NodeProperties3D:
+      type: object
+      description: Properties extracted from 3D model, with property categories containing key/value string pairs.
+      example:
+        category1:
+          property1: value1
+          property2: value2
+        category2:
+          property1: value1
+          property2: value2
+      additionalProperties:
+        description: Property category.
+        type: object
+        additionalProperties:
+          type: string
+    PartitionObject:
+      type: object
+      properties:
+        partition:
+          $ref: '#/components/schemas/Partition'
+    CreateRevision3DDmsOnlyBody:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 1
+          items:
+            $ref: '#/components/schemas/CreateRevision3DDmsOnly'
+    Node3D:
+      type: object
+      required:
+      - id
+      - treeIndex
+      - depth
+      - name
+      - subtreeSize
+      properties:
+        id:
+          type: integer
+          description: The ID of the node.
+          format: int64
+          example: 1000
+        treeIndex:
+          $ref: '#/components/schemas/TreeIndex'
+        parentId:
+          type: integer
+          description: The parent of the node, null if it is the root node.
+          format: int64
+          example: 2
+        depth:
+          type: integer
+          description: The depth of the node in the tree, starting from 0 at the root node.
+          format: int64
+          example: 2
+        name:
+          type: string
+          description: The name of the node.
+          example: Node name
+        subtreeSize:
+          $ref: '#/components/schemas/SubtreeSize'
+        properties:
+          $ref: '#/components/schemas/NodeProperties3D'
+        boundingBox:
+          $ref: '#/components/schemas/BoundingBox3D'
+    SetRevisionCameraProperties:
+      type: object
+      properties:
+        set:
+          $ref: '#/components/schemas/RevisionCameraProperties'
+    InstanceReference:
+      type: object
+      required:
+      - instanceId
+      properties:
+        instanceId:
+          $ref: '#/components/schemas/CogniteInstanceId'
+    ObjectPatchAddRemove:
+      title: add/remove
+      type: object
+      properties:
+        add:
+          uniqueItems: true
+          type: object
+          description: Add the key-value pairs. Values for existing keys will be overwritten.
+          additionalProperties:
+            type: string
+          example:
+            key1: value1
+            key2: value2
+        remove:
+          uniqueItems: true
+          type: array
+          description: Remove the key-value pairs with the specified keys.
+          example:
+          - value1
+          - value2
+          items:
+            type: string
+    Cursor:
+      type: object
+      properties:
+        cursor:
+          type: string
+          example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
+
+        property, it means that there may be more results, and you should pass that value as the
+
+        `cursor` parameter in the next request.
+
+
+        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
+
+        decoded. Its internal structure is not a part of the public API, and may change without
+
+        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
+
+        '
+    Node3DPropertyFilter:
+      type: object
+      description: Filters used in the search.
+      properties:
+        properties:
+          type: object
+          description: Contains one or more categories (namespaces), each of which contains one or more properties. Each property is associated with a list of values. The list of values acts as an OR-clause, so that if a node's corresponding property value equals ANY of the strings in the list, it satisfies the condition for that property. The different properties are concatenated with AND-operations, so that a node must satisfy the condition for ALL properties from all categories to be part of the returned set. The allowed number of property values is limited to 1000 values in total.
+          example:
+            PDMS:
+              Area:
+              - AB76
+              - AB77
+              - AB78
+              Type:
+              - PIPE
+              - BEND
+              - PIPESUP
+    RevisionCameraProperties:
+      type: object
+      required:
+      - target
+      - position
+      properties:
+        target:
+          maxItems: 3
+          minItems: 3
+          type: array
+          description: Initial camera target.
+          items:
+            type: number
+            format: double
+        position:
+          maxItems: 3
+          minItems: 3
+          type: array
+          description: Initial camera position.
+          items:
+            type: number
+            format: double
+      description: Initial camera position and target.
+    UpdateRevision3DDmsOnly:
+      allOf:
+      - $ref: '#/components/schemas/InstanceReference'
+      - type: object
+        properties:
+          update:
+            type: object
+            properties:
+              published:
+                type: object
+                properties:
+                  set:
+                    type: boolean
+                    description: True if the revision is marked as published.
+    SetRevisionRotation:
+      type: object
+      properties:
+        set:
+          maxItems: 3
+          minItems: 3
+          type: array
+          items:
+            type: number
+            description: Global rotation to be applied to the entire model. The rotation is expressed by Euler angles in radians and in XYZ order.
+            format: double
+    Model3DOutputResponseList:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          description: A list of named and versioned outputs for the model. Note that the list is not sorted.
+          type: array
+          items:
+            type: object
+            required:
+            - format
+            - version
+            - blobId
+            properties:
+              format:
+                description: Format identifier.
+                example: ept-pointcloud
+                type: string
+              version:
+                description: Version of the output format, starting at 1.
+                example: 1
+                type: integer
+              blobId:
+                description: Reference to 3D file containing output. 3D file can either be a single file or folder. Use `/3d/files/{id}`.
+                allOf:
+                - $ref: '#/components/schemas/CogniteInternalId'
+    SubtreeSize:
+      type: integer
+      description: The number of descendants of the node, plus one (counting itself).
+      format: int64
+      example: 4
+    UpdateRevision3DClassicBody:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items:
+            $ref: '#/components/schemas/UpdateRevision3D'
+    Revision3D:
+      type: object
+      required:
+      - id
+      - fileId
+      - published
+      - status
+      - assetMappingCount
+      - createdTime
+      properties:
+        id:
+          type: integer
+          description: The ID of the revision.
+          format: int64
+          example: 1000
+        fileId:
+          type: integer
+          description: The file id.
+          format: int64
+          example: 1000
+        published:
+          type: boolean
+          description: True if the revision is marked as published.
+          default: false
+        rotation:
+          maxItems: 3
+          minItems: 3
+          type: array
+          items:
+            type: number
+            description: Global rotation to be applied to the entire model. The rotation is expressed by Euler angles in radians and in XYZ order.
+            format: double
+          example:
+          - 0
+          - 0
+          - 0
+        scale:
+          maxItems: 3
+          minItems: 3
+          type: array
+          items:
+            type: number
+            description: Global scale to be applied to the entire model. The scale is expressed by units in XYZ order.
+            format: double
+          example:
+          - 1
+          - 1
+          - 1
+        translation:
+          maxItems: 3
+          minItems: 3
+          type: array
+          items:
+            type: number
+            description: Global translation to be applied to the entire model, to offset the position. The translation is expressed by units in XYZ order.
+            format: double
+          example:
+          - 0
+          - 0
+          - 0
+        camera:
+          $ref: '#/components/schemas/RevisionCameraProperties'
+        status:
+          type: string
+          enum:
+          - Queued
+          - Processing
+          - Done
+          - Failed
+          description: The status of the revision.
+          example: Done
+        metadata:
+          $ref: '#/components/schemas/Metadata3D'
+        thumbnailThreedFileId:
+          type: integer
+          description: The threed file ID of a thumbnail for the revision. Use `/3d/files/{id}` to retrieve the file.
+          format: int64
+          example: 1000
+        thumbnailURL:
+          type: string
+          description: The URL of a thumbnail for the revision.
+          example: https://api.cognitedata.com/api/v1/project/myproject/3d/files/1000
+        assetMappingCount:
+          type: integer
+          description: The number of asset mappings for this revision.
+          format: int64
+          example: 0
+        createdTime:
+          $ref: '#/components/schemas/CreatedTime'
+    CreateRevision3D:
+      type: object
+      description: 'Create a 3D revision for a model in a Hybrid projects, using the CreateRevision3DClassicAndHybridBody.
+
+        In DataModelOnly projects, please use the 3d/jobs endpoint to create processing jobs for 3D source data, which will also create revisions.
+
+        '
+      required:
+      - fileId
+      properties:
+        published:
+          type: boolean
+          description: True if the revision is marked as published.
+          default: false
+        rotation:
+          maxItems: 3
+          minItems: 3
+          type: array
+          items:
+            type: number
+            description: Global rotation to be applied to the entire model. The rotation is expressed by Euler angles in radians and in XYZ order.
+            format: double
+          example:
+          - 0
+          - 0
+          - 0
+        scale:
+          maxItems: 3
+          minItems: 3
+          type: array
+          items:
+            type: number
+            description: Global scale to be applied to the entire model. The scale is expressed by units in XYZ order.
+            format: double
+          example:
+          - 1
+          - 1
+          - 1
+        translation:
+          maxItems: 3
+          minItems: 3
+          type: array
+          items:
+            type: number
+            description: Global translation to be applied to the entire model. The translation is expressed by units in XYZ order.
+            format: double
+          example:
+          - 0
+          - 0
+          - 0
+        metadata:
+          $ref: '#/components/schemas/Metadata3D'
+        camera:
+          $ref: '#/components/schemas/RevisionCameraProperties'
+        fileId:
+          type: integer
+          description: The file id to a file uploaded to Cognite's Files API. Can only be set on revision creation, and can never be updated.
+          format: int64
+  parameters:
+    ModelId:
+      name: modelId
+      in: path
+      description: Model ID.
+      required: true
+      schema:
+        type: integer
+        format: int64
+    RevisionId:
+      name: revisionId
+      in: path
+      description: Revision ID.
+      required: true
+      schema:
+        type: integer
+        format: int64
+    partition:
+      in: query
+      name: partition
+      required: false
+      description: 'Splits the data set into `N` partitions.
+
+        The attribute is specified as a "M/N" string, where `M` is a natural number in the interval of `[1, N]`.
+
+        You need to follow the cursors within each partition in order to receive all the data.
+
+
+        To prevent unexpected problems and maximize read throughput, you should at most use 10 (N <= 10) partitions.
+
+
+        When using more than 10 partitions, CDF may reduce the number of partitions silently.
+
+        For example, CDF may reduce the number of partitions to `K = 10` so if you specify an `X/N` `partition` value where `X = 8` and `N = 20` - i.e. `"partition": "8/20"`- then
+
+        CDF will change `N` to `N = K = 10` and process the request.
+
+        But if you  specify the `X/N` `partition` value where `X = 11` (`X > K`) and `N = 20` - i.e. `"partition": "11/20"`- then
+
+        CDF will reply with an empty result list and no cursor in the response.
+
+
+        In future releases of the resource APIs, Cognite may reject requests if you specify more than 10 partitions.
+
+        When Cognite enforces this behavior, the requests will result in a 400 Bad Request status.
+
+        '
+      schema:
+        type: string
+        example: 1/10
+    Cursor:
+      name: cursor
+      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
+
+        property, it means that there may be more results, and you should pass that value as the
+
+        `cursor` parameter in the next request.
+
+
+        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
+
+        decoded. Its internal structure is not a part of the public API, and may change without
+
+        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
+
+        '
+      in: query
+      schema:
+        type: string
+        example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+    Limit:
+      name: limit
+      description: Limits the number of results to be returned. The maximum results returned by the server is 1000 even if you specify a higher limit.
+      in: query
+      schema:
+        type: integer
+        default: 100
+        minimum: 1
+        maximum: 1000
+  responses:
+    ErrorResponse:
+      description: The response for a failed request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+    EmptyResponse:
+      description: Empty response.
+      content:
+        application/json:
+          schema:
+            type: object
+  securitySchemes:
+    oidc-token:
+      type: http
+      scheme: bearer
+      bearerFormat: OpenID Connect or OAuth2 token
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+    oauth2-client-credentials:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        clientCredentials:
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-auth-code:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://your-idps.authorization.url/
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-open-industrial-data:
+      type: oauth2
+      description: Auth flow for Open Industrial Data. Get your client secret from https://hub.cognite.com/open-industrial-data-211.
+      flows:
+        clientCredentials:
+          tokenUrl: https://login.microsoftonline.com/48d5043c-cf70-4c49-881c-c638f5796997/oauth2/v2.0/token
+          scopes:
+            default: https://api.cognitedata.com/.default
+    org-oidc-token:
+      type: openIdConnect
+      openIdConnectUrl: https://auth.cognite.com/.well-known/openid-configuration
+      description: 'Access token issued by the Cognite authorization server, and valid for the target organization. The token must
+
+        be an OpenID Connect token, and it can be obtained by performing an OIDC login flow toward `auth.cognite.com`.
+
+        This is a single URL for all CDF organizations.'
+x-tagGroups:
+- name: Changelog
+  tags:
+  - Changelog
+- name: Organizations and projects
+  tags:
+  - Organizations
+  - Projects
+- name: Identity and access management
+  tags:
+  - Principals
+  - Groups
+  - Security categories
+  - Sessions
+  - Token
+  - User profiles
+  - Project Deletion Reporting
+- name: Data modeling
+  tags:
+  - Data Modeling
+  - Data models
+  - Spaces
+  - Views
+  - Containers
+  - Nodes
+  - Instances
+  - Statistics
+  - Streams
+  - Records
+- name: Asset-centric data model
+  tags:
+  - Assets
+  - Time series
+  - Synthetic Time Series
+  - Data point subscriptions
+  - Events
+  - Files
+  - Sequences
+  - Geospatial
+  - Seismic
+- name: 3D
+  tags:
+  - 3D Models
+  - 3D Model Revisions
+  - 3D Files
+  - 3D Asset Mapping
+  - 3D Contextualization
+  - 3D Jobs
+  - 3D Migration
+  - 3D Scenes
+- name: Contextualization
+  tags:
+  - Entity matching
+  - Entity matching pipelines
+  - Engineering diagrams
+  - Vision
+  - Advanced joins
+- name: Cognite AI
+  tags:
+  - Agents
+  - Skills
+  - Chat Completions
+  - Document AI
+  - Models
+- name: Documents
+  tags:
+  - Documents
+  - Document preview
+- name: Data ingestion
+  tags:
+  - Raw
+  - Extraction Pipelines
+  - Extraction Pipelines Runs
+  - Extraction Pipelines Config
+  - Extractors
+- name: Data organization
+  tags:
+  - Data sets
+  - Data domains
+  - Data products
+  - Rule sets
+  - Labels
+  - Relationships
+  - Annotations
+- name: Transformations
+  tags:
+  - Transformations
+  - Transformation Jobs
+  - Transformation Schedules
+  - Transformation Notifications
+  - Query
+  - Schema
+- name: Functions
+  tags:
+  - Functions
+  - Function calls
+  - Function schedules
+- name: Hosted Extractors
+  tags:
+  - Sources
+  - Jobs
+  - Destinations
+  - Mappings
+- name: PostgreSQL Gateway
+  tags:
+  - Postgres Gateway Users
+  - Postgres Gateway Tables
+- name: SAP Writeback
+  tags:
+  - SAP Instances
+  - SAP Endpoints
+  - Schema Mappings
+  - Writeback Requests
+- name: Data workflows
+  tags:
+  - Workflows
+  - Workflow versions
+  - Workflow executions
+  - Workflow triggers
+  - Tasks
+  - Workers
+- name: Simulators
+  tags:
+  - Simulators
+  - Simulator Integrations
+  - Simulator Models
+  - Simulator Routines
+  - Simulation Runs
+  - Simulator Logs
+- name: Units
+  tags:
+  - Units
+  - Unit Systems
+- name: ''
+  tags:
+  - ''

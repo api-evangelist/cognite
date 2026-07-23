@@ -1,0 +1,1164 @@
+openapi: 3.1.0
+info:
+  title: Cognite 3D Asset Mapping Workflow executions API
+  description: "# Introduction\nThis is the reference documentation for the Cognite API with\nan overview of all the available methods.\n\n# Postman\nSelect the **Download** button to download our OpenAPI specification to get started.\n\nTo import your data into Postman, select **Import**, and the Import modal opens.\nYou can import items by dragging or dropping files or folders. You can choose how to import your API and manage the import settings in **View Import Settings**.\n\nIn the Import Settings, set the **Folder organization** to **Tags**, select\n**Enable optional parameters** to turn off the settings, and select **Always inherit authentication** to turn on the settings. Select **Import**.\n\nSet the Authorization to **Oauth2.0**. By default, the settings are for Open Industrial Data. Navigate to [Cognite Hub](https://hub.cognite.com/open-industrial-data-211) to understand how to get the credentials for use in Postman.\n\nFor more information, see [Getting Started with Postman](https://developer.cognite.com/dev/guides/postman/).\n\n# Pagination\nMost resource types can be paginated, indicated by the field `nextCursor` in the response.\nBy passing the value of `nextCursor` as the cursor you will get the next page of `limit` results.\nNote that all parameters except `cursor` has to stay the same.\n\n# Parallel retrieval\nAs general guidance, Parallel Retrieval is a technique that should be used when due to query complexity, retrieval of data in a single request is significantly slower than it would otherwise be for a simple request.  Parallel retrieval does not act as a speed multiplier on optimally running queries.  By parallelizing such requests, data retrieval performance can be tuned to meet the client application needs. \n\nCDF supports parallel retrieval through the `partition` parameter, which has the format `m/n` where `n` is the amount of partitions you would like to split the entire data set into.\nIf you want to download the entire data set by splitting it into 10 partitions, do the following in parallel with `m` running from 1 to 10:\n  - Make a request to `/events` with `partition=m/10`.\n  - Paginate through the response by following the cursor as explained above. Note that the `partition` parameter needs to be passed to all subqueries.\n\nProcessing of parallel retrieval requests is subject to concurrency quota availability. The request returns the `429` response upon exceeding concurrency limits. See the Request throttling chapter below.\n\nTo prevent unexpected problems and to maximize read throughput, you should at most use 10 partitions. \nSome CDF resources will automatically enforce a maximum of 10 partitions.\nFor more specific and detailed information, please read the ```partition``` attribute documentation for the CDF resource you're using.  \n\n# Requests throttling\nCognite Data Fusion (CDF) returns the HTTP `429` (too many requests) response status code when project capacity exceeds the limit.\n\nThe throttling can happen:\n  - If a user or a project sends too many (more than allocated) concurrent requests.\n  - If a user or a project sends a too high (more than allocated) rate of requests in a given amount of time.\n\nCognite recommends using a retry strategy based on truncated exponential backoff to handle sessions with HTTP response codes 429.\n\nCognite recommends using a reasonable number (up to 10) of  `Parallel retrieval` partitions.\n\nFollowing these strategies lets you slow down the request frequency to maximize productivity without having to re-submit/retry failing requests.\n\nSee more [here](https://docs.cognite.com/dev/concepts/resource_throttling).\n\n# API versions\n## Version headers\nThis API uses calendar versioning, and version names follow the `YYYYMMDD` format.\nYou can find the versions currently available by using the version selector at the top of this page.\n\nTo use a specific API version, you can pass the `cdf-version: $version` header along with your requests to the API.\n\n## Beta versions\nThe beta versions provide a preview of what the stable version will look like in the future.\nBeta versions contain functionality that is reasonably mature, and highly likely to become a part of the stable API.\n\nBeta versions are indicated by a `-beta` suffix after the version name. For example, the beta version header for the\n2023-01-01 version is then `cdf-version: 20230101-beta`.\n\n## Alpha versions\nAlpha versions contain functionality that is new and experimental, and not guaranteed to ever become a part of the stable API.\nThis functionality presents no guarantee of service, so its use is subject to caution.\n\nAlpha versions are indicated by an `-alpha` suffix after the version name. For example, the alpha version header for\nthe 2023-01-01 version is then `cdf-version: 20230101-alpha`."
+  version: v1
+  contact:
+    name: Cognite Support
+    url: https://support.cognite.com
+    email: support@cognite.com
+servers:
+- url: https://{cluster}.cognitedata.com/api/v1/projects/{project}
+  description: The URL for the CDF cluster to connect to
+  variables:
+    cluster:
+      enum:
+      - api
+      - az-tyo-gp-001
+      - az-eastus-1
+      - az-power-no-northeurope
+      - westeurope-1
+      - asia-northeast1-1
+      - gc-dsm-gp-001
+      default: api
+      description: The CDF cluster to connect to
+    project:
+      default: publicdata
+      description: The CDF project name.
+security:
+- oidc-token:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-client-credentials:
+  - https://{cluster}.cognitedata.com/.default
+- oauth2-open-industrial-data:
+  - https://api.cognitedata.com/.default
+- oauth2-auth-code:
+  - https://{cluster}.cognitedata.com/.default
+tags:
+- name: Workflow executions
+paths:
+  /workflows/{workflowExternalId}/versions/{version}/run:
+    parameters:
+    - name: workflowExternalId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/WorkflowExternalId'
+    - name: version
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/Version'
+    post:
+      operationId: TriggerRunOfSpecificVersionOfWorkflow
+      summary: Run a workflow
+      description: '
+
+
+        > **Required capabilities:** `workflowOrchestrationACL:WRITE`
+
+
+        Start an execution of a specific version of a workflow.'
+      tags:
+      - Workflow executions
+      x-capability:
+      - workflowOrchestrationACL:WRITE
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                authentication:
+                  $ref: '#/components/schemas/Authentication'
+                input:
+                  $ref: '#/components/schemas/ExecutionInput'
+                metadata:
+                  $ref: '#/components/schemas/metadata'
+              required:
+              - authentication
+      responses:
+        '202':
+          description: Information about the workflow execution
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowExecutionResponse'
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: "from cognite.client.data_classes import WorkflowTask, FunctionTaskParameters\ntask = WorkflowTask(\n    external_id=\"my_workflow-task1\",\n    parameters=FunctionTaskParameters(\n        external_id=\"cdf_deployed_function:my_function\",\n        data={\"workflow_data\": \"${workflow.input}\"}))\n\nres = client.workflows.executions.run(\"foo\", \"1\")\n\nres = client.workflows.executions.run(\"foo\", \"1\", input={\"a\": 1, \"b\": 2})\n\nimport os\nfrom cognite.client.data_classes import ClientCredentials\ncredentials = ClientCredentials(\"my-client-id\", os.environ[\"MY_CLIENT_SECRET\"])\nres = client.workflows.executions.run(\"foo\", \"1\", client_credentials=credentials)\n"
+  /workflows/executions/list:
+    post:
+      operationId: ListWorkflowExecutions
+      summary: Filter workflow executions
+      description: '
+
+
+        > **Required capabilities:** `workflowOrchestrationACL:READ`
+
+
+        List workflow executions matching a given filter.'
+      tags:
+      - Workflow executions
+      x-capability:
+      - workflowOrchestrationACL:READ
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListExecutionsQuery'
+      responses:
+        '200':
+          description: Filtered list of workflow executions
+          content:
+            application/json:
+              schema:
+                properties:
+                  items:
+                    type: array
+                    maxItems: 1000
+                    items:
+                      $ref: '#/components/schemas/WorkflowExecutionResponse'
+                  nextCursor:
+                    $ref: '#/components/schemas/nextCursor'
+                required:
+                - items
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: "res = client.workflows.executions.list((\"my_workflow\", \"1\"))\n\nfrom cognite.client.utils import timestamp_to_ms\nres = client.workflows.executions.list(\n    created_time_start=timestamp_to_ms(\"1d-ago\"))\n"
+  /workflows/executions/{executionId}:
+    parameters:
+    - name: executionId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/WorkflowExecutionId'
+    get:
+      operationId: ExecutionOfSpecificRunOfWorkflow
+      summary: Retrieve workflow execution details
+      description: '
+
+
+        > **Required capabilities:** `workflowOrchestrationACL:READ`
+
+
+        Retrieve detailed information about a specific workflow execution.'
+      tags:
+      - Workflow executions
+      x-capability:
+      - workflowOrchestrationACL:READ
+      responses:
+        '200':
+          description: Details of a workflow execution
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowExecution'
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: 'res = client.workflows.executions.retrieve_detailed("000560bc-9080-4286-b242-a27bb4819253")
+
+
+          res = client.workflows.executions.list()
+
+          res = client.workflows.executions.retrieve_detailed(res[0].id)
+
+          '
+  /workflows/executions/{executionId}/cancel:
+    post:
+      operationId: WorkflowExecutionCancellation
+      summary: Cancel a workflow execution
+      description: '
+
+
+        > **Required capabilities:** `workflowOrchestrationACL:WRITE`
+
+
+        Stops the specified execution from starting new workflow tasks and sets the workflow execution status to `TERMINATED`. Already running tasks will be marked as CANCELED. Note that the actions taken by the canceled tasks won''t be stopped, and these need to be canceled separately if desired. For example, to cancel a running transformation, use the [/transformations/cancel](#/Transformations/postApiV1ProjectsProjectTransformationsCancel) endpoint.'
+      tags:
+      - Workflow executions
+      x-capability:
+      - workflowOrchestrationACL:WRITE
+      parameters:
+      - name: executionId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/WorkflowExecutionId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelExecution'
+      responses:
+        '200':
+          description: Updated workflow execution
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowExecutionResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+      x-code-samples:
+      - lang: Python
+        label: Python SDK
+        source: 'res = client.workflows.executions.run("foo", "1")
+
+          client.workflows.executions.cancel(id="foo", reason="test cancellation")
+
+          '
+  /workflows/executions/{executionId}/retry:
+    post:
+      operationId: WorkflowExecutionRetry
+      summary: Retry workflow execution
+      description: '
+
+
+        > **Required capabilities:** `workflowOrchestrationACL:WRITE`
+
+
+        This endpoint restarts a previously failed, timed out, or terminated workflow execution by retrying tasks that did not complete successfully. It aims to resume execution activity from the point(s) of failure.
+
+
+        Behavior of the retry operation:
+
+        - Targeted Task Retry: Only retries tasks that have stopped in a terminal state such as `CANCELED`, `FAILED`, `FAILED_WITH_TERMINAL_ERROR`, and `TIMED_OUT`. Optional tasks are not retried.
+
+        - Subworkflows and Dynamic Tasks: When a failure occurs within a subworkflow or as part of a dynamic task, only the individual nested tasks that failed are retried. The subworkflow or dynamic task container itself is not retried.
+
+        - Retry Limits: Tasks that have reached or exceeded their designated retry limits will not have their retry counts reset to zero. Instead, each retry request permits these tasks a single additional retry.
+
+        '
+      tags:
+      - Workflow executions
+      x-capability:
+      - workflowOrchestrationACL:WRITE
+      parameters:
+      - name: executionId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/WorkflowExecutionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RetryExecution'
+      responses:
+        '200':
+          description: Updated workflow execution
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowExecutionResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+components:
+  schemas:
+    TaskDepends:
+      type: object
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+      required:
+      - externalId
+    TaskExecution:
+      title: Task Execution
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/TaskExecutionId'
+        externalId:
+          $ref: '#/components/schemas/TaskExternalId'
+        parentTaskExternalId:
+          anyOf:
+          - $ref: '#/components/schemas/TaskExternalId'
+          - type: 'null'
+          description: The external ID of the parent task when this task is part of a dynamic task or subworkflow.
+        status:
+          type: string
+          enum:
+          - IN_PROGRESS
+          - CANCELED
+          - FAILED
+          - FAILED_WITH_TERMINAL_ERROR
+          - COMPLETED
+          - COMPLETED_WITH_ERRORS
+          - SCHEDULED
+          - TIMED_OUT
+          - SKIPPED
+        taskType:
+          $ref: '#/components/schemas/TaskType'
+        startTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        endTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        input:
+          description: The input to the task with the references present in the definition resolved.
+          oneOf:
+          - $ref: '#/components/schemas/FunctionTaskParameters'
+          - $ref: '#/components/schemas/TransformationTaskParameters'
+          - $ref: '#/components/schemas/CdfTaskParameters'
+          - $ref: '#/components/schemas/DynamicTaskParameters'
+          - $ref: '#/components/schemas/SimulatorInput'
+        output:
+          oneOf:
+          - $ref: '#/components/schemas/FunctionTaskOutput'
+          - $ref: '#/components/schemas/TransformationTaskOutput'
+          - $ref: '#/components/schemas/CdfTaskOutput'
+          - $ref: '#/components/schemas/DynamicTaskOutput'
+          - $ref: '#/components/schemas/SimulatorTaskOutput'
+        reasonForIncompletion:
+          $ref: '#/components/schemas/ReasonForIncompletion'
+      required:
+      - id
+      - externalId
+      - status
+      - taskType
+      - input
+      - output
+    CdfTaskOutput:
+      title: CDF Task Output
+      type: object
+      properties:
+        response:
+          oneOf:
+          - type: string
+          - type: object
+          description: The body of the response. Will be a a JSON object if content-type is application/json, otherwise it will be a string.
+        statusCode:
+          type: integer
+          description: The HTTP status code of the response.
+    limit:
+      type: integer
+      minimum: 1
+      maximum: 1000
+      default: 100
+      description: The maximum number of results to return.
+    CogniteExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
+      type: string
+      maxLength: 255
+      example: my.known.id
+    Reference:
+      type: string
+      description: 'A Reference is an expression that allows dynamically injecting input to a task during execution. References can be used to reference the input of the Workflow, the output of a previous task in the Workflow, or the input of a previous task in the Workflow. Note that the injected value must be valid in the context of the property it is injected into.
+
+        Example Task reference: ${myTaskExternalId.output.someKey} Example Workflow input reference: ${workflow.input.myKey}'
+    RetryExecution:
+      title: Workflow retry request
+      type: object
+      properties:
+        authentication:
+          $ref: '#/components/schemas/Authentication'
+      required:
+      - authentication
+    TransformationTaskOutput:
+      title: Transformation Task Output
+      type: object
+      properties:
+        jobId:
+          type: integer
+          format: int64
+          description: Job ID of the Transformation called.
+    Version:
+      type: string
+      description: Identifier for a version. Must be unique for the workflow. No trailing or leading whitespace and no null characters allowed.
+      maxLength: 255
+    SimulatorTaskParameters:
+      title: Simulation Task Parameters
+      type: object
+      description: Parameters for the Simulation run task type.
+      properties:
+        simulation:
+          type: object
+          properties:
+            routineExternalId:
+              description: The external id of the routine to be executed.
+              oneOf:
+              - $ref: '#/components/schemas/CogniteExternalId'
+            runTime:
+              anyOf:
+              - type: integer
+              - type: 'null'
+              title: RunTime
+              description: Run time in milliseconds. Reference timestamp used for data pre-processing and data sampling.
+            inputs:
+              type: array
+              maxItems: 200
+              minItems: 0
+              description: List of input overrides
+              items:
+                $ref: '#/components/schemas/SimulatorInput'
+          required:
+          - routineExternalId
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
+    FunctionTaskParameters:
+      title: Function Task Parameters
+      type: object
+      description: Parameters for the Cognite Function task type.
+      properties:
+        function:
+          type: object
+          properties:
+            externalId:
+              description: The external id of the Cognite Function in the project.
+              oneOf:
+              - $ref: '#/components/schemas/CogniteExternalId'
+              - $ref: '#/components/schemas/Reference'
+            data:
+              description: Input data that will be passed to the Cognite Function. Limited to 100KB in size.
+              oneOf:
+              - type: object
+                example:
+                  key1: value1
+                  key2: value2
+                maxLength: 100000
+              - $ref: '#/components/schemas/Reference'
+          required:
+          - externalId
+        isAsyncComplete:
+          type: boolean
+          default: false
+          description: "Defines if the execution of the task should be completed asynchronously.\n\n  - If `false`, the status of the task will be set to `COMPLETED` when the Cognite Function call completes successfully.\\\n  - If `true`, the task status will remain `IN_PROGRESS` even when the Cognite Function call completes successfully.\\\n  It will then wait for an external process to update the task status directly using the task update endpoint.\\\n  The task id required for the callback to update the task status is included in the input data of the Function with key \"cogniteOrchestrationTaskId\"."
+    CdfTaskParameters:
+      title: CDF Task Parameters
+      type: object
+      description: Parameters for the CDF Request task type, which can be used to make a request to any CDF API.
+      properties:
+        cdfRequest:
+          type: object
+          properties:
+            resourcePath:
+              description: 'The path of the request. The path should be prefixed by `{cluster}.cognitedata.com/api/v1/project/{project}` based on the relevant cluster and project.
+
+
+                Example: to list TimeSeries, the resourcePath would be `{cluster}.cognitedata.com/api/v1/project/{project}/timeseries/list`.
+
+                '
+              oneOf:
+              - type: string
+                maxLength: 128
+              - $ref: '#/components/schemas/Reference'
+            queryParameters:
+              oneOf:
+              - type: object
+                additionalProperties:
+                  type: string
+                  maxLength: 50
+                maxItems: 5
+              - $ref: '#/components/schemas/Reference'
+            method:
+              oneOf:
+              - type: string
+                enum:
+                - POST
+                - GET
+                - PUT
+              - $ref: '#/components/schemas/Reference'
+            body:
+              description: The body of the request. Limited to 100KB in size.
+              oneOf:
+              - type: object
+                maxLength: 100000
+              - $ref: '#/components/schemas/Reference'
+            requestTimeoutInMillis:
+              oneOf:
+              - type: number
+                default: 10000
+                minimum: 100
+              - $ref: '#/components/schemas/Reference'
+            cdfVersionHeader:
+              description: 'Optional CDF API version header. Set to `alpha` or `beta` to access alpha or beta CDF API endpoints.
+
+                '
+              type: string
+              enum:
+              - alpha
+              - beta
+          required:
+          - resourcePath
+          - method
+    nextCursor:
+      description: Cursor to get the next page of results. If not present, no more results are available.
+      type: string
+      example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+    ListExecutionsFilter:
+      title: List Executions Filter
+      type: object
+      properties:
+        workflowFilters:
+          type: array
+          description: Allows filtering executions by their workflows (and optionally version identifiers). If no workflowFilters are specified, all executions for all workflows will be included, ordered by createdTime.
+          items:
+            $ref: '#/components/schemas/WorkflowFilter'
+          minItems: 1
+          maxItems: 100
+        createdTimeStart:
+          type: integer
+          minimum: 0
+          description: epoch timestamp in milliseconds
+        createdTimeEnd:
+          type: integer
+          minimum: 0
+          description: epoch timestamp in milliseconds
+        status:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkflowStatus'
+          description: workflow execution status
+          uniqueItems: true
+    WorkflowExecutionId:
+      type: string
+      format: uuid
+      description: UUIDv4 identifier for a workflow execution.
+      maxLength: 36
+      minLength: 36
+      example: 059edaa4-a17a-4102-910e-2c3591500cce
+    SimulatorInputsUnit:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Name of the unit.
+    WorkflowExternalId:
+      type: string
+      description: Identifier for a workflow. Must be unique for the project. No trailing or leading whitespace and no null characters allowed.
+      maxLength: 255
+    TaskExternalId:
+      type: string
+      description: Identifier for the task. Must be unique within the version. No trailing or leading whitespace and no null characters allowed. Task external IDs cannot be exactly 'workflow' or start with '__' (double underscore) as these are reserved.
+      maxLength: 255
+    SimulatorTaskOutput:
+      title: Simulator Task Output
+      description: Simulation run execution results.
+      type: object
+      properties:
+        runId:
+          type: integer
+          format: int64
+          description: The ID of the simulation run instance.
+        logId:
+          type: integer
+          format: int64
+          description: The log ID of the simulation run.
+        statusMessage:
+          type: string
+          description: The status message of the simulation run instance.
+    TaskExecutionId:
+      type: string
+      description: UUIDv4 identifier for the execution of a workflow task.
+      minLength: 36
+      maxLength: 36
+    WorkflowExecution:
+      title: Workflow Execution
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/WorkflowExecutionId'
+        workflowExternalId:
+          $ref: '#/components/schemas/WorkflowExternalId'
+        workflowDefinition:
+          $ref: '#/components/schemas/WorkflowDefinitionResponse'
+        version:
+          $ref: '#/components/schemas/Version'
+        status:
+          $ref: '#/components/schemas/WorkflowStatus'
+        engineExecutionId:
+          $ref: '#/components/schemas/EngineExecutionId'
+        executedTasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskExecution'
+        input:
+          $ref: '#/components/schemas/ExecutionInput'
+        metadata:
+          $ref: '#/components/schemas/metadata'
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        startTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        endTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        reasonForIncompletion:
+          $ref: '#/components/schemas/ReasonForIncompletion'
+      required:
+      - id
+      - workflowExternalId
+      - workflowDefinition
+      - status
+      - engineExecutionId
+      - createdTime
+      - executedTasks
+      - metadata
+    WorkflowFilter:
+      type: object
+      description: If the version is not specified, all versions for the workflow will be included, ordered by createdTime.
+      properties:
+        externalId:
+          $ref: '#/components/schemas/WorkflowExternalId'
+        version:
+          $ref: '#/components/schemas/Version'
+      required:
+      - externalId
+    ReasonForIncompletion:
+      type: string
+      description: Human-readable reason for terminal failure of a workflow task.
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    metadata:
+      type: object
+      maxProperties: 10
+      additionalProperties:
+        type: string
+        maxLength: 255
+      description: 'Custom, application-specific metadata. String key -> String value.
+
+        Keys have a maximum length of 32 characters, values a maximum of 255,
+
+        and there can be a maximum of 10 key-value pairs.
+
+        '
+    WorkflowStatus:
+      type: string
+      enum:
+      - RUNNING
+      - COMPLETED
+      - FAILED
+      - TIMED_OUT
+      - TERMINATED
+    TransformationTaskParameters:
+      title: Transformation Task Parameters
+      type: object
+      properties:
+        transformation:
+          type: object
+          description: Parameters for the CDF Transformation task type.
+          properties:
+            externalId:
+              description: The external id of the Transformation in the project.
+              oneOf:
+              - $ref: '#/components/schemas/CogniteExternalId'
+              - $ref: '#/components/schemas/Reference'
+            concurrencyPolicy:
+              type: string
+              enum:
+              - fail
+              - waitForCurrent
+              - restartAfterCurrent
+              default: fail
+              description: 'Determines the behavior of the task if the Transformation is already running.
+
+                - fail: The task fails if another instance of the Transformation is currently running.
+
+                - waitForCurrent: The task will pause and wait for the already running Transformation to complete. Once completed, the task is completed. This mode is useful for preventing redundant Transformation runs.
+
+                - restartAfterCurrent: The task waits for the ongoing Transformation to finish. After completion, the task restarts the Transformation. This mode ensures that the most recent data can be used by following tasks.
+
+                '
+            useTransformationCredentials:
+              type: boolean
+              default: false
+              description: 'If set to `true`, the transformation will run using the client credentials configured on the transformation.
+
+                If set to `false`, the transformation will run using the client credentials used to trigger the workflow.
+
+                '
+          required:
+          - externalId
+    EngineExecutionId:
+      type: string
+      format: uuid
+      description: Additional UUIDv4 identifier for an execution. Useful for Cognite support to diagnose issues.
+      minLength: 36
+      maxLength: 36
+    SimulatorInput:
+      type: object
+      properties:
+        referenceId:
+          type: string
+          description: Reference id of the value to override
+        value:
+          anyOf:
+          - type: string
+            maxLength: 1024
+            minLength: 1
+          - type: number
+          - items:
+              type: string
+            type: array
+            maxItems: 200
+            minItems: 1
+          - items:
+              type: number
+            type: array
+            maxItems: 200
+            minItems: 1
+          title: Value
+          description: Override the value used for a simulation run
+        unit:
+          description: Override the unit of the value
+          anyOf:
+          - $ref: '#/components/schemas/SimulatorInputsUnit'
+          - type: 'null'
+      required:
+      - referenceId
+      - value
+    SubworkflowTaskParameters:
+      title: Subworkflow Task Parameters
+      type: object
+      properties:
+        subworkflow:
+          oneOf:
+          - type: object
+            properties:
+              tasks:
+                description: 'A list of tasks with their inputs and interdependencies. Similar to the way tasks are defined in a workflow definition.
+
+                  Note: subworkflows cannot contain dynamic tasks or nested subworkflows
+
+                  '
+                type: array
+                items:
+                  $ref: '#/components/schemas/TaskDefinition'
+                maxItems: 100
+                minItems: 1
+            required:
+            - tasks
+          - type: object
+            description: 'Run another workflow embedded as a subworkflow. The tasks within the subworkflow will count towards the limit on total number of tasks in a workflow.
+
+
+              Note: the referenced subworkflow cannot contain dynamic tasks or nested subworkflows
+
+              '
+            properties:
+              workflowExternalId:
+                type: string
+                description: External ID of the referenced workflow
+              version:
+                type: string
+                description: Version of the referenced workflow
+            required:
+            - workflowExternalId
+            - version
+    ExecutionInput:
+      type: object
+      example:
+        key1: value1
+        key2: value2
+      description: Input data to the workflow. The content of the input data can be used as input to the workflow tasks using references. The input data should be in JSON format, and is limited to 100KB in size.
+    FunctionTaskOutput:
+      title: Function Task Output
+      type: object
+      properties:
+        callId:
+          type: integer
+          format: int64
+          description: The callId of the Cognite Function call instance.
+        functionId:
+          type: integer
+          format: int64
+          description: The functionId of the Cognite Function called.
+        response:
+          type: object
+          description: The response of the function call. Limited to 100KB in size.
+    cursor:
+      type: string
+      example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+      description: Cursor to use for paging through results. This cursor is returned in the response of a previous request as `nextCursor`. If not specified, start from the first page of results.
+    CancelExecution:
+      title: Workflow cancellation request
+      type: object
+      properties:
+        reason:
+          type: string
+          description: Human-readable reason for the cancellation.
+          default: cancelled
+          maxLength: 500
+    DynamicTaskParameters:
+      title: Dynamic Task Parameters
+      type: object
+      description: 'Dynamic tasks allow the dynamic creation of additional tasks during a workflow execution.
+
+
+        There are two things needed to execute a dynamic task.
+
+        - A list of task definitions (similar to the way tasks are defined in the workflow definition when creating a workflow version).
+
+        - A workflow task prior to the dynamic task that outputs the above list
+
+
+        Note: a dynamic task cannot start other dynamic tasks or subworkflows.
+
+        '
+      properties:
+        dynamic:
+          type: object
+          description: Tasks should reference a list of task definitions, defined exactly like they are during version creation.
+          properties:
+            tasks:
+              $ref: '#/components/schemas/Reference'
+    WorkflowExecutionResponse:
+      title: Workflow Execution Response
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/WorkflowExecutionId'
+        workflowExternalId:
+          $ref: '#/components/schemas/WorkflowExternalId'
+        version:
+          $ref: '#/components/schemas/Version'
+        status:
+          $ref: '#/components/schemas/WorkflowStatus'
+        engineExecutionId:
+          $ref: '#/components/schemas/EngineExecutionId'
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        startTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        endTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        reasonForIncompletion:
+          $ref: '#/components/schemas/ReasonForIncompletion'
+        metadata:
+          $ref: '#/components/schemas/metadata'
+      required:
+      - id
+      - workflowExternalId
+      - status
+      - engineExecutionId
+      - createdTime
+      - metadata
+    Authentication:
+      type: object
+      properties:
+        nonce:
+          type: string
+          description: The nonce of a sessions token, which can be obtained using client credentials authentication flow. The nonce's session must be a root session, i.e. it must not be a child of another session. See [Sessions API](https://api-docs.cognite.com/20230101/tag/Sessions) documentation for more information.
+          example: hOfy4Zop4N2SPRfl
+      required:
+      - nonce
+    TaskDefinition:
+      title: Task Definition
+      type: object
+      properties:
+        externalId:
+          $ref: '#/components/schemas/TaskExternalId'
+        type:
+          $ref: '#/components/schemas/TaskType'
+        name:
+          type: string
+          maxLength: 255
+          description: Readable name meant for use in UIs
+        description:
+          type: string
+          maxLength: 500
+          description: Description of the intention of the task
+        parameters:
+          oneOf:
+          - $ref: '#/components/schemas/FunctionTaskParameters'
+          - $ref: '#/components/schemas/TransformationTaskParameters'
+          - $ref: '#/components/schemas/CdfTaskParameters'
+          - $ref: '#/components/schemas/DynamicTaskParameters'
+          - $ref: '#/components/schemas/SubworkflowTaskParameters'
+          - $ref: '#/components/schemas/SimulatorTaskParameters'
+        retries:
+          type: number
+          default: 3
+          minimum: 0
+          maximum: 10
+          description: Number of times to retry the task if it fails. If set to 0, the task will not be retried. The behavior for timeouts and retries is defined by the `onFailure` parameter, refer to it for more information.
+        timeout:
+          type: number
+          default: 3600
+          minimum: 100
+          maximum: 43200
+          description: Timeout in seconds. After this time, the task will be marked as `TIMED_OUT`. By default, the task won't be retried upon timeout. Use the `onFailure` parameter to change this behavior.
+        onFailure:
+          type: string
+          enum:
+          - abortWorkflow
+          - skipTask
+          default: abortWorkflow
+          description: "Defines the policy to handle failures and timeouts.\n- `skipTask`: For both failures and timeouts, it will retry until the retries are exhausted. After that, the Task is marked as COMPLETED_WITH_ERRORS and the subsequent tasks are executed.\n- `abortWorkflow`:\n  - In case of failures, retries will be performed until exhausted, after which the task is marked as FAILED and the Workflow is marked the same.\n  - In the event of a timeout, no retries are undertaken; the task is marked as TIMED_OUT and the Workflow is marked as FAILED.\n"
+        dependsOn:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskDepends'
+          minItems: 0
+          maxItems: 100
+          description: The tasks that must be completed before this task can be executed.
+      required:
+      - externalId
+      - type
+      - parameters
+    WorkflowDefinitionResponse:
+      title: Workflow Definition
+      type: object
+      properties:
+        hash:
+          type: string
+        description:
+          type: string
+          maxLength: 500
+        tasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskDefinition'
+      required:
+      - hash
+      - tasks
+    TaskType:
+      type: string
+      enum:
+      - function
+      - transformation
+      - cdf
+      - dynamic
+      - subworkflow
+      - simulation
+    ListExecutionsQuery:
+      type: object
+      properties:
+        filter:
+          $ref: '#/components/schemas/ListExecutionsFilter'
+        limit:
+          $ref: '#/components/schemas/limit'
+        cursor:
+          $ref: '#/components/schemas/cursor'
+    DynamicTaskOutput:
+      title: Dynamic Task Output
+      type: object
+      properties:
+        dynamicTasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskDefinition'
+          minItems: 0
+          maxItems: 100
+  responses:
+    ErrorResponse:
+      description: The response for a failed request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+  securitySchemes:
+    oidc-token:
+      type: http
+      scheme: bearer
+      bearerFormat: OpenID Connect or OAuth2 token
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+    oauth2-client-credentials:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        clientCredentials:
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-auth-code:
+      type: oauth2
+      description: Access token issued by the CDF project's configured identity provider. Access token must be an OpenID Connect token, and the project must be configured to accept OpenID Connect tokens. Use a header key of 'Authorization' with a value of 'Bearer $accesstoken'. The token can be obtained through any flow supported by the identity provider.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://your-idps.authorization.url/
+          tokenUrl: https://your-idps.token.url/
+          scopes:
+            default: https://{cluster}.cognitedata.com/.default
+    oauth2-open-industrial-data:
+      type: oauth2
+      description: Auth flow for Open Industrial Data. Get your client secret from https://hub.cognite.com/open-industrial-data-211.
+      flows:
+        clientCredentials:
+          tokenUrl: https://login.microsoftonline.com/48d5043c-cf70-4c49-881c-c638f5796997/oauth2/v2.0/token
+          scopes:
+            default: https://api.cognitedata.com/.default
+    org-oidc-token:
+      type: openIdConnect
+      openIdConnectUrl: https://auth.cognite.com/.well-known/openid-configuration
+      description: 'Access token issued by the Cognite authorization server, and valid for the target organization. The token must
+
+        be an OpenID Connect token, and it can be obtained by performing an OIDC login flow toward `auth.cognite.com`.
+
+        This is a single URL for all CDF organizations.'
+x-tagGroups:
+- name: Changelog
+  tags:
+  - Changelog
+- name: Organizations and projects
+  tags:
+  - Organizations
+  - Projects
+- name: Identity and access management
+  tags:
+  - Principals
+  - Groups
+  - Security categories
+  - Sessions
+  - Token
+  - User profiles
+  - Project Deletion Reporting
+- name: Data modeling
+  tags:
+  - Data Modeling
+  - Data models
+  - Spaces
+  - Views
+  - Containers
+  - Nodes
+  - Instances
+  - Statistics
+  - Streams
+  - Records
+- name: Asset-centric data model
+  tags:
+  - Assets
+  - Time series
+  - Synthetic Time Series
+  - Data point subscriptions
+  - Events
+  - Files
+  - Sequences
+  - Geospatial
+  - Seismic
+- name: 3D
+  tags:
+  - 3D Models
+  - 3D Model Revisions
+  - 3D Files
+  - 3D Asset Mapping
+  - 3D Contextualization
+  - 3D Jobs
+  - 3D Migration
+  - 3D Scenes
+- name: Contextualization
+  tags:
+  - Entity matching
+  - Entity matching pipelines
+  - Engineering diagrams
+  - Vision
+  - Advanced joins
+- name: Cognite AI
+  tags:
+  - Agents
+  - Skills
+  - Chat Completions
+  - Document AI
+  - Models
+- name: Documents
+  tags:
+  - Documents
+  - Document preview
+- name: Data ingestion
+  tags:
+  - Raw
+  - Extraction Pipelines
+  - Extraction Pipelines Runs
+  - Extraction Pipelines Config
+  - Extractors
+- name: Data organization
+  tags:
+  - Data sets
+  - Data domains
+  - Data products
+  - Rule sets
+  - Labels
+  - Relationships
+  - Annotations
+- name: Transformations
+  tags:
+  - Transformations
+  - Transformation Jobs
+  - Transformation Schedules
+  - Transformation Notifications
+  - Query
+  - Schema
+- name: Functions
+  tags:
+  - Functions
+  - Function calls
+  - Function schedules
+- name: Hosted Extractors
+  tags:
+  - Sources
+  - Jobs
+  - Destinations
+  - Mappings
+- name: PostgreSQL Gateway
+  tags:
+  - Postgres Gateway Users
+  - Postgres Gateway Tables
+- name: SAP Writeback
+  tags:
+  - SAP Instances
+  - SAP Endpoints
+  - Schema Mappings
+  - Writeback Requests
+- name: Data workflows
+  tags:
+  - Workflows
+  - Workflow versions
+  - Workflow executions
+  - Workflow triggers
+  - Tasks
+  - Workers
+- name: Simulators
+  tags:
+  - Simulators
+  - Simulator Integrations
+  - Simulator Models
+  - Simulator Routines
+  - Simulation Runs
+  - Simulator Logs
+- name: Units
+  tags:
+  - Units
+  - Unit Systems
+- name: ''
+  tags:
+  - ''
