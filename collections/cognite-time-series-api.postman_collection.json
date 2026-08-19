@@ -1,0 +1,2675 @@
+{
+  "item": [
+    {
+      "id": "6bae5b9a-d29a-4ba0-bcdf-08c30fad9be7",
+      "name": "Time series",
+      "description": {
+        "content": "A time series consists of a sequence of data points connected to a\nsingle asset. For example, a water pump asset can have a temperature time\nseries that records a data point in units of Â°C every second.\n\nA single asset can have several time series. The water pump could have additional time series\nmeasuring pressure within the pump, rpm, flow volume, power consumption, and more.Time\nseries store data points as either numbers or strings. This is controlled by the\nis_string flag on the time series object. Numerical data points can be aggregated\nbefore they are returned from a query (e.g., to find the average temperature for\na day). String data points, on the other hand, can't be aggregated by CDF but\ncan store arbitrary information like states (e.g., âopenâ/âclosedâ) or more complex\ninformation (JSON).\n\nCognite stores discrete data points, but the underlying\nprocess measured by the data points can vary continuously. When interpolating\nbetween data points, we can either assume that each value stays the same until\nthe next measurement or linearly changes between the two measurements.\nThe `isStep` flag controls this on the time series object. For example,\nif we estimate the average over a time containing two data points, the average\nwill either be close to the first (`isStep`) or close to the mean of the two (not\n`isStep`).\n\nA data point stores a single piece of information, a number or a\nstring, associated with a specific time. Data points are identified by their timestamps,\nmeasured in milliseconds since the unix epoch -- 00:00:00.000, January 1st, 1970.\nThe time series service accepts timestamps in the range from 00:00:00.000, January 1st, 1900\nthrough 23:59:59.999, December 31st, 2099 (in other words, every millisecond in the two\ncenturies from 1900 to but not including 2100). Negative timestamps are\nused to define dates before 1970. Milliseconds is the finest time resolution supported by CDF, i.e.,\nfractional milliseconds are not supported. Leap seconds are not counted.\n\nNumerical data points can be aggregated before they are retrieved from CDF. This allows for faster queries by reducing\nthe amount of data transferred. You can aggregate data points by specifying one\nor more aggregates (e.g., average, minimum, maximum) as well as the time granularity\nover which the aggregates should be applied (e.g., â1hâ for one hour).\n\nAggregates are aligned to the start time modulo the granularity unit. For example, if you\nask for daily average temperatures since Monday afternoon last week, the first\naggregated data point will contain averages for Monday, the second for Tuesday,\netc. Determining aggregate alignment without considering data point timestamps\nallows CDF to pre-calculate aggregates (e.g., to quickly return daily average temperatures\nfor a year). Consequently, aggregating over 60 minutes can return a different\nresult than aggregating over 1 hour because the two queries will be aligned differently.\nAsset references obtained from a time series - through its asset ID - may be invalid simply\nby the non-transactional nature of HTTP. They are maintained in an eventually consistent\nmanner.",
+        "type": "text/plain"
+      },
+      "item": [
+        {
+          "id": "bb4b91a8-2b9b-4101-a038-68563729444b",
+          "name": "List time series",
+          "request": {
+            "name": "List time series",
+            "description": {
+              "content": "\n\n> **Required capabilities:** `timeSeriesAcl:READ`\n\nList time series. Use `nextCursor` to paginate through the results.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "timeseries"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [
+                {
+                  "disabled": false,
+                  "key": "limit",
+                  "value": "100",
+                  "description": "Limits the number of results to return. CDF returns a maximum of 1000 results even if you specify a higher limit."
+                },
+                {
+                  "disabled": false,
+                  "key": "includeMetadata",
+                  "value": "true",
+                  "description": "Whether the metadata field should be returned or not."
+                },
+                {
+                  "disabled": false,
+                  "key": "cursor",
+                  "value": "<string>",
+                  "description": "Cursor for paging through results. In general, if a response contains a `nextCursor`\nproperty, it means that there may be more results, and you should pass that value as the\n`cursor` parameter in the next request.\n\nNote that the cursor may or may not be encrypted, but either way, it is not intended to be\ndecoded. Its internal structure is not a part of the public API, and may change without\nnotice. You should treat it as an opaque string and not attempt to craft your own cursors.\n"
+                },
+                {
+                  "disabled": false,
+                  "key": "partition",
+                  "value": "<string>",
+                  "description": "Splits the data set into `N` partitions.\nThe attribute is specified as a \"M/N\" string, where `M` is a natural number in the interval of `[1, N]`.\nYou need to follow the cursors within each partition in order to receive all the data.\n\nTo prevent unexpected problems and maximize read throughput, you should at most use 10 (N <= 10) partitions.\n\nWhen using more than 10 partitions, CDF may reduce the number of partitions silently.\nFor example, CDF may reduce the number of partitions to `K = 10` so if you specify an `X/N` `partition` value where `X = 8` and `N = 20` - i.e. `\"partition\": \"8/20\"`- then\nCDF will change `N` to `N = K = 10` and process the request.\nBut if you  specify the `X/N` `partition` value where `X = 11` (`X > K`) and `N = 20` - i.e. `\"partition\": \"11/20\"`- then\nCDF will reply with an empty result list and no cursor in the response.\n\nIn future releases of the resource APIs, Cognite may reject requests if you specify more than 10 partitions.\nWhen Cognite enforces this behavior, the requests will result in a 400 Bad Request status.\n"
+                },
+                {
+                  "disabled": false,
+                  "key": "assetIds",
+                  "value": "<jsonArray(int64)>",
+                  "description": "Gets the time series related to the assets. The format is a list of IDs serialized as a JSON array(int64). Takes [ 1 .. 100 ] unique items."
+                },
+                {
+                  "disabled": false,
+                  "key": "rootAssetIds",
+                  "value": "<jsonArray(int64)>",
+                  "description": "Only includes time series that have a related asset in a tree rooted at any of these root `assetIds`."
+                },
+                {
+                  "disabled": false,
+                  "key": "externalIdPrefix",
+                  "value": "<string>"
+                }
+              ],
+              "variable": [
+                {
+                  "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                  "type": "any",
+                  "value": "{{cluster}}",
+                  "key": "cluster"
+                },
+                {
+                  "description": "The CDF project name.",
+                  "type": "any",
+                  "value": "{{project}}",
+                  "key": "project"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "GET",
+            "auth": null
+          },
+          "response": [
+            {
+              "id": "8adadb74-3d10-4319-a623-0d7cdee476b6",
+              "name": "A list of time series in lexicographic order.",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "timeseries"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "limit",
+                      "value": "100"
+                    },
+                    {
+                      "key": "includeMetadata",
+                      "value": "true"
+                    },
+                    {
+                      "key": "cursor",
+                      "value": "4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo"
+                    },
+                    {
+                      "key": "partition",
+                      "value": "1/10"
+                    },
+                    {
+                      "key": "assetIds",
+                      "value": "[363848954441724, 793045462540095, 1261042166839739]"
+                    },
+                    {
+                      "key": "rootAssetIds",
+                      "value": "[363848954441724, 793045462540095, 1261042166839739]"
+                    },
+                    {
+                      "key": "externalIdPrefix",
+                      "value": "my.known.prefix"
+                    }
+                  ],
+                  "variable": [
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "body": {}
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"items\": [\n    {\n      \"id\": 3371208708133110,\n      \"isString\": false,\n      \"isStep\": false,\n      \"type\": \"string\",\n      \"createdTime\": 1730204346000,\n      \"lastUpdatedTime\": 1730204346000,\n      \"externalId\": \"string\",\n      \"instanceId\": {\n        \"space\": \"string\",\n        \"externalId\": \"string\"\n      },\n      \"name\": \"string\",\n      \"metadata\": {\n        \"key_0\": \"string\"\n      },\n      \"unit\": \"string\",\n      \"unitExternalId\": \"string\",\n      \"assetId\": 4779637889979590,\n      \"description\": \"string\",\n      \"securityCategories\": [\n        690,\n        8092\n      ],\n      \"dataSetId\": 8266215535596180\n    },\n    {\n      \"id\": 157991578085119,\n      \"isString\": false,\n      \"isStep\": true,\n      \"type\": \"string\",\n      \"createdTime\": 1730204346000,\n      \"lastUpdatedTime\": 1730204346000,\n      \"externalId\": \"string\",\n      \"instanceId\": {\n        \"space\": \"string\",\n        \"externalId\": \"string\"\n      },\n      \"name\": \"string\",\n      \"metadata\": {\n        \"key_0\": \"string\",\n        \"key_1\": \"string\",\n        \"key_2\": \"string\"\n      },\n      \"unit\": \"string\",\n      \"unitExternalId\": \"string\",\n      \"assetId\": 4180370835484042,\n      \"description\": \"string\",\n      \"securityCategories\": [\n        5677,\n        2925\n      ],\n      \"dataSetId\": 7303984905804559\n    }\n  ],\n  \"nextCursor\": \"string\"\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            }
+          ],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "56cb9037-3cd5-46c2-a04b-558a1df49074",
+          "name": "Create time series",
+          "request": {
+            "name": "Create time series",
+            "description": {
+              "content": "\n\n> **Required capabilities:** `timeSeriesAcl:WRITE`\n\nCreates one or more time series.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "timeseries"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                  "type": "any",
+                  "value": "{{cluster}}",
+                  "key": "cluster"
+                },
+                {
+                  "description": "The CDF project name.",
+                  "type": "any",
+                  "value": "{{project}}",
+                  "key": "project"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "auth": null,
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"externalId\": \"<string>\",\n      \"name\": \"<string>\",\n      \"legacyName\": \"<string>\",\n      \"isString\": false,\n      \"metadata\": {\n        \"key_0\": \"<string>\",\n        \"key_1\": \"<string>\"\n      },\n      \"unit\": \"<string>\",\n      \"unitExternalId\": \"<string>\",\n      \"assetId\": \"<long>\",\n      \"isStep\": false,\n      \"description\": \"<string>\",\n      \"securityCategories\": [\n        \"<long>\",\n        \"<long>\"\n      ],\n      \"dataSetId\": \"<long>\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "id": "365e6502-42a5-45b0-8b49-ce2c18108baf",
+              "name": "Response with the created time series.",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "timeseries"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"externalId\": \"string\",\n      \"name\": \"string\",\n      \"legacyName\": \"string\",\n      \"isString\": false,\n      \"metadata\": {\n        \"key_0\": \"string\",\n        \"key_1\": \"string\"\n      },\n      \"unit\": \"string\",\n      \"unitExternalId\": \"string\",\n      \"assetId\": 478414606536174,\n      \"isStep\": false,\n      \"description\": \"string\",\n      \"securityCategories\": [\n        3735,\n        2347\n      ],\n      \"dataSetId\": 7186157341992961\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"items\": [\n    {\n      \"id\": 899454930570179,\n      \"isString\": false,\n      \"isStep\": false,\n      \"type\": \"string\",\n      \"createdTime\": 1730204346000,\n      \"lastUpdatedTime\": 1730204346000,\n      \"externalId\": \"string\",\n      \"instanceId\": {\n        \"space\": \"string\",\n        \"externalId\": \"string\"\n      },\n      \"name\": \"string\",\n      \"metadata\": {\n        \"key_0\": \"string\"\n      },\n      \"unit\": \"string\",\n      \"unitExternalId\": \"string\",\n      \"assetId\": 8965224690077516,\n      \"description\": \"string\",\n      \"securityCategories\": [\n        2554,\n        8034\n      ],\n      \"dataSetId\": 1030853402615708\n    },\n    {\n      \"id\": 1600864438293565,\n      \"isString\": false,\n      \"isStep\": false,\n      \"type\": \"string\",\n      \"createdTime\": 1730204346000,\n      \"lastUpdatedTime\": 1730204346000,\n      \"externalId\": \"string\",\n      \"instanceId\": {\n        \"space\": \"string\",\n        \"externalId\": \"string\"\n      },\n      \"name\": \"string\",\n      \"metadata\": {\n        \"key_0\": \"string\"\n      },\n      \"unit\": \"string\",\n      \"unitExternalId\": \"string\",\n      \"assetId\": 1987761973811989,\n      \"description\": \"string\",\n      \"securityCategories\": [\n        2342,\n        9727\n      ],\n      \"dataSetId\": 3809972733429486\n    }\n  ]\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "132e0bfe-485e-436d-8cf1-596966819557",
+              "name": "Missing required fields.",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "timeseries"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"externalId\": \"string\",\n      \"name\": \"string\",\n      \"legacyName\": \"string\",\n      \"isString\": false,\n      \"metadata\": {\n        \"key_0\": \"string\",\n        \"key_1\": \"string\"\n      },\n      \"unit\": \"string\",\n      \"unitExternalId\": \"string\",\n      \"assetId\": 478414606536174,\n      \"isStep\": false,\n      \"description\": \"string\",\n      \"securityCategories\": [\n        3735,\n        2347\n      ],\n      \"dataSetId\": 7186157341992961\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 400,\n  \"message\": \"string\",\n  \"missingFields\": []\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "8ce7e97a-6a6d-4461-950b-39a4c9b0ab84",
+              "name": "Time series with the specified externalIds already exists. Retry request, with the existing externalIds removed.",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "timeseries"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"externalId\": \"string\",\n      \"name\": \"string\",\n      \"legacyName\": \"string\",\n      \"isString\": false,\n      \"metadata\": {\n        \"key_0\": \"string\",\n        \"key_1\": \"string\"\n      },\n      \"unit\": \"string\",\n      \"unitExternalId\": \"string\",\n      \"assetId\": 478414606536174,\n      \"isStep\": false,\n      \"description\": \"string\",\n      \"securityCategories\": [\n        3735,\n        2347\n      ],\n      \"dataSetId\": 7186157341992961\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": 409,\n    \"message\": \"string\",\n    \"duplicated\": [\n      {\n        \"externalId\": \"my.known.id\"\n      }\n    ]\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "b895c30b-afe4-4653-825b-f8268c1f4b7f",
+              "name": "Duplicated externalIds found. Retry request, keeping only one instance of each duplicated externalId.",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "timeseries"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"externalId\": \"string\",\n      \"name\": \"string\",\n      \"legacyName\": \"string\",\n      \"isString\": false,\n      \"metadata\": {\n        \"key_0\": \"string\",\n        \"key_1\": \"string\"\n      },\n      \"unit\": \"string\",\n      \"unitExternalId\": \"string\",\n      \"assetId\": 478414606536174,\n      \"isStep\": false,\n      \"description\": \"string\",\n      \"securityCategories\": [\n        3735,\n        2347\n      ],\n      \"dataSetId\": 7186157341992961\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Unprocessable Entity (WebDAV) (RFC 4918)",
+              "code": 422,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": 422,\n    \"message\": \"string\",\n    \"duplicated\": [\n      {\n        \"id\": 4317239836033062\n      },\n      {\n        \"id\": 2295951267021245\n      }\n    ]\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            }
+          ],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "b181231c-e62f-4ad5-89d6-78d82a5aa1bd",
+          "name": "Retrieve time series",
+          "request": {
+            "name": "Retrieve time series",
+            "description": {
+              "content": "\n\n> **Required capabilities:** `timeSeriesAcl:READ`\n\nRetrieves one or more time series by ID or external ID. The response returns the time series in the same order as in the request.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "timeseries",
+                "byids"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                  "type": "any",
+                  "value": "{{cluster}}",
+                  "key": "cluster"
+                },
+                {
+                  "description": "The CDF project name.",
+                  "type": "any",
+                  "value": "{{project}}",
+                  "key": "project"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "auth": null,
+            "body": {
+              "mode": "raw",
+              "raw": "<object>",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "id": "80127252-515e-4d6a-9286-4f8ac7a96be4",
+              "name": "Response with a list of time series matching the IDs.",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "timeseries",
+                    "byids"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"id\": 2860670060637079\n    }\n  ],\n  \"ignoreUnknownIds\": false\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"items\": [\n    {\n      \"id\": 899454930570179,\n      \"isString\": false,\n      \"isStep\": false,\n      \"type\": \"string\",\n      \"createdTime\": 1730204346000,\n      \"lastUpdatedTime\": 1730204346000,\n      \"externalId\": \"string\",\n      \"instanceId\": {\n        \"space\": \"string\",\n        \"externalId\": \"string\"\n      },\n      \"name\": \"string\",\n      \"metadata\": {\n        \"key_0\": \"string\"\n      },\n      \"unit\": \"string\",\n      \"unitExternalId\": \"string\",\n      \"assetId\": 8965224690077516,\n      \"description\": \"string\",\n      \"securityCategories\": [\n        2554,\n        8034\n      ],\n      \"dataSetId\": 1030853402615708\n    },\n    {\n      \"id\": 1600864438293565,\n      \"isString\": false,\n      \"isStep\": false,\n      \"type\": \"string\",\n      \"createdTime\": 1730204346000,\n      \"lastUpdatedTime\": 1730204346000,\n      \"externalId\": \"string\",\n      \"instanceId\": {\n        \"space\": \"string\",\n        \"externalId\": \"string\"\n      },\n      \"name\": \"string\",\n      \"metadata\": {\n        \"key_0\": \"string\"\n      },\n      \"unit\": \"string\",\n      \"unitExternalId\": \"string\",\n      \"assetId\": 1987761973811989,\n      \"description\": \"string\",\n      \"securityCategories\": [\n        2342,\n        9727\n      ],\n      \"dataSetId\": 3809972733429486\n    }\n  ]\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "b3a9b605-b22d-4757-bad8-8a456d2a7fe9",
+              "name": "IDs not found.",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "timeseries",
+                    "byids"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"id\": 2860670060637079\n    }\n  ],\n  \"ignoreUnknownIds\": false\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": 400,\n    \"message\": \"string\",\n    \"missing\": [\n      {\n        \"id\": 8827035475142811\n      },\n      {\n        \"id\": 3770736269124661\n      }\n    ]\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "89013c47-dd18-4071-9383-ef0ccf6d58a3",
+              "name": "Duplicate IDs found. Retry request, keeping only one instance of each duplicated ID.",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "timeseries",
+                    "byids"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"id\": 2860670060637079\n    }\n  ],\n  \"ignoreUnknownIds\": false\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Unprocessable Entity (WebDAV) (RFC 4918)",
+              "code": 422,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": 422,\n    \"message\": \"string\",\n    \"duplicated\": [\n      {\n        \"id\": 4317239836033062\n      },\n      {\n        \"id\": 2295951267021245\n      }\n    ]\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            }
+          ],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "04f4483a-6f16-407b-b67b-3f85d412ca20",
+          "name": "Filter time series",
+          "request": {
+            "name": "Filter time series",
+            "description": {
+              "content": "\n\n> **Required capabilities:** `timeSeriesAcl:READ`\n\n<details>\n<summary>\nRetrieves a list of time series that match the given criteria.\n</summary>\n\n### Advanced filtering\n\nThe `advancedFilter`\nfield lets you create complex filtering expressions that combine simple operations,\nsuch as `equals`, `prefix`, and `exists`, by using the Boolean operators `and`, `or`, and `not`.\nFiltering applies to basic fields as well as metadata. See the `advancedFilter` syntax in the request example.\n\n\n\n#### Supported leaf filters\n\n| Leaf filter    | Supported fields       | Description and example                                                                                                                                                            |\n|----------------|------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|\n| `containsAll`  | Array type fields      | Only includes results which contain all of the specified values. <br /> `{\"containsAll\": {\"property\": [\"property\"], \"values\": [1, 2, 3]}}`                                         |\n| `containsAny`  | Array type fields      | Only includes results which contain at least one of the specified values. <br /> `{\"containsAny\": {\"property\": [\"property\"], \"values\": [1, 2, 3]}}`                                |\n| `equals`       | Non-array type fields  | Only includes results that are equal to the specified value. <br /> `{\"equals\": {\"property\": [\"property\"], \"value\": \"example\"}}`                                                   |\n| `exists`       | All fields             | Only includes results where the specified property exists (has a value). <br /> `{\"exists\": {\"property\": [\"property\"]}}`                                                           |\n| `in`           | Non-array type fields  | Only includes results that are equal to one of the specified values. <br /> `{\"in\": {\"property\": [\"property\"], \"values\": [1, 2, 3]}}`                                              |\n| `prefix`       | String type fields     | Only includes results which start with the specified text. <br /> `{\"prefix\": {\"property\": [\"property\"], \"value\": \"example\"}}`                                                     |\n| `range`        | Non-array type fields  | Only includes results that fall within the specified range. <br /> `{\"range\": {\"property\": [\"property\"], \"gt\": 1, \"lte\": 5}}` <br /> Supported operators: `gt`, `lt`, `gte`, `lte` |\n | `search`       | `[\"name\"]` and `[\"description\"]` | Introduced to provide functional parity with the /timeseries/search endpoint. <br /> `{\"search\": {\"property\": [\"property\"], \"value\": \"example\"}}`                        |\n\n#### Supported properties\n\n| Property                          | Type               |\n|-----------------------------------|--------------------|\n| `[\"description\"]`                 | string             |\n| `[\"externalId\"]`                  | string             |\n| `[\"metadata\", \"<someCustomKey>\"]` | string             |\n| `[\"name\"]`                        | string             |\n| `[\"unit\"]`                         | string              |\n| `[\"unitExternalId\"]`               | string              |\n| `[\"unitQuantity\"]`                 | string              |\n| `[\"instanceId\", \"space\"]`          | string              |\n| `[\"instanceId\", \"externalId\"]`     | string              |\n| `[\"assetId\"]`                      | number              |\n| `[\"assetRootId\"]`                  | number              |\n| `[\"createdTime\"]`                  | number              |\n| `[\"dataSetId\"]`                    | number              |\n| `[\"id\"]`                           | number              |\n| `[\"lastUpdatedTime\"]`              | number              |\n| `[\"isStep\"]`                       | Boolean             |\n| `[\"isString\"]`                     | Boolean             |\n| `[\"type\"]`                         | string              |\n| `[\"securityCategories\"]`           | array of numbers    |\n\n#### Limits\n\n- Filter query max depth: 10.\n- Filter query max number of clauses: 100.\n- `and` and `or` clauses must have at least one element (and at most 99, since each element counts\n  towards the total clause limit, and so does the `and`/`or` clause itself).\n- The `property` array of each leaf filter has the following limitations:\n  - Number of elements in the array is 1 or 2.\n  - Elements must not be null or blank.\n  - Each element max length is 256 characters.\n  - The `property` array must match one of the existing properties (static top-level property or dynamic metadata property).\n- `containsAll`, `containsAny`, and `in` filter `values` array size must be in the range [1, 100].\n- `containsAll`, `containsAny`, and `in` filter `values` array must contain elements of number or string type (matching the type of the given property).\n- `range` filter must have at lest one of `gt`, `gte`, `lt`, `lte` attributes.\n  But `gt` is mutually exclusive to `gte`, while `lt` is mutually exclusive to `lte`.\n- `gt`, `gte`, `lt`, `lte` in the `range` filter must be of number or string type (matching the type of the given property).\n- `search` filter `value` must not be blank, and the length must be in the range [1, 128], and there\n  may be at most two `search` filters in the entire filter query.\n- The maximum length of the `value` of a leaf filter that is applied to a string property is 256.\n\n### Sorting\n\nBy default, time series are sorted by their creation time in ascending order.\nSorting by another property or by several other properties can be explicitly requested via the\n`sort` field, which must contain a list\nof one or more sort specifications. Each sort specification indicates the `property` to sort on\nand, optionally, the `order` in which to sort (defaults to `asc`). If multiple sort specifications are\nsupplied, the results are sorted on the first property, and those with the same value for the first\nproperty are sorted on the second property, and so on.  \nPartitioning is done independently of sorting; there is no guarantee of sort order between elements from different partitions.\n\n#### Null values\n\nIn case the `nulls` field has the `auto` value, or the field isn't specified, null (missing) values\nare considered bigger than any other values. They are placed last when sorting in the `asc`\norder and first in the `desc` order. Otherwise, missing values are placed according to\nthe `nulls` field (`last` or `first`), and their placement won't depend on the `order`\nfield. Note that the number zero, empty strings, and empty lists are all considered\n_not_ null.\n\n#### Example\n\n```json\n{\n  \"sort\": [\n    {\n      \"property\" : [\"createdTime\"],\n      \"order\": \"desc\",\n      \"nulls\": \"last\"\n    },\n    {\n      \"property\" : [\"metadata\", \"<someCustomKey>\"]\n    }\n  ]\n}\n```\n\n\n#### Properties\n\nYou can sort on the following properties:\n\n| Property                          |\n|-----------------------------------|\n| `[\"assetId\"]`                     |\n| `[\"createdTime\"]`                 |\n| `[\"dataSetId\"]`                   |\n| `[\"description\"]`                 |\n| `[\"externalId\"]`                  |\n| `[\"lastUpdatedTime\"]`             |\n| `[\"metadata\", \"<someCustomKey>\"]` |\n| `[\"name\"]`                        |\n| `[\"instanceId\", \"space\"]`         |\n| `[\"instanceId\", \"externalId\"]`    |\n\n#### Limits\n\nThe `sort` array must contain 1 to 2 elements.\n</details>\n",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "timeseries",
+                "list"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                  "type": "any",
+                  "value": "{{cluster}}",
+                  "key": "cluster"
+                },
+                {
+                  "description": "The CDF project name.",
+                  "type": "any",
+                  "value": "{{project}}",
+                  "key": "project"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "auth": null,
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"filter\": {\n    \"name\": \"<string>\",\n    \"unit\": \"<string>\",\n    \"unitExternalId\": \"<string>\",\n    \"unitQuantity\": \"<string>\",\n    \"isString\": \"<boolean>\",\n    \"isStep\": \"<boolean>\",\n    \"metadata\": {\n      \"key_0\": \"<string>\"\n    },\n    \"assetIds\": [\n      \"<long>\"\n    ],\n    \"assetExternalIds\": [\n      \"<string>\"\n    ],\n    \"rootAssetIds\": [\n      \"<long>\"\n    ],\n    \"assetSubtreeIds\": [\n      {\n        \"id\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      }\n    ],\n    \"dataSetIds\": [\n      {\n        \"id\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      }\n    ],\n    \"externalIdPrefix\": \"<string>\",\n    \"createdTime\": {\n      \"max\": \"<long>\",\n      \"min\": \"<long>\"\n    },\n    \"lastUpdatedTime\": {\n      \"max\": \"<long>\",\n      \"min\": \"<long>\"\n    }\n  },\n  \"advancedFilter\": {\n    \"and\": [\n      {\n        \"value\": \"<Circular reference to #/components/schemas/TimeSeriesFilterLanguage detected>\"\n      }\n    ]\n  },\n  \"limit\": 100,\n  \"cursor\": \"<string>\",\n  \"partition\": \"<string>\",\n  \"sort\": [\n    {\n      \"property\": [\n        \"<string>\"\n      ],\n      \"order\": \"<string>\",\n      \"nulls\": \"auto\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "id": "b2a9365e-52d7-4870-aecb-707f0423e03a",
+              "name": "Response with a list of time series matching the specified criteria.",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "timeseries",
+                    "list"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"filter\": {\n    \"name\": \"string\",\n    \"unit\": \"string\",\n    \"unitExternalId\": \"string\",\n    \"unitQuantity\": \"string\",\n    \"isString\": true,\n    \"isStep\": false,\n    \"metadata\": {\n      \"key_0\": \"string\",\n      \"key_1\": \"string\"\n    },\n    \"assetIds\": [\n      363848954441724,\n      793045462540095,\n      1261042166839739\n    ],\n    \"assetExternalIds\": [\n      \"my.known.id\"\n    ],\n    \"rootAssetIds\": [\n      343099548723932,\n      88483999203217\n    ],\n    \"assetSubtreeIds\": [\n      {\n        \"id\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      }\n    ],\n    \"dataSetIds\": [\n      {\n        \"id\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      }\n    ],\n    \"externalIdPrefix\": \"my.known.prefix\",\n    \"createdTime\": {\n      \"max\": 5454,\n      \"min\": 2109\n    },\n    \"lastUpdatedTime\": {\n      \"max\": 3395,\n      \"min\": 1681\n    }\n  },\n  \"advancedFilter\": {\n    \"and\": [\n      {\n        \"value\": \"<Circular reference to #/components/schemas/TimeSeriesFilterLanguage detected>\"\n      }\n    ]\n  },\n  \"limit\": 100,\n  \"cursor\": \"4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo\",\n  \"partition\": \"1/10\",\n  \"sort\": [\n    {\n      \"property\": [\n        \"string\"\n      ],\n      \"order\": \"desc\",\n      \"nulls\": \"auto\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"items\": [\n    {\n      \"id\": 3371208708133110,\n      \"isString\": false,\n      \"isStep\": false,\n      \"type\": \"string\",\n      \"createdTime\": 1730204346000,\n      \"lastUpdatedTime\": 1730204346000,\n      \"externalId\": \"string\",\n      \"instanceId\": {\n        \"space\": \"string\",\n        \"externalId\": \"string\"\n      },\n      \"name\": \"string\",\n      \"metadata\": {\n        \"key_0\": \"string\"\n      },\n      \"unit\": \"string\",\n      \"unitExternalId\": \"string\",\n      \"assetId\": 4779637889979590,\n      \"description\": \"string\",\n      \"securityCategories\": [\n        690,\n        8092\n      ],\n      \"dataSetId\": 8266215535596180\n    },\n    {\n      \"id\": 157991578085119,\n      \"isString\": false,\n      \"isStep\": true,\n      \"type\": \"string\",\n      \"createdTime\": 1730204346000,\n      \"lastUpdatedTime\": 1730204346000,\n      \"externalId\": \"string\",\n      \"instanceId\": {\n        \"space\": \"string\",\n        \"externalId\": \"string\"\n      },\n      \"name\": \"string\",\n      \"metadata\": {\n        \"key_0\": \"string\",\n        \"key_1\": \"string\",\n        \"key_2\": \"string\"\n      },\n      \"unit\": \"string\",\n      \"unitExternalId\": \"string\",\n      \"assetId\": 4180370835484042,\n      \"description\": \"string\",\n      \"securityCategories\": [\n        5677,\n        2925\n      ],\n      \"dataSetId\": 7303984905804559\n    }\n  ],\n  \"nextCursor\": \"string\"\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            }
+          ],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "28bc0d13-07b2-4942-989b-288a2f479d63",
+          "name": "Aggregate time series",
+          "request": {
+            "name": "Aggregate time series",
+            "description": {
+              "content": "\n\n> **Required capabilities:** `timeSeriesAcl:READ`\n\nThe aggregation API allows you to compute aggregated results from a set of time series, such as\r\ngetting the number of time series in a project or checking what assets the different time series\r\nin your project are associated with (along with the number of time series for each asset).\r\nBy specifying `filter` and/or `advancedFilter`, the aggregation will take place only over those\r\ntime series that match the filters. `filter` and `advancedFilter` behave the same way as in the\r\n`list` endpoint.\r\n\r\n<details>\r\n<summary>\r\nThe default behavior, when the <code>aggregate</code> field is not specified the request body, is to return the\r\nnumber of time series that match the filters (if any), which is the same behavior as when the\r\n<code>aggregate</code> field is set to <code>count</code>.\r\n</summary>\r\n\r\nThe following requests will both return the total number of\r\ntime series whose `name` begins with `pump`:\r\n\r\n```\r\n{\r\n  \"advancedFilter\": {\"prefix\": {\"property\": [\"name\"], \"value\": \"pump\"}}\r\n}\r\n```\r\n\r\nand\r\n\r\n```\r\n{\r\n  \"aggregate\": \"count\",\r\n  \"advancedFilter\": {\"prefix\": {\"property\": [\"name\"], \"value\": \"pump\"}}\r\n}\r\n```\r\n\r\nThe response might be:\r\n\r\n```\r\n{\"items\": [{\"count\": 42}]}\r\n```\r\n</details>\r\n\r\n<details>\r\n<summary>\r\nSetting <code>aggregate</code> to <code>uniqueValues</code> and specifying a property in <code>properties</code> (this field is an array, but currently only supports one property) will\r\nreturn all unique values (up to a maximum of 1000) that are taken on by that property\r\nacross all the time series that match the filters, as well as the number of time series that\r\nhave each of those property values.\r\n</summary>\r\n\r\nThis example request finds all the unique asset ids that are\r\nreferenced by the time series in your project whose `name` begins with `pump`:\r\n\r\n```\r\n{\r\n  \"aggregate\": \"uniqueValues\",\r\n  \"properties\": [{\"property\": [\"assetId\"]}],\r\n  \"advancedFilter\": {\"prefix\": {\"property\": [\"name\"], \"value\": \"pump\"}}\r\n}\r\n```\r\n\r\nThe response might be the following, saying that 23 time series are associated with asset 18\r\nand 107 time series are associated with asset 76:\r\n\r\n```\r\n{\r\n  \"items\": [\r\n    {\"values\": [\"18\"], \"count\": 23},\r\n    {\"values\": [\"76\"], \"count\": 107}\r\n  ]\r\n}\r\n```\r\n</details>\r\n\r\n<details>\r\n<summary>\r\nSetting <code>aggregate</code> to <code>cardinalityValues</code> will instead return the approximate number of\r\ndistinct values that are taken on by the given property among the matching time series.\r\n</summary>\r\n\r\nExample request:\r\n\r\n```\r\n{\r\n  \"aggregate\": \"cardinalityValues\",\r\n  \"properties\": [{\"property\": [\"assetId\"]}],\r\n  \"advancedFilter\": {\"prefix\": {\"property\": [\"name\"], \"value\": \"pump\"}}\r\n}\r\n```\r\n\r\nThe result is likely exact when the set of unique values is small. In this example, there are likely two distinct asset ids among the matching time series:\r\n\r\n```\r\n{\"items\": [{\"count\": 2}]}\r\n```\r\n</details>\r\n\r\n<details>\r\n<summary>\r\nSetting <code>aggregate</code> to <code>uniqueProperties</code> will return the set of unique properties whose property\r\npath begins with <code>path</code> (which can currently only be <code>[\"metadata\"]</code>) that are contained in the time series that match the filters.\r\n</summary>\r\n\r\nExample request:\r\n\r\n```\r\n{\r\n  \"aggregate\": \"uniqueProperties\",\r\n  \"path\": [\"metadata\"],\r\n  \"advancedFilter\": {\"prefix\": {\"property\": [\"name\"], \"value\": \"pump\"}}\r\n}\r\n```\r\n\r\nThe result contains all the unique metadata keys in the time series whose `name` begins with\r\n`pump`, and the number of time series that contains each metadata key:\r\n\r\n```\r\n{\r\n  \"items\": [\r\n    {\"values\": [{\"property\": [\"metadata\", \"tag\"]}], \"count\": 43},\r\n    {\"values\": [{\"property\": [\"metadata\", \"installationDate\"]}], \"count\": 97}\r\n  ]\r\n}\r\n```\r\n</details>\r\n\r\n<details>\r\n<summary>\r\nSetting <code>aggregate</code> to <code>cardinalityProperties</code> will instead return the approximate number of\r\ndifferent property keys whose path begins with <code>path</code> (which can currently only be <code>[\"metadata\"]</code>, meaning that this can only be used to count the approximate number of distinct metadata keys among the matching time series).\r\n</summary>\r\n\r\nExample request:\r\n\r\n```\r\n{\r\n  \"aggregate\": \"cardinalityProperties\",\r\n  \"path\": [\"metadata\"],\r\n  \"advancedFilter\": {\"prefix\": {\"property\": [\"name\"], \"value\": \"pump\"}}\r\n}\r\n```\r\n\r\nThe result is likely exact when the set of unique values is small. In this example, there are likely two distinct metadata keys among the matching time series:\r\n\r\n```\r\n{\"items\": [{\"count\": 2}]}\r\n```\r\n</details>\r\n\r\nThe `aggregateFilter` field may be specified if `aggregate` is set to `cardinalityProperties` or `uniqueProperties`. The structure of this field is similar to that of `advancedFilter`, except that the set of leaf filters is smaller (`in`, `prefix`, and `range`), and that none of the leaf filters specify a property. Unlike `advancedFilter`, which is applied _before_ the aggregation (in order to restrict the set of time series that the aggregation operation should be applied to), `aggregateFilter` is applied _after_ the initial aggregation has been performed, in order to restrict the set of results.\r\n\r\n<details>\r\n<summary>\r\nClick here for more details about <code>aggregateFilter</code>. \r\n</summary>\r\n\r\nWhen `aggregate` is set to `uniqueProperties`, the result set contains a number of _property paths_, each with an associated count that shows how many time series contained that property (among those time series that matched the `filter` and `advancedFilter`, if they were specified) . If `aggregateFilter` is specified, it will restrict the property paths included in the output. Let us add an `aggregateFilter` to the `uniqueProperties` example from above:\r\n\r\n```\r\n{\r\n  \"aggregate\": \"uniqueProperties\",\r\n  \"path\": [\"metadata\"],\r\n  \"advancedFilter\": {\"prefix\": {\"property\": [\"name\"], \"value\": \"pump\"}},\r\n  \"aggregateFilter\": {\"prefix\": {\"value\": \"t\"}}\r\n}\r\n```\r\n\r\nNow, the result only contains those metadata properties whose key begins with `t` (but it will be the same set of metadata properties that begin with `t` as in the original query without `aggregateFilter`, and the counts will be the same):\r\n\r\n```\r\n{\r\n  \"items\": [\r\n    {\"values\": [{\"property\": [\"metadata\", \"tag\"]}], \"count\": 43}\r\n  ]\r\n}\r\n```\r\n\r\nSimilarly, adding `aggregateFilter` to `cardinalityProperties` will return the approximate number of properties whose property key matches `aggregateFilter` from those time series matching the `filter` and `advancedFilter` (or from all time series if neither `filter` nor `aggregateFilter` are specified):\r\n\r\n```\r\n{\r\n  \"aggregate\": \"cardinalityProperties\",\r\n  \"path\": [\"metadata\"],\r\n  \"advancedFilter\": {\"prefix\": {\"property\": [\"name\"], \"value\": \"pump\"}},\r\n  \"aggregateFilter\": {\"prefix\": {\"value\": \"t\"}}\r\n}\r\n```\r\n\r\nAs we saw above, only one property matches:\r\n\r\n```\r\n{\"items\": [{\"count\": 1}]}\r\n```\r\n\r\nNote that `aggregateFilter` is also accepted when `aggregate` is set to `cardinalityValues` or `cardinalityProperties`. For those aggregations, the effect of any `aggregateFilter` could also be achieved via a similar `advancedFilter`. However, `aggregateFilter` is not accepted when `aggregate` is omitted or set to `count`.\r\n</details>\r\n\r\n### Rate and concurrency limits\r\n\r\nRate and concurrency limits apply this endpoint. If a request exceeds one of the limits,\r\nit will be throttled with a `429: Too Many Requests` response. More on limit types\r\nand how to avoid being throttled is described\r\n[here](https://docs.cognite.com/dev/concepts/resource_throttling).\r\n\r\n| Limit          | Per project           | Per user (identity)   |\r\n|----------------|-----------------------|-----------------------|\r\n| Rate           | 15 requests per second| 10 requests per second|\r\n| Concurrency    | 6 concurrent requests | 4 concurrent requests |\r\n",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "timeseries",
+                "aggregate"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                  "type": "any",
+                  "value": "{{cluster}}",
+                  "key": "cluster"
+                },
+                {
+                  "description": "The CDF project name.",
+                  "type": "any",
+                  "value": "{{project}}",
+                  "key": "project"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "auth": null,
+            "body": {
+              "mode": "raw",
+              "raw": "<object>",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "id": "5aa8313f-8f1e-4c28-b6ad-d1a2f11c558f",
+              "name": "Response with the aggregated time series. The type of the response depends on the value of the `aggregate` parameter in the request.",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "timeseries",
+                    "aggregate"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"advancedFilter\": {\n    \"and\": [\n      {\n        \"value\": \"<Circular reference to #/components/schemas/TimeSeriesFilterLanguage detected>\"\n      }\n    ]\n  },\n  \"filter\": {\n    \"name\": \"string\",\n    \"unit\": \"string\",\n    \"unitExternalId\": \"string\",\n    \"unitQuantity\": \"string\",\n    \"isString\": true,\n    \"isStep\": false,\n    \"metadata\": {\n      \"key_0\": \"string\"\n    },\n    \"assetIds\": [\n      363848954441724,\n      793045462540095,\n      1261042166839739\n    ],\n    \"assetExternalIds\": [\n      \"my.known.id\"\n    ],\n    \"rootAssetIds\": [\n      343099548723932,\n      88483999203217\n    ],\n    \"assetSubtreeIds\": [\n      {\n        \"id\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      }\n    ],\n    \"dataSetIds\": [\n      {\n        \"id\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      }\n    ],\n    \"externalIdPrefix\": \"my.known.prefix\",\n    \"createdTime\": {\n      \"max\": 6820,\n      \"min\": 591\n    },\n    \"lastUpdatedTime\": {\n      \"max\": 9483,\n      \"min\": 5921\n    }\n  },\n  \"aggregateFilter\": {\n    \"and\": [\n      {\n        \"value\": \"<Circular reference to #/components/schemas/TimeSeriesAggregateFilter detected>\"\n      }\n    ]\n  },\n  \"aggregate\": \"count\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"items\": [\n    {\n      \"count\": 1705\n    }\n  ]\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "fe0b8e88-c5aa-4764-b941-12dd0e57e299",
+              "name": "The response for a failed request.",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "timeseries",
+                    "aggregate"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"advancedFilter\": {\n    \"and\": [\n      {\n        \"value\": \"<Circular reference to #/components/schemas/TimeSeriesFilterLanguage detected>\"\n      }\n    ]\n  },\n  \"filter\": {\n    \"name\": \"string\",\n    \"unit\": \"string\",\n    \"unitExternalId\": \"string\",\n    \"unitQuantity\": \"string\",\n    \"isString\": true,\n    \"isStep\": false,\n    \"metadata\": {\n      \"key_0\": \"string\"\n    },\n    \"assetIds\": [\n      363848954441724,\n      793045462540095,\n      1261042166839739\n    ],\n    \"assetExternalIds\": [\n      \"my.known.id\"\n    ],\n    \"rootAssetIds\": [\n      343099548723932,\n      88483999203217\n    ],\n    \"assetSubtreeIds\": [\n      {\n        \"id\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      }\n    ],\n    \"dataSetIds\": [\n      {\n        \"id\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      }\n    ],\n    \"externalIdPrefix\": \"my.known.prefix\",\n    \"createdTime\": {\n      \"max\": 6820,\n      \"min\": 591\n    },\n    \"lastUpdatedTime\": {\n      \"max\": 9483,\n      \"min\": 5921\n    }\n  },\n  \"aggregateFilter\": {\n    \"and\": [\n      {\n        \"value\": \"<Circular reference to #/components/schemas/TimeSeriesAggregateFilter detected>\"\n      }\n    ]\n  },\n  \"aggregate\": \"count\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": 401,\n    \"message\": \"Could not authenticate.\",\n    \"missing\": [\n      {\n        \"key_0\": 5794.388644450793,\n        \"key_1\": 3612\n      },\n      {\n        \"key_0\": 6478.950291741496,\n        \"key_1\": 9350.28062166543\n      }\n    ],\n    \"duplicated\": [\n      {\n        \"key_0\": false,\n        \"key_1\": 9455\n      },\n      {\n        \"key_0\": 3681.108246106494\n      }\n    ]\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            }
+          ],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "13fa8279-ff3a-4412-91ba-0da71a2c5938",
+          "name": "Search time series",
+          "request": {
+            "name": "Search time series",
+            "description": {
+              "content": "\n\n> **Required capabilities:** `timeSeriesAcl:READ`\n\nFulltext search for time series based on result relevance. Primarily meant\nfor human-centric use cases, not for programs, since matching and\norder may change over time. Additional filters can also be\nspecified. This operation does not support pagination.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "timeseries",
+                "search"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                  "type": "any",
+                  "value": "{{cluster}}",
+                  "key": "cluster"
+                },
+                {
+                  "description": "The CDF project name.",
+                  "type": "any",
+                  "value": "{{project}}",
+                  "key": "project"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "auth": null,
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"filter\": {\n    \"name\": \"<string>\",\n    \"unit\": \"<string>\",\n    \"unitExternalId\": \"<string>\",\n    \"unitQuantity\": \"<string>\",\n    \"isString\": \"<boolean>\",\n    \"isStep\": \"<boolean>\",\n    \"metadata\": {\n      \"key_0\": \"<string>\",\n      \"key_1\": \"<string>\",\n      \"key_2\": \"<string>\",\n      \"key_3\": \"<string>\"\n    },\n    \"assetIds\": [\n      \"<long>\"\n    ],\n    \"assetExternalIds\": [\n      \"<string>\"\n    ],\n    \"rootAssetIds\": [\n      \"<long>\"\n    ],\n    \"assetSubtreeIds\": [\n      {\n        \"id\": \"<long>\"\n      }\n    ],\n    \"dataSetIds\": [\n      {\n        \"id\": \"<long>\"\n      }\n    ],\n    \"externalIdPrefix\": \"<string>\",\n    \"createdTime\": {\n      \"max\": \"<long>\",\n      \"min\": \"<long>\"\n    },\n    \"lastUpdatedTime\": {\n      \"max\": \"<long>\",\n      \"min\": \"<long>\"\n    }\n  },\n  \"search\": {\n    \"name\": \"<string>\",\n    \"description\": \"<string>\",\n    \"query\": \"<string>\"\n  },\n  \"limit\": 100\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "id": "a0e182ec-6493-464d-b9f2-6bc4d01d16e6",
+              "name": "List of search results.",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "timeseries",
+                    "search"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"filter\": {\n    \"name\": \"string\",\n    \"unit\": \"string\",\n    \"unitExternalId\": \"string\",\n    \"unitQuantity\": \"string\",\n    \"isString\": true,\n    \"isStep\": false,\n    \"metadata\": {\n      \"key_0\": \"string\"\n    },\n    \"assetIds\": [\n      363848954441724,\n      793045462540095,\n      1261042166839739\n    ],\n    \"assetExternalIds\": [\n      \"my.known.id\"\n    ],\n    \"rootAssetIds\": [\n      343099548723932,\n      88483999203217\n    ],\n    \"assetSubtreeIds\": [\n      {\n        \"id\": 7839365241229848\n      }\n    ],\n    \"dataSetIds\": [\n      {\n        \"id\": 1891364339523036\n      }\n    ],\n    \"externalIdPrefix\": \"my.known.prefix\",\n    \"createdTime\": {\n      \"max\": 3270,\n      \"min\": 7329\n    },\n    \"lastUpdatedTime\": {\n      \"max\": 598,\n      \"min\": 6615\n    }\n  },\n  \"search\": {\n    \"name\": \"string\",\n    \"description\": \"string\",\n    \"query\": \"some other\"\n  },\n  \"limit\": 100\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"items\": [\n    {\n      \"id\": 899454930570179,\n      \"isString\": false,\n      \"isStep\": false,\n      \"type\": \"string\",\n      \"createdTime\": 1730204346000,\n      \"lastUpdatedTime\": 1730204346000,\n      \"externalId\": \"string\",\n      \"instanceId\": {\n        \"space\": \"string\",\n        \"externalId\": \"string\"\n      },\n      \"name\": \"string\",\n      \"metadata\": {\n        \"key_0\": \"string\"\n      },\n      \"unit\": \"string\",\n      \"unitExternalId\": \"string\",\n      \"assetId\": 8965224690077516,\n      \"description\": \"string\",\n      \"securityCategories\": [\n        2554,\n        8034\n      ],\n      \"dataSetId\": 1030853402615708\n    },\n    {\n      \"id\": 1600864438293565,\n      \"isString\": false,\n      \"isStep\": false,\n      \"type\": \"string\",\n      \"createdTime\": 1730204346000,\n      \"lastUpdatedTime\": 1730204346000,\n      \"externalId\": \"string\",\n      \"instanceId\": {\n        \"space\": \"string\",\n        \"externalId\": \"string\"\n      },\n      \"name\": \"string\",\n      \"metadata\": {\n        \"key_0\": \"string\"\n      },\n      \"unit\": \"string\",\n      \"unitExternalId\": \"string\",\n      \"assetId\": 1987761973811989,\n      \"description\": \"string\",\n      \"securityCategories\": [\n        2342,\n        9727\n      ],\n      \"dataSetId\": 3809972733429486\n    }\n  ]\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            }
+          ],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "13ace129-9dee-4434-a2f2-41e536debd69",
+          "name": "Update time series",
+          "request": {
+            "name": "Update time series",
+            "description": {
+              "content": "\n\n> **Required capabilities:** `timeSeriesAcl:WRITE`\n\nUpdates one or more time series. Fields outside of the request remain unchanged.\n\nFor primitive fields (those whose type is string, number, or boolean), use `\"set\": value`\nto update the value; use `\"setNull\": true` to set the field to null.\n\nFor JSON array fields (for example `securityCategories`), use `\"set\": [value1, value2]` to\nupdate the value; use `\"add\": [value1, value2]` to add values; use\n`\"remove\": [value1, value2]` to remove values.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "timeseries",
+                "update"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                  "type": "any",
+                  "value": "{{cluster}}",
+                  "key": "cluster"
+                },
+                {
+                  "description": "The CDF project name.",
+                  "type": "any",
+                  "value": "{{project}}",
+                  "key": "project"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "auth": null,
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"id\": \"<long>\",\n      \"update\": {\n        \"externalId\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"name\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"metadata\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"unit\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"unitExternalId\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"assetId\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"isStep\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"description\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"securityCategories\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"dataSetId\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      }\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "id": "f8a0f3bb-d458-4274-8989-924173e4f78b",
+              "name": "Response with the corresponding time series after applying the updates.",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "timeseries",
+                    "update"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"id\": 1095975988936818,\n      \"update\": {\n        \"externalId\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"name\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"metadata\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"unit\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"unitExternalId\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"assetId\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"isStep\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"description\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"securityCategories\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"dataSetId\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      }\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"items\": [\n    {\n      \"id\": 899454930570179,\n      \"isString\": false,\n      \"isStep\": false,\n      \"type\": \"string\",\n      \"createdTime\": 1730204346000,\n      \"lastUpdatedTime\": 1730204346000,\n      \"externalId\": \"string\",\n      \"instanceId\": {\n        \"space\": \"string\",\n        \"externalId\": \"string\"\n      },\n      \"name\": \"string\",\n      \"metadata\": {\n        \"key_0\": \"string\"\n      },\n      \"unit\": \"string\",\n      \"unitExternalId\": \"string\",\n      \"assetId\": 8965224690077516,\n      \"description\": \"string\",\n      \"securityCategories\": [\n        2554,\n        8034\n      ],\n      \"dataSetId\": 1030853402615708\n    },\n    {\n      \"id\": 1600864438293565,\n      \"isString\": false,\n      \"isStep\": false,\n      \"type\": \"string\",\n      \"createdTime\": 1730204346000,\n      \"lastUpdatedTime\": 1730204346000,\n      \"externalId\": \"string\",\n      \"instanceId\": {\n        \"space\": \"string\",\n        \"externalId\": \"string\"\n      },\n      \"name\": \"string\",\n      \"metadata\": {\n        \"key_0\": \"string\"\n      },\n      \"unit\": \"string\",\n      \"unitExternalId\": \"string\",\n      \"assetId\": 1987761973811989,\n      \"description\": \"string\",\n      \"securityCategories\": [\n        2342,\n        9727\n      ],\n      \"dataSetId\": 3809972733429486\n    }\n  ]\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "2f5e9508-820e-4b2e-98d2-5927393d030d",
+              "name": "IDs not found.",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "timeseries",
+                    "update"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"id\": 1095975988936818,\n      \"update\": {\n        \"externalId\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"name\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"metadata\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"unit\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"unitExternalId\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"assetId\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"isStep\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"description\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"securityCategories\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"dataSetId\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      }\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": 400,\n    \"message\": \"string\",\n    \"missing\": [\n      {\n        \"id\": 8827035475142811\n      },\n      {\n        \"id\": 3770736269124661\n      }\n    ]\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "e78b4e02-a20b-4a8a-bb4b-c75c54eb9914",
+              "name": "Time series with the specified externalIds already exists. Retry request, with the existing externalIds removed.",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "timeseries",
+                    "update"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"id\": 1095975988936818,\n      \"update\": {\n        \"externalId\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"name\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"metadata\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"unit\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"unitExternalId\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"assetId\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"isStep\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"description\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"securityCategories\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"dataSetId\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      }\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": 409,\n    \"message\": \"string\",\n    \"duplicated\": [\n      {\n        \"externalId\": \"my.known.id\"\n      }\n    ]\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "ebf6db30-6407-448c-9826-367116a757e5",
+              "name": "Duplicate IDs found. Retry request, keeping only one instance of each duplicated ID.",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "timeseries",
+                    "update"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"id\": 1095975988936818,\n      \"update\": {\n        \"externalId\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"name\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"metadata\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"unit\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"unitExternalId\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"assetId\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"isStep\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"description\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"securityCategories\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"dataSetId\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      }\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Unprocessable Entity (WebDAV) (RFC 4918)",
+              "code": 422,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": 422,\n    \"message\": \"string\",\n    \"duplicated\": [\n      {\n        \"id\": 4317239836033062\n      },\n      {\n        \"id\": 2295951267021245\n      }\n    ]\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            }
+          ],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "e4b72ba7-73c8-4d23-ab08-a9f3cbd94bbb",
+          "name": "Delete time series",
+          "request": {
+            "name": "Delete time series",
+            "description": {
+              "content": "\n\n> **Required capabilities:** `timeSeriesAcl:WRITE`\n\nDeletes the time series with the specified IDs and their data points.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "timeseries",
+                "delete"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                  "type": "any",
+                  "value": "{{cluster}}",
+                  "key": "cluster"
+                },
+                {
+                  "description": "The CDF project name.",
+                  "type": "any",
+                  "value": "{{project}}",
+                  "key": "project"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "auth": null,
+            "body": {
+              "mode": "raw",
+              "raw": "<object>",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "id": "c1c28794-67d1-4ace-befe-5c1edea1d066",
+              "name": "Empty response.",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "timeseries",
+                    "delete"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"id\": 2860670060637079\n    }\n  ],\n  \"ignoreUnknownIds\": false\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "5244aade-68fc-4d88-98fb-94fde7286931",
+              "name": "IDs not found.",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "timeseries",
+                    "delete"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"id\": 2860670060637079\n    }\n  ],\n  \"ignoreUnknownIds\": false\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": 400,\n    \"message\": \"string\",\n    \"missing\": [\n      {\n        \"id\": 25646001435119\n      },\n      {\n        \"id\": 6443778437207373\n      }\n    ]\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "4013777f-f41b-4bcb-964d-d9faadb07d03",
+              "name": "Duplicate IDs found. Retry request, keeping only one instance of each duplicated ID.",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "timeseries",
+                    "delete"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"id\": 2860670060637079\n    }\n  ],\n  \"ignoreUnknownIds\": false\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Unprocessable Entity (WebDAV) (RFC 4918)",
+              "code": 422,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": 422,\n    \"message\": \"string\",\n    \"duplicated\": [\n      {\n        \"id\": 4317239836033062\n      },\n      {\n        \"id\": 2295951267021245\n      }\n    ]\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            }
+          ],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "a5c71f6e-1fba-4405-9048-2b722f3e8478",
+          "name": "Insert data points",
+          "request": {
+            "name": "Insert data points",
+            "description": {
+              "content": "\n\n> **Required capabilities:** `timeSeriesAcl:WRITE`\n\nInsert data points into a time series. You can do this for multiple time series.\nIf you insert a data point with a timestamp that already exists, it will be overwritten with the new value.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "timeseries",
+                "data"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                  "type": "any",
+                  "value": "{{cluster}}",
+                  "key": "cluster"
+                },
+                {
+                  "description": "The CDF project name.",
+                  "type": "any",
+                  "value": "{{project}}",
+                  "key": "project"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "auth": null,
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"datapoints\": [\n        {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      ],\n      \"id\": \"<long>\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "id": "332f2644-ae28-46ee-ac11-40365e6a0ca6",
+              "name": "Empty response.",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "timeseries",
+                    "data"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"datapoints\": [\n        {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      ],\n      \"id\": 739380759627297\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "0f197f48-30ff-488e-8102-6a735692ae02",
+              "name": "IDs not found.",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "timeseries",
+                    "data"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"datapoints\": [\n        {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      ],\n      \"id\": 739380759627297\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": 400,\n    \"message\": \"string\",\n    \"missing\": [\n      {\n        \"id\": 8827035475142811\n      },\n      {\n        \"id\": 3770736269124661\n      }\n    ]\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "d42326a6-2cad-454f-aeaa-9b61719cc0d2",
+              "name": "Duplicate IDs found. Retry request, keeping only one instance of each duplicated ID.",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "timeseries",
+                    "data"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"datapoints\": [\n        {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      ],\n      \"id\": 739380759627297\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Unprocessable Entity (WebDAV) (RFC 4918)",
+              "code": 422,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": 422,\n    \"message\": \"string\",\n    \"duplicated\": [\n      {\n        \"id\": 4317239836033062\n      },\n      {\n        \"id\": 2295951267021245\n      }\n    ]\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            }
+          ],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "983f7c1e-4a91-47a6-962d-524ca60f827f",
+          "name": "Retrieve data points",
+          "request": {
+            "name": "Retrieve data points",
+            "description": {
+              "content": "\n\n> **Required capabilities:** `timeSeriesAcl:READ`\n\nRetrieves a list of data points from multiple time series in a project.\nThis operation supports aggregation and pagination.\nLearn more about [aggregation](<https://docs.cognite.com/dev/concepts/aggregation/>).\n\nNote: when `start` isn't specified in the top level and for an individual item, it will default to epoch 0, which is 1 January, 1970, thus\nexcluding potential existent data points before 1970. `start` needs to be specified as a negative number to get data points before 1970.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "timeseries",
+                "data",
+                "list"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                  "type": "any",
+                  "value": "{{cluster}}",
+                  "key": "cluster"
+                },
+                {
+                  "description": "The CDF project name.",
+                  "type": "any",
+                  "value": "{{project}}",
+                  "key": "project"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "auth": null,
+            "body": {
+              "mode": "raw",
+              "raw": "<object>",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "id": "67bf5401-bbfb-459a-8cfd-d04b2486a74d",
+              "name": "Lists of data points for the specified queries.",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "timeseries",
+                    "data",
+                    "list"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"id\": 793521363870577,\n      \"start\": {\n        \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n      },\n      \"end\": {\n        \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n      },\n      \"limit\": 9289,\n      \"aggregates\": [\n        {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      ],\n      \"granularity\": \"1h\",\n      \"targetUnit\": \"temperature:deg_f\",\n      \"targetUnitSystem\": \"imperial\",\n      \"includeOutsidePoints\": false,\n      \"includeStatus\": false,\n      \"ignoreBadDataPoints\": true,\n      \"treatUncertainAsBad\": true,\n      \"cursor\": \"string\",\n      \"timeZone\": \"Europe/Oslo or UTC+05:30\"\n    }\n  ],\n  \"start\": 0,\n  \"end\": 8135,\n  \"limit\": 100,\n  \"aggregates\": [\n    \"durationBad\"\n  ],\n  \"granularity\": \"1h\",\n  \"includeOutsidePoints\": false,\n  \"timeZone\": \"Europe/Oslo or UTC+05:30\",\n  \"ignoreUnknownIds\": false\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"items\": [\n    {\n      \"datapoints\": [\n        {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      ],\n      \"id\": 4724412051633323,\n      \"isStep\": true,\n      \"isString\": false,\n      \"type\": \"string\",\n      \"externalId\": \"string\",\n      \"instanceId\": {\n        \"space\": \"string\",\n        \"externalId\": \"string\"\n      },\n      \"unit\": \"string\",\n      \"unitExternalId\": \"string\",\n      \"nextCursor\": \"string\"\n    },\n    {\n      \"datapoints\": [\n        {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      ],\n      \"id\": 8964555474863851,\n      \"isStep\": true,\n      \"isString\": false,\n      \"type\": \"string\",\n      \"externalId\": \"string\",\n      \"instanceId\": {\n        \"space\": \"string\",\n        \"externalId\": \"string\"\n      },\n      \"unit\": \"string\",\n      \"unitExternalId\": \"string\",\n      \"nextCursor\": \"string\"\n    }\n  ]\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "1272e7c2-df85-4163-bf67-172a2cfee947",
+              "name": "IDs not found.",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "timeseries",
+                    "data",
+                    "list"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"id\": 793521363870577,\n      \"start\": {\n        \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n      },\n      \"end\": {\n        \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n      },\n      \"limit\": 9289,\n      \"aggregates\": [\n        {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      ],\n      \"granularity\": \"1h\",\n      \"targetUnit\": \"temperature:deg_f\",\n      \"targetUnitSystem\": \"imperial\",\n      \"includeOutsidePoints\": false,\n      \"includeStatus\": false,\n      \"ignoreBadDataPoints\": true,\n      \"treatUncertainAsBad\": true,\n      \"cursor\": \"string\",\n      \"timeZone\": \"Europe/Oslo or UTC+05:30\"\n    }\n  ],\n  \"start\": 0,\n  \"end\": 8135,\n  \"limit\": 100,\n  \"aggregates\": [\n    \"durationBad\"\n  ],\n  \"granularity\": \"1h\",\n  \"includeOutsidePoints\": false,\n  \"timeZone\": \"Europe/Oslo or UTC+05:30\",\n  \"ignoreUnknownIds\": false\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": 400,\n    \"message\": \"string\",\n    \"missing\": [\n      {\n        \"id\": 8827035475142811\n      },\n      {\n        \"id\": 3770736269124661\n      }\n    ]\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            }
+          ],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "ce477719-8788-41c4-8c3e-dbd3c723eb5b",
+          "name": "Retrieve latest data point",
+          "request": {
+            "name": "Retrieve latest data point",
+            "description": {
+              "content": "\n\n> **Required capabilities:** `timeSeriesAcl:READ`\n\nRetrieves the latest data point in one or more time series. Note that the latest data point\nin a time series is the one with the highest timestamp, which is not necessarily the one\nthat was ingested most recently.\n",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "timeseries",
+                "data",
+                "latest"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                  "type": "any",
+                  "value": "{{cluster}}",
+                  "key": "cluster"
+                },
+                {
+                  "description": "The CDF project name.",
+                  "type": "any",
+                  "value": "{{project}}",
+                  "key": "project"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "auth": null,
+            "body": {
+              "mode": "raw",
+              "raw": "<object>",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "id": "2fe4e2f6-186b-46e6-b9ac-e7c8a781a0ea",
+              "name": "A list of responses. Each response contains a list with the most recent data point or an empty list if no data points are found.",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "timeseries",
+                    "data",
+                    "latest"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"id\": 683118110726829,\n      \"before\": \"now\",\n      \"targetUnit\": \"temperature:deg_f\",\n      \"targetUnitSystem\": \"imperial\",\n      \"includeStatus\": false,\n      \"ignoreBadDataPoints\": true,\n      \"treatUncertainAsBad\": true\n    }\n  ],\n  \"ignoreUnknownIds\": false\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"items\": [\n    {\n      \"datapoints\": [\n        {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      ],\n      \"id\": 4519601043266733,\n      \"isString\": true,\n      \"type\": \"string\",\n      \"externalId\": \"string\",\n      \"instanceId\": {\n        \"space\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"externalId\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      },\n      \"isStep\": true,\n      \"unit\": \"string\",\n      \"unitExternalId\": \"string\",\n      \"nextCursor\": \"string\"\n    },\n    {\n      \"datapoints\": [\n        {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      ],\n      \"id\": 7265298995262425,\n      \"isString\": false,\n      \"type\": \"string\",\n      \"externalId\": \"string\",\n      \"instanceId\": {\n        \"space\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"externalId\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      },\n      \"isStep\": false,\n      \"unit\": \"string\",\n      \"unitExternalId\": \"string\",\n      \"nextCursor\": \"string\"\n    }\n  ]\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "45ec5253-cb1f-43fd-b38d-d4b8c4a575ed",
+              "name": "IDs not found.",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "timeseries",
+                    "data",
+                    "latest"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"id\": 683118110726829,\n      \"before\": \"now\",\n      \"targetUnit\": \"temperature:deg_f\",\n      \"targetUnitSystem\": \"imperial\",\n      \"includeStatus\": false,\n      \"ignoreBadDataPoints\": true,\n      \"treatUncertainAsBad\": true\n    }\n  ],\n  \"ignoreUnknownIds\": false\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": 400,\n    \"message\": \"string\",\n    \"missing\": [\n      {\n        \"id\": 8827035475142811\n      },\n      {\n        \"id\": 3770736269124661\n      }\n    ]\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            }
+          ],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "e1573837-ee7b-4f16-a815-6aea71cb73da",
+          "name": "Delete data points",
+          "request": {
+            "name": "Delete data points",
+            "description": {
+              "content": "\n\n> **Required capabilities:** `timeSeriesAcl:WRITE`\n\nDelete data points from time series.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "timeseries",
+                "data",
+                "delete"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                  "type": "any",
+                  "value": "{{cluster}}",
+                  "key": "cluster"
+                },
+                {
+                  "description": "The CDF project name.",
+                  "type": "any",
+                  "value": "{{project}}",
+                  "key": "project"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "auth": null,
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"id\": \"<long>\",\n      \"inclusiveBegin\": \"<long>\",\n      \"exclusiveEnd\": \"<long>\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "id": "7d1e6929-0d60-489d-88f9-3bf948699122",
+              "name": "Empty response.",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "timeseries",
+                    "data",
+                    "delete"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"id\": 2510564085106219,\n      \"inclusiveBegin\": 1638795554528,\n      \"exclusiveEnd\": 1638795554528\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "aad886fa-cc8d-4761-9d2e-b9a4ccebe91c",
+              "name": "IDs not found.",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "timeseries",
+                    "data",
+                    "delete"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"id\": 2510564085106219,\n      \"inclusiveBegin\": 1638795554528,\n      \"exclusiveEnd\": 1638795554528\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": 400,\n    \"message\": \"string\",\n    \"missing\": [\n      {\n        \"id\": 8827035475142811\n      },\n      {\n        \"id\": 3770736269124661\n      }\n    ]\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            }
+          ],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        }
+      ],
+      "event": []
+    }
+  ],
+  "event": [],
+  "variable": [
+    {
+      "description": {
+        "content": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+        "type": "text/plain"
+      },
+      "type": "any",
+      "value": "api",
+      "key": "cluster"
+    },
+    {
+      "description": {
+        "content": "The CDF project name.",
+        "type": "text/plain"
+      },
+      "type": "any",
+      "value": "publicdata",
+      "key": "project"
+    },
+    {
+      "type": "string",
+      "value": "https://{{cluster}}.cognitedata.com/api/v1/projects/{{project}}",
+      "key": "baseUrl"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{bearerToken}}"
+      }
+    ]
+  },
+  "info": {
+    "_postman_id": "07b383b5-7801-4bc6-a99c-bb0397ee3ea0",
+    "name": "Cognite 3D Asset Mapping Time series API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": {
+      "content": "# Introduction\nThis is the reference documentation for the Cognite API with\nan overview of all the available methods.\n\n# Postman\nSelect the **Download** button to download our OpenAPI specification to get started.\n\nTo import your data into Postman, select **Import**, and the Import modal opens.\nYou can import items by dragging or dropping files or folders. You can choose how to import your API and manage the import settings in **View Import Settings**.\n\nIn the Import Settings, set the **Folder organization** to **Tags**, select\n**Enable optional parameters** to turn off the settings, and select **Always inherit authentication** to turn on the settings. Select **Import**.\n\nSet the Authorization to **Oauth2.0**. By default, the settings are for Open Industrial Data. Navigate to [Cognite Hub](https://hub.cognite.com/open-industrial-data-211) to understand how to get the credentials for use in Postman.\n\nFor more information, see [Getting Started with Postman](https://developer.cognite.com/dev/guides/postman/).\n\n# Pagination\nMost resource types can be paginated, indicated by the field `nextCursor` in the response.\nBy passing the value of `nextCursor` as the cursor you will get the next page of `limit` results.\nNote that all parameters except `cursor` has to stay the same.\n\n# Parallel retrieval\nAs general guidance, Parallel Retrieval is a technique that should be used when due to query complexity, retrieval of data in a single request is significantly slower than it would otherwise be for a simple request.  Parallel retrieval does not act as a speed multiplier on optimally running queries.  By parallelizing such requests, data retrieval performance can be tuned to meet the client application needs. \n\nCDF supports parallel retrieval through the `partition` parameter, which has the format `m/n` where `n` is the amount of partitions you would like to split the entire data set into.\nIf you want to download the entire data set by splitting it into 10 partitions, do the following in parallel with `m` running from 1 to 10:\n  - Make a request to `/events` with `partition=m/10`.\n  - Paginate through the response by following the cursor as explained above. Note that the `partition` parameter needs to be passed to all subqueries.\n\nProcessing of parallel retrieval requests is subject to concurrency quota availability. The request returns the `429` response upon exceeding concurrency limits. See the Request throttling chapter below.\n\nTo prevent unexpected problems and to maximize read throughput, you should at most use 10 partitions. \nSome CDF resources will automatically enforce a maximum of 10 partitions.\nFor more specific and detailed information, please read the ```partition``` attribute documentation for the CDF resource you're using.  \n\n# Requests throttling\nCognite Data Fusion (CDF) returns the HTTP `429` (too many requests) response status code when project capacity exceeds the limit.\n\nThe throttling can happen:\n  - If a user or a project sends too many (more than allocated) concurrent requests.\n  - If a user or a project sends a too high (more than allocated) rate of requests in a given amount of time.\n\nCognite recommends using a retry strategy based on truncated exponential backoff to handle sessions with HTTP response codes 429.\n\nCognite recommends using a reasonable number (up to 10) of  `Parallel retrieval` partitions.\n\nFollowing these strategies lets you slow down the request frequency to maximize productivity without having to re-submit/retry failing requests.\n\nSee more [here](https://docs.cognite.com/dev/concepts/resource_throttling).\n\n# API versions\n## Version headers\nThis API uses calendar versioning, and version names follow the `YYYYMMDD` format.\nYou can find the versions currently available by using the version selector at the top of this page.\n\nTo use a specific API version, you can pass the `cdf-version: $version` header along with your requests to the API.\n\n## Beta versions\nThe beta versions provide a preview of what the stable version will look like in the future.\nBeta versions contain functionality that is reasonably mature, and highly likely to become a part of the stable API.\n\nBeta versions are indicated by a `-beta` suffix after the version name. For example, the beta version header for the\n2023-01-01 version is then `cdf-version: 20230101-beta`.\n\n## Alpha versions\nAlpha versions contain functionality that is new and experimental, and not guaranteed to ever become a part of the stable API.\nThis functionality presents no guarantee of service, so its use is subject to caution.\n\nAlpha versions are indicated by an `-alpha` suffix after the version name. For example, the alpha version header for\nthe 2023-01-01 version is then `cdf-version: 20230101-alpha`.\n\nContact Support:\n Name: Cognite Support\n Email: support@cognite.com",
+      "type": "text/plain"
+    }
+  }
+}

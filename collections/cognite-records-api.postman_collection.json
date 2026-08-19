@@ -1,0 +1,2180 @@
+{
+  "item": [
+    {
+      "id": "157d4ea4-f360-4401-a45a-439a6c58d030",
+      "name": "Records",
+      "description": {
+        "content": "Records are mutable or immutable data objects (depending on the stream template) stored in a stream. Records are created by ingesting data into a stream.\nRecords are shaped similarly to instances in the Data Modeling service, and their schema is defined by the containers referenced as sources.\nEach record is associated with a space. Space-based access control applies to records.\nThis section specifies the `records` resource and uses the following Data Modeling concepts:\n  - [Spaces](https://docs.cognite.com/cdf/dm/dm_concepts/dm_spaces_instances#space)\n  - [Containers](https://docs.cognite.com/cdf/dm/dm_concepts/dm_containers_views_datamodels#containers)\n\n**Note:** Every `record` has a required top-level `externalId` property, which can be used\nin some queries to retrieve or aggregate records (for filtering or sorting).\nFor mutable records, `externalId` (together with `space`) uniquely identifies a record for write operations (create, upsert, delete).\nFor immutable records, the records API does not enforce uniqueness of the `space` + `externalId` pair, so multiple records may share the same identifier.\n\n## Rate and concurrency limits\n\nBoth the rate of requests (denoted as requests per second, or â**rps**â) and the number of concurrent (parallel)\nrequests are governed by limits for all CDF API endpoints. If a request exceeds a limit,\nit will be throttled with a `429: Too Many Requests` response. See [Resource throttling](https://docs.cognite.com/dev/concepts/resource_throttling) for limit types and how to avoid throttling.\n\nLimits apply to the API endpoints for this service.\nSome request types consume more resources (compute, storage I/O) than others. For example, ingest requests\nare less resource-intensive than analytical requests (Aggregate, Retrieve).\n\nLimits for query endpoints (Sync, Retrieve, Aggregate) are hierarchical:\n- All query endpoints share a common **Query request budget** (shown in the tables below)\n- The Retrieve endpoint has an **additional** dedicated budget that is checked first\n- The Aggregate endpoint has an **additional** dedicated budget that is checked first\n\nThe Sync endpoint only checks the Query request budget. The Retrieve and Aggregate endpoints\nmust pass both their dedicated budget check AND the Query request budget check.\n\nFor example, with mutable streams you can make up to 40 rps total across all query endpoints\n(Query budget limit), but only up to 20 of those can be Retrieve requests (Retrieve budget limit)\nand only up to 15 can be Aggregate requests (Aggregate budget limit).\nThat means you could send 20 Retrieve + 15 Aggregate + 5 Sync = 40 total RPS.\n\nQuery performance and rate limits vary between mutable and immutable streams because of\ntheir different storage characteristics.\n\nMutable streams provide consistent high-performance queries and higher rate limits\n(see \"mutable streams\" limits in the tables below).\n\nImmutable streams are optimized for ingesting very large amounts of data,\nwhich results in lower query performance and stricter rate limits than mutable streams\n(see \"immutable streams\" limits in the tables below).\n\nWhen designing data access patterns, use mutable streams for high-performance queries and higher rate limits, or immutable streams when the priority\nis high-volume ingestion and long-term storage.\n\nThe amount of data returned in responses from query endpoints (Sync, Retrieve, Aggregate)\nis also limited. Prefer reading only the data you need: use an appropriate `filter` and limit which `sources` are retrieved, rather than\nretrieving large result sets that you will not use.\n\nThe version limits for the records endpoints are shown in the tables below.\nThese limits are subject to change, pending review of consumption patterns and resource availability over time:\n\n  <table >\n    <thead>\n      <tr>\n        <th colspan=\"3\" style=\"text-align: center; background-color: #e0e0e0; padding: 10px; font-weight: bold;\">Ingest request budget</th>\n      </tr>\n      <tr>\n        <th></th>\n        <th style=\"text-align: center;\">Overall</th>\n        <th style=\"text-align: center;\">Per ID</th>\n      </tr>\n    </thead>\n    <tbody>\n      <tr>\n        <td><strong>Requests per second</strong></td>\n        <td style=\"text-align: center;\">40</td>\n        <td style=\"text-align: center;\">30</td>\n      </tr>\n      <tr>\n        <td><strong>Concurrent requests</strong></td>\n        <td style=\"text-align: center;\">20</td>\n        <td style=\"text-align: center;\">15</td>\n      </tr>\n    </tbody>\n  </table>\n\n  <table >\n    <thead>\n      <tr>\n        <th colspan=\"3\" style=\"text-align: center; background-color: #e0e0e0; padding: 10px; font-weight: bold;\">Query request budget</th>\n      </tr>\n      <tr>\n        <th></th>\n        <th style=\"text-align: center;\">Overall</th>\n        <th style=\"text-align: center;\">Per ID</th>\n      </tr>\n    </thead>\n    <tbody>\n      <tr>\n        <td><strong>Requests per second: mutable streams</strong></td>\n        <td style=\"text-align: center;\">40</td>\n        <td style=\"text-align: center;\">30</td>\n      </tr>\n      <tr>\n        <td><strong>Concurrent requests: mutable streams</strong></td>\n        <td style=\"text-align: center;\">30</td>\n        <td style=\"text-align: center;\">22</td>\n      </tr>\n      <tr>\n        <td><strong>Requests per second: immutable streams</strong></td>\n        <td style=\"text-align: center;\">10</td>\n        <td style=\"text-align: center;\">7</td>\n      </tr>\n      <tr>\n        <td><strong>Concurrent requests: immutable streams</strong></td>\n        <td style=\"text-align: center;\">10</td>\n        <td style=\"text-align: center;\">7</td>\n      </tr>\n      <tr>\n        <td><strong>Response MB per second</strong></td>\n        <td style=\"text-align: center;\">4</td>\n        <td style=\"text-align: center;\">3</td>\n      </tr>\n    </tbody>\n  </table>\n\n<p style=\"margin-top: 20px;\">\n  <strong>Additional dedicated budgets for Retrieve and Aggregate endpoints:</strong>\n</p>\n\n<p style=\"margin-top: 10px;\">\n  The Retrieve and Aggregate endpoints have dedicated budgets that are checked <em>in addition to</em>\n  the Query request budget shown above. A request to these endpoints must pass both budget checks.\n</p>\n\n  <table >\n    <thead>\n      <tr>\n        <th colspan=\"3\" style=\"text-align: center; background-color: #e0e0e0; padding: 10px; font-weight: bold;\">Retrieve request budget</th>\n      </tr>\n      <tr>\n        <th></th>\n        <th style=\"text-align: center;\">Overall</th>\n        <th style=\"text-align: center;\">Per ID</th>\n      </tr>\n    </thead>\n    <tbody>\n      <tr>\n        <td><strong>Requests per second: mutable streams</strong></td>\n        <td style=\"text-align: center;\">20</td>\n        <td style=\"text-align: center;\">15</td>\n      </tr>\n      <tr>\n        <td><strong>Concurrent requests: mutable streams</strong></td>\n        <td style=\"text-align: center;\">20</td>\n        <td style=\"text-align: center;\">15</td>\n      </tr>\n      <tr>\n        <td><strong>Requests per second: immutable streams</strong></td>\n        <td style=\"text-align: center;\">10</td>\n        <td style=\"text-align: center;\">7</td>\n      </tr>\n      <tr>\n        <td><strong>Concurrent requests: immutable streams</strong></td>\n        <td style=\"text-align: center;\">10</td>\n        <td style=\"text-align: center;\">7</td>\n      </tr>\n    </tbody>\n  </table>\n\n<p style=\"margin-top: 10px; font-style: italic; font-size: 0.9em;\">\n  Note: Retrieve endpoint requests are checked against both this budget and the Query request budget above.\n</p>\n\n  <table >\n    <thead>\n      <tr>\n        <th colspan=\"3\" style=\"text-align: center; background-color: #e0e0e0; padding: 10px; font-weight: bold;\">Aggregate request budget</th>\n      </tr>\n      <tr>\n        <th></th>\n        <th style=\"text-align: center;\">Overall</th>\n        <th style=\"text-align: center;\">Per ID</th>\n      </tr>\n    </thead>\n    <tbody>\n      <tr>\n        <td><strong>Requests per second: mutable streams</strong></td>\n        <td style=\"text-align: center;\">15</td>\n        <td style=\"text-align: center;\">12</td>\n      </tr>\n      <tr>\n        <td><strong>Concurrent requests: mutable streams</strong></td>\n        <td style=\"text-align: center;\">10</td>\n        <td style=\"text-align: center;\">7</td>\n      </tr>\n      <tr>\n        <td><strong>Requests per second: immutable streams</strong></td>\n        <td style=\"text-align: center;\">5</td>\n        <td style=\"text-align: center;\">4</td>\n      </tr>\n      <tr>\n        <td><strong>Concurrent requests: immutable streams</strong></td>\n        <td style=\"text-align: center;\">5</td>\n        <td style=\"text-align: center;\">4</td>\n      </tr>\n    </tbody>\n  </table>\n\n<p style=\"margin-top: 10px; font-style: italic; font-size: 0.9em;\">\n  Note: Aggregate endpoint requests are checked against both this budget and the Query request budget above.\n</p>\n\n<p style=\"margin-top: 20px;\">\n  <strong>Summary:</strong>\n</p>\n<ul style=\"margin-top: 10px;\">\n  <li><strong>Sync endpoint:</strong> Only limited by Query request budget</li>\n  <li><strong>Retrieve endpoint:</strong> Limited by Retrieve request budget AND Query request budget</li>\n  <li><strong>Aggregate endpoint:</strong> Limited by Aggregate request budget AND Query request budget</li>\n</ul>",
+        "type": "text/plain"
+      },
+      "item": [
+        {
+          "id": "5dd2ada7-7f62-489e-9ccb-16d90364a90e",
+          "name": "Ingest records into a stream",
+          "request": {
+            "name": "Ingest records into a stream",
+            "description": {
+              "content": "\n\n> **Required capabilities:** `streamRecordsAcl:WRITE` `dataModelsAcl:READ`\n\nBefore a user can add records, all referenced schema elements (Spaces, Containers, Properties) must be defined/created in [Data Modeling](https://docs.cognite.com/cdf/dm)\n\nTo add records, the user must have capabilities to access (read) the referenced containers as well as capabilities to access (write) the referenced record ```space```.\n\nBatches of records are ingested into a ```stream```.\n\nUnder normal ingestion operation, and where the data ```stream``` does not contain any duplicated records,\nthe record will be created, and the properties defined in each of the containers in the ```sources``` array will be populated.\n\nFor immutable streams a duplicate record is defined as one which is being written to the same ```space```,\nwhich uses the same container definitions in the ```sources``` array,\nand all the properties (names and values) are the same.\n\nFor immutable streams under most circumstances, when duplicate records are encountered during ingestion, the duplicate is discarded.\nHowever there are rare occasions when certain internal database operations occur, a duplicate may be stored.\n\nFor mutable streams duplicated record identifiers (```space``` + ```externalId```) are not allowed\nand a request which tries to create a record with existing identifier will be rejected.\n\n**Note:** The maximum total request size is 10MB.\n",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "streams",
+                ":streamId",
+                "records"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "streamId",
+                  "description": "(Required) An identifier of the stream where the records are stored.\n"
+                },
+                {
+                  "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                  "type": "any",
+                  "value": "{{cluster}}",
+                  "key": "cluster"
+                },
+                {
+                  "description": "The CDF project name.",
+                  "type": "any",
+                  "value": "{{project}}",
+                  "key": "project"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "auth": null,
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"space\": \"<string>\",\n      \"sources\": [\n        {\n          \"source\": {\n            \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n          },\n          \"properties\": {\n            \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n          }\n        }\n      ],\n      \"externalId\": \"<string>\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "id": "bb9a4909-0500-4607-9b0d-a5a93e7a541b",
+              "name": "An empty response is returned if all records from the request are successfully accepted to be created or updated.\n",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "streams",
+                    ":streamId",
+                    "records"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "streamId",
+                      "description": "(Required) An identifier of the stream where the records are stored.\n"
+                    },
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"space\": \"mySpace\",\n      \"sources\": [\n        {\n          \"source\": {\n            \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n          },\n          \"properties\": {\n            \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n          }\n        }\n      ],\n      \"externalId\": \"some_id\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Accepted",
+              "code": 202,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "4422ce96-a572-4a50-b122-2bbb591e467d",
+              "name": "The response for a failed request.",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "streams",
+                    ":streamId",
+                    "records"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "streamId",
+                      "description": "(Required) An identifier of the stream where the records are stored.\n"
+                    },
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"space\": \"mySpace\",\n      \"sources\": [\n        {\n          \"source\": {\n            \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n          },\n          \"properties\": {\n            \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n          }\n        }\n      ],\n      \"externalId\": \"some_id\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": 401,\n    \"message\": \"Could not authenticate.\",\n    \"missing\": [\n      {\n        \"key_0\": \"string\",\n        \"key_1\": \"string\"\n      },\n      {\n        \"key_0\": 5623.39434733605,\n        \"key_1\": \"string\"\n      }\n    ],\n    \"duplicated\": [\n      {\n        \"key_0\": 6304.631903722126,\n        \"key_1\": 1219\n      },\n      {\n        \"key_0\": true,\n        \"key_1\": 9330\n      }\n    ]\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "2788ec6a-3ced-43b7-bac3-5c7ad18790ed",
+              "name": "Some mutable records with the specified `space` and `externalId` already exist in the stream.\nBut some records might have been created successfully.\nWhich records were successfully created and which were rejected with a conflict can be understood from the response content.\n\n**Note:** the error may appear due to some HTTP request retries (in intermediate components like SDK, Load balancers, Application Gateway, etc),\nso better to check which records are in the stream when you receive this error.\n`.../records/filter` or `.../records/sync` endpoints with a filter by `space` and `externalId` can be used to check the stored state of the conflicting records.\n",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "streams",
+                    ":streamId",
+                    "records"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "streamId",
+                      "description": "(Required) An identifier of the stream where the records are stored.\n"
+                    },
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"space\": \"mySpace\",\n      \"sources\": [\n        {\n          \"source\": {\n            \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n          },\n          \"properties\": {\n            \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n          }\n        }\n      ],\n      \"externalId\": \"some_id\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": 409,\n    \"message\": \"string\",\n    \"partial\": [\n      {\n        \"space\": \"mySpace\",\n        \"externalId\": \"some_id\",\n        \"code\": 409,\n        \"message\": \"string\"\n      }\n    ]\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "6f2e17e1-3181-4468-8982-10c0e2037adf",
+              "name": "Some mutable record identifiers (`space` and `externalId`) are duplicated in the request.\n",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "streams",
+                    ":streamId",
+                    "records"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "streamId",
+                      "description": "(Required) An identifier of the stream where the records are stored.\n"
+                    },
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"space\": \"mySpace\",\n      \"sources\": [\n        {\n          \"source\": {\n            \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n          },\n          \"properties\": {\n            \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n          }\n        }\n      ],\n      \"externalId\": \"some_id\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Unprocessable Entity (WebDAV) (RFC 4918)",
+              "code": 422,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": 422,\n    \"message\": \"string\",\n    \"duplicated\": [\n      {\n        \"externalId\": \"mySpace.myRecord1\"\n      }\n    ]\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "7ed29ade-8bf6-4f82-aa40-d7ae293a13bc",
+              "name": "If at least one record was not ingested due to an internal error, and all other errors in the `failed` list were non-retryable,\nthis error code will be returned.\n\n**Note:** Record operations are not transactional. This means that during batch ingestion,\nsome records may be created successfully even if the creation of others fails.\nThe response body indicates which records were successfully created and which were not.\n\nAn internal server error usually indicates an issue that requires investigation. A simple retry might not help,\nbut a few retries could be a reasonable approach.\n\n**Note:** If you choose to retry on a 500 error, it is recommended to retry only the failed records rather than the entire request.\nFor mutable streams this helps avoid receiving 409 status codes records that were already successfully created in a previous attempt.\nFor immutable streams, this helps prevent accidental duplicate records from appearing in the stream (in rare cases when the deduplication mechanism fails).\n",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "streams",
+                    ":streamId",
+                    "records"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "streamId",
+                      "description": "(Required) An identifier of the stream where the records are stored.\n"
+                    },
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"space\": \"mySpace\",\n      \"sources\": [\n        {\n          \"source\": {\n            \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n          },\n          \"properties\": {\n            \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n          }\n        }\n      ],\n      \"externalId\": \"some_id\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Internal Server Error",
+              "code": 500,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": 409,\n    \"message\": \"string\",\n    \"partial\": [\n      {\n        \"space\": \"mySpace\",\n        \"externalId\": \"some_id\",\n        \"code\": 409,\n        \"message\": \"string\"\n      }\n    ]\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "bb7bf515-485c-459b-b0cc-11c385f85067",
+              "name": "If at least one record was not ingested due to the service being temporarily unavailable,\nthis error code will be returned.\n\n**Note:** Record operations are not transactional. This means that during batch ingestion, some records may be created successfully\neven if the creation of others fails. The response body indicates which records were successfully created and which were not.\n\nA \"service temporarily unavailable\" error usually indicates a temporary issue, and several retries may help complete the record creation.\n\n**Note:** It is recommended to retry ingestion of only the failed records rather than the entire request.\nFor mutable streams, this helps avoid receiving 409 status codes for records that were already successfully created in a previous attempt.\nFor immutable streams, this helps prevent accidental duplicate records from appearing in the stream (in rare cases when the deduplication mechanism fails).\n",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "streams",
+                    ":streamId",
+                    "records"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "streamId",
+                      "description": "(Required) An identifier of the stream where the records are stored.\n"
+                    },
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"space\": \"mySpace\",\n      \"sources\": [\n        {\n          \"source\": {\n            \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n          },\n          \"properties\": {\n            \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n          }\n        }\n      ],\n      \"externalId\": \"some_id\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Service Unavailable",
+              "code": 503,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": 409,\n    \"message\": \"string\",\n    \"partial\": [\n      {\n        \"space\": \"mySpace\",\n        \"externalId\": \"some_id\",\n        \"code\": 409,\n        \"message\": \"string\"\n      }\n    ]\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            }
+          ],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "812835e4-7636-4ec7-a727-cb4852c9b044",
+          "name": "Upsert (create or update) records into a stream",
+          "request": {
+            "name": "Upsert (create or update) records into a stream",
+            "description": {
+              "content": "\n\n> **Required capabilities:** `streamRecordsAcl:WRITE` `dataModelsAcl:READ`\n\n**Note:** This endpoint is only available for mutable streams.\n\nBefore a user can upsert records, all referenced schema elements (Spaces, Containers, Properties) must be defined/created in [Data Modeling](https://docs.cognite.com/cdf/dm).\n\nTo upsert records, the user must have capabilities to access (read) the referenced containers as well as capabilities to access (write) the referenced record ```space```.\n\nBatches of records are ingested or updated into a ```stream```.\n\nUnder normal upsert operation, the record will be created or updated, and the properties defined in each of the containers in the ```sources``` array will be populated.\n\nIf record identifiers (```space``` + ```externalId```) are already in the stream, records are fully updated (no partial updates for this endpoint).\nOtherwise, records are created.\n\n**Note:** The maximum total request size is 10MB.\n",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "streams",
+                ":streamId",
+                "records",
+                "upsert"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "streamId",
+                  "description": "(Required) An identifier of the stream where the records are stored.\n"
+                },
+                {
+                  "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                  "type": "any",
+                  "value": "{{cluster}}",
+                  "key": "cluster"
+                },
+                {
+                  "description": "The CDF project name.",
+                  "type": "any",
+                  "value": "{{project}}",
+                  "key": "project"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "auth": null,
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"space\": \"<string>\",\n      \"sources\": [\n        {\n          \"source\": {\n            \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n          },\n          \"properties\": {\n            \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n          }\n        }\n      ],\n      \"externalId\": \"<string>\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "id": "25b563ef-1d62-43ed-a56e-d997bda1d1ca",
+              "name": "An empty response is returned if all records from the request are successfully accepted to be created or updated.\n",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "streams",
+                    ":streamId",
+                    "records",
+                    "upsert"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "streamId",
+                      "description": "(Required) An identifier of the stream where the records are stored.\n"
+                    },
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"space\": \"mySpace\",\n      \"sources\": [\n        {\n          \"source\": {\n            \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n          },\n          \"properties\": {\n            \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n          }\n        }\n      ],\n      \"externalId\": \"some_id\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Accepted",
+              "code": 202,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "2915db88-f1bb-4358-bf95-a083679b036f",
+              "name": "The response for a failed request.",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "streams",
+                    ":streamId",
+                    "records",
+                    "upsert"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "streamId",
+                      "description": "(Required) An identifier of the stream where the records are stored.\n"
+                    },
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"space\": \"mySpace\",\n      \"sources\": [\n        {\n          \"source\": {\n            \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n          },\n          \"properties\": {\n            \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n          }\n        }\n      ],\n      \"externalId\": \"some_id\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": 401,\n    \"message\": \"Could not authenticate.\",\n    \"missing\": [\n      {\n        \"key_0\": \"string\",\n        \"key_1\": \"string\"\n      },\n      {\n        \"key_0\": 5623.39434733605,\n        \"key_1\": \"string\"\n      }\n    ],\n    \"duplicated\": [\n      {\n        \"key_0\": 6304.631903722126,\n        \"key_1\": 1219\n      },\n      {\n        \"key_0\": true,\n        \"key_1\": 9330\n      }\n    ]\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "327679dd-c005-44fd-8d25-508145fa4c64",
+              "name": "Some records with the specified `space` and `externalId` are being concurrently modified by this and other requests.\nBut some records might have been created or updated successfully.\nWhich records were successfully upserted and which were rejected with a conflict can be understood from the response content.\n\n**Note:** better to check which records are in the stream when you receive this error.\n`.../records/filter` or `.../records/sync` endpoints with a filter by `space` and `externalId` can be used\nto check the stored state of the conflicting records.\n",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "streams",
+                    ":streamId",
+                    "records",
+                    "upsert"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "streamId",
+                      "description": "(Required) An identifier of the stream where the records are stored.\n"
+                    },
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"space\": \"mySpace\",\n      \"sources\": [\n        {\n          \"source\": {\n            \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n          },\n          \"properties\": {\n            \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n          }\n        }\n      ],\n      \"externalId\": \"some_id\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": 409,\n    \"message\": \"string\",\n    \"partial\": [\n      {\n        \"space\": \"mySpace\",\n        \"externalId\": \"some_id\",\n        \"code\": 409,\n        \"message\": \"string\"\n      }\n    ]\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "6fc0d1b9-e108-4232-bfe9-01ae81b12875",
+              "name": "Some record identifiers (`space` and `externalId`) are duplicated in the request or attempt to modify records in an immutable stream.\n",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "streams",
+                    ":streamId",
+                    "records",
+                    "upsert"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "streamId",
+                      "description": "(Required) An identifier of the stream where the records are stored.\n"
+                    },
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"space\": \"mySpace\",\n      \"sources\": [\n        {\n          \"source\": {\n            \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n          },\n          \"properties\": {\n            \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n          }\n        }\n      ],\n      \"externalId\": \"some_id\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Unprocessable Entity (WebDAV) (RFC 4918)",
+              "code": 422,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": 422,\n    \"message\": \"string\",\n    \"duplicated\": [\n      {\n        \"externalId\": \"mySpace.myRecord1\"\n      }\n    ]\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "9b886ff3-522a-477c-8402-c5cbe729efaa",
+              "name": "If at least one record was not upserted due to an internal error, and all other errors in the `failed` list were non-retryable,\nthis error code will be returned.\n\n**Note:** Record operations are not transactional. This means that during batch upsert,\nsome records may be created/updated successfully even if the creation/updating of others fails.\nThe response body indicates which records were successfully upserted and which were not.\n\nAn internal server error usually indicates an issue that requires investigation. A simple retry might not help,\nbut a few retries could be a reasonable approach.\n\n**Note:** If you choose to retry on a 500 error, it is recommended to retry only the failed records rather than the entire request.\nThis helps avoid receiving 409 status codes or overriding records to outdated state (if multiple threads update records in your app).\n",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "streams",
+                    ":streamId",
+                    "records",
+                    "upsert"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "streamId",
+                      "description": "(Required) An identifier of the stream where the records are stored.\n"
+                    },
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"space\": \"mySpace\",\n      \"sources\": [\n        {\n          \"source\": {\n            \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n          },\n          \"properties\": {\n            \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n          }\n        }\n      ],\n      \"externalId\": \"some_id\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Internal Server Error",
+              "code": 500,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": 409,\n    \"message\": \"string\",\n    \"partial\": [\n      {\n        \"space\": \"mySpace\",\n        \"externalId\": \"some_id\",\n        \"code\": 409,\n        \"message\": \"string\"\n      }\n    ]\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "92be78c9-6366-4595-96f2-f925aae50023",
+              "name": "If at least one record was not upserted due to the service being temporarily unavailable,\nthis error code will be returned.\n\n**Note:** Record operations are not transactional. This means that during batch upsert, some records may be created/updated successfully\neven if the creation/updating of others fails. The response body indicates which records were successfully upserted and which were not.\n\nA \"service temporarily unavailable\" error usually indicates a temporary issue, and several retries may help complete the record upserting.\n\n**Note:** It is recommended to retry only the failed records rather than the entire request.\nThis helps avoid receiving 409 status codes or overriding records to outdated state (if multiple threads update records in your app).\n",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "streams",
+                    ":streamId",
+                    "records",
+                    "upsert"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "streamId",
+                      "description": "(Required) An identifier of the stream where the records are stored.\n"
+                    },
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"space\": \"mySpace\",\n      \"sources\": [\n        {\n          \"source\": {\n            \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n          },\n          \"properties\": {\n            \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n          }\n        }\n      ],\n      \"externalId\": \"some_id\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Service Unavailable",
+              "code": 503,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": 409,\n    \"message\": \"string\",\n    \"partial\": [\n      {\n        \"space\": \"mySpace\",\n        \"externalId\": \"some_id\",\n        \"code\": 409,\n        \"message\": \"string\"\n      }\n    ]\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            }
+          ],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "ebf3cd3e-39f1-463c-af6b-960a4793d5ba",
+          "name": "Delete records from a stream",
+          "request": {
+            "name": "Delete records from a stream",
+            "description": {
+              "content": "\n\n> **Required capabilities:** `streamRecordsAcl:WRITE`\n\n**Note:** This endpoint is only available for mutable streams.\n\nTo delete records, the user must have capabilities to access (write to) the referenced record ```space```.\n\nBatches of records are deleted from a ```stream``` with implicit `ignoreUnknownIds=true` semantic.\n\nThe record operations are eventually consistent,\nbut under normal conditions deleted records stop being returned by other endpoints within a few seconds.\nSync endpoint is returning a \"tombstone\" record (which only has a few top level fields and a deleted status)\nfor at least 3 days since deleting the actual record.\n",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "streams",
+                ":streamId",
+                "records",
+                "delete"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "streamId",
+                  "description": "(Required) An identifier of the stream where the records are stored.\n"
+                },
+                {
+                  "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                  "type": "any",
+                  "value": "{{cluster}}",
+                  "key": "cluster"
+                },
+                {
+                  "description": "The CDF project name.",
+                  "type": "any",
+                  "value": "{{project}}",
+                  "key": "project"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "auth": null,
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"space\": \"<string>\",\n      \"externalId\": \"<string>\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "id": "0fba9709-8272-4174-a56a-dbcf6fe5a280",
+              "name": "An empty response is returned if all records from the request are successfully deleted.\n",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "streams",
+                    ":streamId",
+                    "records",
+                    "delete"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "streamId",
+                      "description": "(Required) An identifier of the stream where the records are stored.\n"
+                    },
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"space\": \"mySpace\",\n      \"externalId\": \"some_id\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "f20ed0da-c263-4731-abf2-dfc1b725bfde",
+              "name": "The response for a failed request.",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "streams",
+                    ":streamId",
+                    "records",
+                    "delete"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "streamId",
+                      "description": "(Required) An identifier of the stream where the records are stored.\n"
+                    },
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"space\": \"mySpace\",\n      \"externalId\": \"some_id\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": 401,\n    \"message\": \"Could not authenticate.\",\n    \"missing\": [\n      {\n        \"key_0\": \"string\",\n        \"key_1\": \"string\"\n      },\n      {\n        \"key_0\": 5623.39434733605,\n        \"key_1\": \"string\"\n      }\n    ],\n    \"duplicated\": [\n      {\n        \"key_0\": 6304.631903722126,\n        \"key_1\": 1219\n      },\n      {\n        \"key_0\": true,\n        \"key_1\": 9330\n      }\n    ]\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "c392a16d-28ae-484f-afa5-7b4cf022e3b1",
+              "name": "Some record identifiers (`space` and `externalId`) are duplicated in the request or attempt to delete records from an immutable stream.\n",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "streams",
+                    ":streamId",
+                    "records",
+                    "delete"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "streamId",
+                      "description": "(Required) An identifier of the stream where the records are stored.\n"
+                    },
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"space\": \"mySpace\",\n      \"externalId\": \"some_id\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Unprocessable Entity (WebDAV) (RFC 4918)",
+              "code": 422,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": 422,\n    \"message\": \"string\",\n    \"duplicated\": [\n      {\n        \"externalId\": \"mySpace.myRecord1\"\n      }\n    ]\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "a7250119-4b95-4572-967a-0ddc433243dd",
+              "name": "If at least one record was not deleted due to an internal error, and all other errors in the `failed` list were non-retryable,\nthis error code will be returned.\n\n**Note:** Record operations are not transactional. This means that during batch delete,\nsome records may be deleted successfully even if the deletion of others fails.\nThe response body indicates which records were successfully deleted and which were not.\n\nAn internal server error usually indicates an issue that requires investigation. A simple retry might not help,\nbut a few retries could be a reasonable approach.\n\n**Note:** If you choose to retry on a 500 error, it is recommended to retry only the failed records rather than the entire request.\n",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "streams",
+                    ":streamId",
+                    "records",
+                    "delete"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "streamId",
+                      "description": "(Required) An identifier of the stream where the records are stored.\n"
+                    },
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"space\": \"mySpace\",\n      \"externalId\": \"some_id\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Internal Server Error",
+              "code": 500,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": 409,\n    \"message\": \"string\",\n    \"partial\": [\n      {\n        \"space\": \"mySpace\",\n        \"externalId\": \"some_id\",\n        \"code\": 409,\n        \"message\": \"string\"\n      }\n    ]\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "176ef2fa-a9b8-43cb-b38a-083d95cb898e",
+              "name": "If at least one record was not deleted due to the service being temporarily unavailable,\nthis error code will be returned.\n\n**Note:** Record operations are not transactional. This means that during batch delete, some records may be deleted successfully\neven if the deletion of others fails. The response body indicates which records were successfully deleted and which were not.\n\nA \"service temporarily unavailable\" error usually indicates a temporary issue, and several retries may help complete the records deletion.\n\n**Note:** It is recommended to retry deletion of only the failed records rather than the entire request.\n",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "streams",
+                    ":streamId",
+                    "records",
+                    "delete"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "streamId",
+                      "description": "(Required) An identifier of the stream where the records are stored.\n"
+                    },
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"space\": \"mySpace\",\n      \"externalId\": \"some_id\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Service Unavailable",
+              "code": 503,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": 409,\n    \"message\": \"string\",\n    \"partial\": [\n      {\n        \"space\": \"mySpace\",\n        \"externalId\": \"some_id\",\n        \"code\": 409,\n        \"message\": \"string\"\n      }\n    ]\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            }
+          ],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "e089d8a3-18f0-424d-bd94-a8a402383e88",
+          "name": "Retrieve records from a stream",
+          "request": {
+            "name": "Retrieve records from a stream",
+            "description": {
+              "content": "\n\n> **Required capabilities:** `streamRecordsAcl:READ` `dataModelsAcl:READ`\n\nFilter the records from the ```stream```.\n",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "streams",
+                ":streamId",
+                "records",
+                "filter"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "streamId",
+                  "description": "(Required) An identifier of the stream where the records are stored.\n"
+                },
+                {
+                  "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                  "type": "any",
+                  "value": "{{cluster}}",
+                  "key": "cluster"
+                },
+                {
+                  "description": "The CDF project name.",
+                  "type": "any",
+                  "value": "{{project}}",
+                  "key": "project"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "auth": null,
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lastUpdatedTime\": {\n    \"gte\": \"<string>\",\n    \"gt\": \"<string>\",\n    \"lte\": \"<string>\",\n    \"lt\": \"<string>\"\n  },\n  \"filter\": {\n    \"and\": [\n      {\n        \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n      }\n    ]\n  },\n  \"sources\": [\n    {\n      \"source\": \"<object>\",\n      \"properties\": [\n        \"<string>\"\n      ]\n    }\n  ],\n  \"targetUnits\": {\n    \"unitSystemName\": \"<string>\"\n  },\n  \"includeTyping\": \"<boolean>\",\n  \"limit\": 10,\n  \"sort\": [\n    {\n      \"property\": {\n        \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n      },\n      \"direction\": \"ascending\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "id": "7f1d9c67-822e-45fc-b6e9-7c8d435e2967",
+              "name": "List of matching records.\n\n**Note:** The maximum total response size is 20MB.\n",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "streams",
+                    ":streamId",
+                    "records",
+                    "filter"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "streamId",
+                      "description": "(Required) An identifier of the stream where the records are stored.\n"
+                    },
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"lastUpdatedTime\": {\n    \"gte\": \"string\",\n    \"gt\": \"string\",\n    \"lte\": \"string\",\n    \"lt\": \"string\"\n  },\n  \"filter\": {\n    \"and\": [\n      {\n        \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n      }\n    ]\n  },\n  \"sources\": [\n    {\n      \"source\": {\n        \"type\": \"container,\",\n        \"space\": \"mySpace,\",\n        \"externalId\": \"myContainer\"\n      },\n      \"properties\": [\n        \"someProperty\"\n      ]\n    }\n  ],\n  \"targetUnits\": {\n    \"unitSystemName\": \"string\"\n  },\n  \"includeTyping\": true,\n  \"limit\": 42,\n  \"sort\": [\n    {\n      \"property\": {\n        \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n      },\n      \"direction\": \"descending\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"items\": [\n    {\n      \"space\": \"mySpace\",\n      \"externalId\": \"some_id\",\n      \"createdTime\": 1720616232,\n      \"lastUpdatedTime\": 1720616232,\n      \"properties\": {\n        \"key_0\": {\n          \"key_0\": {\n            \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n          },\n          \"key_1\": {\n            \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n          },\n          \"key_2\": {\n            \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n          },\n          \"key_3\": {\n            \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n          }\n        },\n        \"key_1\": {\n          \"key_0\": {\n            \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n          }\n        },\n        \"key_2\": {\n          \"key_0\": {\n            \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n          }\n        },\n        \"key_3\": {\n          \"key_0\": {\n            \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n          },\n          \"key_1\": {\n            \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n          }\n        }\n      }\n    },\n    {\n      \"space\": \"mySpace\",\n      \"externalId\": \"some_id\",\n      \"createdTime\": 1720616232,\n      \"lastUpdatedTime\": 1720616232,\n      \"properties\": {\n        \"key_0\": {\n          \"key_0\": {\n            \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n          }\n        },\n        \"key_1\": {\n          \"key_0\": {\n            \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n          },\n          \"key_1\": {\n            \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n          }\n        }\n      }\n    }\n  ],\n  \"typing\": {\n    \"key_0\": {\n      \"key_0\": {\n        \"key_0\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"key_1\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"key_2\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      },\n      \"key_1\": {\n        \"key_0\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"key_1\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      }\n    }\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "ae1b5c7c-321b-4c17-9bbd-dffc3af2ef16",
+              "name": "The response for a failed request.",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "streams",
+                    ":streamId",
+                    "records",
+                    "filter"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "streamId",
+                      "description": "(Required) An identifier of the stream where the records are stored.\n"
+                    },
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"lastUpdatedTime\": {\n    \"gte\": \"string\",\n    \"gt\": \"string\",\n    \"lte\": \"string\",\n    \"lt\": \"string\"\n  },\n  \"filter\": {\n    \"and\": [\n      {\n        \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n      }\n    ]\n  },\n  \"sources\": [\n    {\n      \"source\": {\n        \"type\": \"container,\",\n        \"space\": \"mySpace,\",\n        \"externalId\": \"myContainer\"\n      },\n      \"properties\": [\n        \"someProperty\"\n      ]\n    }\n  ],\n  \"targetUnits\": {\n    \"unitSystemName\": \"string\"\n  },\n  \"includeTyping\": true,\n  \"limit\": 42,\n  \"sort\": [\n    {\n      \"property\": {\n        \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n      },\n      \"direction\": \"descending\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": 401,\n    \"message\": \"Could not authenticate.\",\n    \"missing\": [\n      {\n        \"key_0\": \"string\",\n        \"key_1\": \"string\"\n      },\n      {\n        \"key_0\": 5623.39434733605,\n        \"key_1\": \"string\"\n      }\n    ],\n    \"duplicated\": [\n      {\n        \"key_0\": 6304.631903722126,\n        \"key_1\": 1219\n      },\n      {\n        \"key_0\": true,\n        \"key_1\": 9330\n      }\n    ]\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            }
+          ],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "905a0dc8-357a-4ae1-a340-3621eba7ed80",
+          "name": "Aggregate records data from a stream",
+          "request": {
+            "name": "Aggregate records data from a stream",
+            "description": {
+              "content": "\n\n> **Required capabilities:** `streamRecordsAcl:READ` `dataModelsAcl:READ`\n\nAggregate data for records from the ```stream```.\n\nYou can use an optional filter specification to limit the results.\n\nThe Records API supports three main groups of aggregates:\n\n*Metric aggregates*: ```sum```, ```min```, ```max```, ```count```, etc.\n\n*Bucket aggregates* (result records are aggregated into groups (buckets) â similar to the Data Model Instances ```groupBy``` concept):\n  ```uniqueValues``` (group by property values), ```timeHistogram``` (group by date/time ranges), ```filters``` (group by filter criteria), etc.\n\n*Pipeline aggregates*: ```movingFunction```.\n**Note:** The pipeline aggregate applies to the results of another histogram aggregate.\n  It applies to metrics (such as count, min, max, sum, etc.), not to the records in the parent aggregate buckets.\n  This differs from sub-aggregates, which apply directly to records within each bucket.\n\nEvery aggregate request can contain multiple aggregate entries.\nEvery bucket aggregate can contain multiple sub-aggregates (of any type), which are applied to records in each bucket of the parent aggregate.\n\n<u>Example:</u>\n\nImagine there is paddle-tennis players `game_statistics` container with model:\n```\n{\n  game_id: Long,\n  game_time: Instant,\n  player_name: String,\n  points_scored: Int,\n  ...\n}\n```\n\nTo get the following data:\n```\nfor each day\n    calculate average number of points scored by players in all games on that day\n    and for each player\n        calculate the total number of points scored by the player in all games they participated in on that day\n        and find the max number of points scored by the player in all games they participated in on that day\nand find the max number of points scored by players in all games they participated in during the entire search period.\n```\n\nUse aggregates like these (meta language):\n```\ntimeHistogram(daily, game_time) // group by (form buckets) 1-day range based on `game_time` property values\n    avg(points_scored)          // inside every day group calculate average value in `points_scored` property\n    uniqueValues(player_name)   // inside every day group group by (form buckets) player names\n        sum(points_scored)      // inside every player group which is inside every day group calculate the sum of points scored\n        max(points_scored)      // inside every player group which is inside every day group find the maximum of points scored\nmax(points_scored)              // find the maximum number of points scored across all statistic records (without any grouping)\n```\n\nOr the same in Cognite Records Aggregates DSL (Json):\n```\n{\n  \"my_groups_by_1d_range\": {\n    \"timeHistogram\": {\n      \"calendarInterval\": \"1d\",\n      \"property\": [ \"paddle\", \"game_statistics\", \"game_time\" ],\n      \"aggregates\": {\n        \"my_groups_by_player_name\": {\n          \"uniqueValues\": {\n            \"property\": [ \"paddle\", \"game_statistics\", \"player_name\" ],\n            \"aggregates\": {\n              \"my_player_daily_scores_sum\": {\n                \"sum\": { \"property\": [ \"paddle\", \"game_statistics\", \"points_scored\" ] }\n              },\n              \"my_player_daily_scores_maximum\": {\n                \"max\": { \"property\": [ \"paddle\", \"game_statistics\", \"points_scored\" ] }\n              }\n            }\n          }\n        },\n        \"my_daily_scores_average\": {\n          \"avg\": { \"property\": [ \"paddle\", \"game_statistics\", \"points_scored\" ] }\n        }\n      }\n    }\n  },\n  \"my_scores_maximum_across_all_games\": {\n    \"max\": { \"property\": [ \"paddle\", \"game_statistics\", \"points_scored\" ] }\n  }\n}\n```\n\nand the response would be\n```\n{\n  \"my_groups_by_1d_range\": {\n    \"timeHistogramBuckets\": [\n      {\n        \"count\": 13\n        \"intervalStart\": \"2025-05-25T00:00:00Z\",\n        \"aggregates\": {\n          \"my_groups_by_player_name\": {\n            \"uniqueValueBuckets\": [\n              {\n                \"count\": 3\n                \"value\": \"Vasya Rogov\",\n                \"aggregates\": {\n                  \"my_player_daily_scores_sum\": {\n                    \"sum\": 57\n                  },\n                  \"my_player_daily_scores_maximum\": {\n                    \"max\": 25\n                  }\n                }\n              },\n              {\n                \"count\": 5\n                \"value\": \"Vinni Pooh\",\n                \"aggregates\": {\n                  \"my_player_daily_scores_sum\": {\n                    \"sum\": 53\n                  },\n                  \"my_player_daily_scores_maximum\": {\n                    \"max\": 21\n                  }\n                }\n              },\n              ...\n            ]\n          },\n          \"my_daily_scores_average\": {\n            \"avg\": 33\n          }\n        }\n      },\n      {\n        \"count\": 7\n        \"intervalStart\": \"2025-05-26T00:00:00Z\",\n        \"aggregates\": {\n          \"my_groups_by_player_name\": {\n            \"uniqueValueBuckets\": [\n              {\n                \"count\": 1\n                \"value\": \"Vasya Rogov\",\n                \"aggregates\": {\n                  \"my_player_daily_scores_sum\": {\n                    \"sum\": 24\n                  },\n                  \"my_player_daily_scores_maximum\": {\n                    \"max\": 24\n                  }\n                }\n              },\n              {\n                \"count\": 2\n                \"value\": \"Pyatochok\",\n                \"aggregates\": {\n                  \"my_player_daily_scores_sum\": {\n                    \"sum\": 42\n                  },\n                  \"my_player_daily_scores_maximum\": {\n                    \"max\": 23\n                  }\n                }\n              },\n              ...\n            ]\n          },\n          \"my_daily_scores_average\": {\n            \"avg\": 22\n          }\n        }\n      },\n      ...\n    ]\n  },\n  \"my_scores_maximum_across_all_games\": {\n    \"max\": 42\n  }\n}\n```\n",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "streams",
+                ":streamId",
+                "records",
+                "aggregate"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "streamId",
+                  "description": "(Required) An identifier of the stream where the records are stored.\n"
+                },
+                {
+                  "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                  "type": "any",
+                  "value": "{{cluster}}",
+                  "key": "cluster"
+                },
+                {
+                  "description": "The CDF project name.",
+                  "type": "any",
+                  "value": "{{project}}",
+                  "key": "project"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "auth": null,
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"aggregates\": {\n    \"key_0\": {\n      \"avg\": {\n        \"property\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      }\n    },\n    \"key_1\": {\n      \"avg\": {\n        \"property\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      }\n    }\n  },\n  \"lastUpdatedTime\": {\n    \"gte\": \"<string>\",\n    \"gt\": \"<string>\",\n    \"lte\": \"<string>\",\n    \"lt\": \"<string>\"\n  },\n  \"filter\": {\n    \"and\": [\n      {\n        \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n      }\n    ]\n  },\n  \"targetUnits\": {\n    \"unitSystemName\": \"<string>\"\n  },\n  \"includeTyping\": \"<boolean>\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "id": "2c828a0b-17d9-43c9-bb19-970380aaed23",
+              "name": "Aggregated query results.\n",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "streams",
+                    ":streamId",
+                    "records",
+                    "aggregate"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "streamId",
+                      "description": "(Required) An identifier of the stream where the records are stored.\n"
+                    },
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"aggregates\": {\n    \"key_0\": {\n      \"avg\": {\n        \"property\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      }\n    },\n    \"key_1\": {\n      \"avg\": {\n        \"property\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      }\n    },\n    \"key_2\": {\n      \"avg\": {\n        \"property\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      }\n    },\n    \"key_3\": {\n      \"avg\": {\n        \"property\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      }\n    }\n  },\n  \"lastUpdatedTime\": {\n    \"gte\": \"string\",\n    \"gt\": \"string\",\n    \"lte\": \"string\",\n    \"lt\": \"string\"\n  },\n  \"filter\": {\n    \"and\": [\n      {\n        \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n      }\n    ]\n  },\n  \"targetUnits\": {\n    \"unitSystemName\": \"string\"\n  },\n  \"includeTyping\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"aggregates\": {\n    \"key_0\": {\n      \"avg\": 42.7\n    },\n    \"key_1\": {\n      \"avg\": 42.7\n    }\n  },\n  \"typing\": {\n    \"key_0\": {\n      \"key_0\": {\n        \"key_0\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"key_1\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      },\n      \"key_1\": {\n        \"key_0\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"key_1\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"key_2\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      },\n      \"key_2\": {\n        \"key_0\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      }\n    }\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "5759bf19-1da8-4acf-b9df-0f272e92ee16",
+              "name": "The response for a failed request.",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "streams",
+                    ":streamId",
+                    "records",
+                    "aggregate"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "streamId",
+                      "description": "(Required) An identifier of the stream where the records are stored.\n"
+                    },
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"aggregates\": {\n    \"key_0\": {\n      \"avg\": {\n        \"property\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      }\n    },\n    \"key_1\": {\n      \"avg\": {\n        \"property\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      }\n    },\n    \"key_2\": {\n      \"avg\": {\n        \"property\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      }\n    },\n    \"key_3\": {\n      \"avg\": {\n        \"property\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      }\n    }\n  },\n  \"lastUpdatedTime\": {\n    \"gte\": \"string\",\n    \"gt\": \"string\",\n    \"lte\": \"string\",\n    \"lt\": \"string\"\n  },\n  \"filter\": {\n    \"and\": [\n      {\n        \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n      }\n    ]\n  },\n  \"targetUnits\": {\n    \"unitSystemName\": \"string\"\n  },\n  \"includeTyping\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": 401,\n    \"message\": \"Could not authenticate.\",\n    \"missing\": [\n      {\n        \"key_0\": \"string\",\n        \"key_1\": \"string\"\n      },\n      {\n        \"key_0\": 5623.39434733605,\n        \"key_1\": \"string\"\n      }\n    ],\n    \"duplicated\": [\n      {\n        \"key_0\": 6304.631903722126,\n        \"key_1\": 1219\n      },\n      {\n        \"key_0\": true,\n        \"key_1\": 9330\n      }\n    ]\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            }
+          ],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "7981e9fd-1e78-42cd-aa3f-f04e9d03df55",
+          "name": "Sync records from a stream",
+          "request": {
+            "name": "Sync records from a stream",
+            "description": {
+              "content": "\n\n> **Required capabilities:** `streamRecordsAcl:READ` `dataModelsAcl:READ`\n\nSubscribe to changes for records from the ```stream```, matching a supplied filter.\n",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "streams",
+                ":streamId",
+                "records",
+                "sync"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "streamId",
+                  "description": "(Required) An identifier of the stream where the records are stored.\n"
+                },
+                {
+                  "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                  "type": "any",
+                  "value": "{{cluster}}",
+                  "key": "cluster"
+                },
+                {
+                  "description": "The CDF project name.",
+                  "type": "any",
+                  "value": "{{project}}",
+                  "key": "project"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "auth": null,
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sources\": [\n    {\n      \"source\": \"<object>\",\n      \"properties\": [\n        \"<string>\"\n      ]\n    }\n  ],\n  \"filter\": {\n    \"and\": [\n      {\n        \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n      }\n    ]\n  },\n  \"cursor\": \"<string>\",\n  \"initializeCursor\": \"<string>\",\n  \"targetUnits\": {\n    \"unitSystemName\": \"<string>\"\n  },\n  \"includeTyping\": \"<boolean>\",\n  \"limit\": 10\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "id": "0b78c588-df9a-49fc-9d84-3c916a3fff15",
+              "name": "The next chunk of matching the filter records starting from the cursor in the request.\n\n**Note:** The maximum total response size is 10MB.\n",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "streams",
+                    ":streamId",
+                    "records",
+                    "sync"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "streamId",
+                      "description": "(Required) An identifier of the stream where the records are stored.\n"
+                    },
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"sources\": [\n    {\n      \"source\": {\n        \"type\": \"container,\",\n        \"space\": \"mySpace,\",\n        \"externalId\": \"myContainer\"\n      },\n      \"properties\": [\n        \"someProperty\"\n      ]\n    }\n  ],\n  \"filter\": {\n    \"and\": [\n      {\n        \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n      }\n    ]\n  },\n  \"cursor\": \"c29tZSBjdXJzb3I=\",\n  \"initializeCursor\": \"42d-ago\",\n  \"targetUnits\": {\n    \"unitSystemName\": \"string\"\n  },\n  \"includeTyping\": true,\n  \"limit\": 42\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"items\": [\n    {\n      \"space\": \"mySpace\",\n      \"externalId\": \"some_id\",\n      \"createdTime\": 1720616232,\n      \"lastUpdatedTime\": 1720616232,\n      \"status\": \"updated\",\n      \"properties\": {\n        \"key_0\": {\n          \"key_0\": {\n            \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n          }\n        },\n        \"key_1\": {\n          \"key_0\": {\n            \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n          },\n          \"key_1\": {\n            \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n          }\n        }\n      }\n    },\n    {\n      \"space\": \"mySpace\",\n      \"externalId\": \"some_id\",\n      \"createdTime\": 1720616232,\n      \"lastUpdatedTime\": 1720616232,\n      \"status\": \"deleted\",\n      \"properties\": {\n        \"key_0\": {\n          \"key_0\": {\n            \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n          }\n        },\n        \"key_1\": {\n          \"key_0\": {\n            \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n          }\n        }\n      }\n    }\n  ],\n  \"nextCursor\": \"c29tZSBjdXJzb3I=\",\n  \"hasNext\": true,\n  \"typing\": {\n    \"key_0\": {\n      \"key_0\": {\n        \"key_0\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"key_1\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      },\n      \"key_1\": {\n        \"key_0\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      }\n    }\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "14764641-cb90-43d2-ac1b-7c70517ac82c",
+              "name": "The response for a failed request.",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "streams",
+                    ":streamId",
+                    "records",
+                    "sync"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "streamId",
+                      "description": "(Required) An identifier of the stream where the records are stored.\n"
+                    },
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"sources\": [\n    {\n      \"source\": {\n        \"type\": \"container,\",\n        \"space\": \"mySpace,\",\n        \"externalId\": \"myContainer\"\n      },\n      \"properties\": [\n        \"someProperty\"\n      ]\n    }\n  ],\n  \"filter\": {\n    \"and\": [\n      {\n        \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n      }\n    ]\n  },\n  \"cursor\": \"c29tZSBjdXJzb3I=\",\n  \"initializeCursor\": \"42d-ago\",\n  \"targetUnits\": {\n    \"unitSystemName\": \"string\"\n  },\n  \"includeTyping\": true,\n  \"limit\": 42\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": 401,\n    \"message\": \"Could not authenticate.\",\n    \"missing\": [\n      {\n        \"key_0\": \"string\",\n        \"key_1\": \"string\"\n      },\n      {\n        \"key_0\": 5623.39434733605,\n        \"key_1\": \"string\"\n      }\n    ],\n    \"duplicated\": [\n      {\n        \"key_0\": 6304.631903722126,\n        \"key_1\": 1219\n      },\n      {\n        \"key_0\": true,\n        \"key_1\": 9330\n      }\n    ]\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            }
+          ],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        }
+      ],
+      "event": []
+    }
+  ],
+  "event": [],
+  "variable": [
+    {
+      "description": {
+        "content": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+        "type": "text/plain"
+      },
+      "type": "any",
+      "value": "api",
+      "key": "cluster"
+    },
+    {
+      "description": {
+        "content": "The CDF project name.",
+        "type": "text/plain"
+      },
+      "type": "any",
+      "value": "publicdata",
+      "key": "project"
+    },
+    {
+      "type": "string",
+      "value": "https://{{cluster}}.cognitedata.com/api/v1/projects/{{project}}",
+      "key": "baseUrl"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{bearerToken}}"
+      }
+    ]
+  },
+  "info": {
+    "_postman_id": "b133a61e-9cae-4cb6-8d74-f833109936f7",
+    "name": "Cognite 3D Asset Mapping Records API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": {
+      "content": "# Introduction\nThis is the reference documentation for the Cognite API with\nan overview of all the available methods.\n\n# Postman\nSelect the **Download** button to download our OpenAPI specification to get started.\n\nTo import your data into Postman, select **Import**, and the Import modal opens.\nYou can import items by dragging or dropping files or folders. You can choose how to import your API and manage the import settings in **View Import Settings**.\n\nIn the Import Settings, set the **Folder organization** to **Tags**, select\n**Enable optional parameters** to turn off the settings, and select **Always inherit authentication** to turn on the settings. Select **Import**.\n\nSet the Authorization to **Oauth2.0**. By default, the settings are for Open Industrial Data. Navigate to [Cognite Hub](https://hub.cognite.com/open-industrial-data-211) to understand how to get the credentials for use in Postman.\n\nFor more information, see [Getting Started with Postman](https://developer.cognite.com/dev/guides/postman/).\n\n# Pagination\nMost resource types can be paginated, indicated by the field `nextCursor` in the response.\nBy passing the value of `nextCursor` as the cursor you will get the next page of `limit` results.\nNote that all parameters except `cursor` has to stay the same.\n\n# Parallel retrieval\nAs general guidance, Parallel Retrieval is a technique that should be used when due to query complexity, retrieval of data in a single request is significantly slower than it would otherwise be for a simple request.  Parallel retrieval does not act as a speed multiplier on optimally running queries.  By parallelizing such requests, data retrieval performance can be tuned to meet the client application needs. \n\nCDF supports parallel retrieval through the `partition` parameter, which has the format `m/n` where `n` is the amount of partitions you would like to split the entire data set into.\nIf you want to download the entire data set by splitting it into 10 partitions, do the following in parallel with `m` running from 1 to 10:\n  - Make a request to `/events` with `partition=m/10`.\n  - Paginate through the response by following the cursor as explained above. Note that the `partition` parameter needs to be passed to all subqueries.\n\nProcessing of parallel retrieval requests is subject to concurrency quota availability. The request returns the `429` response upon exceeding concurrency limits. See the Request throttling chapter below.\n\nTo prevent unexpected problems and to maximize read throughput, you should at most use 10 partitions. \nSome CDF resources will automatically enforce a maximum of 10 partitions.\nFor more specific and detailed information, please read the ```partition``` attribute documentation for the CDF resource you're using.  \n\n# Requests throttling\nCognite Data Fusion (CDF) returns the HTTP `429` (too many requests) response status code when project capacity exceeds the limit.\n\nThe throttling can happen:\n  - If a user or a project sends too many (more than allocated) concurrent requests.\n  - If a user or a project sends a too high (more than allocated) rate of requests in a given amount of time.\n\nCognite recommends using a retry strategy based on truncated exponential backoff to handle sessions with HTTP response codes 429.\n\nCognite recommends using a reasonable number (up to 10) of  `Parallel retrieval` partitions.\n\nFollowing these strategies lets you slow down the request frequency to maximize productivity without having to re-submit/retry failing requests.\n\nSee more [here](https://docs.cognite.com/dev/concepts/resource_throttling).\n\n# API versions\n## Version headers\nThis API uses calendar versioning, and version names follow the `YYYYMMDD` format.\nYou can find the versions currently available by using the version selector at the top of this page.\n\nTo use a specific API version, you can pass the `cdf-version: $version` header along with your requests to the API.\n\n## Beta versions\nThe beta versions provide a preview of what the stable version will look like in the future.\nBeta versions contain functionality that is reasonably mature, and highly likely to become a part of the stable API.\n\nBeta versions are indicated by a `-beta` suffix after the version name. For example, the beta version header for the\n2023-01-01 version is then `cdf-version: 20230101-beta`.\n\n## Alpha versions\nAlpha versions contain functionality that is new and experimental, and not guaranteed to ever become a part of the stable API.\nThis functionality presents no guarantee of service, so its use is subject to caution.\n\nAlpha versions are indicated by an `-alpha` suffix after the version name. For example, the alpha version header for\nthe 2023-01-01 version is then `cdf-version: 20230101-alpha`.\n\nContact Support:\n Name: Cognite Support\n Email: support@cognite.com",
+      "type": "text/plain"
+    }
+  }
+}

@@ -1,0 +1,985 @@
+{
+  "item": [
+    {
+      "id": "46efd07e-5980-4700-8bee-970d09f93275",
+      "name": "Streams",
+      "description": {
+        "content": "Use the streams and records API to build high-volume extensions to industrial knowledge graphs that are built with [Data Modeling](https://docs.cognite.com/cdf/dm).\nThe streams API lets you manage the streams that are used for storing records.\nWith the API you can create, list, retrieve, and delete streams, and view stream settings and statistics.\n\nA stream defines the data lifecycle,\nand not schema, type or source. Multiple different sets of data which have\nnothing in common can be put into the same stream, provided that settings of this stream\nfit lifecycle and usage patterns (volume, rate, etc) of the data involved.\n\nStreams can be either mutable or immutable, which affects how records can be modified,\nstorage capacity limits, and query performance characteristics.\n\nMutable streams allow records to be updated and deleted by the user. They provide\nconsistent low-latency access and optimal query performance.\nHowever, the total number of records that can be stored is limited. Mutable streams are\nwell-suited for use cases requiring frequent data access and updates.\n\nImmutable streams do not allow records to be updated or deleted by the user, but support\ningestion of very large amounts of data. Query performance may vary depending on the age\nof the data being accessed, as the system optimizes storage over time.\n\nTo delete all data in a stream, the stream itself should be deleted. To protect against irretrievable erroneous deletion,\nstreams are 'soft deleted' allowing them to be recovered for up to 6 weeks after the time of deletion.\nThe template used to create the stream determines the actual recovery time.\n\nA single project has a limited number of soft deleted streams at any given time. To avoid hitting this limit, please\navoid using any pattern of create and delete streams in a high frequency.\nPlease note that we expect streams to be long lived. The exception are streams created\nwith one of the `test` templates. Deleting a stream can take a long time.\nHow long depends on the stream settings and the volume of data stored.\nWhile a stream is soft deleted, it is not possible to recreate a stream with the same identifier as the deleted stream.\n\nOnce a stream is deleted, it does not count as one of the active streams, and more streams can be\ncreated to serve as active streams. If a stream is accidentally deleted, it is possible to recover\nthe data by contacting [Cognite Support](https://cognite.zendesk.com/hc/en-us/requests/new).\nYou must contact Cognite no less than 1 week prior to the expiration of the stream retention period\nto ensure we can recover the data.\n\n## Available stream templates\n\n**Note: Stream Templates are in Beta**\n\nThe current Stream Templates are in beta. This means:\n- New templates may be added based on customer needs\n- Existing templates may be modified or removed if necessary\n- Such modifications will **not affect existing streams** created from these templates\n\nChoose your template carefully for production use, as templates cannot be changed after stream creation.\n\nThis section lists all currently available templates that can be used for creating streams.\n\n### Immutable streams\n\n#### ImmutableTestStream\n\nThis template should be used exclusively for experimentation. It is configured for high throughput\nand total data volume, but has a short data retention period. Low retention in a soft-deleted state\nmeans that such streams can be quickly discarded when no longer needed or recreated to remove the experimental data.\n\n**Note:** This template should never be used for production purposes. As this template\nallows significant load on the system, if we detect improper usage\npatterns, we can change setting of streams created from this template as a last resort.\n\n- Maximum total number of records - 50 M (50,000,000)\n- Maximum total data volume - 50 GB\n- Data retention - 7 days\n- Maximum ingestion throughput (per 10 minutes) - 1.5 GB\n- Maximum reading throughput (per 10 minutes) - 1.5 GB\n- Maximum records ingested (per 10 minutes) - 800,000 items\n- Maximum unique properties with data across all records - 1000\n- Maximum range filter interval for the `lastUpdatedTime` property - 7 days\n- Stream soft-delete retention (before hard delete) - 1 day\n- Maximum active streams per project - 3\n\n#### BasicArchive\n\nThis template is intended for perpetual storage of data. However, overall data volume\nis limited, which needs to be taken into account when planning usage.\n\n- Maximum total number of records - 50 M (50,000,000)\n- Maximum total data volume - 50 GB\n- Data retention - Unlimited (data never gets deleted)\n- Maximum ingestion throughput (per 10 minutes) - 170 MB\n- Maximum reading throughput (per 10 minutes) - 1.7 GB\n- Maximum records ingested (per 10 minutes) - 170,000 items\n- Maximum unique properties with data (across all records) - 1000\n- Maximum range filter interval for the `lastUpdatedTime` property - 365 days\n- Stream soft-delete retention (before hard delete) - 6 weeks\n- Maximum active streams per project - 2\n\n### Mutable streams\n\n#### BasicLiveData\n\nThis template is intended for production usage and offers significant data volume\nand throughput.\n\n- Maximum total number of records - 5 M (5,000,000)\n- Maximum total data volume - 15 GB\n- Maximum ingestion throughput (per 10 minutes) - 170 MB\n- Maximum reading throughput (per 10 minutes) - 500 MB\n- Maximum records ingested (per 10 minutes) - 170,000 items\n- Maximum records updated or deleted (per 10 minutes) - 85,000 items\n- Maximum unique properties with data (across all records) - 1000\n- Stream soft-delete retention (before hard delete) - 6 weeks\n- Maximum active streams per project - 1\n\n\n## Rate and concurrency limits\n\nBoth the rate of requests (denoted as request per second (â**rps**â)) and the number of concurrent (parallel)\nrequests are governed by limits, for all CDF API endpoints. If a request exceeds one of the limits,\nit will be throttled with a `429: Too Many Requests` response.\nSee [Resource throttling](https://docs.cognite.com/dev/concepts/resource_throttling) for limit types and how to avoid throttling.\n\nAs streams are intended to be long-lived, users are not expected to interact with these endpoints frequently.\n\nThe version limits for the streams endpoints are illustrated in the tables below.\nThese limits are subject to change, pending review of changing consumption patterns and resource availability over time:\n\n<table>\n  <thead>\n    <tr>\n      <th colspan=\"3\" style=\"text-align: center; background-color: #e0e0e0; padding: 10px; font-weight: bold;\">Create and Delete request budget</th>\n    </tr>\n    <tr>\n      <th></th>\n      <th style=\"text-align: center;\">Overall</th>\n      <th style=\"text-align: center;\">Per ID</th>\n    </tr>\n  </thead>\n  <tbody>\n    <tr>\n      <td><strong>Requests per second</strong></td>\n      <td style=\"text-align: center;\">2</td>\n      <td style=\"text-align: center;\">1</td>\n    </tr>\n    <tr>\n      <td><strong>Concurrent requests</strong></td>\n      <td style=\"text-align: center;\">1</td>\n      <td style=\"text-align: center;\">1</td>\n    </tr>\n  </tbody>\n</table>\n\n<table>\n  <thead>\n    <tr>\n      <th colspan=\"3\" style=\"text-align: center; background-color: #e0e0e0; padding: 10px; font-weight: bold;\">Retrieve and List request budget</th>\n    </tr>\n    <tr>\n      <th></th>\n      <th style=\"text-align: center;\">Overall</th>\n      <th style=\"text-align: center;\">Per ID</th>\n    </tr>\n  </thead>\n  <tbody>\n    <tr>\n      <td><strong>Requests per second</strong></td>\n      <td style=\"text-align: center;\">5</td>\n      <td style=\"text-align: center;\">3</td>\n    </tr>\n    <tr>\n      <td><strong>Concurrent requests</strong></td>\n      <td style=\"text-align: center;\">3</td>\n      <td style=\"text-align: center;\">2</td>\n    </tr>\n  </tbody>\n</table>\n",
+        "type": "text/plain"
+      },
+      "item": [
+        {
+          "id": "9808bc50-ded4-4d55-9214-f71471d8ef1c",
+          "name": "Create stream",
+          "request": {
+            "name": "Create stream",
+            "description": {
+              "content": "\n\n> **Required capabilities:** `streamsAcl:CREATE`\n\nCreate a new stream. A stream is a target for high volume data ingestion,\nwith data shaped by the Data Modeling concepts. Specify an external ID and a stream template for each stream. The template defines the stream's mutability, limits, and lifecycle.\n",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "streams"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                  "type": "any",
+                  "value": "{{cluster}}",
+                  "key": "cluster"
+                },
+                {
+                  "description": "The CDF project name.",
+                  "type": "any",
+                  "value": "{{project}}",
+                  "key": "project"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "auth": null,
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"externalId\": \"<string>\",\n      \"settings\": {\n        \"template\": {\n          \"name\": \"<string>\"\n        }\n      }\n    },\n    {\n      \"externalId\": \"<string>\",\n      \"settings\": {\n        \"template\": {\n          \"name\": \"<string>\"\n        }\n      }\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "id": "a1ae5c34-111b-4761-8881-8bbc0c50a962",
+              "name": "Stream created.\n",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "streams"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"externalId\": \"test_stream_1\",\n      \"settings\": {\n        \"template\": {\n          \"name\": \"ImmutableTestStream\"\n        }\n      }\n    },\n    {\n      \"externalId\": \"test_stream_1\",\n      \"settings\": {\n        \"template\": {\n          \"name\": \"ImmutableTestStream\"\n        }\n      }\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"items\": [\n    {\n      \"externalId\": \"test1\",\n      \"createdTime\": 1730204346000,\n      \"createdFromTemplate\": \"ImmutableTestStream\",\n      \"type\": \"Immutable\",\n      \"settings\": {\n        \"lifecycle\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"limits\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      }\n    },\n    {\n      \"externalId\": \"test1\",\n      \"createdTime\": 1730204346000,\n      \"createdFromTemplate\": \"ImmutableTestStream\",\n      \"type\": \"Immutable\",\n      \"settings\": {\n        \"lifecycle\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"limits\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      }\n    }\n  ]\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "21def7b3-6c84-4880-b989-d439b61b73ba",
+              "name": "The response for a bad request.",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "streams"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"externalId\": \"test_stream_1\",\n      \"settings\": {\n        \"template\": {\n          \"name\": \"ImmutableTestStream\"\n        }\n      }\n    },\n    {\n      \"externalId\": \"test_stream_1\",\n      \"settings\": {\n        \"template\": {\n          \"name\": \"ImmutableTestStream\"\n        }\n      }\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": 400,\n    \"message\": \"`null` values aren't allowed.\"\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "7cc4c483-7763-412f-aa90-86e761d11c83",
+              "name": "Stream with the requested ID already exists.\n",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "streams"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"externalId\": \"test_stream_1\",\n      \"settings\": {\n        \"template\": {\n          \"name\": \"ImmutableTestStream\"\n        }\n      }\n    },\n    {\n      \"externalId\": \"test_stream_1\",\n      \"settings\": {\n        \"template\": {\n          \"name\": \"ImmutableTestStream\"\n        }\n      }\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": 409,\n    \"message\": \"string\",\n    \"duplicated\": [\n      {\n        \"externalId\": \"test1\"\n      }\n    ]\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            }
+          ],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "9503d832-344e-4d9a-82be-3e07298aedf4",
+          "name": "List streams",
+          "request": {
+            "name": "List streams",
+            "description": {
+              "content": "\n\n> **Required capabilities:** `streamsAcl:READ`\n\nList all streams available in the project.\n",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "streams"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                  "type": "any",
+                  "value": "{{cluster}}",
+                  "key": "cluster"
+                },
+                {
+                  "description": "The CDF project name.",
+                  "type": "any",
+                  "value": "{{project}}",
+                  "key": "project"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "GET",
+            "auth": null
+          },
+          "response": [
+            {
+              "id": "c1be5d92-8853-4f5f-9aa3-c2881007bcb8",
+              "name": "List of streams.\n",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "streams"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "body": {}
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"items\": [\n    {\n      \"externalId\": \"test1\",\n      \"createdTime\": 1730204346000,\n      \"createdFromTemplate\": \"ImmutableTestStream\",\n      \"type\": \"Immutable\",\n      \"settings\": {\n        \"lifecycle\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"limits\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      }\n    },\n    {\n      \"externalId\": \"test1\",\n      \"createdTime\": 1730204346000,\n      \"createdFromTemplate\": \"ImmutableTestStream\",\n      \"type\": \"Immutable\",\n      \"settings\": {\n        \"lifecycle\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"limits\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      }\n    }\n  ]\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "3c80a330-f036-462f-81d1-c4b0edc442e8",
+              "name": "The response for a failed request.",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "streams"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "body": {}
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": 401,\n    \"message\": \"Could not authenticate.\",\n    \"missing\": [\n      {\n        \"key_0\": \"string\",\n        \"key_1\": 3539.0620702585816\n      },\n      {\n        \"key_0\": false,\n        \"key_1\": 8082.359960761728,\n        \"key_2\": \"string\"\n      }\n    ],\n    \"duplicated\": [\n      {\n        \"key_0\": true\n      },\n      {\n        \"key_0\": 9762\n      }\n    ]\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            }
+          ],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "2d9dcb7f-5620-4208-a26b-d68441bc1a1c",
+          "name": "Retrieve stream",
+          "request": {
+            "name": "Retrieve stream",
+            "description": {
+              "content": "\n\n> **Required capabilities:** `streamsAcl:READ`\n\nRetrieve a stream by its identifier.\n",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "streams",
+                ":streamId"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [
+                {
+                  "disabled": false,
+                  "key": "includeStatistics",
+                  "value": "<boolean>",
+                  "description": "If set to ```true```, usage statistics will be  returned together with stream settings.\n"
+                }
+              ],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "streamId",
+                  "description": "(Required) An identifier of the stream where the records are stored.\n"
+                },
+                {
+                  "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                  "type": "any",
+                  "value": "{{cluster}}",
+                  "key": "cluster"
+                },
+                {
+                  "description": "The CDF project name.",
+                  "type": "any",
+                  "value": "{{project}}",
+                  "key": "project"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "GET",
+            "auth": null
+          },
+          "response": [
+            {
+              "id": "24d4124c-71c0-40ef-a1b9-117fb120da04",
+              "name": "Stream retrieved.\n",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "streams",
+                    ":streamId"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "includeStatistics",
+                      "value": "<boolean>"
+                    }
+                  ],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "streamId",
+                      "description": "(Required) An identifier of the stream where the records are stored.\n"
+                    },
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "body": {}
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"externalId\": \"test1\",\n  \"createdTime\": 1730204346000,\n  \"createdFromTemplate\": \"ImmutableTestStream\",\n  \"type\": \"Immutable\",\n  \"settings\": {\n    \"lifecycle\": {\n      \"retainedAfterSoftDelete\": \"P42D\",\n      \"dataDeletedAfter\": \"P1Y\"\n    },\n    \"limits\": {\n      \"maxRecordsTotal\": {\n        \"provisioned\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"consumed\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      },\n      \"maxGigaBytesTotal\": {\n        \"provisioned\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        \"consumed\": {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      },\n      \"maxFilteringInterval\": \"P1Y\"\n    }\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "4394a34f-b7a7-4eb4-b3e8-590c98d30dce",
+              "name": "The response for a failed request.",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "streams",
+                    ":streamId"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "includeStatistics",
+                      "value": "<boolean>"
+                    }
+                  ],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "streamId",
+                      "description": "(Required) An identifier of the stream where the records are stored.\n"
+                    },
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "body": {}
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": 401,\n    \"message\": \"Could not authenticate.\",\n    \"missing\": [\n      {\n        \"key_0\": \"string\",\n        \"key_1\": 3539.0620702585816\n      },\n      {\n        \"key_0\": false,\n        \"key_1\": 8082.359960761728,\n        \"key_2\": \"string\"\n      }\n    ],\n    \"duplicated\": [\n      {\n        \"key_0\": true\n      },\n      {\n        \"key_0\": 9762\n      }\n    ]\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            }
+          ],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "3a8f9882-feda-4b76-aa06-e8807b531d92",
+          "name": "Delete stream (DEPRECATED)",
+          "request": {
+            "name": "Delete stream (DEPRECATED)",
+            "description": {
+              "content": "\n\n> **Required capabilities:** `streamsAcl:DELETE`\n\n**DEPRECATED**: This endpoint is no longer supported and returns HTTP 410 Gone.\nPlease use `POST /streams/delete` instead.\n",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "streams",
+                ":streamId"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "streamId",
+                  "description": "(Required) An identifier of the stream where the records are stored.\n"
+                },
+                {
+                  "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                  "type": "any",
+                  "value": "{{cluster}}",
+                  "key": "cluster"
+                },
+                {
+                  "description": "The CDF project name.",
+                  "type": "any",
+                  "value": "{{project}}",
+                  "key": "project"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "DELETE",
+            "auth": null
+          },
+          "response": [
+            {
+              "id": "3eafb82e-1bce-4221-9aab-e94a7e9c4f21",
+              "name": "This endpoint is deprecated and no longer supported.\nPlease use POST /streams/delete instead.\n",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "streams",
+                    ":streamId"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "streamId",
+                      "description": "(Required) An identifier of the stream where the records are stored.\n"
+                    },
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "DELETE",
+                "body": {}
+              },
+              "status": "Gone",
+              "code": 410,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": 410,\n    \"message\": \"This endpoint is deprecated and no longer supported. Please use POST /streams/delete instead with body: {\\\"items\\\": [{\\\"externalId\\\": \\\"your-stream-id\\\"}]}\"\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            }
+          ],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "2bf8a2e3-8d62-467c-8107-e600871e0670",
+          "name": "Delete stream",
+          "request": {
+            "name": "Delete stream",
+            "description": {
+              "content": "\n\n> **Required capabilities:** `streamsAcl:DELETE`\n\nDelete a stream by its identifier, along with all records stored in the stream.\n\nIf the stream does not exist, the operation succeeds without error (idempotent delete).\n",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "streams",
+                "delete"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                  "type": "any",
+                  "value": "{{cluster}}",
+                  "key": "cluster"
+                },
+                {
+                  "description": "The CDF project name.",
+                  "type": "any",
+                  "value": "{{project}}",
+                  "key": "project"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "auth": null,
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"externalId\": \"<string>\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "id": "ae2918c4-a54e-46da-90ee-be0a721adb03",
+              "name": "Empty response.",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "streams",
+                    "delete"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"externalId\": \"test_stream_1\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "8e7b1578-9951-4da4-bef7-8ec1d354663e",
+              "name": "The response for a failed request.",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "streams",
+                    "delete"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "description": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+                      "type": "any",
+                      "value": "{{cluster}}",
+                      "key": "cluster"
+                    },
+                    {
+                      "description": "The CDF project name.",
+                      "type": "any",
+                      "value": "{{project}}",
+                      "key": "project"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"externalId\": \"test_stream_1\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": 401,\n    \"message\": \"Could not authenticate.\",\n    \"missing\": [\n      {\n        \"key_0\": \"string\",\n        \"key_1\": 3539.0620702585816\n      },\n      {\n        \"key_0\": false,\n        \"key_1\": 8082.359960761728,\n        \"key_2\": \"string\"\n      }\n    ],\n    \"duplicated\": [\n      {\n        \"key_0\": true\n      },\n      {\n        \"key_0\": 9762\n      }\n    ]\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            }
+          ],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        }
+      ],
+      "event": []
+    }
+  ],
+  "event": [],
+  "variable": [
+    {
+      "description": {
+        "content": "The CDF cluster to connect to (This can only be one of api,az-tyo-gp-001,az-eastus-1,az-power-no-northeurope,westeurope-1,asia-northeast1-1,gc-dsm-gp-001)",
+        "type": "text/plain"
+      },
+      "type": "any",
+      "value": "api",
+      "key": "cluster"
+    },
+    {
+      "description": {
+        "content": "The CDF project name.",
+        "type": "text/plain"
+      },
+      "type": "any",
+      "value": "publicdata",
+      "key": "project"
+    },
+    {
+      "type": "string",
+      "value": "https://{{cluster}}.cognitedata.com/api/v1/projects/{{project}}",
+      "key": "baseUrl"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{bearerToken}}"
+      }
+    ]
+  },
+  "info": {
+    "_postman_id": "1f9aea07-2294-48f2-8af4-85215dcd7e42",
+    "name": "Cognite 3D Asset Mapping Streams API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": {
+      "content": "# Introduction\nThis is the reference documentation for the Cognite API with\nan overview of all the available methods.\n\n# Postman\nSelect the **Download** button to download our OpenAPI specification to get started.\n\nTo import your data into Postman, select **Import**, and the Import modal opens.\nYou can import items by dragging or dropping files or folders. You can choose how to import your API and manage the import settings in **View Import Settings**.\n\nIn the Import Settings, set the **Folder organization** to **Tags**, select\n**Enable optional parameters** to turn off the settings, and select **Always inherit authentication** to turn on the settings. Select **Import**.\n\nSet the Authorization to **Oauth2.0**. By default, the settings are for Open Industrial Data. Navigate to [Cognite Hub](https://hub.cognite.com/open-industrial-data-211) to understand how to get the credentials for use in Postman.\n\nFor more information, see [Getting Started with Postman](https://developer.cognite.com/dev/guides/postman/).\n\n# Pagination\nMost resource types can be paginated, indicated by the field `nextCursor` in the response.\nBy passing the value of `nextCursor` as the cursor you will get the next page of `limit` results.\nNote that all parameters except `cursor` has to stay the same.\n\n# Parallel retrieval\nAs general guidance, Parallel Retrieval is a technique that should be used when due to query complexity, retrieval of data in a single request is significantly slower than it would otherwise be for a simple request.  Parallel retrieval does not act as a speed multiplier on optimally running queries.  By parallelizing such requests, data retrieval performance can be tuned to meet the client application needs. \n\nCDF supports parallel retrieval through the `partition` parameter, which has the format `m/n` where `n` is the amount of partitions you would like to split the entire data set into.\nIf you want to download the entire data set by splitting it into 10 partitions, do the following in parallel with `m` running from 1 to 10:\n  - Make a request to `/events` with `partition=m/10`.\n  - Paginate through the response by following the cursor as explained above. Note that the `partition` parameter needs to be passed to all subqueries.\n\nProcessing of parallel retrieval requests is subject to concurrency quota availability. The request returns the `429` response upon exceeding concurrency limits. See the Request throttling chapter below.\n\nTo prevent unexpected problems and to maximize read throughput, you should at most use 10 partitions. \nSome CDF resources will automatically enforce a maximum of 10 partitions.\nFor more specific and detailed information, please read the ```partition``` attribute documentation for the CDF resource you're using.  \n\n# Requests throttling\nCognite Data Fusion (CDF) returns the HTTP `429` (too many requests) response status code when project capacity exceeds the limit.\n\nThe throttling can happen:\n  - If a user or a project sends too many (more than allocated) concurrent requests.\n  - If a user or a project sends a too high (more than allocated) rate of requests in a given amount of time.\n\nCognite recommends using a retry strategy based on truncated exponential backoff to handle sessions with HTTP response codes 429.\n\nCognite recommends using a reasonable number (up to 10) of  `Parallel retrieval` partitions.\n\nFollowing these strategies lets you slow down the request frequency to maximize productivity without having to re-submit/retry failing requests.\n\nSee more [here](https://docs.cognite.com/dev/concepts/resource_throttling).\n\n# API versions\n## Version headers\nThis API uses calendar versioning, and version names follow the `YYYYMMDD` format.\nYou can find the versions currently available by using the version selector at the top of this page.\n\nTo use a specific API version, you can pass the `cdf-version: $version` header along with your requests to the API.\n\n## Beta versions\nThe beta versions provide a preview of what the stable version will look like in the future.\nBeta versions contain functionality that is reasonably mature, and highly likely to become a part of the stable API.\n\nBeta versions are indicated by a `-beta` suffix after the version name. For example, the beta version header for the\n2023-01-01 version is then `cdf-version: 20230101-beta`.\n\n## Alpha versions\nAlpha versions contain functionality that is new and experimental, and not guaranteed to ever become a part of the stable API.\nThis functionality presents no guarantee of service, so its use is subject to caution.\n\nAlpha versions are indicated by an `-alpha` suffix after the version name. For example, the alpha version header for\nthe 2023-01-01 version is then `cdf-version: 20230101-alpha`.\n\nContact Support:\n Name: Cognite Support\n Email: support@cognite.com",
+      "type": "text/plain"
+    }
+  }
+}
