@@ -1,7 +1,11 @@
-openapi: 3.1.0
+openapi: 3.2.0
 info:
-  title: Cognite 3D Asset Mapping Projects API
-  description: "# Introduction\nThis is the reference documentation for the Cognite API with\nan overview of all the available methods.\n\n# Postman\nSelect the **Download** button to download our OpenAPI specification to get started.\n\nTo import your data into Postman, select **Import**, and the Import modal opens.\nYou can import items by dragging or dropping files or folders. You can choose how to import your API and manage the import settings in **View Import Settings**.\n\nIn the Import Settings, set the **Folder organization** to **Tags**, select\n**Enable optional parameters** to turn off the settings, and select **Always inherit authentication** to turn on the settings. Select **Import**.\n\nSet the Authorization to **Oauth2.0**. By default, the settings are for Open Industrial Data. Navigate to [Cognite Hub](https://hub.cognite.com/open-industrial-data-211) to understand how to get the credentials for use in Postman.\n\nFor more information, see [Getting Started with Postman](https://developer.cognite.com/dev/guides/postman/).\n\n# Pagination\nMost resource types can be paginated, indicated by the field `nextCursor` in the response.\nBy passing the value of `nextCursor` as the cursor you will get the next page of `limit` results.\nNote that all parameters except `cursor` has to stay the same.\n\n# Parallel retrieval\nAs general guidance, Parallel Retrieval is a technique that should be used when due to query complexity, retrieval of data in a single request is significantly slower than it would otherwise be for a simple request.  Parallel retrieval does not act as a speed multiplier on optimally running queries.  By parallelizing such requests, data retrieval performance can be tuned to meet the client application needs. \n\nCDF supports parallel retrieval through the `partition` parameter, which has the format `m/n` where `n` is the amount of partitions you would like to split the entire data set into.\nIf you want to download the entire data set by splitting it into 10 partitions, do the following in parallel with `m` running from 1 to 10:\n  - Make a request to `/events` with `partition=m/10`.\n  - Paginate through the response by following the cursor as explained above. Note that the `partition` parameter needs to be passed to all subqueries.\n\nProcessing of parallel retrieval requests is subject to concurrency quota availability. The request returns the `429` response upon exceeding concurrency limits. See the Request throttling chapter below.\n\nTo prevent unexpected problems and to maximize read throughput, you should at most use 10 partitions. \nSome CDF resources will automatically enforce a maximum of 10 partitions.\nFor more specific and detailed information, please read the ```partition``` attribute documentation for the CDF resource you're using.  \n\n# Requests throttling\nCognite Data Fusion (CDF) returns the HTTP `429` (too many requests) response status code when project capacity exceeds the limit.\n\nThe throttling can happen:\n  - If a user or a project sends too many (more than allocated) concurrent requests.\n  - If a user or a project sends a too high (more than allocated) rate of requests in a given amount of time.\n\nCognite recommends using a retry strategy based on truncated exponential backoff to handle sessions with HTTP response codes 429.\n\nCognite recommends using a reasonable number (up to 10) of  `Parallel retrieval` partitions.\n\nFollowing these strategies lets you slow down the request frequency to maximize productivity without having to re-submit/retry failing requests.\n\nSee more [here](https://docs.cognite.com/dev/concepts/resource_throttling).\n\n# API versions\n## Version headers\nThis API uses calendar versioning, and version names follow the `YYYYMMDD` format.\nYou can find the versions currently available by using the version selector at the top of this page.\n\nTo use a specific API version, you can pass the `cdf-version: $version` header along with your requests to the API.\n\n## Beta versions\nThe beta versions provide a preview of what the stable version will look like in the future.\nBeta versions contain functionality that is reasonably mature, and highly likely to become a part of the stable API.\n\nBeta versions are indicated by a `-beta` suffix after the version name. For example, the beta version header for the\n2023-01-01 version is then `cdf-version: 20230101-beta`.\n\n## Alpha versions\nAlpha versions contain functionality that is new and experimental, and not guaranteed to ever become a part of the stable API.\nThis functionality presents no guarantee of service, so its use is subject to caution.\n\nAlpha versions are indicated by an `-alpha` suffix after the version name. For example, the alpha version header for\nthe 2023-01-01 version is then `cdf-version: 20230101-alpha`."
+  title: Cognite Projects API
+  description: '# Introduction
+
+    This is the reference documentation for the Cognite API with
+
+    an overview of all the available methods.'
   version: v1
   contact:
     name: Cognite Support
@@ -36,9 +40,7 @@ security:
   - https://{cluster}.cognitedata.com/.default
 tags:
 - name: Projects
-  description: 'Projects are used to isolate data in CDF from each other. All objects in CDF belong to a single project, and objects in different projects are generally isolated from each other.
-
-    '
+  description: Projects are used to isolate data in CDF from each other. All objects in CDF belong to a single project, and objects in different projects are generally isolated from each other.
 paths:
   /api/v1/orgs/{org}/projects:
     servers:
@@ -136,105 +138,6 @@ paths:
         '200':
           $ref: '#/components/responses/ProjectResponseDto'
 components:
-  schemas:
-    ProjectUrlName:
-      type: string
-      description: 'The URL name of the project. This is used as part of the request path in API calls.
-
-
-        Valid URL names contains between 3 and 32 characters, and may only contain
-
-        English letters, digits and hyphens, must contain at least one letter
-
-        and may not start or end with a hyphen.
-
-        '
-      minLength: 3
-      maxLength: 32
-      example: publicdata
-    ClusterName:
-      type: string
-      description: A CDF cluster name
-      minLength: 1
-      maxLength: 32
-      pattern: ^[a-z0-9-]{1,32}$
-      example: westeurope-1
-    ProjectResponse:
-      type: object
-      required:
-      - name
-      - apiUrl
-      properties:
-        name:
-          $ref: '#/components/schemas/ProjectUrlName'
-        apiUrl:
-          $ref: '#/components/schemas/ProjectApiUrl'
-    NullableExternalGroupId:
-      type: string
-      description: The ID of a group managed by the external identity provider.
-      minLength: 3
-      maxLength: 64
-      example: my-external-group
-    ProjectApiUrl:
-      type: string
-      format: url
-      description: The base API URL for the project
-      example: https://api.cognitedata.com
-    ProjectCreateRequest:
-      type: object
-      required:
-      - name
-      - clusterName
-      properties:
-        name:
-          $ref: '#/components/schemas/ProjectUrlName'
-        clusterName:
-          $ref: '#/components/schemas/ClusterName'
-        projectAdminGroupId:
-          allOf:
-          - description: "The ID of the externally-managed group that contains the project's admins.\n\n- If omitted, the project will inherit the admin group ID of the organization under which it is created.\n  That value might be `null`.\n- If set to a (non-null) string, the project will have that group as its admin group, overriding\n  the organization's admin group ID.\n- If explicitly set to `null`, the project will not have an admin group ID. Note that this will make the\n  project inaccessible, and only a Cognite admin can make it accessible."
-          - $ref: '#/components/schemas/NullableExternalGroupId'
-    OrgId:
-      type: string
-      description: The ID of an organization
-      minLength: 3
-      maxLength: 64
-      example: my-org
-      pattern: ^([a-z][a-z0-9-]{1,62}[a-z0-9])$
-    ProjectState:
-      type: string
-      description: 'The state field indicates the state of a project.
-
-
-        - `ACTIVE`: The project is active.
-
-        - `LOCKED`: The project is deleted but still within its grace period.
-
-        - `DELETED`: The project and its resources are permanently deleted.
-
-        '
-      enum:
-      - ACTIVE
-      - LOCKED
-      - DELETED
-      default: ACTIVE
-    ProjectWithAdminPropertiesResponse:
-      allOf:
-      - $ref: '#/components/schemas/ProjectResponse'
-      - type: object
-        required:
-        - clusterName
-        - state
-        properties:
-          clusterName:
-            $ref: '#/components/schemas/ClusterName'
-          state:
-            $ref: '#/components/schemas/ProjectState'
-          deletionTime:
-            type: integer
-            description: milliseconds since epoch
-            format: int64
-            example: 1697194426715
   requestBodies:
     NewProjectListRequestDto:
       description: A request to create a new project
@@ -252,27 +155,106 @@ components:
                 maxItems: 1
                 items:
                   $ref: '#/components/schemas/ProjectCreateRequest'
-  responses:
-    ProjectResponseDto:
-      description: A list of projects
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - items
-            properties:
-              items:
-                type: array
-                items:
-                  oneOf:
-                  - $ref: '#/components/schemas/ProjectResponse'
-                  - $ref: '#/components/schemas/ProjectWithAdminPropertiesResponse'
-              nextCursor:
-                type: string
-                description: 'The cursor to get the next page of results (if available). Note that the server
+  schemas:
+    NullableExternalGroupId:
+      type: string
+      description: The ID of a group managed by the external identity provider.
+      minLength: 3
+      maxLength: 64
+      example: my-external-group
+    ProjectApiUrl:
+      type: string
+      format: url
+      description: The base API URL for the project
+      example: https://api.cognitedata.com
+    ProjectResponse:
+      type: object
+      required:
+      - name
+      - apiUrl
+      properties:
+        name:
+          $ref: '#/components/schemas/ProjectUrlName'
+        apiUrl:
+          $ref: '#/components/schemas/ProjectApiUrl'
+    ProjectCreateRequest:
+      type: object
+      required:
+      - name
+      - clusterName
+      properties:
+        name:
+          $ref: '#/components/schemas/ProjectUrlName'
+        clusterName:
+          $ref: '#/components/schemas/ClusterName'
+        projectAdminGroupId:
+          allOf:
+          - description: "The ID of the externally-managed group that contains the project's admins.\n\n- If omitted, the project will inherit the admin group ID of the organization under which it is created.\n  That value might be `null`.\n- If set to a (non-null) string, the project will have that group as its admin group, overriding\n  the organization's admin group ID.\n- If explicitly set to `null`, the project will not have an admin group ID. Note that this will make the\n  project inaccessible, and only a Cognite admin can make it accessible."
+          - $ref: '#/components/schemas/NullableExternalGroupId'
+    ProjectWithAdminPropertiesResponse:
+      allOf:
+      - $ref: '#/components/schemas/ProjectResponse'
+      - type: object
+        required:
+        - clusterName
+        - state
+        properties:
+          clusterName:
+            $ref: '#/components/schemas/ClusterName'
+          state:
+            $ref: '#/components/schemas/ProjectState'
+          deletionTime:
+            type: integer
+            description: milliseconds since epoch
+            format: int64
+            example: 1697194426715
+    ClusterName:
+      type: string
+      description: A CDF cluster name
+      minLength: 1
+      maxLength: 32
+      pattern: ^[a-z0-9-]{1,32}$
+      example: westeurope-1
+    ProjectUrlName:
+      type: string
+      description: 'The URL name of the project. This is used as part of the request path in API calls.
 
-                  may choose to paginate the results even though no limit can be specified by the user.'
+
+        Valid URL names contains between 3 and 32 characters, and may only contain
+
+        English letters, digits and hyphens, must contain at least one letter
+
+        and may not start or end with a hyphen.
+
+        '
+      minLength: 3
+      maxLength: 32
+      example: publicdata
+    ProjectState:
+      type: string
+      description: 'The state field indicates the state of a project.
+
+
+        - `ACTIVE`: The project is active.
+
+        - `LOCKED`: The project is deleted but still within its grace period.
+
+        - `DELETED`: The project and its resources are permanently deleted.
+
+        '
+      enum:
+      - ACTIVE
+      - LOCKED
+      - DELETED
+      default: ACTIVE
+    OrgId:
+      type: string
+      description: The ID of an organization
+      minLength: 3
+      maxLength: 64
+      example: my-org
+      pattern: ^([a-z][a-z0-9-]{1,62}[a-z0-9])$
+  responses:
     NewProjectListResponseDto:
       description: A successfully created project
       content:
@@ -298,6 +280,26 @@ components:
 
                           field `projectAdminGroupId`.'
                   - $ref: '#/components/schemas/ProjectCreateRequest'
+    ProjectResponseDto:
+      description: A list of projects
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            properties:
+              items:
+                type: array
+                items:
+                  oneOf:
+                  - $ref: '#/components/schemas/ProjectResponse'
+                  - $ref: '#/components/schemas/ProjectWithAdminPropertiesResponse'
+              nextCursor:
+                type: string
+                description: 'The cursor to get the next page of results (if available). Note that the server
+
+                  may choose to paginate the results even though no limit can be specified by the user.'
   parameters:
     OrgId:
       name: org

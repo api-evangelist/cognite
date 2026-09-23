@@ -1,7 +1,11 @@
-openapi: 3.1.0
+openapi: 3.2.0
 info:
-  title: Cognite 3D Asset Mapping Simulator Routines API
-  description: "# Introduction\nThis is the reference documentation for the Cognite API with\nan overview of all the available methods.\n\n# Postman\nSelect the **Download** button to download our OpenAPI specification to get started.\n\nTo import your data into Postman, select **Import**, and the Import modal opens.\nYou can import items by dragging or dropping files or folders. You can choose how to import your API and manage the import settings in **View Import Settings**.\n\nIn the Import Settings, set the **Folder organization** to **Tags**, select\n**Enable optional parameters** to turn off the settings, and select **Always inherit authentication** to turn on the settings. Select **Import**.\n\nSet the Authorization to **Oauth2.0**. By default, the settings are for Open Industrial Data. Navigate to [Cognite Hub](https://hub.cognite.com/open-industrial-data-211) to understand how to get the credentials for use in Postman.\n\nFor more information, see [Getting Started with Postman](https://developer.cognite.com/dev/guides/postman/).\n\n# Pagination\nMost resource types can be paginated, indicated by the field `nextCursor` in the response.\nBy passing the value of `nextCursor` as the cursor you will get the next page of `limit` results.\nNote that all parameters except `cursor` has to stay the same.\n\n# Parallel retrieval\nAs general guidance, Parallel Retrieval is a technique that should be used when due to query complexity, retrieval of data in a single request is significantly slower than it would otherwise be for a simple request.  Parallel retrieval does not act as a speed multiplier on optimally running queries.  By parallelizing such requests, data retrieval performance can be tuned to meet the client application needs. \n\nCDF supports parallel retrieval through the `partition` parameter, which has the format `m/n` where `n` is the amount of partitions you would like to split the entire data set into.\nIf you want to download the entire data set by splitting it into 10 partitions, do the following in parallel with `m` running from 1 to 10:\n  - Make a request to `/events` with `partition=m/10`.\n  - Paginate through the response by following the cursor as explained above. Note that the `partition` parameter needs to be passed to all subqueries.\n\nProcessing of parallel retrieval requests is subject to concurrency quota availability. The request returns the `429` response upon exceeding concurrency limits. See the Request throttling chapter below.\n\nTo prevent unexpected problems and to maximize read throughput, you should at most use 10 partitions. \nSome CDF resources will automatically enforce a maximum of 10 partitions.\nFor more specific and detailed information, please read the ```partition``` attribute documentation for the CDF resource you're using.  \n\n# Requests throttling\nCognite Data Fusion (CDF) returns the HTTP `429` (too many requests) response status code when project capacity exceeds the limit.\n\nThe throttling can happen:\n  - If a user or a project sends too many (more than allocated) concurrent requests.\n  - If a user or a project sends a too high (more than allocated) rate of requests in a given amount of time.\n\nCognite recommends using a retry strategy based on truncated exponential backoff to handle sessions with HTTP response codes 429.\n\nCognite recommends using a reasonable number (up to 10) of  `Parallel retrieval` partitions.\n\nFollowing these strategies lets you slow down the request frequency to maximize productivity without having to re-submit/retry failing requests.\n\nSee more [here](https://docs.cognite.com/dev/concepts/resource_throttling).\n\n# API versions\n## Version headers\nThis API uses calendar versioning, and version names follow the `YYYYMMDD` format.\nYou can find the versions currently available by using the version selector at the top of this page.\n\nTo use a specific API version, you can pass the `cdf-version: $version` header along with your requests to the API.\n\n## Beta versions\nThe beta versions provide a preview of what the stable version will look like in the future.\nBeta versions contain functionality that is reasonably mature, and highly likely to become a part of the stable API.\n\nBeta versions are indicated by a `-beta` suffix after the version name. For example, the beta version header for the\n2023-01-01 version is then `cdf-version: 20230101-beta`.\n\n## Alpha versions\nAlpha versions contain functionality that is new and experimental, and not guaranteed to ever become a part of the stable API.\nThis functionality presents no guarantee of service, so its use is subject to caution.\n\nAlpha versions are indicated by an `-alpha` suffix after the version name. For example, the alpha version header for\nthe 2023-01-01 version is then `cdf-version: 20230101-alpha`."
+  title: Cognite Simulator Routines API
+  description: '# Introduction
+
+    This is the reference documentation for the Cognite API with
+
+    an overview of all the available methods.'
   version: v1
   contact:
     name: Cognite Support
@@ -36,33 +40,7 @@ security:
   - https://{cluster}.cognitedata.com/.default
 tags:
 - name: Simulator Routines
-  description: '
-
-
-    The simulator routine resource defines instructions on interacting with a simulator model. A simulator routine includes:
-
-    - Inputs (values set into the simulator model)
-
-    - Commands (actions to be performed by the simulator)
-
-    - Outputs (values read from the simulator model)
-
-
-    Simulator routines can have multiple revisions, enabling users to track changes and evolve the routine over time. Each model can have multiple routines, each performing different objectives such as calculating optimal operation setpoints, forecasting production, benchmarking asset performance, and more.
-
-
-    #### Limitations:
-
-
-    - A project can have a maximum of 10000 simulator routines.
-
-    - Each simulator model can have a maximum of 10 simulator routines.
-
-    - Each simulator routine can have a maximum of 10 revisions.
-
-    - The total size of each routine revision can be a maximum of  50.00 KB.
-
-    '
+  description: The simulator routine resource defines instructions on interacting with a simulator model.
 paths:
   /simulators/routines:
     post:
@@ -346,87 +324,67 @@ paths:
           description: Internal Server Error
 components:
   schemas:
-    ListSimulatorRoutinesFilters:
+    ListSimulatorRoutineBase:
       properties:
-        modelExternalIds:
-          title: ModelExternalIds
-          description: Filter by simulator model external ids
-          examples:
-          - - model_1
-            - model_2
+        items:
           items:
-            type: string
+            $ref: '#/components/schemas/SimulatorRoutineBase'
           type: array
-          maxItems: 100
-          minItems: 1
-        simulatorIntegrationExternalIds:
-          title: SimulatorIntegrationExternalIds
-          description: Filter by simulator integration external ids
-          examples:
-          - - simulator_integration_1
-            - simulator_integration_2
-          items:
-            type: string
-          type: array
-          maxItems: 100
-          minItems: 1
-        simulatorExternalIds:
-          title: SimulatorExternalIds
-          description: Filter by simulator external ids
-          examples:
-          - - PROSPER
-            - PetroSIM
-          items:
-            type: string
-            maxLength: 50
-            minLength: 1
-          type: array
-          maxItems: 100
-          minItems: 1
+          title: Items
       additionalProperties: false
       type: object
-      title: ListSimulatorRoutinesFilters
-    SimulatorRoutineStepArgumentsSet:
+      required:
+      - items
+      title: ListSimulatorRoutineBase
+    ExternalIdRef:
       properties:
-        referenceId:
+        externalId:
           type: string
-          maxLength: 50
-          minLength: 1
-          title: ReferenceId
-          description: A unique id to the input time series (or a constant) defined in the routine configuration.
-      additionalProperties: true
-      type: object
-      required:
-      - referenceId
-      title: SimulatorRoutineStepArgumentsSet
-    SimulatorRoutineDataSamplingEnabled:
-      properties:
-        enabled:
-          type: boolean
-          const: true
-          title: Enabled
-          description: Whether the data sampling is enabled or not
-          enum:
-          - true
-        validationWindow:
-          title: ValidationWindow
-          description: Validation window of the data sampling. Represented in minutes. Used when either logical check or steady state detection is enabled.
-          type: integer
-        samplingWindow:
-          type: integer
-          title: SamplingWindow
-          description: Sampling window of the data sampling. Represented in minutes
-        granularity:
-          type: integer
-          title: Granularity
-          description: Granularity of the data sampling in minutes
+          title: ExternalId
+          description: String-based ID
       additionalProperties: false
       type: object
       required:
-      - enabled
-      - samplingWindow
-      - granularity
-      title: SimulatorRoutineDataSamplingEnabled
+      - externalId
+      title: ExternalIdRef
+    SingleItemIdRefOrExternalIdRef:
+      properties:
+        items:
+          items:
+            anyOf:
+            - $ref: '#/components/schemas/IdRef'
+            - $ref: '#/components/schemas/ExternalIdRef'
+          type: array
+          title: Items
+          description: A list with a single item
+      additionalProperties: false
+      type: object
+      required:
+      - items
+      title: SingleItemIdRefOrExternalIdRef
+    ListSimulatorRoutinesQuery:
+      properties:
+        filter:
+          $ref: '#/components/schemas/ListSimulatorRoutinesFilters'
+        limit:
+          type: integer
+          maximum: 1000
+          minimum: 1
+          title: Limit
+          default: 1000
+        cursor:
+          title: Cursor
+          description: Cursor for pagination
+          type: string
+        sort:
+          title: Sort
+          description: Only supports sorting by one property at a time
+          items:
+            $ref: '#/components/schemas/SortByCreatedTime'
+          type: array
+      additionalProperties: false
+      type: object
+      title: ListSimulatorRoutinesQuery
     SortByCreatedTime:
       properties:
         order:
@@ -454,6 +412,258 @@ components:
       - order
       - property
       title: SortByCreatedTime
+    SimulatorRoutineStepGet:
+      properties:
+        order:
+          type: integer
+          maximum: 10000
+          minimum: 1
+          title: Order
+          description: Step number
+        description:
+          title: Description
+          description: Step description
+          type: string
+          maxLength: 255
+          minLength: 1
+        stepType:
+          type: string
+          const: Get
+          title: StepType
+          description: Step type
+          enum:
+          - Get
+        arguments:
+          $ref: '#/components/schemas/SimulatorRoutineStepArgumentsGet'
+          description: Step arguments
+          examples:
+          - objectName: WELL.A2
+            objectProperty: Tempretature
+            referenceId: CWTC
+      additionalProperties: false
+      type: object
+      required:
+      - order
+      - stepType
+      - arguments
+      title: SimulatorRoutineStepGet
+      description: Used to extract the output of a simulation routine and write it back into the Cognite Data Fusion.
+    SimulatorRoutineConfiguration:
+      properties:
+        schedule:
+          anyOf:
+          - $ref: '#/components/schemas/SimulatorRoutineConfigDisabled'
+          - $ref: '#/components/schemas/SimulatorRoutineScheduleEnabled'
+          title: Schedule
+        dataSampling:
+          anyOf:
+          - $ref: '#/components/schemas/SimulatorRoutineConfigDisabled'
+          - $ref: '#/components/schemas/SimulatorRoutineDataSamplingEnabled'
+          title: DataSampling
+        logicalCheck:
+          items:
+            $ref: '#/components/schemas/SimulatorRoutineLogicalCheckEnabled'
+          type: array
+          maxItems: 1
+          minItems: 0
+          title: LogicalCheck
+          description: List of logical check rules. Used to find out data points which satisfy the logical check.
+        steadyStateDetection:
+          items:
+            $ref: '#/components/schemas/SimulatorRoutineSteadyStateDetectionEnabled'
+          type: array
+          maxItems: 1
+          minItems: 0
+          title: SteadyStateDetection
+          description: List of steady state detection rules. Used to find out data points which are in steady state.
+        inputs:
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/SimulatorRoutineInputConstant'
+            - $ref: '#/components/schemas/SimulatorRoutineInputTimeseries'
+            description: Input item for the simulation routine
+          type: array
+          maxItems: 10000
+          title: Inputs
+          description: List of input constants and input time series. Used to define the inputs of the simulation routine.
+          default: []
+        outputs:
+          items:
+            $ref: '#/components/schemas/SimulatorRoutineOutput'
+          type: array
+          maxItems: 10000
+          title: Outputs
+          description: List of outputs for the simulation routine.
+          default: []
+      additionalProperties: false
+      type: object
+      required:
+      - schedule
+      - dataSampling
+      - logicalCheck
+      - steadyStateDetection
+      title: SimulatorRoutineConfiguration
+    IdRef:
+      properties:
+        id:
+          type: integer
+          title: Id
+          description: ID
+          examples:
+          - 5559452808603919
+      additionalProperties: false
+      type: object
+      required:
+      - id
+      title: IdRef
+    ListAggregateCount:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/AggregateCount'
+          type: array
+          title: Items
+      additionalProperties: false
+      type: object
+      required:
+      - items
+      title: ListAggregateCount
+    SimulatorRoutineRevisionCreateCommand:
+      properties:
+        externalId:
+          type: string
+          maxLength: 255
+          minLength: 1
+          title: ExternalId
+          description: External id of the simulator routine revision
+        routineExternalId:
+          type: string
+          maxLength: 255
+          minLength: 1
+          title: RoutineExternalId
+          description: External id of the simulation routine
+          examples:
+          - fluid_sloshing
+          - thermal_analysis
+        configuration:
+          $ref: '#/components/schemas/SimulatorRoutineConfigurationCreate'
+          description: 'When creating a simulator routine revision, be mindful of the following:
+
+
+            - The amount and size of the inputs you provide to the simulator routine.
+
+            - The size of the outputs you expect from the simulator routine.
+
+
+            The total size of the simulator routine revision request body can be a maximum of 50.00 KB.
+
+
+            The total size of the data sent by a simulator connector cannot exceed 100.00 KB per simulation run.'
+        script:
+          items:
+            $ref: '#/components/schemas/SimulatorRoutineStage'
+          type: array
+          maxItems: 10
+          title: Script
+          description: Script of the simulation routine revision
+      additionalProperties: false
+      type: object
+      required:
+      - externalId
+      - routineExternalId
+      - configuration
+      - script
+      title: SimulatorRoutineRevisionCreateCommand
+    ListWithCursorSimulatorRoutineRevision:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/SimulatorRoutineRevision'
+          type: array
+          title: Items
+        nextCursor:
+          title: NextCursor
+          type: string
+      additionalProperties: false
+      type: object
+      required:
+      - items
+      title: ListWithCursorSimulatorRoutineRevision
+    AggregateSimulatorRoutinesQuery:
+      properties:
+        filter:
+          $ref: '#/components/schemas/ListSimulatorRoutinesFilters'
+        aggregate:
+          type: string
+          const: count
+          title: Aggregate
+          description: Aggregate type
+          enum:
+          - count
+      additionalProperties: false
+      type: object
+      required:
+      - aggregate
+      title: AggregateSimulatorRoutinesQuery
+    SimulatorRoutineStepArgumentsSet:
+      properties:
+        referenceId:
+          type: string
+          maxLength: 50
+          minLength: 1
+          title: ReferenceId
+          description: A unique id to the input time series (or a constant) defined in the routine configuration.
+      additionalProperties: true
+      type: object
+      required:
+      - referenceId
+      title: SimulatorRoutineStepArgumentsSet
+    AggregateCount:
+      properties:
+        count:
+          type: integer
+          title: Count
+          description: Number of items
+      additionalProperties: false
+      type: object
+      required:
+      - count
+      title: AggregateCount
+    DataPointsAggregate:
+      type: string
+      enum:
+      - average
+      - interpolation
+      - stepInterpolation
+      title: DataPointsAggregate
+    ListSimulatorRoutineRevisionsQuery:
+      properties:
+        filter:
+          $ref: '#/components/schemas/ListSimulatorRoutineRevisionsFilters'
+        limit:
+          type: integer
+          maximum: 20
+          minimum: 1
+          title: Limit
+          default: 10
+        cursor:
+          title: Cursor
+          description: Cursor for pagination
+          type: string
+        sort:
+          title: Sort
+          description: Only supports sorting by one property at a time
+          items:
+            $ref: '#/components/schemas/SortByCreatedTime'
+          type: array
+        includeAllFields:
+          title: IncludeAllFields
+          description: If all fields should be included in the response. Defaults to false which does not include script, configuration.inputs and configuration.outputs in the response. If true - all fields are returned, but routines with kind 'long' will be excluded from the results.
+          default: false
+          type: boolean
+      additionalProperties: false
+      type: object
+      title: ListSimulatorRoutineRevisionsQuery
     SimulatorRoutineConfigurationCreate:
       properties:
         schedule:
@@ -509,44 +719,201 @@ components:
       - logicalCheck
       - steadyStateDetection
       title: SimulatorRoutineConfigurationCreate
-    DataPointsAggregate:
-      type: string
-      enum:
-      - average
-      - interpolation
-      - stepInterpolation
-      title: DataPointsAggregate
-    SingleItemIdRefOrExternalIdRef:
+    SimulatorRoutineCreateCommand:
       properties:
-        items:
-          items:
-            anyOf:
-            - $ref: '#/components/schemas/IdRef'
-            - $ref: '#/components/schemas/ExternalIdRef'
-          type: array
-          title: Items
-          description: A list with a single item
+        externalId:
+          type: string
+          maxLength: 255
+          minLength: 1
+          title: ExternalId
+          description: External id of the simulator routine
+        modelExternalId:
+          type: string
+          maxLength: 255
+          minLength: 1
+          title: ModelExternalId
+          description: External id of the simulation model
+        simulatorIntegrationExternalId:
+          title: SimulatorIntegrationExternalId
+          description: External id of the simulator integration this routine belongs to. Optional when simulation run load balancing is enabled.
+          type: string
+          maxLength: 255
+          minLength: 1
+        name:
+          type: string
+          maxLength: 50
+          minLength: 1
+          title: Name
+          description: Name of the routine
+          examples:
+          - Fluid Sloshing in Tank
+          - Thermal-Structural Analysis
+        description:
+          title: Description
+          description: Description of the simulation routine
+          type: string
       additionalProperties: false
       type: object
       required:
-      - items
-      title: SingleItemIdRefOrExternalIdRef
-    ListAggregateCount:
+      - externalId
+      - modelExternalId
+      - name
+      title: SimulatorRoutineCreateCommand
+    SimulatorRoutineOutput:
       properties:
-        items:
-          items:
-            $ref: '#/components/schemas/AggregateCount'
-          type: array
-          title: Items
+        name:
+          type: string
+          maxLength: 50
+          minLength: 1
+          title: Name
+          description: Output name.
+        referenceId:
+          type: string
+          maxLength: 50
+          minLength: 1
+          title: ReferenceId
+          description: A unique identifier of the output in a given routine.
+        unit:
+          description: Output unit.
+          $ref: '#/components/schemas/SimulationValueUnitInput'
+        valueType:
+          $ref: '#/components/schemas/SimulationValueType'
+          description: Output value type.
+          default: STRING
+        saveTimeseriesExternalId:
+          title: SaveTimeseriesExternalId
+          description: External id of the output time series.
+          type: string
+          maxLength: 255
+          minLength: 1
       additionalProperties: false
       type: object
       required:
-      - items
-      title: ListAggregateCount
+      - name
+      - referenceId
+      title: SimulatorRoutineOutput
     EmptyResponse:
       properties: {}
       type: object
       title: EmptyResponse
+    APIError:
+      properties:
+        message:
+          type: string
+          title: Message
+        code:
+          type: integer
+          title: Code
+      type: object
+      required:
+      - message
+      - code
+      title: APIError
+    SimulatorRoutineOperator:
+      type: string
+      enum:
+      - eq
+      - ne
+      - gt
+      - ge
+      - lt
+      - le
+      title: SimulatorRoutineOperator
+    SimulatorRoutineStepArgumentsCommand:
+      properties: {}
+      additionalProperties: true
+      type: object
+      title: SimulatorRoutineStepArgumentsCommand
+    SimulationValueUnitInput:
+      properties:
+        name:
+          type: string
+          maxLength: 50
+          minLength: 1
+          title: Name
+          description: Name of the unit
+          examples:
+          - kg
+          - m
+          - Pa
+        quantity:
+          type: string
+          maxLength: 50
+          minLength: 1
+          title: Quantity
+          description: Quantity of measure for the unit
+          examples:
+          - Mass
+          - Length
+          - Pressure
+      additionalProperties: false
+      type: object
+      required:
+      - name
+      - quantity
+      title: SimulationValueUnitInput
+    SimulationValueType:
+      type: string
+      enum:
+      - STRING
+      - DOUBLE
+      - STRING_ARRAY
+      - DOUBLE_ARRAY
+      title: SimulationValueType
+    SimulatorRoutineInputTimeseries:
+      properties:
+        name:
+          type: string
+          maxLength: 50
+          minLength: 1
+          title: Name
+          description: Input/output name.
+        referenceId:
+          type: string
+          maxLength: 50
+          minLength: 1
+          title: ReferenceId
+          description: A unique id of the input to be used in the routine.
+        sourceExternalId:
+          type: string
+          maxLength: 255
+          minLength: 1
+          title: SourceExternalId
+          description: External id of the source time series to read from.
+        aggregate:
+          description: Aggregate type of the sensor data. Only used if data sampling is enabled. Otherwise, the latest data point value is used.
+          $ref: '#/components/schemas/DataPointsAggregate'
+        saveTimeseriesExternalId:
+          title: SaveTimeseriesExternalId
+          description: Time series external ID to use when saving the input sample in CDF.
+          examples:
+          - PROSPER-INPUT-ChokeDp-THP-Well_A2
+          type: string
+          maxLength: 255
+          minLength: 1
+        unit:
+          description: Time series unit.
+          $ref: '#/components/schemas/SimulationValueUnitInput'
+      additionalProperties: false
+      type: object
+      required:
+      - name
+      - referenceId
+      - sourceExternalId
+      title: SimulatorRoutineInputTimeseries
+    SimulatorRoutineStepArgumentsGet:
+      properties:
+        referenceId:
+          type: string
+          maxLength: 50
+          minLength: 1
+          title: ReferenceId
+          description: A unique id of the output defined in the routine configuration.
+      additionalProperties: true
+      type: object
+      required:
+      - referenceId
+      title: SimulatorRoutineStepArgumentsGet
     InputItems20IdRefOrExternalIdRef:
       properties:
         items:
@@ -564,30 +931,77 @@ components:
       required:
       - items
       title: InputItems20IdRefOrExternalIdRef
-    ExternalIdRef:
+    ListWithCursorSimulatorRoutineRevisionView:
       properties:
-        externalId:
+        items:
+          items:
+            $ref: '#/components/schemas/SimulatorRoutineRevisionView'
+          type: array
+          title: Items
+        nextCursor:
+          title: NextCursor
           type: string
-          title: ExternalId
-          description: String-based ID
       additionalProperties: false
       type: object
       required:
-      - externalId
-      title: ExternalIdRef
-    APIError:
+      - items
+      title: ListWithCursorSimulatorRoutineRevisionView
+    SingleItemSimulatorRoutineCreateCommand:
       properties:
-        message:
-          type: string
-          title: Message
-        code:
-          type: integer
-          title: Code
+        items:
+          items:
+            $ref: '#/components/schemas/SimulatorRoutineCreateCommand'
+          type: array
+          title: Items
+          description: A list with a single item
+      additionalProperties: false
       type: object
       required:
-      - message
-      - code
-      title: APIError
+      - items
+      title: SingleItemSimulatorRoutineCreateCommand
+    EpochTimestampRange:
+      description: Range between two timestamps (inclusive).
+      type: object
+      properties:
+        max:
+          description: Maximum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+          type: integer
+          minimum: 0
+          format: int64
+        min:
+          description: Minimum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+          type: integer
+          minimum: 0
+          format: int64
+    ListWithCursorSimulatorRoutineBase:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/SimulatorRoutineBase'
+          type: array
+          title: Items
+        nextCursor:
+          title: NextCursor
+          type: string
+      additionalProperties: false
+      type: object
+      required:
+      - items
+      title: ListWithCursorSimulatorRoutineBase
+    SimulatorRoutineConfigDisabled:
+      properties:
+        enabled:
+          type: boolean
+          const: false
+          title: Enabled
+          description: When disabled other fields are not allowed
+          enum:
+          - false
+      additionalProperties: false
+      type: object
+      required:
+      - enabled
+      title: SimulatorRoutineConfigDisabled
     SimulatorRoutineBase:
       properties:
         dataSetId:
@@ -646,176 +1060,6 @@ components:
       - createdTime
       - lastUpdatedTime
       title: SimulatorRoutineBase
-    SimulatorRoutineStepSet:
-      properties:
-        order:
-          type: integer
-          maximum: 10000
-          minimum: 1
-          title: Order
-          description: Step number
-        description:
-          title: Description
-          description: Step description
-          type: string
-          maxLength: 255
-          minLength: 1
-        stepType:
-          type: string
-          const: Set
-          title: StepType
-          description: Step type
-          enum:
-          - Set
-        arguments:
-          $ref: '#/components/schemas/SimulatorRoutineStepArgumentsSet'
-          description: Step arguments
-          examples:
-          - objectName: WELL.A2
-            objectProperty: Tempretature
-            referenceId: CWTC
-      additionalProperties: false
-      type: object
-      required:
-      - order
-      - stepType
-      - arguments
-      title: SimulatorRoutineStepSet
-      description: Used to set the input of a simulation routine from timeseries or constant fields.
-    SimulatorRoutineConfigurationBase:
-      properties:
-        schedule:
-          anyOf:
-          - $ref: '#/components/schemas/SimulatorRoutineConfigDisabled'
-          - $ref: '#/components/schemas/SimulatorRoutineScheduleEnabled'
-          title: Schedule
-        dataSampling:
-          anyOf:
-          - $ref: '#/components/schemas/SimulatorRoutineConfigDisabled'
-          - $ref: '#/components/schemas/SimulatorRoutineDataSamplingEnabled'
-          title: DataSampling
-        logicalCheck:
-          items:
-            $ref: '#/components/schemas/SimulatorRoutineLogicalCheckEnabled'
-          type: array
-          maxItems: 1
-          minItems: 0
-          title: LogicalCheck
-          description: List of logical check rules. Used to find out data points which satisfy the logical check.
-        steadyStateDetection:
-          items:
-            $ref: '#/components/schemas/SimulatorRoutineSteadyStateDetectionEnabled'
-          type: array
-          maxItems: 1
-          minItems: 0
-          title: SteadyStateDetection
-          description: List of steady state detection rules. Used to find out data points which are in steady state.
-      additionalProperties: false
-      type: object
-      required:
-      - schedule
-      - dataSampling
-      - logicalCheck
-      - steadyStateDetection
-      title: SimulatorRoutineConfigurationBase
-    ListSimulatorRoutineRevision:
-      properties:
-        items:
-          items:
-            $ref: '#/components/schemas/SimulatorRoutineRevision'
-          type: array
-          title: Items
-      additionalProperties: false
-      type: object
-      required:
-      - items
-      title: ListSimulatorRoutineRevision
-    ListSimulatorRoutineBase:
-      properties:
-        items:
-          items:
-            $ref: '#/components/schemas/SimulatorRoutineBase'
-          type: array
-          title: Items
-      additionalProperties: false
-      type: object
-      required:
-      - items
-      title: ListSimulatorRoutineBase
-    AggregateCount:
-      properties:
-        count:
-          type: integer
-          title: Count
-          description: Number of items
-      additionalProperties: false
-      type: object
-      required:
-      - count
-      title: AggregateCount
-    SimulationValueType:
-      type: string
-      enum:
-      - STRING
-      - DOUBLE
-      - STRING_ARRAY
-      - DOUBLE_ARRAY
-      title: SimulationValueType
-    SimulatorRoutineConfiguration:
-      properties:
-        schedule:
-          anyOf:
-          - $ref: '#/components/schemas/SimulatorRoutineConfigDisabled'
-          - $ref: '#/components/schemas/SimulatorRoutineScheduleEnabled'
-          title: Schedule
-        dataSampling:
-          anyOf:
-          - $ref: '#/components/schemas/SimulatorRoutineConfigDisabled'
-          - $ref: '#/components/schemas/SimulatorRoutineDataSamplingEnabled'
-          title: DataSampling
-        logicalCheck:
-          items:
-            $ref: '#/components/schemas/SimulatorRoutineLogicalCheckEnabled'
-          type: array
-          maxItems: 1
-          minItems: 0
-          title: LogicalCheck
-          description: List of logical check rules. Used to find out data points which satisfy the logical check.
-        steadyStateDetection:
-          items:
-            $ref: '#/components/schemas/SimulatorRoutineSteadyStateDetectionEnabled'
-          type: array
-          maxItems: 1
-          minItems: 0
-          title: SteadyStateDetection
-          description: List of steady state detection rules. Used to find out data points which are in steady state.
-        inputs:
-          items:
-            oneOf:
-            - $ref: '#/components/schemas/SimulatorRoutineInputConstant'
-            - $ref: '#/components/schemas/SimulatorRoutineInputTimeseries'
-            description: Input item for the simulation routine
-          type: array
-          maxItems: 10000
-          title: Inputs
-          description: List of input constants and input time series. Used to define the inputs of the simulation routine.
-          default: []
-        outputs:
-          items:
-            $ref: '#/components/schemas/SimulatorRoutineOutput'
-          type: array
-          maxItems: 10000
-          title: Outputs
-          description: List of outputs for the simulation routine.
-          default: []
-      additionalProperties: false
-      type: object
-      required:
-      - schedule
-      - dataSampling
-      - logicalCheck
-      - steadyStateDetection
-      title: SimulatorRoutineConfiguration
     SimulatorRoutineStepCommand:
       properties:
         order:
@@ -847,533 +1091,6 @@ components:
       - arguments
       title: SimulatorRoutineStepCommand
       description: Used to run a command in a simulation routine. For example, to run a solver.
-    SimulatorRoutineStepGet:
-      properties:
-        order:
-          type: integer
-          maximum: 10000
-          minimum: 1
-          title: Order
-          description: Step number
-        description:
-          title: Description
-          description: Step description
-          type: string
-          maxLength: 255
-          minLength: 1
-        stepType:
-          type: string
-          const: Get
-          title: StepType
-          description: Step type
-          enum:
-          - Get
-        arguments:
-          $ref: '#/components/schemas/SimulatorRoutineStepArgumentsGet'
-          description: Step arguments
-          examples:
-          - objectName: WELL.A2
-            objectProperty: Tempretature
-            referenceId: CWTC
-      additionalProperties: false
-      type: object
-      required:
-      - order
-      - stepType
-      - arguments
-      title: SimulatorRoutineStepGet
-      description: Used to extract the output of a simulation routine and write it back into the Cognite Data Fusion.
-    SingleItemSimulatorRoutineRevisionCreateCommand:
-      properties:
-        items:
-          items:
-            $ref: '#/components/schemas/SimulatorRoutineRevisionCreateCommand'
-          type: array
-          title: Items
-          description: A list with a single item
-      additionalProperties: false
-      type: object
-      required:
-      - items
-      title: SingleItemSimulatorRoutineRevisionCreateCommand
-    ListWithCursorSimulatorRoutineRevision:
-      properties:
-        items:
-          items:
-            $ref: '#/components/schemas/SimulatorRoutineRevision'
-          type: array
-          title: Items
-        nextCursor:
-          title: NextCursor
-          type: string
-      additionalProperties: false
-      type: object
-      required:
-      - items
-      title: ListWithCursorSimulatorRoutineRevision
-    SimulatorRoutineScheduleEnabled:
-      properties:
-        enabled:
-          type: boolean
-          title: Enabled
-          description: Whether the schedule is enabled or not
-        cronExpression:
-          type: string
-          pattern: (@((annually|yearly|monthly|weekly|daily|hourly|reboot))|(@every (\d+(ns|us|Âµs|ms|s|m|h))+)|((((\d+,)+\d+|(\d+(\/|-)\d+)|\d+|\*) ?){5,7}))
-          title: CronExpression
-          description: 'Cron expression representing the schedule.
-
-            Examples:
-
-            - @annually: Run once a year at midnight of January 1st.
-
-            - @daily: Run once a day at midnight.
-
-            - */5 * * * *: Run every 5 minutes.
-
-            - 0 0 * * *: Run once a day at midnight.
-
-            - 0 0 * * MON-FRI: Run once a day at midnight, Monday through Friday.'
-      additionalProperties: false
-      type: object
-      required:
-      - enabled
-      - cronExpression
-      title: SimulatorRoutineScheduleEnabled
-    SimulatorRoutineInputConstant:
-      properties:
-        name:
-          type: string
-          maxLength: 50
-          minLength: 1
-          title: Name
-          description: Constant name.
-        referenceId:
-          type: string
-          maxLength: 50
-          minLength: 1
-          title: ReferenceId
-          description: A unique id of the input to be used in the routine.
-        value:
-          anyOf:
-          - type: string
-            description: String value. Maximum length is 1024
-          - type: number
-            description: Double precision value
-          - items:
-              type: string
-            type: array
-            description: Array of strings. Minimum length is 1 and maximum length is 1000
-          - items:
-              type: number
-            type: array
-            description: Array of double precision values. Minimum length is 1 and maximum length is 1000
-          title: Value
-          description: Constant value. For the list, the maximum length is 1000, and the minimum length is 1.
-        valueType:
-          $ref: '#/components/schemas/SimulationValueType'
-          description: Constant value type.
-          default: STRING
-        unit:
-          description: Constant unit.
-          $ref: '#/components/schemas/SimulationValueUnitInput'
-        saveTimeseriesExternalId:
-          title: SaveTimeseriesExternalId
-          description: Time series external ID to use when saving the input sample in CDF.
-          type: string
-          maxLength: 255
-          minLength: 1
-      additionalProperties: false
-      type: object
-      required:
-      - name
-      - referenceId
-      - value
-      title: SimulatorRoutineInputConstant
-    SimulatorRoutineRevisionCreateCommand:
-      properties:
-        externalId:
-          type: string
-          maxLength: 255
-          minLength: 1
-          title: ExternalId
-          description: External id of the simulator routine revision
-        routineExternalId:
-          type: string
-          maxLength: 255
-          minLength: 1
-          title: RoutineExternalId
-          description: External id of the simulation routine
-          examples:
-          - fluid_sloshing
-          - thermal_analysis
-        configuration:
-          $ref: '#/components/schemas/SimulatorRoutineConfigurationCreate'
-          description: 'When creating a simulator routine revision, be mindful of the following:
-
-
-            - The amount and size of the inputs you provide to the simulator routine.
-
-            - The size of the outputs you expect from the simulator routine.
-
-
-            The total size of the simulator routine revision request body can be a maximum of 50.00 KB.
-
-
-            The total size of the data sent by a simulator connector cannot exceed 100.00 KB per simulation run.'
-        script:
-          items:
-            $ref: '#/components/schemas/SimulatorRoutineStage'
-          type: array
-          maxItems: 10
-          title: Script
-          description: Script of the simulation routine revision
-      additionalProperties: false
-      type: object
-      required:
-      - externalId
-      - routineExternalId
-      - configuration
-      - script
-      title: SimulatorRoutineRevisionCreateCommand
-    ListSimulatorRoutineRevisionsQuery:
-      properties:
-        filter:
-          $ref: '#/components/schemas/ListSimulatorRoutineRevisionsFilters'
-        limit:
-          type: integer
-          maximum: 20
-          minimum: 1
-          title: Limit
-          default: 10
-        cursor:
-          title: Cursor
-          description: Cursor for pagination
-          type: string
-        sort:
-          title: Sort
-          description: Only supports sorting by one property at a time
-          items:
-            $ref: '#/components/schemas/SortByCreatedTime'
-          type: array
-        includeAllFields:
-          title: IncludeAllFields
-          description: If all fields should be included in the response. Defaults to false which does not include script, configuration.inputs and configuration.outputs in the response. If true - all fields are returned, but routines with kind 'long' will be excluded from the results.
-          default: false
-          type: boolean
-      additionalProperties: false
-      type: object
-      title: ListSimulatorRoutineRevisionsQuery
-    SimulatorRoutineInputTimeseries:
-      properties:
-        name:
-          type: string
-          maxLength: 50
-          minLength: 1
-          title: Name
-          description: Input/output name.
-        referenceId:
-          type: string
-          maxLength: 50
-          minLength: 1
-          title: ReferenceId
-          description: A unique id of the input to be used in the routine.
-        sourceExternalId:
-          type: string
-          maxLength: 255
-          minLength: 1
-          title: SourceExternalId
-          description: External id of the source time series to read from.
-        aggregate:
-          description: Aggregate type of the sensor data. Only used if data sampling is enabled. Otherwise, the latest data point value is used.
-          $ref: '#/components/schemas/DataPointsAggregate'
-        saveTimeseriesExternalId:
-          title: SaveTimeseriesExternalId
-          description: Time series external ID to use when saving the input sample in CDF.
-          examples:
-          - PROSPER-INPUT-ChokeDp-THP-Well_A2
-          type: string
-          maxLength: 255
-          minLength: 1
-        unit:
-          description: Time series unit.
-          $ref: '#/components/schemas/SimulationValueUnitInput'
-      additionalProperties: false
-      type: object
-      required:
-      - name
-      - referenceId
-      - sourceExternalId
-      title: SimulatorRoutineInputTimeseries
-    SimulatorRoutineOutput:
-      properties:
-        name:
-          type: string
-          maxLength: 50
-          minLength: 1
-          title: Name
-          description: Output name.
-        referenceId:
-          type: string
-          maxLength: 50
-          minLength: 1
-          title: ReferenceId
-          description: A unique identifier of the output in a given routine.
-        unit:
-          description: Output unit.
-          $ref: '#/components/schemas/SimulationValueUnitInput'
-        valueType:
-          $ref: '#/components/schemas/SimulationValueType'
-          description: Output value type.
-          default: STRING
-        saveTimeseriesExternalId:
-          title: SaveTimeseriesExternalId
-          description: External id of the output time series.
-          type: string
-          maxLength: 255
-          minLength: 1
-      additionalProperties: false
-      type: object
-      required:
-      - name
-      - referenceId
-      title: SimulatorRoutineOutput
-    SimulatorRoutineStepArgumentsCommand:
-      properties: {}
-      additionalProperties: true
-      type: object
-      title: SimulatorRoutineStepArgumentsCommand
-    SimulationValueUnitInput:
-      properties:
-        name:
-          type: string
-          maxLength: 50
-          minLength: 1
-          title: Name
-          description: Name of the unit
-          examples:
-          - kg
-          - m
-          - Pa
-        quantity:
-          type: string
-          maxLength: 50
-          minLength: 1
-          title: Quantity
-          description: Quantity of measure for the unit
-          examples:
-          - Mass
-          - Length
-          - Pressure
-      additionalProperties: false
-      type: object
-      required:
-      - name
-      - quantity
-      title: SimulationValueUnitInput
-    ListWithCursorSimulatorRoutineBase:
-      properties:
-        items:
-          items:
-            $ref: '#/components/schemas/SimulatorRoutineBase'
-          type: array
-          title: Items
-        nextCursor:
-          title: NextCursor
-          type: string
-      additionalProperties: false
-      type: object
-      required:
-      - items
-      title: ListWithCursorSimulatorRoutineBase
-    SimulatorRoutineConfigDisabled:
-      properties:
-        enabled:
-          type: boolean
-          const: false
-          title: Enabled
-          description: When disabled other fields are not allowed
-          enum:
-          - false
-      additionalProperties: false
-      type: object
-      required:
-      - enabled
-      title: SimulatorRoutineConfigDisabled
-    EpochTimestampRange:
-      description: Range between two timestamps (inclusive).
-      type: object
-      properties:
-        max:
-          description: Maximum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-          type: integer
-          minimum: 0
-          format: int64
-        min:
-          description: Minimum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-          type: integer
-          minimum: 0
-          format: int64
-    SingleItemSimulatorRoutineCreateCommand:
-      properties:
-        items:
-          items:
-            $ref: '#/components/schemas/SimulatorRoutineCreateCommand'
-          type: array
-          title: Items
-          description: A list with a single item
-      additionalProperties: false
-      type: object
-      required:
-      - items
-      title: SingleItemSimulatorRoutineCreateCommand
-    ListSimulatorRoutinesQuery:
-      properties:
-        filter:
-          $ref: '#/components/schemas/ListSimulatorRoutinesFilters'
-        limit:
-          type: integer
-          maximum: 1000
-          minimum: 1
-          title: Limit
-          default: 1000
-        cursor:
-          title: Cursor
-          description: Cursor for pagination
-          type: string
-        sort:
-          title: Sort
-          description: Only supports sorting by one property at a time
-          items:
-            $ref: '#/components/schemas/SortByCreatedTime'
-          type: array
-      additionalProperties: false
-      type: object
-      title: ListSimulatorRoutinesQuery
-    ListWithCursorSimulatorRoutineRevisionView:
-      properties:
-        items:
-          items:
-            $ref: '#/components/schemas/SimulatorRoutineRevisionView'
-          type: array
-          title: Items
-        nextCursor:
-          title: NextCursor
-          type: string
-      additionalProperties: false
-      type: object
-      required:
-      - items
-      title: ListWithCursorSimulatorRoutineRevisionView
-    SimulatorRoutineLogicalCheckEnabled:
-      properties:
-        enabled:
-          type: boolean
-          const: true
-          title: Enabled
-          description: Whether the logical check is enabled or not
-          enum:
-          - true
-        timeseriesExternalId:
-          type: string
-          maxLength: 255
-          minLength: 1
-          title: TimeseriesExternalId
-          description: External ID of the time series to run the logical check against
-        aggregate:
-          $ref: '#/components/schemas/DataPointsAggregate'
-          description: Data points aggregate to be used for the time series
-        operator:
-          $ref: '#/components/schemas/SimulatorRoutineOperator'
-          description: Operator of the logical check
-        value:
-          type: number
-          title: Value
-          description: Value to compare with
-      additionalProperties: false
-      type: object
-      required:
-      - enabled
-      - timeseriesExternalId
-      - aggregate
-      - operator
-      - value
-      title: SimulatorRoutineLogicalCheckEnabled
-    SimulatorRoutineStage:
-      properties:
-        order:
-          type: integer
-          maximum: 10
-          minimum: 1
-          title: Order
-          description: Stage number
-        description:
-          title: Description
-          description: Stage description
-          type: string
-          maxLength: 255
-          minLength: 1
-        steps:
-          items:
-            oneOf:
-            - $ref: '#/components/schemas/SimulatorRoutineStepGet'
-            - $ref: '#/components/schemas/SimulatorRoutineStepSet'
-            - $ref: '#/components/schemas/SimulatorRoutineStepCommand'
-            discriminator:
-              propertyName: stepType
-              mapping:
-                Command: '#/components/schemas/SimulatorRoutineStepCommand'
-                Get: '#/components/schemas/SimulatorRoutineStepGet'
-                Set: '#/components/schemas/SimulatorRoutineStepSet'
-          type: array
-          maxItems: 10000
-          title: Steps
-          description: Stage steps
-      additionalProperties: false
-      type: object
-      required:
-      - order
-      - steps
-      title: SimulatorRoutineStage
-    SimulatorRoutineSteadyStateDetectionEnabled:
-      properties:
-        enabled:
-          type: boolean
-          const: true
-          title: Enabled
-          description: Whether the steady state detection is enabled or not
-          enum:
-          - true
-        timeseriesExternalId:
-          title: TimeseriesExternalId
-          description: External ID of the time series to be evaluated
-          type: string
-          maxLength: 255
-          minLength: 1
-        aggregate:
-          $ref: '#/components/schemas/DataPointsAggregate'
-          description: Aggregate type of the steady state detection
-        minSectionSize:
-          type: integer
-          title: MinSectionSize
-          description: Min section size of the steady state detection
-        varThreshold:
-          type: number
-          title: VarThreshold
-          description: Var threshold of the steady state detection
-        slopeThreshold:
-          type: number
-          title: SlopeThreshold
-          description: Slope threshold of the steady state detection
-      additionalProperties: false
-      type: object
-      required:
-      - enabled
-      - aggregate
-      - minSectionSize
-      - varThreshold
-      - slopeThreshold
-      title: SimulatorRoutineSteadyStateDetectionEnabled
     SimulatorRoutineRevision:
       properties:
         dataSetId:
@@ -1445,19 +1162,18 @@ components:
       - configuration
       - script
       title: SimulatorRoutineRevision
-    SimulatorRoutineStepArgumentsGet:
+    ListSimulatorRoutineRevision:
       properties:
-        referenceId:
-          type: string
-          maxLength: 50
-          minLength: 1
-          title: ReferenceId
-          description: A unique id of the output defined in the routine configuration.
-      additionalProperties: true
+        items:
+          items:
+            $ref: '#/components/schemas/SimulatorRoutineRevision'
+          type: array
+          title: Items
+      additionalProperties: false
       type: object
       required:
-      - referenceId
-      title: SimulatorRoutineStepArgumentsGet
+      - items
+      title: ListSimulatorRoutineRevision
     SimulatorRoutineRevisionView:
       properties:
         dataSetId:
@@ -1521,6 +1237,135 @@ components:
       - createdTime
       - configuration
       title: SimulatorRoutineRevisionView
+    SimulatorRoutineDataSamplingEnabled:
+      properties:
+        enabled:
+          type: boolean
+          const: true
+          title: Enabled
+          description: Whether the data sampling is enabled or not
+          enum:
+          - true
+        validationWindow:
+          title: ValidationWindow
+          description: Validation window of the data sampling. Represented in minutes. Used when either logical check or steady state detection is enabled.
+          type: integer
+        samplingWindow:
+          type: integer
+          title: SamplingWindow
+          description: Sampling window of the data sampling. Represented in minutes
+        granularity:
+          type: integer
+          title: Granularity
+          description: Granularity of the data sampling in minutes
+      additionalProperties: false
+      type: object
+      required:
+      - enabled
+      - samplingWindow
+      - granularity
+      title: SimulatorRoutineDataSamplingEnabled
+    SimulatorRoutineScheduleEnabled:
+      properties:
+        enabled:
+          type: boolean
+          title: Enabled
+          description: Whether the schedule is enabled or not
+        cronExpression:
+          type: string
+          pattern: (@((annually|yearly|monthly|weekly|daily|hourly|reboot))|(@every (\d+(ns|us|Âµs|ms|s|m|h))+)|((((\d+,)+\d+|(\d+(\/|-)\d+)|\d+|\*) ?){5,7}))
+          title: CronExpression
+          description: 'Cron expression representing the schedule.
+
+            Examples:
+
+            - @annually: Run once a year at midnight of January 1st.
+
+            - @daily: Run once a day at midnight.
+
+            - */5 * * * *: Run every 5 minutes.
+
+            - 0 0 * * *: Run once a day at midnight.
+
+            - 0 0 * * MON-FRI: Run once a day at midnight, Monday through Friday.'
+      additionalProperties: false
+      type: object
+      required:
+      - enabled
+      - cronExpression
+      title: SimulatorRoutineScheduleEnabled
+    SimulatorRoutineStage:
+      properties:
+        order:
+          type: integer
+          maximum: 10
+          minimum: 1
+          title: Order
+          description: Stage number
+        description:
+          title: Description
+          description: Stage description
+          type: string
+          maxLength: 255
+          minLength: 1
+        steps:
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/SimulatorRoutineStepGet'
+            - $ref: '#/components/schemas/SimulatorRoutineStepSet'
+            - $ref: '#/components/schemas/SimulatorRoutineStepCommand'
+            discriminator:
+              propertyName: stepType
+              mapping:
+                Command: '#/components/schemas/SimulatorRoutineStepCommand'
+                Get: '#/components/schemas/SimulatorRoutineStepGet'
+                Set: '#/components/schemas/SimulatorRoutineStepSet'
+          type: array
+          maxItems: 10000
+          title: Steps
+          description: Stage steps
+      additionalProperties: false
+      type: object
+      required:
+      - order
+      - steps
+      title: SimulatorRoutineStage
+    SimulatorRoutineStepSet:
+      properties:
+        order:
+          type: integer
+          maximum: 10000
+          minimum: 1
+          title: Order
+          description: Step number
+        description:
+          title: Description
+          description: Step description
+          type: string
+          maxLength: 255
+          minLength: 1
+        stepType:
+          type: string
+          const: Set
+          title: StepType
+          description: Step type
+          enum:
+          - Set
+        arguments:
+          $ref: '#/components/schemas/SimulatorRoutineStepArgumentsSet'
+          description: Step arguments
+          examples:
+          - objectName: WELL.A2
+            objectProperty: Tempretature
+            referenceId: CWTC
+      additionalProperties: false
+      type: object
+      required:
+      - order
+      - stepType
+      - arguments
+      title: SimulatorRoutineStepSet
+      description: Used to set the input of a simulation routine from timeseries or constant fields.
     ListSimulatorRoutineRevisionsFilters:
       properties:
         routineExternalIds:
@@ -1578,72 +1423,19 @@ components:
       additionalProperties: false
       type: object
       title: ListSimulatorRoutineRevisionsFilters
-    SimulatorRoutineOperator:
-      type: string
-      enum:
-      - eq
-      - ne
-      - gt
-      - ge
-      - lt
-      - le
-      title: SimulatorRoutineOperator
-    AggregateSimulatorRoutinesQuery:
+    SingleItemSimulatorRoutineRevisionCreateCommand:
       properties:
-        filter:
-          $ref: '#/components/schemas/ListSimulatorRoutinesFilters'
-        aggregate:
-          type: string
-          const: count
-          title: Aggregate
-          description: Aggregate type
-          enum:
-          - count
+        items:
+          items:
+            $ref: '#/components/schemas/SimulatorRoutineRevisionCreateCommand'
+          type: array
+          title: Items
+          description: A list with a single item
       additionalProperties: false
       type: object
       required:
-      - aggregate
-      title: AggregateSimulatorRoutinesQuery
-    SimulatorRoutineCreateCommand:
-      properties:
-        externalId:
-          type: string
-          maxLength: 255
-          minLength: 1
-          title: ExternalId
-          description: External id of the simulator routine
-        modelExternalId:
-          type: string
-          maxLength: 255
-          minLength: 1
-          title: ModelExternalId
-          description: External id of the simulation model
-        simulatorIntegrationExternalId:
-          title: SimulatorIntegrationExternalId
-          description: External id of the simulator integration this routine belongs to. Optional when simulation run load balancing is enabled.
-          type: string
-          maxLength: 255
-          minLength: 1
-        name:
-          type: string
-          maxLength: 50
-          minLength: 1
-          title: Name
-          description: Name of the routine
-          examples:
-          - Fluid Sloshing in Tank
-          - Thermal-Structural Analysis
-        description:
-          title: Description
-          description: Description of the simulation routine
-          type: string
-      additionalProperties: false
-      type: object
-      required:
-      - externalId
-      - modelExternalId
-      - name
-      title: SimulatorRoutineCreateCommand
+      - items
+      title: SingleItemSimulatorRoutineRevisionCreateCommand
     ErrorBase:
       properties:
         error:
@@ -1652,19 +1444,205 @@ components:
       required:
       - error
       title: ErrorBase
-    IdRef:
+    SimulatorRoutineInputConstant:
       properties:
-        id:
-          type: integer
-          title: Id
-          description: ID
-          examples:
-          - 5559452808603919
+        name:
+          type: string
+          maxLength: 50
+          minLength: 1
+          title: Name
+          description: Constant name.
+        referenceId:
+          type: string
+          maxLength: 50
+          minLength: 1
+          title: ReferenceId
+          description: A unique id of the input to be used in the routine.
+        value:
+          anyOf:
+          - type: string
+            description: String value. Maximum length is 1024
+          - type: number
+            description: Double precision value
+          - items:
+              type: string
+            type: array
+            description: Array of strings. Minimum length is 1 and maximum length is 1000
+          - items:
+              type: number
+            type: array
+            description: Array of double precision values. Minimum length is 1 and maximum length is 1000
+          title: Value
+          description: Constant value. For the list, the maximum length is 1000, and the minimum length is 1.
+        valueType:
+          $ref: '#/components/schemas/SimulationValueType'
+          description: Constant value type.
+          default: STRING
+        unit:
+          description: Constant unit.
+          $ref: '#/components/schemas/SimulationValueUnitInput'
+        saveTimeseriesExternalId:
+          title: SaveTimeseriesExternalId
+          description: Time series external ID to use when saving the input sample in CDF.
+          type: string
+          maxLength: 255
+          minLength: 1
       additionalProperties: false
       type: object
       required:
-      - id
-      title: IdRef
+      - name
+      - referenceId
+      - value
+      title: SimulatorRoutineInputConstant
+    SimulatorRoutineSteadyStateDetectionEnabled:
+      properties:
+        enabled:
+          type: boolean
+          const: true
+          title: Enabled
+          description: Whether the steady state detection is enabled or not
+          enum:
+          - true
+        timeseriesExternalId:
+          title: TimeseriesExternalId
+          description: External ID of the time series to be evaluated
+          type: string
+          maxLength: 255
+          minLength: 1
+        aggregate:
+          $ref: '#/components/schemas/DataPointsAggregate'
+          description: Aggregate type of the steady state detection
+        minSectionSize:
+          type: integer
+          title: MinSectionSize
+          description: Min section size of the steady state detection
+        varThreshold:
+          type: number
+          title: VarThreshold
+          description: Var threshold of the steady state detection
+        slopeThreshold:
+          type: number
+          title: SlopeThreshold
+          description: Slope threshold of the steady state detection
+      additionalProperties: false
+      type: object
+      required:
+      - enabled
+      - aggregate
+      - minSectionSize
+      - varThreshold
+      - slopeThreshold
+      title: SimulatorRoutineSteadyStateDetectionEnabled
+    SimulatorRoutineConfigurationBase:
+      properties:
+        schedule:
+          anyOf:
+          - $ref: '#/components/schemas/SimulatorRoutineConfigDisabled'
+          - $ref: '#/components/schemas/SimulatorRoutineScheduleEnabled'
+          title: Schedule
+        dataSampling:
+          anyOf:
+          - $ref: '#/components/schemas/SimulatorRoutineConfigDisabled'
+          - $ref: '#/components/schemas/SimulatorRoutineDataSamplingEnabled'
+          title: DataSampling
+        logicalCheck:
+          items:
+            $ref: '#/components/schemas/SimulatorRoutineLogicalCheckEnabled'
+          type: array
+          maxItems: 1
+          minItems: 0
+          title: LogicalCheck
+          description: List of logical check rules. Used to find out data points which satisfy the logical check.
+        steadyStateDetection:
+          items:
+            $ref: '#/components/schemas/SimulatorRoutineSteadyStateDetectionEnabled'
+          type: array
+          maxItems: 1
+          minItems: 0
+          title: SteadyStateDetection
+          description: List of steady state detection rules. Used to find out data points which are in steady state.
+      additionalProperties: false
+      type: object
+      required:
+      - schedule
+      - dataSampling
+      - logicalCheck
+      - steadyStateDetection
+      title: SimulatorRoutineConfigurationBase
+    ListSimulatorRoutinesFilters:
+      properties:
+        modelExternalIds:
+          title: ModelExternalIds
+          description: Filter by simulator model external ids
+          examples:
+          - - model_1
+            - model_2
+          items:
+            type: string
+          type: array
+          maxItems: 100
+          minItems: 1
+        simulatorIntegrationExternalIds:
+          title: SimulatorIntegrationExternalIds
+          description: Filter by simulator integration external ids
+          examples:
+          - - simulator_integration_1
+            - simulator_integration_2
+          items:
+            type: string
+          type: array
+          maxItems: 100
+          minItems: 1
+        simulatorExternalIds:
+          title: SimulatorExternalIds
+          description: Filter by simulator external ids
+          examples:
+          - - PROSPER
+            - PetroSIM
+          items:
+            type: string
+            maxLength: 50
+            minLength: 1
+          type: array
+          maxItems: 100
+          minItems: 1
+      additionalProperties: false
+      type: object
+      title: ListSimulatorRoutinesFilters
+    SimulatorRoutineLogicalCheckEnabled:
+      properties:
+        enabled:
+          type: boolean
+          const: true
+          title: Enabled
+          description: Whether the logical check is enabled or not
+          enum:
+          - true
+        timeseriesExternalId:
+          type: string
+          maxLength: 255
+          minLength: 1
+          title: TimeseriesExternalId
+          description: External ID of the time series to run the logical check against
+        aggregate:
+          $ref: '#/components/schemas/DataPointsAggregate'
+          description: Data points aggregate to be used for the time series
+        operator:
+          $ref: '#/components/schemas/SimulatorRoutineOperator'
+          description: Operator of the logical check
+        value:
+          type: number
+          title: Value
+          description: Value to compare with
+      additionalProperties: false
+      type: object
+      required:
+      - enabled
+      - timeseriesExternalId
+      - aggregate
+      - operator
+      - value
+      title: SimulatorRoutineLogicalCheckEnabled
   securitySchemes:
     oidc-token:
       type: http

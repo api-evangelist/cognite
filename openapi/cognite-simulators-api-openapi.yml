@@ -1,7 +1,11 @@
-openapi: 3.1.0
+openapi: 3.2.0
 info:
-  title: Cognite 3D Asset Mapping Simulators API
-  description: "# Introduction\nThis is the reference documentation for the Cognite API with\nan overview of all the available methods.\n\n# Postman\nSelect the **Download** button to download our OpenAPI specification to get started.\n\nTo import your data into Postman, select **Import**, and the Import modal opens.\nYou can import items by dragging or dropping files or folders. You can choose how to import your API and manage the import settings in **View Import Settings**.\n\nIn the Import Settings, set the **Folder organization** to **Tags**, select\n**Enable optional parameters** to turn off the settings, and select **Always inherit authentication** to turn on the settings. Select **Import**.\n\nSet the Authorization to **Oauth2.0**. By default, the settings are for Open Industrial Data. Navigate to [Cognite Hub](https://hub.cognite.com/open-industrial-data-211) to understand how to get the credentials for use in Postman.\n\nFor more information, see [Getting Started with Postman](https://developer.cognite.com/dev/guides/postman/).\n\n# Pagination\nMost resource types can be paginated, indicated by the field `nextCursor` in the response.\nBy passing the value of `nextCursor` as the cursor you will get the next page of `limit` results.\nNote that all parameters except `cursor` has to stay the same.\n\n# Parallel retrieval\nAs general guidance, Parallel Retrieval is a technique that should be used when due to query complexity, retrieval of data in a single request is significantly slower than it would otherwise be for a simple request.  Parallel retrieval does not act as a speed multiplier on optimally running queries.  By parallelizing such requests, data retrieval performance can be tuned to meet the client application needs. \n\nCDF supports parallel retrieval through the `partition` parameter, which has the format `m/n` where `n` is the amount of partitions you would like to split the entire data set into.\nIf you want to download the entire data set by splitting it into 10 partitions, do the following in parallel with `m` running from 1 to 10:\n  - Make a request to `/events` with `partition=m/10`.\n  - Paginate through the response by following the cursor as explained above. Note that the `partition` parameter needs to be passed to all subqueries.\n\nProcessing of parallel retrieval requests is subject to concurrency quota availability. The request returns the `429` response upon exceeding concurrency limits. See the Request throttling chapter below.\n\nTo prevent unexpected problems and to maximize read throughput, you should at most use 10 partitions. \nSome CDF resources will automatically enforce a maximum of 10 partitions.\nFor more specific and detailed information, please read the ```partition``` attribute documentation for the CDF resource you're using.  \n\n# Requests throttling\nCognite Data Fusion (CDF) returns the HTTP `429` (too many requests) response status code when project capacity exceeds the limit.\n\nThe throttling can happen:\n  - If a user or a project sends too many (more than allocated) concurrent requests.\n  - If a user or a project sends a too high (more than allocated) rate of requests in a given amount of time.\n\nCognite recommends using a retry strategy based on truncated exponential backoff to handle sessions with HTTP response codes 429.\n\nCognite recommends using a reasonable number (up to 10) of  `Parallel retrieval` partitions.\n\nFollowing these strategies lets you slow down the request frequency to maximize productivity without having to re-submit/retry failing requests.\n\nSee more [here](https://docs.cognite.com/dev/concepts/resource_throttling).\n\n# API versions\n## Version headers\nThis API uses calendar versioning, and version names follow the `YYYYMMDD` format.\nYou can find the versions currently available by using the version selector at the top of this page.\n\nTo use a specific API version, you can pass the `cdf-version: $version` header along with your requests to the API.\n\n## Beta versions\nThe beta versions provide a preview of what the stable version will look like in the future.\nBeta versions contain functionality that is reasonably mature, and highly likely to become a part of the stable API.\n\nBeta versions are indicated by a `-beta` suffix after the version name. For example, the beta version header for the\n2023-01-01 version is then `cdf-version: 20230101-beta`.\n\n## Alpha versions\nAlpha versions contain functionality that is new and experimental, and not guaranteed to ever become a part of the stable API.\nThis functionality presents no guarantee of service, so its use is subject to caution.\n\nAlpha versions are indicated by an `-alpha` suffix after the version name. For example, the alpha version header for\nthe 2023-01-01 version is then `cdf-version: 20230101-alpha`."
+  title: Cognite Simulators API
+  description: '# Introduction
+
+    This is the reference documentation for the Cognite API with
+
+    an overview of all the available methods.'
   version: v1
   contact:
     name: Cognite Support
@@ -36,18 +40,7 @@ security:
   - https://{cluster}.cognitedata.com/.default
 tags:
 - name: Simulators
-  description: 'The simulator resource contains the definitions necessary for Cognite Data Fusion (CDF) to interact with a given simulator. It serves as a central contract that allows APIs, UIs, and integrations (connectors) to utilize the same definitions when dealing with a specific simulator.
-
-
-    Each simulator is uniquely identified and can be associated with various file extension types, model types, step fields, and unit quantities. Simulators are essential for managing data flows between CDF and external simulation tools, ensuring consistency and reliability in data handling.
-
-
-    #### Limitations:
-
-
-    - A project can have a maximum of 100 simulators
-
-    '
+  description: The simulator resource contains the definitions necessary for Cognite Data Fusion (CDF) to interact with a given simulator.
 paths:
   /simulators/list:
     post:
@@ -83,11 +76,68 @@ paths:
           description: Internal Server Error
 components:
   schemas:
-    ListSimulatorsFilters:
-      properties: {}
+    APIError:
+      properties:
+        message:
+          type: string
+          title: Message
+        code:
+          type: integer
+          title: Code
+      type: object
+      required:
+      - message
+      - code
+      title: APIError
+    SimulatorQuantity:
+      properties:
+        name:
+          type: string
+          maxLength: 50
+          minLength: 1
+          title: Name
+          description: Name of the quantity
+          examples:
+          - Mass
+          - Length
+          - Pressure
+        label:
+          type: string
+          maxLength: 50
+          minLength: 1
+          title: Label
+          description: Label of the quantity. For display purposes
+          examples:
+          - Mass
+          - Length
+          - Pressure
+        units:
+          items:
+            $ref: '#/components/schemas/SimulatorUnitEntry'
+          type: array
+          maxItems: 100
+          minItems: 1
+          title: Units
+          description: Units of measure supported by the simulator for the given quantity
       additionalProperties: false
       type: object
-      title: ListSimulatorsFilters
+      required:
+      - name
+      - label
+      - units
+      title: SimulatorQuantity
+    ListSimulator:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/Simulator'
+          type: array
+          title: Items
+      additionalProperties: false
+      type: object
+      required:
+      - items
+      title: ListSimulator
     Simulator:
       properties:
         id:
@@ -142,40 +192,6 @@ components:
       - createdTime
       - lastUpdatedTime
       title: Simulator
-    SimulatorStep:
-      properties:
-        stepType:
-          type: string
-          maxLength: 50
-          minLength: 1
-          title: StepType
-          description: Step type
-        fields:
-          items:
-            $ref: '#/components/schemas/SimulatorStepField'
-          type: array
-          maxItems: 100
-          minItems: 1
-          title: Fields
-          description: Fields of the step
-      additionalProperties: false
-      type: object
-      required:
-      - stepType
-      - fields
-      title: SimulatorStep
-    ListSimulator:
-      properties:
-        items:
-          items:
-            $ref: '#/components/schemas/Simulator'
-          type: array
-          title: Items
-      additionalProperties: false
-      type: object
-      required:
-      - items
-      title: ListSimulator
     SimulatorModelType:
       properties:
         name:
@@ -196,6 +212,65 @@ components:
       - name
       - key
       title: SimulatorModelType
+    SimulatorUnitEntry:
+      properties:
+        label:
+          type: string
+          maxLength: 50
+          minLength: 0
+          title: Label
+          description: Label of the unit. For display purposes
+          examples:
+          - kg
+          - m
+          - Pa
+        name:
+          type: string
+          maxLength: 50
+          minLength: 0
+          title: Name
+          description: Name of the unit
+          examples:
+          - kg
+          - m
+          - Pa
+      additionalProperties: false
+      type: object
+      required:
+      - label
+      - name
+      title: SimulatorUnitEntry
+    ListSimulatorsFilters:
+      properties: {}
+      additionalProperties: false
+      type: object
+      title: ListSimulatorsFilters
+    SimulatorStepOption:
+      properties:
+        label:
+          type: string
+          maxLength: 50
+          minLength: 1
+          title: Label
+          description: Label that will be shown in the dropdown in the GUI of the routine builder
+          examples:
+          - Solve Flowsheet
+          - Pause Solver
+        value:
+          type: string
+          maxLength: 50
+          minLength: 1
+          title: Value
+          description: Name of the dropdown item
+          examples:
+          - Solve
+          - Pause
+      additionalProperties: false
+      type: object
+      required:
+      - label
+      - value
+      title: SimulatorStepOption
     SimulatorStepField:
       properties:
         name:
@@ -242,60 +317,6 @@ components:
           default: 1000
       type: object
       title: ListSimulatorsQuery
-    SimulatorStepOption:
-      properties:
-        label:
-          type: string
-          maxLength: 50
-          minLength: 1
-          title: Label
-          description: Label that will be shown in the dropdown in the GUI of the routine builder
-          examples:
-          - Solve Flowsheet
-          - Pause Solver
-        value:
-          type: string
-          maxLength: 50
-          minLength: 1
-          title: Value
-          description: Name of the dropdown item
-          examples:
-          - Solve
-          - Pause
-      additionalProperties: false
-      type: object
-      required:
-      - label
-      - value
-      title: SimulatorStepOption
-    SimulatorUnitEntry:
-      properties:
-        label:
-          type: string
-          maxLength: 50
-          minLength: 0
-          title: Label
-          description: Label of the unit. For display purposes
-          examples:
-          - kg
-          - m
-          - Pa
-        name:
-          type: string
-          maxLength: 50
-          minLength: 0
-          title: Name
-          description: Name of the unit
-          examples:
-          - kg
-          - m
-          - Pa
-      additionalProperties: false
-      type: object
-      required:
-      - label
-      - name
-      title: SimulatorUnitEntry
     ErrorBase:
       properties:
         error:
@@ -304,56 +325,28 @@ components:
       required:
       - error
       title: ErrorBase
-    SimulatorQuantity:
+    SimulatorStep:
       properties:
-        name:
+        stepType:
           type: string
           maxLength: 50
           minLength: 1
-          title: Name
-          description: Name of the quantity
-          examples:
-          - Mass
-          - Length
-          - Pressure
-        label:
-          type: string
-          maxLength: 50
-          minLength: 1
-          title: Label
-          description: Label of the quantity. For display purposes
-          examples:
-          - Mass
-          - Length
-          - Pressure
-        units:
+          title: StepType
+          description: Step type
+        fields:
           items:
-            $ref: '#/components/schemas/SimulatorUnitEntry'
+            $ref: '#/components/schemas/SimulatorStepField'
           type: array
           maxItems: 100
           minItems: 1
-          title: Units
-          description: Units of measure supported by the simulator for the given quantity
+          title: Fields
+          description: Fields of the step
       additionalProperties: false
       type: object
       required:
-      - name
-      - label
-      - units
-      title: SimulatorQuantity
-    APIError:
-      properties:
-        message:
-          type: string
-          title: Message
-        code:
-          type: integer
-          title: Code
-      type: object
-      required:
-      - message
-      - code
-      title: APIError
+      - stepType
+      - fields
+      title: SimulatorStep
   securitySchemes:
     oidc-token:
       type: http

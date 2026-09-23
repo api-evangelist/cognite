@@ -1,7 +1,11 @@
-openapi: 3.1.0
+openapi: 3.2.0
 info:
-  title: Cognite 3D Asset Mapping Previews API
-  description: "# Introduction\nThis is the reference documentation for the Cognite API with\nan overview of all the available methods.\n\n# Postman\nSelect the **Download** button to download our OpenAPI specification to get started.\n\nTo import your data into Postman, select **Import**, and the Import modal opens.\nYou can import items by dragging or dropping files or folders. You can choose how to import your API and manage the import settings in **View Import Settings**.\n\nIn the Import Settings, set the **Folder organization** to **Tags**, select\n**Enable optional parameters** to turn off the settings, and select **Always inherit authentication** to turn on the settings. Select **Import**.\n\nSet the Authorization to **Oauth2.0**. By default, the settings are for Open Industrial Data. Navigate to [Cognite Hub](https://hub.cognite.com/open-industrial-data-211) to understand how to get the credentials for use in Postman.\n\nFor more information, see [Getting Started with Postman](https://developer.cognite.com/dev/guides/postman/).\n\n# Pagination\nMost resource types can be paginated, indicated by the field `nextCursor` in the response.\nBy passing the value of `nextCursor` as the cursor you will get the next page of `limit` results.\nNote that all parameters except `cursor` has to stay the same.\n\n# Parallel retrieval\nAs general guidance, Parallel Retrieval is a technique that should be used when due to query complexity, retrieval of data in a single request is significantly slower than it would otherwise be for a simple request.  Parallel retrieval does not act as a speed multiplier on optimally running queries.  By parallelizing such requests, data retrieval performance can be tuned to meet the client application needs. \n\nCDF supports parallel retrieval through the `partition` parameter, which has the format `m/n` where `n` is the amount of partitions you would like to split the entire data set into.\nIf you want to download the entire data set by splitting it into 10 partitions, do the following in parallel with `m` running from 1 to 10:\n  - Make a request to `/events` with `partition=m/10`.\n  - Paginate through the response by following the cursor as explained above. Note that the `partition` parameter needs to be passed to all subqueries.\n\nProcessing of parallel retrieval requests is subject to concurrency quota availability. The request returns the `429` response upon exceeding concurrency limits. See the Request throttling chapter below.\n\nTo prevent unexpected problems and to maximize read throughput, you should at most use 10 partitions. \nSome CDF resources will automatically enforce a maximum of 10 partitions.\nFor more specific and detailed information, please read the ```partition``` attribute documentation for the CDF resource you're using.  \n\n# Requests throttling\nCognite Data Fusion (CDF) returns the HTTP `429` (too many requests) response status code when project capacity exceeds the limit.\n\nThe throttling can happen:\n  - If a user or a project sends too many (more than allocated) concurrent requests.\n  - If a user or a project sends a too high (more than allocated) rate of requests in a given amount of time.\n\nCognite recommends using a retry strategy based on truncated exponential backoff to handle sessions with HTTP response codes 429.\n\nCognite recommends using a reasonable number (up to 10) of  `Parallel retrieval` partitions.\n\nFollowing these strategies lets you slow down the request frequency to maximize productivity without having to re-submit/retry failing requests.\n\nSee more [here](https://docs.cognite.com/dev/concepts/resource_throttling).\n\n# API versions\n## Version headers\nThis API uses calendar versioning, and version names follow the `YYYYMMDD` format.\nYou can find the versions currently available by using the version selector at the top of this page.\n\nTo use a specific API version, you can pass the `cdf-version: $version` header along with your requests to the API.\n\n## Beta versions\nThe beta versions provide a preview of what the stable version will look like in the future.\nBeta versions contain functionality that is reasonably mature, and highly likely to become a part of the stable API.\n\nBeta versions are indicated by a `-beta` suffix after the version name. For example, the beta version header for the\n2023-01-01 version is then `cdf-version: 20230101-beta`.\n\n## Alpha versions\nAlpha versions contain functionality that is new and experimental, and not guaranteed to ever become a part of the stable API.\nThis functionality presents no guarantee of service, so its use is subject to caution.\n\nAlpha versions are indicated by an `-alpha` suffix after the version name. For example, the alpha version header for\nthe 2023-01-01 version is then `cdf-version: 20230101-alpha`."
+  title: Cognite Previews API
+  description: '# Introduction
+
+    This is the reference documentation for the Cognite API with
+
+    an overview of all the available methods.'
   version: v1
   contact:
     name: Cognite Support
@@ -49,10 +53,7 @@ paths:
       - hostedExtractors:WRITE
       tags:
       - Previews
-      description: '
-
-
-        > **Required capabilities:** `hostedExtractors:WRITE`
+      description: '> **Required capabilities:** `hostedExtractors:WRITE`
 
 
         Create a preview job. Previews will run for up to 10 minutes, and return once they receive any data. Use the /result endpoint to check the status of the preview.'
@@ -82,10 +83,7 @@ paths:
       - hostedExtractors:READ
       tags:
       - Previews
-      description: '
-
-
-        > **Required capabilities:** `hostedExtractors:READ`
+      description: '> **Required capabilities:** `hostedExtractors:READ`
 
 
         Get the result of a preview job. Note that previews may be automatically deleted as soon as 1 hour after they are created.'
@@ -115,10 +113,7 @@ paths:
       - hostedExtractors:READ
       tags:
       - Previews
-      description: '
-
-
-        > **Required capabilities:** `hostedExtractors:READ`
+      description: '> **Required capabilities:** `hostedExtractors:READ`
 
 
         Download the raw, binary result of a preview job, before it is passed throguh any transformations. Note that this endpoint will return 404 if there is no raw data.'
@@ -144,26 +139,53 @@ paths:
       summary: Download preview result
 components:
   schemas:
-    InputConfig:
+    Error:
       type: object
-      description: Optionally set input mapping input type. This defaults to json if left out. Any input type is converted to JSON before being passed to the mapping expression.
-      discriminator:
-        mapping:
-          protobuf: '#/components/schemas/ProtobufConfig'
-          csv: '#/components/schemas/CsvConfig'
-          xml: '#/components/schemas/XmlConfig'
-          json: '#/components/schemas/JsonConfig'
-        propertyName: type
-      oneOf:
-      - $ref: '#/components/schemas/ProtobufConfig'
-      - $ref: '#/components/schemas/CsvConfig'
-      - $ref: '#/components/schemas/XmlConfig'
-      - $ref: '#/components/schemas/JsonConfig'
-    CogniteExternalId:
-      description: The external ID provided by the client. Must be unique for the resource type.
-      type: string
-      maxLength: 255
-      example: my.known.id
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
+    KafkaJobConfig:
+      additionalProperties: false
+      type: object
+      title: Kafka
+      required:
+      - topic
+      properties:
+        topic:
+          title: Topic
+          type: string
+          description: Kafka topic to connect to
+          maxLength: 200
+        partitions:
+          title: Partitions
+          type: integer
+          minimum: 1
+          maximum: 10
+          default: 1
+          description: Number of partitions on the topic.
     CreatePreview:
       type: object
       title: CreatePreview
@@ -193,138 +215,110 @@ components:
       - externalId
       - sourceId
       - config
-    PreviewResultPayload:
+    PreviewResultError:
       type: object
-      title: PreviewResultPayload
-      description: Result of a successful preview.
+      title: PreviewResultError
+      description: Result of a failed preview.
       properties:
         type:
           enum:
-          - preview
+          - error
           title: Type
           type: string
           description: Result type
         externalId:
           $ref: '#/components/schemas/CogniteExternalId'
-        json:
-          title: Json
-          description: Arbitrary json that is the data that would be passed to the mapping. Note that if you have specified a custom `input` type, or custom `format` parameters, this is the data _after_ it has passed through those.
-        context:
-          title: Context
-          description: Message context that would be passed to the mapping.
-          type: object
+        kind:
+          enum:
+          - startup_error
+          - connection_error
+          - transform_error
+          type: string
+          title: Kind
+          description: The type of error that occured. If the type is transform_error, raw data is usually available in the /download endpoint.
+        message:
+          type: string
+          title: Message
+          description: Error message.
         createdTime:
           $ref: '#/components/schemas/EpochTimestamp'
       required:
       - type
       - externalId
       - createdTime
-    KafkaJobConfig:
+      - kind
+    CreateProtobufConfig:
       additionalProperties: false
-      type: object
-      title: Kafka
-      required:
-      - topic
-      properties:
-        topic:
-          title: Topic
-          type: string
-          description: Kafka topic to connect to
-          maxLength: 200
-        partitions:
-          title: Partitions
-          type: integer
-          minimum: 1
-          maximum: 10
-          default: 1
-          description: Number of partitions on the topic.
-    ExternalIdWrapper:
-      additionalProperties: false
-      properties:
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-      required:
-      - externalId
-      title: ExternalIdWrapper
-      type: object
-    Error:
-      type: object
-      required:
-      - code
-      - message
-      description: Cognite API error.
-      properties:
-        code:
-          type: integer
-          description: HTTP status code.
-          format: int32
-          example: 401
-        message:
-          type: string
-          description: Error message.
-          example: Could not authenticate.
-        missing:
-          type: array
-          description: List of lookup objects that do not match any results.
-          items:
-            type: object
-            additionalProperties: true
-        duplicated:
-          type: array
-          description: List of objects that are not unique.
-          items:
-            type: object
-            additionalProperties: true
-    PreviewResult:
-      type: object
-      title: PreviewResult
-      description: Result of a preview job.
-      discriminator:
-        mapping:
-          error: '#/components/schemas/PreviewResultError'
-          preview: '#/components/schemas/PreviewResultPayload'
-          pending: '#/components/schemas/PreviewResultPending'
-        propertyName: type
-      oneOf:
-      - $ref: '#/components/schemas/PreviewResultError'
-      - $ref: '#/components/schemas/PreviewResultPayload'
-      - $ref: '#/components/schemas/PreviewResultPending'
-    JsonConfig:
-      additionalProperties: false
-      type: object
-      description: Treat the input as UTF-8 encoded JSON.
-      title: JSON
+      description: List of protobuf files used to define input to the mapping. This will be compiled to a collection of definitions which will be used to convert the input to JSON.
+      title: ProtoBuf
       properties:
         type:
           type: string
           enum:
-          - json
+          - protobuf
           description: Input type
           title: Type
+        messageName:
+          type: string
+          description: Name of root message in the protobuf files.
+          maxLength: 128
+          title: Message Name
+        files:
+          type: array
+          maxItems: 20
+          minItems: 1
+          description: List of protobuf files as text.
+          items:
+            $ref: '#/components/schemas/CreateProtoFile'
       required:
+      - messageName
+      - files
       - type
-    HeaderValueConfig:
+    BodyPaginationConfig:
       additionalProperties: false
       type: object
-      title: HeaderValueConfig
+      title: BodyPaginationConfig
       required:
-      - key
-      - value
       - type
+      - value
       properties:
         type:
           title: Type
           type: string
           enum:
-          - headerValue
-        key:
-          title: Key
-          type: string
-          description: Key to insert the generated value into
+          - body
         value:
           title: Value
           type: string
-          description: Expression that will be evaluated, and its result used as a header value
+          description: 'Expression yielding next message body. Note that body-based pagination is not allowed to be used if `method` is not set to `post`.
+
+            '
+    CompressionType:
+      enum:
+      - gzip
+      title: CompressionType
+      description: 'The compression applied to incoming messages. The messages are decompressed before being passed to transformations.
+
+        This is usually not relevant for REST, where this is handled automatically, but MQTT, Kafka, and EventHub have no such mechanisms.'
+      type: string
+    CreateProtoFile:
+      additionalProperties: false
+      description: Definition of a protobuf file used for loading input to the mapping.
+      properties:
+        fileName:
+          type: string
+          title: File Name
+          format: '[a-zA-Z0-9_-]+\.proto'
+          maxLength: 128
+          description: Name of protobuf file. Must contain only letters, numbers, underscores, and hyphens, and must end with '.proto'.
+        content:
+          type: string
+          title: Content
+          description: Protobuf file content. Must be a valid protobuf file.
+          maxLength: 10000
+      required:
+      - fileName
+      - content
     PreviewResultPending:
       type: object
       title: PreviewResultPayload
@@ -341,18 +335,61 @@ components:
       required:
       - type
       - externalId
-    ProtoFile:
+    QueryParameterConfig:
       additionalProperties: false
-      description: Description of a protobuf file used for loading input to the mapping.
-      properties:
-        fileName:
-          type: string
-          title: File Name
-          format: '[a-zA-Z0-9_-]+\.proto'
-          maxLength: 128
-          description: Name of protobuf file. Must contain only letters, numbers, underscores, and hyphens, and must end with '.proto'.
+      type: object
+      title: QueryParameterConfig
       required:
-      - fileName
+      - key
+      - value
+      - type
+      properties:
+        type:
+          title: Type
+          type: string
+          enum:
+          - queryParam
+        key:
+          title: Key
+          type: string
+          description: Key to insert the generated value into
+        value:
+          title: Value
+          type: string
+          description: Expression that will be evaluated, and its result used as a query parameter
+    MinimalPreview:
+      type: object
+      title: MinimalPreview
+      description: Preview create response
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        sourceId:
+          title: Source ID
+          description: ID of the source this preview job should read from.
+          type: string
+          maxLength: 255
+        config:
+          $ref: '#/components/schemas/JobConfig'
+        format:
+          type: object
+          title: Format
+          description: Input format parameters.
+          properties:
+            encoding:
+              $ref: '#/components/schemas/EncodingType'
+            compression:
+              $ref: '#/components/schemas/CompressionType'
+        input:
+          $ref: '#/components/schemas/InputConfig'
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+      required:
+      - externalId
+      - sourceId
+      - config
+      - createdTime
+      - input
     RestJobConfig:
       additionalProperties: false
       type: object
@@ -434,38 +471,16 @@ components:
       required:
       - interval
       - path
-    PreviewResultError:
-      type: object
-      title: PreviewResultError
-      description: Result of a failed preview.
-      properties:
-        type:
-          enum:
-          - error
-          title: Type
-          type: string
-          description: Result type
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-        kind:
-          enum:
-          - startup_error
-          - connection_error
-          - transform_error
-          type: string
-          title: Kind
-          description: The type of error that occured. If the type is transform_error, raw data is usually available in the /download endpoint.
-        message:
-          type: string
-          title: Message
-          description: Error message.
-        createdTime:
-          $ref: '#/components/schemas/EpochTimestamp'
-      required:
-      - type
-      - externalId
-      - createdTime
-      - kind
+    RestInterval:
+      enum:
+      - 5m
+      - 15m
+      - 1h
+      - 6h
+      - 12h
+      - 1d
+      title: RestInterval
+      type: string
     XmlConfig:
       additionalProperties: false
       type: object
@@ -482,36 +497,93 @@ components:
           title: Type
       required:
       - type
-    NextUrlConfig:
+    EncodingType:
+      enum:
+      - utf8
+      - utf16
+      - utf16le
+      - latin1
+      title: EncodingType
+      description: 'The type of encoding to convert from.
+
+        - `utf8`, UTF-8, default.
+
+        - `utf16`, UTF-16 big endian.
+
+        - `utf16le`, UTF-16 little endian.
+
+        - `latin1`, Latin 1, Specifically Windows CP 1252.'
+      type: string
+    ExternalIdWrapper:
       additionalProperties: false
-      type: object
-      title: HeaderValueConfig
-      required:
-      - type
-      - value
       properties:
-        type:
-          title: Type
-          type: string
-          enum:
-          - nextUrl
-        value:
-          title: Value
-          type: string
-          description: Expression yielding the next URL to call
-    MQTTJobConfig:
-      additionalProperties: false
-      type: object
-      title: MQTT
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
       required:
-      - topicFilter
+      - externalId
+      title: ExternalIdWrapper
+      type: object
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    JobConfig:
+      description: 'Source specific job configuration. The type depends on the type of source, and is required for some sources.
+
+        '
+      title: Job Config
+      oneOf:
+      - $ref: '#/components/schemas/MQTTJobConfig'
+      - $ref: '#/components/schemas/KafkaJobConfig'
+      - $ref: '#/components/schemas/RestJobConfig'
+    ValidationErrorContent:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
       properties:
-        topicFilter:
-          title: TopicFilter
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 422
+        message:
           type: string
-          description: Topic filter.
-          maxLength: 200
-    CreateProtobufConfig:
+          description: Error message.
+          example: 'Extra inputs are not permitted: type'
+    PreviewResult:
+      type: object
+      title: PreviewResult
+      description: Result of a preview job.
+      discriminator:
+        mapping:
+          error: '#/components/schemas/PreviewResultError'
+          preview: '#/components/schemas/PreviewResultPayload'
+          pending: '#/components/schemas/PreviewResultPending'
+        propertyName: type
+      oneOf:
+      - $ref: '#/components/schemas/PreviewResultError'
+      - $ref: '#/components/schemas/PreviewResultPayload'
+      - $ref: '#/components/schemas/PreviewResultPending'
+    InputConfig:
+      type: object
+      description: Optionally set input mapping input type. This defaults to json if left out. Any input type is converted to JSON before being passed to the mapping expression.
+      discriminator:
+        mapping:
+          protobuf: '#/components/schemas/ProtobufConfig'
+          csv: '#/components/schemas/CsvConfig'
+          xml: '#/components/schemas/XmlConfig'
+          json: '#/components/schemas/JsonConfig'
+        propertyName: type
+      oneOf:
+      - $ref: '#/components/schemas/ProtobufConfig'
+      - $ref: '#/components/schemas/CsvConfig'
+      - $ref: '#/components/schemas/XmlConfig'
+      - $ref: '#/components/schemas/JsonConfig'
+    ProtobufConfig:
       additionalProperties: false
       description: List of protobuf files used to define input to the mapping. This will be compiled to a collection of definitions which will be used to convert the input to JSON.
       title: ProtoBuf
@@ -531,19 +603,109 @@ components:
           type: array
           maxItems: 20
           minItems: 1
-          description: List of protobuf files as text.
           items:
-            $ref: '#/components/schemas/CreateProtoFile'
+            $ref: '#/components/schemas/ProtoFile'
       required:
       - messageName
       - files
       - type
-    EpochTimestamp:
-      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-      type: integer
-      minimum: 0
-      format: int64
-      example: 1730204346000
+    HeaderValueConfig:
+      additionalProperties: false
+      type: object
+      title: HeaderValueConfig
+      required:
+      - key
+      - value
+      - type
+      properties:
+        type:
+          title: Type
+          type: string
+          enum:
+          - headerValue
+        key:
+          title: Key
+          type: string
+          description: Key to insert the generated value into
+        value:
+          title: Value
+          type: string
+          description: Expression that will be evaluated, and its result used as a header value
+    NextUrlConfig:
+      additionalProperties: false
+      type: object
+      title: HeaderValueConfig
+      required:
+      - type
+      - value
+      properties:
+        type:
+          title: Type
+          type: string
+          enum:
+          - nextUrl
+        value:
+          title: Value
+          type: string
+          description: Expression yielding the next URL to call
+    CogniteExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
+      type: string
+      maxLength: 255
+      example: my.known.id
+    CreateInputConfig:
+      type: object
+      description: Optionally set input mapping input type. This defaults to json if left out. Each input type is converted to JSON before being passed to the mapping expression.
+      discriminator:
+        mapping:
+          protobuf: '#/components/schemas/CreateProtobufConfig'
+          csv: '#/components/schemas/CsvConfig'
+          xml: '#/components/schemas/XmlConfig'
+          json: '#/components/schemas/JsonConfig'
+        propertyName: type
+      oneOf:
+      - $ref: '#/components/schemas/CreateProtobufConfig'
+      - $ref: '#/components/schemas/CsvConfig'
+      - $ref: '#/components/schemas/XmlConfig'
+      - $ref: '#/components/schemas/JsonConfig'
+    ProtoFile:
+      additionalProperties: false
+      description: Description of a protobuf file used for loading input to the mapping.
+      properties:
+        fileName:
+          type: string
+          title: File Name
+          format: '[a-zA-Z0-9_-]+\.proto'
+          maxLength: 128
+          description: Name of protobuf file. Must contain only letters, numbers, underscores, and hyphens, and must end with '.proto'.
+      required:
+      - fileName
+    MQTTJobConfig:
+      additionalProperties: false
+      type: object
+      title: MQTT
+      required:
+      - topicFilter
+      properties:
+        topicFilter:
+          title: TopicFilter
+          type: string
+          description: Topic filter.
+          maxLength: 200
+    JsonConfig:
+      additionalProperties: false
+      type: object
+      description: Treat the input as UTF-8 encoded JSON.
+      title: JSON
+      properties:
+        type:
+          type: string
+          enum:
+          - json
+          description: Input type
+          title: Type
+      required:
+      - type
     CsvConfig:
       additionalProperties: false
       type: object
@@ -575,199 +737,32 @@ components:
             title: CSV_Header
       required:
       - type
-    CreateProtoFile:
-      additionalProperties: false
-      description: Definition of a protobuf file used for loading input to the mapping.
-      properties:
-        fileName:
-          type: string
-          title: File Name
-          format: '[a-zA-Z0-9_-]+\.proto'
-          maxLength: 128
-          description: Name of protobuf file. Must contain only letters, numbers, underscores, and hyphens, and must end with '.proto'.
-        content:
-          type: string
-          title: Content
-          description: Protobuf file content. Must be a valid protobuf file.
-          maxLength: 10000
-      required:
-      - fileName
-      - content
-    JobConfig:
-      description: 'Source specific job configuration. The type depends on the type of source, and is required for some sources.
-
-        '
-      title: Job Config
-      oneOf:
-      - $ref: '#/components/schemas/MQTTJobConfig'
-      - $ref: '#/components/schemas/KafkaJobConfig'
-      - $ref: '#/components/schemas/RestJobConfig'
-    CompressionType:
-      enum:
-      - gzip
-      title: CompressionType
-      description: 'The compression applied to incoming messages. The messages are decompressed before being passed to transformations.
-
-        This is usually not relevant for REST, where this is handled automatically, but MQTT, Kafka, and EventHub have no such mechanisms.'
-      type: string
-    ValidationErrorContent:
+    PreviewResultPayload:
       type: object
-      required:
-      - code
-      - message
-      description: Cognite API error.
-      properties:
-        code:
-          type: integer
-          description: HTTP status code.
-          format: int32
-          example: 422
-        message:
-          type: string
-          description: Error message.
-          example: 'Extra inputs are not permitted: type'
-    QueryParameterConfig:
-      additionalProperties: false
-      type: object
-      title: QueryParameterConfig
-      required:
-      - key
-      - value
-      - type
+      title: PreviewResultPayload
+      description: Result of a successful preview.
       properties:
         type:
+          enum:
+          - preview
           title: Type
           type: string
-          enum:
-          - queryParam
-        key:
-          title: Key
-          type: string
-          description: Key to insert the generated value into
-        value:
-          title: Value
-          type: string
-          description: Expression that will be evaluated, and its result used as a query parameter
-    RestInterval:
-      enum:
-      - 5m
-      - 15m
-      - 1h
-      - 6h
-      - 12h
-      - 1d
-      title: RestInterval
-      type: string
-    CreateInputConfig:
-      type: object
-      description: Optionally set input mapping input type. This defaults to json if left out. Each input type is converted to JSON before being passed to the mapping expression.
-      discriminator:
-        mapping:
-          protobuf: '#/components/schemas/CreateProtobufConfig'
-          csv: '#/components/schemas/CsvConfig'
-          xml: '#/components/schemas/XmlConfig'
-          json: '#/components/schemas/JsonConfig'
-        propertyName: type
-      oneOf:
-      - $ref: '#/components/schemas/CreateProtobufConfig'
-      - $ref: '#/components/schemas/CsvConfig'
-      - $ref: '#/components/schemas/XmlConfig'
-      - $ref: '#/components/schemas/JsonConfig'
-    ProtobufConfig:
-      additionalProperties: false
-      description: List of protobuf files used to define input to the mapping. This will be compiled to a collection of definitions which will be used to convert the input to JSON.
-      title: ProtoBuf
-      properties:
-        type:
-          type: string
-          enum:
-          - protobuf
-          description: Input type
-          title: Type
-        messageName:
-          type: string
-          description: Name of root message in the protobuf files.
-          maxLength: 128
-          title: Message Name
-        files:
-          type: array
-          maxItems: 20
-          minItems: 1
-          items:
-            $ref: '#/components/schemas/ProtoFile'
-      required:
-      - messageName
-      - files
-      - type
-    BodyPaginationConfig:
-      additionalProperties: false
-      type: object
-      title: BodyPaginationConfig
-      required:
-      - type
-      - value
-      properties:
-        type:
-          title: Type
-          type: string
-          enum:
-          - body
-        value:
-          title: Value
-          type: string
-          description: 'Expression yielding next message body. Note that body-based pagination is not allowed to be used if `method` is not set to `post`.
-
-            '
-    EncodingType:
-      enum:
-      - utf8
-      - utf16
-      - utf16le
-      - latin1
-      title: EncodingType
-      description: 'The type of encoding to convert from.
-
-        - `utf8`, UTF-8, default.
-
-        - `utf16`, UTF-16 big endian.
-
-        - `utf16le`, UTF-16 little endian.
-
-        - `latin1`, Latin 1, Specifically Windows CP 1252.'
-      type: string
-    MinimalPreview:
-      type: object
-      title: MinimalPreview
-      description: Preview create response
-      properties:
+          description: Result type
         externalId:
           $ref: '#/components/schemas/CogniteExternalId'
-        sourceId:
-          title: Source ID
-          description: ID of the source this preview job should read from.
-          type: string
-          maxLength: 255
-        config:
-          $ref: '#/components/schemas/JobConfig'
-        format:
+        json:
+          title: Json
+          description: Arbitrary json that is the data that would be passed to the mapping. Note that if you have specified a custom `input` type, or custom `format` parameters, this is the data _after_ it has passed through those.
+        context:
+          title: Context
+          description: Message context that would be passed to the mapping.
           type: object
-          title: Format
-          description: Input format parameters.
-          properties:
-            encoding:
-              $ref: '#/components/schemas/EncodingType'
-            compression:
-              $ref: '#/components/schemas/CompressionType'
-        input:
-          $ref: '#/components/schemas/InputConfig'
         createdTime:
           $ref: '#/components/schemas/EpochTimestamp'
       required:
+      - type
       - externalId
-      - sourceId
-      - config
       - createdTime
-      - input
   responses:
     ValidationError:
       description: Validation Error

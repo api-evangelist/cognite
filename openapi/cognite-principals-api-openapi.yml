@@ -1,7 +1,11 @@
-openapi: 3.1.0
+openapi: 3.2.0
 info:
-  title: Cognite 3D Asset Mapping Principals API
-  description: "# Introduction\nThis is the reference documentation for the Cognite API with\nan overview of all the available methods.\n\n# Postman\nSelect the **Download** button to download our OpenAPI specification to get started.\n\nTo import your data into Postman, select **Import**, and the Import modal opens.\nYou can import items by dragging or dropping files or folders. You can choose how to import your API and manage the import settings in **View Import Settings**.\n\nIn the Import Settings, set the **Folder organization** to **Tags**, select\n**Enable optional parameters** to turn off the settings, and select **Always inherit authentication** to turn on the settings. Select **Import**.\n\nSet the Authorization to **Oauth2.0**. By default, the settings are for Open Industrial Data. Navigate to [Cognite Hub](https://hub.cognite.com/open-industrial-data-211) to understand how to get the credentials for use in Postman.\n\nFor more information, see [Getting Started with Postman](https://developer.cognite.com/dev/guides/postman/).\n\n# Pagination\nMost resource types can be paginated, indicated by the field `nextCursor` in the response.\nBy passing the value of `nextCursor` as the cursor you will get the next page of `limit` results.\nNote that all parameters except `cursor` has to stay the same.\n\n# Parallel retrieval\nAs general guidance, Parallel Retrieval is a technique that should be used when due to query complexity, retrieval of data in a single request is significantly slower than it would otherwise be for a simple request.  Parallel retrieval does not act as a speed multiplier on optimally running queries.  By parallelizing such requests, data retrieval performance can be tuned to meet the client application needs. \n\nCDF supports parallel retrieval through the `partition` parameter, which has the format `m/n` where `n` is the amount of partitions you would like to split the entire data set into.\nIf you want to download the entire data set by splitting it into 10 partitions, do the following in parallel with `m` running from 1 to 10:\n  - Make a request to `/events` with `partition=m/10`.\n  - Paginate through the response by following the cursor as explained above. Note that the `partition` parameter needs to be passed to all subqueries.\n\nProcessing of parallel retrieval requests is subject to concurrency quota availability. The request returns the `429` response upon exceeding concurrency limits. See the Request throttling chapter below.\n\nTo prevent unexpected problems and to maximize read throughput, you should at most use 10 partitions. \nSome CDF resources will automatically enforce a maximum of 10 partitions.\nFor more specific and detailed information, please read the ```partition``` attribute documentation for the CDF resource you're using.  \n\n# Requests throttling\nCognite Data Fusion (CDF) returns the HTTP `429` (too many requests) response status code when project capacity exceeds the limit.\n\nThe throttling can happen:\n  - If a user or a project sends too many (more than allocated) concurrent requests.\n  - If a user or a project sends a too high (more than allocated) rate of requests in a given amount of time.\n\nCognite recommends using a retry strategy based on truncated exponential backoff to handle sessions with HTTP response codes 429.\n\nCognite recommends using a reasonable number (up to 10) of  `Parallel retrieval` partitions.\n\nFollowing these strategies lets you slow down the request frequency to maximize productivity without having to re-submit/retry failing requests.\n\nSee more [here](https://docs.cognite.com/dev/concepts/resource_throttling).\n\n# API versions\n## Version headers\nThis API uses calendar versioning, and version names follow the `YYYYMMDD` format.\nYou can find the versions currently available by using the version selector at the top of this page.\n\nTo use a specific API version, you can pass the `cdf-version: $version` header along with your requests to the API.\n\n## Beta versions\nThe beta versions provide a preview of what the stable version will look like in the future.\nBeta versions contain functionality that is reasonably mature, and highly likely to become a part of the stable API.\n\nBeta versions are indicated by a `-beta` suffix after the version name. For example, the beta version header for the\n2023-01-01 version is then `cdf-version: 20230101-beta`.\n\n## Alpha versions\nAlpha versions contain functionality that is new and experimental, and not guaranteed to ever become a part of the stable API.\nThis functionality presents no guarantee of service, so its use is subject to caution.\n\nAlpha versions are indicated by an `-alpha` suffix after the version name. For example, the alpha version header for\nthe 2023-01-01 version is then `cdf-version: 20230101-alpha`."
+  title: Cognite Principals API
+  description: '# Introduction
+
+    This is the reference documentation for the Cognite API with
+
+    an overview of all the available methods.'
   version: v1
   contact:
     name: Cognite Support
@@ -36,7 +40,7 @@ security:
   - https://{cluster}.cognitedata.com/.default
 tags:
 - name: Principals
-  description: "**Principal** is an umbrella term for **user accounts** and **service accounts**. Both entities can be uniquely identified, \nauthenticated, and authorized in CDF. Principals are unique within an organization, and therefore also within a project in the \norganization. Principals can access data and create and run processes (transformations, Functions) in a CDF project.\n\n* A **user account** is associated with a **person** who wants to interact with CDF. Each user account has a user \nprofile containing a unique user ID.\n* A **service account** is associated with an **application** or **process** that wants to interact with CDF, such as \nan extractor or Cognite Functions, rather than a person.\n\n## Authentication for this API\nRequests to the Principals API are directed to `auth.cognite.com`, like for organizations.\n\nOnly OAuth tokens issued by `https://auth.cognite.com` (such as the ones issued when logging into Fusion) are accepted\nby the Principals API.\n\nIt is also possible to obtain a token by initiating a login flow against the authorization server directly. See\nthe \"Authorizations\" sections for more information.\n\n## User Accounts\nThe Principals API lets you query user accounts in an organization, and retrieve profiles.\n"
+  description: '**Principal** is an umbrella term for **user accounts** and **service accounts**.'
 paths:
   /api/v1/principals/me:
     servers:
@@ -166,7 +170,81 @@ paths:
       summary: Revoke login sessions
       security:
       - org-oidc-token: []
-      description: "Revoke one or more login sessions for a user principal in an organization.\n\nNote that a login session is what a user gets after logging into Fusion, InField, or another Cognite\napplication. It is distinct from the concept of the \"sessions\" that can be used for background work like\nTransformations or Functions; however, each such background session is backed by a login session.\n\nUpon successful completion of a login flow, the user receives an access token and a refresh token, which are\nboth associated with the newly established login session. (Note that the user may have multiple concurrent\nlogin sessions.) The user may use the access token to send requests to the Cognite API, and the refresh token\nto obtain a new access token before the current one expires. Refreshing will also produce a new refresh token\nand invalidate the previous one. Every access token and refresh token in this \"chain\" is associated with the\nsame login session.\n\nRevoking a login session will set its `status` to `REVOKED` (which will be reflected in\n`/api/v1/orgs/{org}/principals/{principal}/sessions`), which within a short amount of time will prevent the user\nfrom accessing the Cognite systems via that login session. Specifically:\n- Requests to the Cognite API that use any access token that is associated with this session will be rejected.\n- Requests to refresh the login session will be rejected.\n- Background jobs that were started from this login session will stop working. Note that this might take up to\n  one hour to take effect.\n\nNote that the user may still have other active login sessions, which will remain active. If you want to\ncompletely prevent a user from accessing Cognite systems, you should remove them from your organization's\nexternal identity provider (e.g. your Entra ID tenant), which will prevent them from logging in again, and then\ncall `/api/v1/orgs/{org}/principals/{principal}/sessions` to list all their current login sessions and then pass\nall their ids to this endpoint (in batches, if there are more than 10) to revoke them.\n\nAlso note that because the `REVOKED` status is \"stronger\" than the `LOGGED_OUT` status (background sessions\nremain active in the latter status but not in the former), it is possible to revoke a login session that is\n`LOGGED_OUT` (which will stop any associated background sessions). Currently, `REVOKED` has the same\nconsequences as `EXPIRED`, but revocation might be expanded in the future to become even stronger, so it is also\npossible to revoke a login session that is `EXPIRED`. Revoking a login session that is already `REVOKED` will\nsucceed but will have no effect (in particular, the `deactivatedTime` of the login session will not change).\n\nThis endpoint is atomic: if revocation of any of the given login sessions fails, none of the login sessions will\nbe revoked. In other words, any other status code than 204 means that no login sessions were revoked.\n\nThis endpoint does not work for service account principals, which do not have login sessions.\n\n#### Access control\nRequires the caller to be an admin of the target organization (it is not sufficient to be an admin of an\nancestor organization)."
+      description: 'Revoke one or more login sessions for a user principal in an organization.
+
+
+        Note that a login session is what a user gets after logging into Fusion, InField, or another Cognite
+
+        application. It is distinct from the concept of the "sessions" that can be used for background work like
+
+        Transformations or Functions; however, each such background session is backed by a login session.
+
+
+        Upon successful completion of a login flow, the user receives an access token and a refresh token, which are
+
+        both associated with the newly established login session. (Note that the user may have multiple concurrent
+
+        login sessions.) The user may use the access token to send requests to the Cognite API, and the refresh token
+
+        to obtain a new access token before the current one expires. Refreshing will also produce a new refresh token
+
+        and invalidate the previous one. Every access token and refresh token in this "chain" is associated with the
+
+        same login session.
+
+
+        Revoking a login session will set its `status` to `REVOKED` (which will be reflected in
+
+        `/api/v1/orgs/{org}/principals/{principal}/sessions`), which within a short amount of time will prevent the user
+
+        from accessing the Cognite systems via that login session. Specifically:
+
+        - Requests to the Cognite API that use any access token that is associated with this session will be rejected.
+
+        - Requests to refresh the login session will be rejected.
+
+        - Background jobs that were started from this login session will stop working. Note that this might take up to
+
+        one hour to take effect.
+
+
+        Note that the user may still have other active login sessions, which will remain active. If you want to
+
+        completely prevent a user from accessing Cognite systems, you should remove them from your organization''s
+
+        external identity provider (e.g. your Entra ID tenant), which will prevent them from logging in again, and then
+
+        call `/api/v1/orgs/{org}/principals/{principal}/sessions` to list all their current login sessions and then pass
+
+        all their ids to this endpoint (in batches, if there are more than 10) to revoke them.
+
+
+        Also note that because the `REVOKED` status is "stronger" than the `LOGGED_OUT` status (background sessions
+
+        remain active in the latter status but not in the former), it is possible to revoke a login session that is
+
+        `LOGGED_OUT` (which will stop any associated background sessions). Currently, `REVOKED` has the same
+
+        consequences as `EXPIRED`, but revocation might be expanded in the future to become even stronger, so it is also
+
+        possible to revoke a login session that is `EXPIRED`. Revoking a login session that is already `REVOKED` will
+
+        succeed but will have no effect (in particular, the `deactivatedTime` of the login session will not change).
+
+
+        This endpoint is atomic: if revocation of any of the given login sessions fails, none of the login sessions will
+
+        be revoked. In other words, any other status code than 204 means that no login sessions were revoked.
+
+
+        This endpoint does not work for service account principals, which do not have login sessions.
+
+
+        #### Access control
+
+        Requires the caller to be an admin of the target organization (it is not sufficient to be an admin of an
+
+        ancestor organization).'
       tags:
       - Principals
       parameters:
@@ -184,105 +262,99 @@ paths:
         '404':
           $ref: '#/components/responses/LoginSessionsNotFoundResponse'
 components:
-  responses:
-    LoginSessionsRevokeBadRequestResponse:
-      description: 'Bad request body: the number of login sessions to revoke is out of range, or one or more of the login session
-
-        ids do not exist or do not belong to this organization or user principal.'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/SimpleError'
-    MeResponse:
-      description: The principal that issued the request.
-      content:
-        application/json:
-          schema:
+  schemas:
+    PrincipalPictureUrl:
+      type: string
+      description: URL to a picture of the principal
+      format: url
+    ReferenceByIdOrExternalId:
+      type: object
+      description: Either a principal ID, or a principal external ID
+      oneOf:
+      - $ref: '#/components/schemas/ReferenceById'
+      - $ref: '#/components/schemas/ReferenceByExternalId'
+    ServiceAccountId:
+      type: string
+      description: Unique identifier of a service account
+      example: 5yAFQRAATb7vtWGp4gvbJD3wE7VS81CGuQ7EZT
+    ServiceAccountDto:
+      allOf:
+      - type: object
+        description: A service account
+        required:
+        - id
+        - type
+        - name
+        - createdBy
+        - createdTime
+        - lastUpdatedTime
+        properties:
+          id:
+            $ref: '#/components/schemas/ServiceAccountId'
+          type:
+            type: string
+            description: Principal type
+            enum:
+            - SERVICE_ACCOUNT
+            example: SERVICE_ACCOUNT
+          externalId:
+            $ref: '#/components/schemas/CogniteExternalId'
+          name:
+            $ref: '#/components/schemas/ServiceAccountName'
+          description:
+            $ref: '#/components/schemas/ServiceAccountDescription'
+          createdBy:
+            $ref: '#/components/schemas/ServiceAccountCreator'
+          createdTime:
+            $ref: '#/components/schemas/EpochTimestamp'
+          lastUpdatedTime:
+            $ref: '#/components/schemas/EpochTimestamp'
+      - $ref: '#/components/schemas/BasePrincipalDto'
+    ServiceAccountCreator:
+      description: The principal that created the entity.
+      oneOf:
+      - $ref: '#/components/schemas/ServiceAccountCreatorUser'
+    LoginSessionId:
+      type: string
+      description: Unique identifier of a login session.
+      example: aea91e72-a984-4a4c-ba06-a7f54e650825
+    PrincipalsListPaginatedDto:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          maxLength: 100
+          items:
             $ref: '#/components/schemas/PrincipalDto'
-    PrincipalsPaginatedListResponse:
-      description: A list of principals, with a cursor pointing to the next results page (if any).
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/PrincipalsListPaginatedDto'
-    LoginSessionsNotFoundResponse:
-      description: The principal id does not exist, or does not belong to this organization.
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/SimpleError'
-    LoginSessionsForbiddenResponse:
-      description: 'The calling user is not an admin of the organization, or the principal id references a service account rather
-
-        than a user.'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/SimpleError'
-    LoginSessionsListBadRequestResponse:
-      description: 'Bad parameters: the limit is out of range or not a number, or the cursor is invalid.'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/SimpleError'
-    PrincipalsListResponse:
-      description: A list of principals.
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/PrincipalsListResponseDto'
-    LoginSessionsPaginatedListResponse:
-      description: A list of login sessions, with a cursor pointing to the next results page (if any).
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/LoginSessionsListPaginatedDto'
-  parameters:
-    ListLimit1000:
-      in: query
-      required: false
-      name: limit
-      schema:
-        type: integer
-        minimum: 1
-        maximum: 1000
-      description: The maximum number of items to return.
-    ListLimit100:
-      in: query
-      required: false
-      name: limit
-      schema:
-        type: integer
-        minimum: 1
-        maximum: 100
-    PrincipalTypes:
-      in: query
-      required: false
-      name: types
-      description: 'Filter by principal types.
-
-        If not specified, all principal types will be included.
-
-        You can filter by multiple types by providing a comma-separated list, or by repeating the parameter.'
-      schema:
-        $ref: '#/components/schemas/PrincipalType'
-      example: USER,SERVICE_ACCOUNT
-    PrincipalId:
-      name: principal
-      in: path
-      description: ID of a principal
-      required: true
-      schema:
-        $ref: '#/components/schemas/PrincipalId'
-    OrgId:
-      name: org
-      in: path
-      description: ID of an organization
-      required: true
-      schema:
-        $ref: '#/components/schemas/OrgId'
+        nextCursor:
+          $ref: '#/components/schemas/Cursor'
+    ReferenceById:
+      type: object
+      required:
+      - id
+      properties:
+        id:
+          $ref: '#/components/schemas/PrincipalId'
+    LoginSessionsListPaginatedDto:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          maxLength: 100
+          items:
+            $ref: '#/components/schemas/LoginSessionDto'
+        nextCursor:
+          $ref: '#/components/schemas/Cursor'
     Cursor:
-      name: cursor
+      type: object
+      properties:
+        cursor:
+          type: string
+          example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
       description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
 
         property, it means that there may be more results, and you should pass that value as the
@@ -297,51 +369,6 @@ components:
         notice. You should treat it as an opaque string and not attempt to craft your own cursors.
 
         '
-      in: query
-      schema:
-        type: string
-        example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
-  schemas:
-    SimpleError:
-      type: object
-      required:
-      - code
-      - message
-      description: Cognite API error.
-      properties:
-        code:
-          type: integer
-          description: HTTP status code.
-          format: int32
-        message:
-          type: string
-          description: Error message.
-    UserId:
-      type: string
-      description: The ID of an organization user
-      minLength: 22
-      maxLength: 22
-      example: -user-string-id-aBc123
-      pattern: ^[-_a-zA-Z0-9]{22}$
-    CogniteExternalId:
-      description: The external ID provided by the client. Must be unique for the resource type.
-      type: string
-      maxLength: 255
-      example: my.known.id
-    BasePrincipalDto:
-      type: object
-      description: A principal
-      required:
-      - id
-      - name
-      - pictureUrl
-      properties:
-        id:
-          $ref: '#/components/schemas/PrincipalId'
-        name:
-          $ref: '#/components/schemas/PrincipalName'
-        pictureUrl:
-          $ref: '#/components/schemas/PrincipalPictureUrl'
     LoginSessionDto:
       type: object
       required:
@@ -367,10 +394,37 @@ components:
           description: 'The Unix timestamp (in milliseconds) when the login session was deactivated,
 
             or `null` or absent if `status` is `ACTIVE`.'
-    PrincipalPictureUrl:
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    OrgId:
       type: string
-      description: URL to a picture of the principal
-      format: url
+      description: The ID of an organization
+      minLength: 3
+      maxLength: 64
+      example: my-org
+      pattern: ^([a-z][a-z0-9-]{1,62}[a-z0-9])$
+    ServiceAccountName:
+      type: string
+      description: Human-readable name of a service account
+      minLength: 1
+      maxLength: 50
+      example: My service account
+    ServiceAccountDescription:
+      type: string
+      description: Longer description of a service account
+      maxLength: 500
+      example: This is a service account used by data pipeline A-xxx
+    ReferenceByExternalId:
+      type: object
+      required:
+      - externalId
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
     UserDto:
       allOf:
       - type: object
@@ -407,55 +461,79 @@ components:
             type: string
             example: Doe
       - $ref: '#/components/schemas/BasePrincipalDto'
-    PrincipalDto:
-      oneOf:
-      - $ref: '#/components/schemas/ServiceAccountDto'
-      - $ref: '#/components/schemas/UserDto'
-    PrincipalsListPaginatedDto:
+    PrincipalsListResponseDto:
       type: object
       required:
       - items
       properties:
         items:
           type: array
-          maxLength: 100
           items:
             $ref: '#/components/schemas/PrincipalDto'
-        nextCursor:
-          $ref: '#/components/schemas/Cursor'
-    ServiceAccountDto:
-      allOf:
-      - type: object
-        description: A service account
-        required:
-        - id
-        - type
-        - name
-        - createdBy
-        - createdTime
-        - lastUpdatedTime
-        properties:
-          id:
-            $ref: '#/components/schemas/ServiceAccountId'
-          type:
-            type: string
-            description: Principal type
-            enum:
-            - SERVICE_ACCOUNT
-            example: SERVICE_ACCOUNT
-          externalId:
-            $ref: '#/components/schemas/CogniteExternalId'
-          name:
-            $ref: '#/components/schemas/ServiceAccountName'
-          description:
-            $ref: '#/components/schemas/ServiceAccountDescription'
-          createdBy:
-            $ref: '#/components/schemas/ServiceAccountCreator'
-          createdTime:
-            $ref: '#/components/schemas/EpochTimestamp'
-          lastUpdatedTime:
-            $ref: '#/components/schemas/EpochTimestamp'
-      - $ref: '#/components/schemas/BasePrincipalDto'
+    PrincipalId:
+      type: string
+      description: Unique identifier of a principal
+      example: 5yAFQRAATb7vtWGp4gvbJD3wE7VS81CGuQ7EZT
+    SimpleError:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+        message:
+          type: string
+          description: Error message.
+    PrincipalType:
+      type: string
+      enum:
+      - SERVICE_ACCOUNT
+      - USER
+      description: The type of a principal
+    PrincipalName:
+      type: string
+      description: Human-readable name of the principal
+    CogniteExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
+      type: string
+      maxLength: 255
+      example: my.known.id
+    UserId:
+      type: string
+      description: The ID of an organization user
+      minLength: 22
+      maxLength: 22
+      example: -user-string-id-aBc123
+      pattern: ^[-_a-zA-Z0-9]{22}$
+    ServiceAccountCreatorUser:
+      type: object
+      description: The user that created the entity.
+      required:
+      - orgId
+      - userId
+      properties:
+        orgId:
+          $ref: '#/components/schemas/OrgId'
+        userId:
+          $ref: '#/components/schemas/UserId'
+    BasePrincipalDto:
+      type: object
+      description: A principal
+      required:
+      - id
+      - name
+      - pictureUrl
+      properties:
+        id:
+          $ref: '#/components/schemas/PrincipalId'
+        name:
+          $ref: '#/components/schemas/PrincipalName'
+        pictureUrl:
+          $ref: '#/components/schemas/PrincipalPictureUrl'
     PrincipalListByIdsRequestDto:
       type: object
       required:
@@ -476,113 +554,37 @@ components:
             If `false`, the request will fail if any of the IDs do not match existing principals.
 
             This is the default behavior.'
-    ReferenceById:
-      type: object
-      required:
-      - id
-      properties:
-        id:
-          $ref: '#/components/schemas/PrincipalId'
-    ServiceAccountDescription:
-      type: string
-      description: Longer description of a service account
-      maxLength: 500
-      example: This is a service account used by data pipeline A-xxx
-    LoginSessionId:
-      type: string
-      description: Unique identifier of a login session.
-      example: aea91e72-a984-4a4c-ba06-a7f54e650825
-    EpochTimestamp:
-      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-      type: integer
-      minimum: 0
-      format: int64
-      example: 1730204346000
-    ServiceAccountCreatorUser:
-      type: object
-      description: The user that created the entity.
-      required:
-      - orgId
-      - userId
-      properties:
-        orgId:
-          $ref: '#/components/schemas/OrgId'
-        userId:
-          $ref: '#/components/schemas/UserId'
-    OrgId:
-      type: string
-      description: The ID of an organization
-      minLength: 3
-      maxLength: 64
-      example: my-org
-      pattern: ^([a-z][a-z0-9-]{1,62}[a-z0-9])$
-    LoginSessionsListPaginatedDto:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          maxLength: 100
-          items:
-            $ref: '#/components/schemas/LoginSessionDto'
-        nextCursor:
-          $ref: '#/components/schemas/Cursor'
-    ReferenceByIdOrExternalId:
-      type: object
-      description: Either a principal ID, or a principal external ID
+    PrincipalDto:
       oneOf:
-      - $ref: '#/components/schemas/ReferenceById'
-      - $ref: '#/components/schemas/ReferenceByExternalId'
-    ServiceAccountCreator:
-      description: The principal that created the entity.
-      oneOf:
-      - $ref: '#/components/schemas/ServiceAccountCreatorUser'
-    PrincipalsListResponseDto:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/PrincipalDto'
-    PrincipalName:
-      type: string
-      description: Human-readable name of the principal
-    ServiceAccountName:
-      type: string
-      description: Human-readable name of a service account
-      minLength: 1
-      maxLength: 50
-      example: My service account
-    PrincipalType:
-      type: string
-      enum:
-      - SERVICE_ACCOUNT
-      - USER
-      description: The type of a principal
+      - $ref: '#/components/schemas/ServiceAccountDto'
+      - $ref: '#/components/schemas/UserDto'
+  parameters:
     PrincipalId:
-      type: string
-      description: Unique identifier of a principal
-      example: 5yAFQRAATb7vtWGp4gvbJD3wE7VS81CGuQ7EZT
-    ReferenceByExternalId:
-      type: object
-      required:
-      - externalId
-      properties:
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-    ServiceAccountId:
-      type: string
-      description: Unique identifier of a service account
-      example: 5yAFQRAATb7vtWGp4gvbJD3wE7VS81CGuQ7EZT
+      name: principal
+      in: path
+      description: ID of a principal
+      required: true
+      schema:
+        $ref: '#/components/schemas/PrincipalId'
+    ListLimit100:
+      in: query
+      required: false
+      name: limit
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+    ListLimit1000:
+      in: query
+      required: false
+      name: limit
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 1000
+      description: The maximum number of items to return.
     Cursor:
-      type: object
-      properties:
-        cursor:
-          type: string
-          example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+      name: cursor
       description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
 
         property, it means that there may be more results, and you should pass that value as the
@@ -597,17 +599,30 @@ components:
         notice. You should treat it as an opaque string and not attempt to craft your own cursors.
 
         '
-  requestBodies:
-    PrincipalsListByIdsRequest:
-      description: 'A request to retrieve principals by reference.
-
-
-        For now, only service accounts can have an external ID.'
+      in: query
+      schema:
+        type: string
+        example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+    OrgId:
+      name: org
+      in: path
+      description: ID of an organization
       required: true
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/PrincipalListByIdsRequestDto'
+      schema:
+        $ref: '#/components/schemas/OrgId'
+    PrincipalTypes:
+      in: query
+      required: false
+      name: types
+      description: 'Filter by principal types.
+
+        If not specified, all principal types will be included.
+
+        You can filter by multiple types by providing a comma-separated list, or by repeating the parameter.'
+      schema:
+        $ref: '#/components/schemas/PrincipalType'
+      example: USER,SERVICE_ACCOUNT
+  requestBodies:
     RevokeLoginSessionsRequest:
       description: A request to revoke login sessions for a user principal.
       required: true
@@ -629,6 +644,69 @@ components:
                   properties:
                     id:
                       $ref: '#/components/schemas/LoginSessionId'
+    PrincipalsListByIdsRequest:
+      description: 'A request to retrieve principals by reference.
+
+
+        For now, only service accounts can have an external ID.'
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PrincipalListByIdsRequestDto'
+  responses:
+    LoginSessionsNotFoundResponse:
+      description: The principal id does not exist, or does not belong to this organization.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SimpleError'
+    MeResponse:
+      description: The principal that issued the request.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PrincipalDto'
+    PrincipalsPaginatedListResponse:
+      description: A list of principals, with a cursor pointing to the next results page (if any).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PrincipalsListPaginatedDto'
+    LoginSessionsPaginatedListResponse:
+      description: A list of login sessions, with a cursor pointing to the next results page (if any).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/LoginSessionsListPaginatedDto'
+    LoginSessionsListBadRequestResponse:
+      description: 'Bad parameters: the limit is out of range or not a number, or the cursor is invalid.'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SimpleError'
+    LoginSessionsRevokeBadRequestResponse:
+      description: 'Bad request body: the number of login sessions to revoke is out of range, or one or more of the login session
+
+        ids do not exist or do not belong to this organization or user principal.'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SimpleError'
+    LoginSessionsForbiddenResponse:
+      description: 'The calling user is not an admin of the organization, or the principal id references a service account rather
+
+        than a user.'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SimpleError'
+    PrincipalsListResponse:
+      description: A list of principals.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PrincipalsListResponseDto'
   securitySchemes:
     oidc-token:
       type: http
