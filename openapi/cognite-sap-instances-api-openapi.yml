@@ -167,34 +167,58 @@ paths:
       summary: Delete SAP Instances
 components:
   schemas:
-    Error:
-      type: object
-      required:
-      - code
-      - message
-      description: Cognite API error.
+    WritebackItemsWithIgnoreUnknownIds_ExternalId_:
+      additionalProperties: false
       properties:
-        code:
-          type: integer
-          description: HTTP status code.
-          format: int32
-          example: 401
-        message:
-          type: string
-          description: Error message.
-          example: Could not authenticate.
-        missing:
-          type: array
-          description: List of lookup objects that do not match any results.
+        items:
           items:
-            type: object
-            additionalProperties: true
-        duplicated:
+            $ref: '#/components/schemas/WritebackExternalIdWrapper'
+          title: Items
           type: array
-          description: List of objects that are not unique.
+          maxItems: 100
+          minItems: 1
+        ignoreUnknownIds:
+          type: boolean
+          title: IgnoreUnknownIds
+          description: Ignore IDs and external IDs that are not found
+      required:
+      - items
+      title: ItemsWithIgnoreUnknownIds_ExternalId
+      type: object
+    Items_Instance_:
+      additionalProperties: false
+      properties:
+        items:
           items:
-            type: object
-            additionalProperties: true
+            $ref: '#/components/schemas/Instance'
+          title: Items
+          type: array
+          maxItems: 100
+          minItems: 0
+      required:
+      - items
+      title: InstanceList
+      type: object
+    Items_CreateInstance_:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/CreateInstance'
+          title: Items
+          type: array
+          minLength: 1
+          maxLength: 100
+      required:
+      - items
+      title: CreateInstancelist
+      type: object
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
     Instance:
       additionalProperties: false
       properties:
@@ -224,23 +248,14 @@ components:
       - createdTime
       title: Instance
       type: object
-    WritebackItemsWithIgnoreUnknownIds_ExternalId_:
+    WritebackExternalIdWrapper:
       additionalProperties: false
       properties:
-        items:
-          items:
-            $ref: '#/components/schemas/WritebackExternalIdWrapper'
-          title: Items
-          type: array
-          maxItems: 100
-          minItems: 1
-        ignoreUnknownIds:
-          type: boolean
-          title: IgnoreUnknownIds
-          description: Ignore IDs and external IDs that are not found
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
       required:
-      - items
-      title: ItemsWithIgnoreUnknownIds_ExternalId
+      - externalId
+      title: WritebackExternalIdWrapper
       type: object
     CreateInstance:
       additionalProperties: false
@@ -294,12 +309,11 @@ components:
       - items
       title: ItemsWithIgnoreUnknownIdsAndForce_ExternalId
       type: object
-    EpochTimestamp:
-      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-      type: integer
-      minimum: 0
-      format: int64
-      example: 1730204346000
+    CogniteExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
+      type: string
+      maxLength: 255
+      example: my.known.id
     WritebackValidationErrorContent:
       type: object
       required:
@@ -334,92 +348,34 @@ components:
       - items
       title: InstanceListWithCursor
       type: object
-    WritebackExternalIdWrapper:
-      additionalProperties: false
-      properties:
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-      required:
-      - externalId
-      title: WritebackExternalIdWrapper
+    Error:
       type: object
-    Items_Instance_:
-      additionalProperties: false
+      required:
+      - code
+      - message
+      description: Cognite API error.
       properties:
-        items:
-          items:
-            $ref: '#/components/schemas/Instance'
-          title: Items
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
           type: array
-          maxItems: 100
-          minItems: 0
-      required:
-      - items
-      title: InstanceList
-      type: object
-    CogniteExternalId:
-      description: The external ID provided by the client. Must be unique for the resource type.
-      type: string
-      maxLength: 255
-      example: my.known.id
-    Items_CreateInstance_:
-      additionalProperties: false
-      properties:
-        items:
+          description: List of lookup objects that do not match any results.
           items:
-            $ref: '#/components/schemas/CreateInstance'
-          title: Items
+            type: object
+            additionalProperties: true
+        duplicated:
           type: array
-          minLength: 1
-          maxLength: 100
-      required:
-      - items
-      title: CreateInstancelist
-      type: object
-  responses:
-    ErrorResponse:
-      description: The response for a failed request.
-      content:
-        application/json:
-          schema:
+          description: List of objects that are not unique.
+          items:
             type: object
-            required:
-            - error
-            properties:
-              error:
-                $ref: '#/components/schemas/Error'
-    WritebackValidationError:
-      description: Validation Error
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - error
-            properties:
-              error:
-                $ref: '#/components/schemas/WritebackValidationErrorContent'
-    400ErrorResponse:
-      description: The response for a bad request.
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - error
-            properties:
-              error:
-                $ref: '#/components/schemas/Error'
-          example:
-            error:
-              code: 400
-              message: '`null` values aren''t allowed.'
-    EmptyResponse:
-      description: Empty response.
-      content:
-        application/json:
-          schema:
-            type: object
+            additionalProperties: true
   parameters:
     Writeback100Limit:
       name: limit
@@ -450,6 +406,50 @@ components:
       schema:
         type: string
         example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+  responses:
+    400ErrorResponse:
+      description: The response for a bad request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: 400
+              message: '`null` values aren''t allowed.'
+    EmptyResponse:
+      description: Empty response.
+      content:
+        application/json:
+          schema:
+            type: object
+    ErrorResponse:
+      description: The response for a failed request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+    WritebackValidationError:
+      description: Validation Error
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/WritebackValidationErrorContent'
   securitySchemes:
     oidc-token:
       type: http

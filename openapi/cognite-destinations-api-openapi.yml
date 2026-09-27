@@ -229,6 +229,144 @@ paths:
           '
 components:
   schemas:
+    CreateDestination:
+      additionalProperties: false
+      properties:
+        externalId:
+          title: External ID
+          $ref: '#/components/schemas/CogniteExternalId'
+        credentials:
+          $ref: '#/components/schemas/SessionCredentials'
+        targetDataSetId:
+          type: integer
+          title: Data Set ID
+          minimum: 1
+          maximum: 9007199254740991
+          format: int64
+          description: Data set ID the created items are inserted into, if applicable.
+      required:
+      - externalId
+      title: CreateDestination
+      type: object
+    ItemsWithIgnoreUnknownIds_ExternalId_:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/ExternalIdWrapper'
+          title: Items
+          type: array
+          maxItems: 100
+          minItems: 1
+        ignoreUnknownIds:
+          type: boolean
+          title: IgnoreUnknownIds
+          description: Ignore IDs and external IDs that are not found
+      required:
+      - items
+      title: ItemsWithIgnoreUnknownIds_ExternalId
+      type: object
+    ItemsWithCursor_Destination_:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/Destination'
+          title: Items
+          type: array
+          maxItems: 100
+          minItems: 0
+        nextCursor:
+          type: string
+          title: Next cursor
+          description: Cursor for pagination
+      required:
+      - items
+      title: DestinationListWithCursor
+      type: object
+    SessionCredentials:
+      additionalProperties: false
+      properties:
+        nonce:
+          title: Nonce
+          type: string
+          description: Session nonce for a recently created CDF Session.
+      required:
+      - nonce
+      title: SessionCredentials
+      type: object
+      description: Credentials for authenticating towards CDF using a CDF session.
+    UpdateItem_DataSetId_:
+      additionalProperties: false
+      properties:
+        set:
+          title: Set
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+          format: int64
+      required:
+      - set
+      title: UpdateItem_Port
+      type: object
+      description: Set a new dataset ID.
+    UpdateDestination:
+      additionalProperties: false
+      properties:
+        credentials:
+          anyOf:
+          - $ref: '#/components/schemas/UpdateSetNull'
+          - $ref: '#/components/schemas/UpdateItem_SessionCredentials_'
+          title: Credentials
+          description: Set a new session, or remove the value.
+        targetDataSetId:
+          anyOf:
+          - $ref: '#/components/schemas/UpdateSetNull'
+          - $ref: '#/components/schemas/UpdateItem_DataSetId_'
+          title: Dataset Id
+          description: Set a new value for the dataset ID, or remove the value.
+      title: UpdateDestination
+      type: object
+    Items_CreateDestination_:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/CreateDestination'
+          title: Items
+          type: array
+          minLength: 1
+          maxLength: 10
+      required:
+      - items
+      title: CreateDestination list
+      type: object
+    DestinationUpdateItem:
+      additionalProperties: false
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        update:
+          $ref: '#/components/schemas/UpdateDestination'
+      required:
+      - externalId
+      - update
+      title: DestinationUpdateItem
+      type: object
+    Items_DestinationUpdateItem_:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/DestinationUpdateItem'
+          title: Items
+          type: array
+          maxItems: 10
+          minItems: 1
+      required:
+      - items
+      title: Items[DestinationUpdateItem]
+      type: object
     Error:
       type: object
       required:
@@ -257,19 +395,54 @@ components:
           items:
             type: object
             additionalProperties: true
-    Items_DestinationUpdateItem_:
+    UpdateSetNull:
+      additionalProperties: false
+      properties:
+        setNull:
+          title: SetNull
+          type: boolean
+          description: Clear this value
+      required:
+      - setNull
+      title: UpdateSetNull
+      type: object
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    UpdateItem_SessionCredentials_:
+      additionalProperties: false
+      properties:
+        set:
+          $ref: '#/components/schemas/SessionCredentials'
+      required:
+      - set
+      title: UpdateItem_SessionCredentials
+      type: object
+      description: Set a new set of session credentials for writing to CDF.
+    ItemsWithIgnoreUnknownIdsAndForce_ExternalId_:
       additionalProperties: false
       properties:
         items:
           items:
-            $ref: '#/components/schemas/DestinationUpdateItem'
+            $ref: '#/components/schemas/ExternalIdWrapper'
           title: Items
           type: array
-          maxItems: 10
+          maxItems: 100
           minItems: 1
+        ignoreUnknownIds:
+          type: boolean
+          title: IgnoreUnknownIds
+          description: Ignore IDs and external IDs that are not found.
+        force:
+          type: boolean
+          title: Force
+          description: Delete any jobs associated with each item.
       required:
       - items
-      title: Items[DestinationUpdateItem]
+      title: ItemsWithIgnoreUnknownIdsAndForce_ExternalId
       type: object
     Destination:
       additionalProperties: false
@@ -300,6 +473,20 @@ components:
       - createdTime
       title: Destination
       type: object
+    Items_Destination_:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/Destination'
+          title: Items
+          type: array
+          maxItems: 100
+          minItems: 0
+      required:
+      - items
+      title: DestinationList
+      type: object
     ExternalIdWrapper:
       additionalProperties: false
       properties:
@@ -309,22 +496,11 @@ components:
       - externalId
       title: ExternalIdWrapper
       type: object
-    EpochTimestamp:
-      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-      type: integer
-      minimum: 0
-      format: int64
-      example: 1730204346000
-    UpdateItem_SessionCredentials_:
-      additionalProperties: false
-      properties:
-        set:
-          $ref: '#/components/schemas/SessionCredentials'
-      required:
-      - set
-      title: UpdateItem_SessionCredentials
-      type: object
-      description: Set a new set of session credentials for writing to CDF.
+    CogniteExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
+      type: string
+      maxLength: 255
+      example: my.known.id
     ValidationErrorContent:
       type: object
       required:
@@ -341,183 +517,52 @@ components:
           type: string
           description: Error message.
           example: 'Extra inputs are not permitted: type'
-    Items_CreateDestination_:
-      additionalProperties: false
-      properties:
-        items:
-          items:
-            $ref: '#/components/schemas/CreateDestination'
-          title: Items
-          type: array
-          minLength: 1
-          maxLength: 10
-      required:
-      - items
-      title: CreateDestination list
-      type: object
-    UpdateItem_DataSetId_:
-      additionalProperties: false
-      properties:
-        set:
-          title: Set
-          type: integer
-          minimum: 1
-          maximum: 9007199254740991
-          format: int64
-      required:
-      - set
-      title: UpdateItem_Port
-      type: object
-      description: Set a new dataset ID.
-    SessionCredentials:
-      additionalProperties: false
-      properties:
-        nonce:
-          title: Nonce
-          type: string
-          description: Session nonce for a recently created CDF Session.
-      required:
-      - nonce
-      title: SessionCredentials
-      type: object
-      description: Credentials for authenticating towards CDF using a CDF session.
-    CreateDestination:
-      additionalProperties: false
-      properties:
-        externalId:
-          title: External ID
-          $ref: '#/components/schemas/CogniteExternalId'
-        credentials:
-          $ref: '#/components/schemas/SessionCredentials'
-        targetDataSetId:
-          type: integer
-          title: Data Set ID
-          minimum: 1
-          maximum: 9007199254740991
-          format: int64
-          description: Data set ID the created items are inserted into, if applicable.
-      required:
-      - externalId
-      title: CreateDestination
-      type: object
-    CogniteExternalId:
-      description: The external ID provided by the client. Must be unique for the resource type.
-      type: string
-      maxLength: 255
-      example: my.known.id
-    ItemsWithIgnoreUnknownIds_ExternalId_:
-      additionalProperties: false
-      properties:
-        items:
-          items:
-            $ref: '#/components/schemas/ExternalIdWrapper'
-          title: Items
-          type: array
-          maxItems: 100
-          minItems: 1
-        ignoreUnknownIds:
-          type: boolean
-          title: IgnoreUnknownIds
-          description: Ignore IDs and external IDs that are not found
-      required:
-      - items
-      title: ItemsWithIgnoreUnknownIds_ExternalId
-      type: object
-    UpdateSetNull:
-      additionalProperties: false
-      properties:
-        setNull:
-          title: SetNull
-          type: boolean
-          description: Clear this value
-      required:
-      - setNull
-      title: UpdateSetNull
-      type: object
-    ItemsWithCursor_Destination_:
-      additionalProperties: false
-      properties:
-        items:
-          items:
-            $ref: '#/components/schemas/Destination'
-          title: Items
-          type: array
-          maxItems: 100
-          minItems: 0
-        nextCursor:
-          type: string
-          title: Next cursor
-          description: Cursor for pagination
-      required:
-      - items
-      title: DestinationListWithCursor
-      type: object
-    DestinationUpdateItem:
-      additionalProperties: false
-      properties:
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-        update:
-          $ref: '#/components/schemas/UpdateDestination'
-      required:
-      - externalId
-      - update
-      title: DestinationUpdateItem
-      type: object
-    UpdateDestination:
-      additionalProperties: false
-      properties:
-        credentials:
-          anyOf:
-          - $ref: '#/components/schemas/UpdateSetNull'
-          - $ref: '#/components/schemas/UpdateItem_SessionCredentials_'
-          title: Credentials
-          description: Set a new session, or remove the value.
-        targetDataSetId:
-          anyOf:
-          - $ref: '#/components/schemas/UpdateSetNull'
-          - $ref: '#/components/schemas/UpdateItem_DataSetId_'
-          title: Dataset Id
-          description: Set a new value for the dataset ID, or remove the value.
-      title: UpdateDestination
-      type: object
-    ItemsWithIgnoreUnknownIdsAndForce_ExternalId_:
-      additionalProperties: false
-      properties:
-        items:
-          items:
-            $ref: '#/components/schemas/ExternalIdWrapper'
-          title: Items
-          type: array
-          maxItems: 100
-          minItems: 1
-        ignoreUnknownIds:
-          type: boolean
-          title: IgnoreUnknownIds
-          description: Ignore IDs and external IDs that are not found.
-        force:
-          type: boolean
-          title: Force
-          description: Delete any jobs associated with each item.
-      required:
-      - items
-      title: ItemsWithIgnoreUnknownIdsAndForce_ExternalId
-      type: object
-    Items_Destination_:
-      additionalProperties: false
-      properties:
-        items:
-          items:
-            $ref: '#/components/schemas/Destination'
-          title: Items
-          type: array
-          maxItems: 100
-          minItems: 0
-      required:
-      - items
-      title: DestinationList
-      type: object
+  parameters:
+    100Limit:
+      name: limit
+      description: Limits the number of results to be returned. The maximum results returned by the server is 100 even if you specify a higher limit.
+      in: query
+      schema:
+        type: integer
+        default: 100
+        minimum: 1
+        maximum: 100
+    Cursor:
+      name: cursor
+      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
+
+        property, it means that there may be more results, and you should pass that value as the
+
+        `cursor` parameter in the next request.
+
+
+        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
+
+        decoded. Its internal structure is not a part of the public API, and may change without
+
+        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
+
+        '
+      in: query
+      schema:
+        type: string
+        example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
   responses:
+    400ErrorResponse:
+      description: The response for a bad request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: 400
+              message: '`null` values aren''t allowed.'
     ValidationError:
       description: Validation Error
       content:
@@ -546,51 +591,6 @@ components:
             properties:
               error:
                 $ref: '#/components/schemas/Error'
-    400ErrorResponse:
-      description: The response for a bad request.
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - error
-            properties:
-              error:
-                $ref: '#/components/schemas/Error'
-          example:
-            error:
-              code: 400
-              message: '`null` values aren''t allowed.'
-  parameters:
-    Cursor:
-      name: cursor
-      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
-
-        property, it means that there may be more results, and you should pass that value as the
-
-        `cursor` parameter in the next request.
-
-
-        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
-
-        decoded. Its internal structure is not a part of the public API, and may change without
-
-        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
-
-        '
-      in: query
-      schema:
-        type: string
-        example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
-    100Limit:
-      name: limit
-      description: Limits the number of results to be returned. The maximum results returned by the server is 100 even if you specify a higher limit.
-      in: query
-      schema:
-        type: integer
-        default: 100
-        minimum: 1
-        maximum: 100
   securitySchemes:
     oidc-token:
       type: http

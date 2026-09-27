@@ -118,34 +118,29 @@ paths:
           $ref: '#/components/responses/ErrorResponse'
 components:
   schemas:
-    Error:
+    DmsId:
+      description: A DMS Identifier using the space and externalId
       type: object
       required:
-      - code
-      - message
-      description: Cognite API error.
+      - space
+      - externalId
       properties:
-        code:
-          type: integer
-          description: HTTP status code.
-          format: int32
-          example: 401
-        message:
+        space:
           type: string
-          description: Error message.
-          example: Could not authenticate.
-        missing:
-          type: array
-          description: List of lookup objects that do not match any results.
-          items:
-            type: object
-            additionalProperties: true
-        duplicated:
-          type: array
-          description: List of objects that are not unique.
-          items:
-            type: object
-            additionalProperties: true
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+    DocumentIdentifier:
+      type: object
+      required:
+      - fileId
+      - pageNumber
+      properties:
+        fileId:
+          description: DMS identifier of a file to be parsed
+          $ref: '#/components/schemas/DmsId'
+        pageNumber:
+          description: Page number of the file to be parsed
+          type: integer
     InstantParseResult:
       description: Temporary diagram entity data resulting from running instant parsing with a library on a file.
       type: object
@@ -161,18 +156,6 @@ components:
           type: string
         status:
           $ref: '#/components/schemas/ParseStatus'
-    InstantParseInput:
-      type: object
-      required:
-      - document
-      - libraryId
-      properties:
-        document:
-          type: object
-          $ref: '#/components/schemas/DocumentIdentifier'
-        libraryId:
-          description: The external ID of a library for parsing
-          $ref: '#/components/schemas/CogniteExternalId'
     VirtualEntity:
       description: Diagram entity with its paths joined by pathIds
       type: object
@@ -191,77 +174,23 @@ components:
         symbolId:
           description: The external ID of the symbol this diagram entity is detected as
           $ref: '#/components/schemas/CogniteExternalId'
-    DiagramParseInput:
+    InstantParseInput:
       type: object
       required:
-      - documents
+      - document
       - libraryId
-      - nonce
       properties:
-        documents:
-          type: array
-          minItems: 1
-          maxItems: 100
-          items:
-            type: object
-            $ref: '#/components/schemas/DocumentIdentifier'
+        document:
+          type: object
+          $ref: '#/components/schemas/DocumentIdentifier'
         libraryId:
           description: The external ID of a library for parsing
           $ref: '#/components/schemas/CogniteExternalId'
-        nonce:
-          description: Nonce parameter
-          type: string
-    DetectTagsResourceFilter:
-      type: object
-      properties:
-        Asset:
-          type: object
-          additionalProperties: true
-        File:
-          type: object
-          additionalProperties: true
-    DocumentIdentifier:
-      type: object
-      required:
-      - fileId
-      - pageNumber
-      properties:
-        fileId:
-          description: DMS identifier of a file to be parsed
-          $ref: '#/components/schemas/DmsId'
-        pageNumber:
-          description: Page number of the file to be parsed
-          type: integer
     ExternalId:
       type: object
       required:
       - externalId
       properties:
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-    ParseStatus:
-      description: Status of a parsing job
-      type: string
-      enum:
-      - Failed
-      - InProgress
-      - InQueue
-      - Pending
-      - Success
-    CogniteExternalId:
-      description: The external ID provided by the client. Must be unique for the resource type.
-      type: string
-      maxLength: 255
-      example: my.known.id
-    DmsId:
-      description: A DMS Identifier using the space and externalId
-      type: object
-      required:
-      - space
-      - externalId
-      properties:
-        space:
-          type: string
         externalId:
           $ref: '#/components/schemas/CogniteExternalId'
     FullParseInput:
@@ -298,7 +227,84 @@ components:
         searchField:
           description: This field determines the string to search for and to identify object entities.
           type: string
+    DetectTagsResourceFilter:
+      type: object
+      properties:
+        Asset:
+          type: object
+          additionalProperties: true
+        File:
+          type: object
+          additionalProperties: true
+    CogniteExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
+      type: string
+      maxLength: 255
+      example: my.known.id
+    ParseStatus:
+      description: Status of a parsing job
+      type: string
+      enum:
+      - Failed
+      - InProgress
+      - InQueue
+      - Pending
+      - Success
+    DiagramParseInput:
+      type: object
+      required:
+      - documents
+      - libraryId
+      - nonce
+      properties:
+        documents:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            type: object
+            $ref: '#/components/schemas/DocumentIdentifier'
+        libraryId:
+          description: The external ID of a library for parsing
+          $ref: '#/components/schemas/CogniteExternalId'
+        nonce:
+          description: Nonce parameter
+          type: string
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
   responses:
+    InstantParsingResponse:
+      description: Temporary diagram entity detections in a given file based on the provided library.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/InstantParseResult'
     ErrorResponse:
       description: The response for a failed request.
       content:
@@ -325,12 +331,6 @@ components:
                 maxItems: 100
                 items:
                   $ref: '#/components/schemas/CogniteExternalId'
-    InstantParsingResponse:
-      description: Temporary diagram entity detections in a given file based on the provided library.
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/InstantParseResult'
   parameters:
     project:
       in: path

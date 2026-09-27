@@ -637,604 +637,11 @@ paths:
         source: "List<Item> byExternalIds = List.of(Item.newBuilder() \n          .setExternalId(\"10\").build()); \nList<Item> deletedItems = \n           client.timeseries().dataPoints().delete(byExternalIds); \n\nList<Item> byInternalIds = List.of(Item.newBuilder() \n          .setId(10).build()); \n List<Item> deletedItems = \n          client.timeseries().dataPoints().delete(byInternalIds); \n\n"
 components:
   schemas:
-    Error:
-      type: object
-      required:
-      - code
-      - message
-      description: Cognite API error.
-      properties:
-        code:
-          type: integer
-          description: HTTP status code.
-          format: int32
-          example: 401
-        message:
-          type: string
-          description: Error message.
-          example: Could not authenticate.
-        missing:
-          type: array
-          description: List of lookup objects that do not match any results.
-          items:
-            type: object
-            additionalProperties: true
-        duplicated:
-          type: array
-          description: List of objects that are not unique.
-          items:
-            type: object
-            additionalProperties: true
-    DatapointsGetDoubleDatapoint:
-      allOf:
-      - $ref: '#/components/schemas/DatapointsMetadata'
-      - type: object
-        required:
-        - datapoints
-        - isString
-        - type
-        properties:
-          isString:
-            description: True if the time series contains string values; false if it contains numeric values.
-            type: boolean
-          type:
-            $ref: '#/components/schemas/TimeSeriesType'
-          isStep:
-            description: Defines whether the time series is a step series or not.
-            type: boolean
-          unit:
-            maxLength: 32
-            type: string
-            description: The physical unit of the time series (free-text field). Omitted if data points were converted to a different unit.
-          unitExternalId:
-            maxLength: 64
-            type: string
-            description: The physical unit of the time series as [represented in the unit catalog](<https://docs.cognite.com/dev/concepts/resource_types/units/>). Replaced with target unit if data points were converted.
-          nextCursor:
-            type: string
-            description: 'The cursor to get the next page of results (if available).
-
-              `nextCursor` will be omitted when the next data point is after the end of the
-
-              interval. Increase start/end to fetch more data.
-
-              '
-          datapoints:
-            type: array
-            description: The list of data points.
-            items:
-              $ref: '#/components/schemas/GetDoubleDatapoint'
-    PostDatapoint:
-      oneOf:
-      - required:
-        - timestamp
-        title: NumericalDatapoint
-        type: object
-        properties:
-          timestamp:
-            minimum: -2208988800000
-            maximum: 4102444799999
-            description: The timestamp in milliseconds since the Epoch (Jan 1, 1970). The timestamp must be from a year between 1900 and 2099, inclusive. Use a negative number for timestamps before 1970.
-          value:
-            type: number
-            description: 'The numerical data value of a numerical metric.
-
-              Numerical data values can be in the range (-1e100, 1e100)
-
-
-              The value is required unless the status is bad. Bad data points may also have one
-
-              of the three special string values: ''NaN'', ''Infinity'' or ''-Infinity''.'
-          status:
-            $ref: '#/components/schemas/DatapointStatus'
-      - required:
-        - timestamp
-        type: object
-        title: StringDatapoint
-        properties:
-          timestamp:
-            minimum: -2208988800000
-            maximum: 4102444799999
-            description: The timestamp in milliseconds since the Epoch (Jan 1, 1970). The timestamp must be from a year between 1900 and 2099, inclusive. Use a negative number for timestamps before 1970.
-          value:
-            maxLength: 1023
-            type: string
-            description: "The string data value of a string metric. The value is required unless the status is bad. The max length is 1023 bytes (UTF-8 encoded). The \"character-to-byte ratio\" is dependent on the language / alphabet used. The following can be used as a **loose** guide for estimation:\n  * Basic Latin characters (ASCII): 1 byte / character\n  * Latin-based alphabets with diacritics (e.g., French, German): 1-2 bytes / character\n  * Greek, Cyrillic, Arabic, Hebrew: typically 2 bytes / character\n  * CJK logograms (e.g., Chinese, Japanese, Korean): typically 3 bytes / character\n  * Emojis and other symbols: typically 4 bytes / character\n"
-          status:
-            $ref: '#/components/schemas/DatapointStatus'
-    PartitionObject:
-      type: object
-      properties:
-        partition:
-          $ref: '#/components/schemas/Partition'
-    TimeSeriesMetadata:
-      type: object
-      description: Custom, application specific metadata. String key -> String value. Maximum length of key is 128 bytes, up to 256 key-value pairs, of total size of at most 10000 bytes across all keys and values.
-      additionalProperties:
-        type: string
-    TimeSeriesAggregateFilter:
-      type: object
-      description: 'A filter DSL (Domain Specific Language) to define aggregate filters.
-
-        '
-      oneOf:
-      - $ref: '#/components/schemas/TimeSeriesBoolAggregateFilter'
-      - $ref: '#/components/schemas/TimeSeriesLeafAggregateFilter'
-    TimeSeriesPrefixAggregateFilter:
-      type: object
-      title: prefix
-      required:
-      - prefix
-      properties:
-        prefix:
-          required:
-          - value
-          description: 'Matches intermediate aggregation results where the property key or the property value begins with
-
-            the given text. When the `aggregate` operation is `uniqueProperties` or `cardinalityProperties`,
-
-            property _keys_ will be targeted; when it is `uniqueValues` or `cardinalityValues`, property
-
-            _values_ will be targeted.
-
-            '
-          type: object
-          properties:
-            value:
-              $ref: '#/components/schemas/TimeSeriesPrefixAggregateValue'
-    TimeSeriesRangeAggregateValue:
-      description: 'An upper or lower bound for a property key or property value (depending on which `aggregate` was
-
-        specified at the top level of the aggregation request).
-
-        '
-      oneOf:
-      - type: string
-        maxLength: 256
-      - type: number
-      - type: integer
-    TimeSeriesPrefixFilter:
-      type: object
-      title: prefix
-      required:
-      - prefix
-      properties:
-        prefix:
-          required:
-          - property
-          - value
-          description: 'Matches items where the provided property begins with the given text.
-
-            '
-          type: object
-          properties:
-            property:
-              $ref: '#/components/schemas/TimeSeriesFilterProperty'
-            value:
-              $ref: '#/components/schemas/TimeSeriesStringValue'
-    LatestDataPropertyFilter:
-      properties:
-        before:
-          type: string
-          description: 'Get data points before this time. The format is N[timeunit]-ago where timeunit is w,d,h,m,s.
-
-            Example: ''2d-ago'' gets data that is up to two days old. You can also specify time in milliseconds since epoch.'
-          default: now
-        targetUnit:
-          type: string
-          description: The [unit](<https://docs.cognite.com/dev/concepts/resource_types/units/>) externalId of the data points returned. If the time series does not have a unitExternalId that can be converted to the targetUnit, an error will be returned. Cannot be used with targetUnitSystem.
-          example: temperature:deg_f
-        targetUnitSystem:
-          type: string
-          description: The [unit system](<https://docs.cognite.com/dev/concepts/resource_types/units/>) of the data points returned. Cannot be used with targetUnit.
-          example: imperial
-        includeStatus:
-          type: boolean
-          description: 'Show the [status code](<https://docs.cognite.com/dev/concepts/reference/status_codes>) for each data point in the response.
-
-            _Good_ (code = 0) status codes are always omitted.'
-          default: false
-        ignoreBadDataPoints:
-          type: boolean
-          description: 'Treat data points with a _Bad_ status code as if they do not exist.
-
-            Set to false to include all data points.
-
-
-            Note that bad data points may contain the string values ''NaN'', ''Infinity'', or ''-Infinity'', or be null (omitted).'
-          default: true
-        treatUncertainAsBad:
-          type: boolean
-          description: 'Treat data points with _Uncertain_ status codes as _Bad_.
-
-            Set to false to to include uncertain data points.'
-          default: true
-    DatapointsResponse:
-      type: object
-      description: The list of responses. The order matches the requests order.
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/DatapointsGetDatapoint'
-    TimeSeriesInAggregateFilter:
-      type: object
-      title: in
-      required:
-      - in
-      properties:
-        in:
-          required:
-          - values
-          description: 'Matches intermediate aggregation results where the property key or the property value is _exactly_
-
-            equal to one of the given values. When the `aggregate` operation is `uniqueProperties` or
-
-            `cardinalityProperties`, property _keys_ will be targeted; when it is `uniqueValues` or
-
-            `cardinalityValues`, property _values_ will be targeted.
-
-            '
-          type: object
-          properties:
-            values:
-              $ref: '#/components/schemas/TimeSeriesInAggregateValues'
-    TimeSeriesInAggregateValues:
-      description: 'The property keys or property values (depending on the `aggregate` operation) on which you want to
-
-        filter the intermediate aggregate results.
-
-        '
-      type: array
-      minItems: 1
-      maxItems: 100
-      items:
-        $ref: '#/components/schemas/TimeSeriesInAggregateValue'
-    TimeSeriesCountAggregate:
-      type: object
-      title: Count
-      properties:
-        aggregate:
-          description: 'The `count` aggregation gets the number of time series that match the filter(s). This is the
-
-            default aggregation, which will also be applied if `aggregate` is not specified.
-
-            '
-          type: string
-          enum:
-          - count
-    TimeSeriesUniqueValuesAggregate:
-      title: UniqueValues
-      allOf:
-      - type: object
-        required:
-        - aggregate
-        properties:
-          aggregate:
-            description: 'The `uniqueValues` aggregation gets, from the time series that match the filter(s),
-
-              the set of unique values (up to max 1000) that are taken on by the given property. For each such
-
-              value, the aggregation result will also specify the frequency - that is, the number of time series
-
-              that match the filter(s) and have that property value. The results are ordered by frequency in
-
-              descending order.
-
-              '
-            type: string
-            enum:
-            - uniqueValues
-      - $ref: '#/components/schemas/TimeSeriesAggregateProperties'
-    DatapointsGetAggregateDatapoint:
-      allOf:
-      - $ref: '#/components/schemas/DatapointsMetadata'
-      - type: object
-        required:
-        - datapoints
-        - isString
-        - type
-        - isStep
-        properties:
-          isString:
-            description: True if the time series contains string values; false if it contains numeric values. Always false for aggregates, as they can only be requested for numeric time series.
-            type: boolean
-            enum:
-            - false
-          type:
-            $ref: '#/components/schemas/TimeSeriesType'
-          isStep:
-            description: Defines whether the time series is a step series or not.
-            type: boolean
-          unit:
-            maxLength: 32
-            type: string
-            description: The physical unit of the time series (free-text field). Omitted if data points were converted to a different unit.
-          unitExternalId:
-            maxLength: 64
-            type: string
-            description: The physical unit of the time series as [represented in the unit catalog](<https://docs.cognite.com/dev/concepts/resource_types/units>). Replaced with target unit if data points were converted.
-          nextCursor:
-            type: string
-            description: 'The cursor to get the next page of results (if available).
-
-              `nextCursor` will be omitted when the next aggregate datapoint is after the end
-
-              of the interval. Increase start/end to fetch more data.
-
-              '
-          datapoints:
-            type: array
-            description: The list of datapoints
-            items:
-              $ref: '#/components/schemas/GetNumericAggregateDatapoint'
-    TimeSeriesFilterLanguage:
-      type: object
-      description: 'A filter DSL (Domain Specific Language) to define advanced filter queries.
-
-
-        At the top level, an `advancedFilter` expression is either a single Boolean filter or a
-
-        single leaf filter. Boolean filters contain other Boolean filters and/or leaf filters. The
-
-        total number of filters may be at most 100, and the depth (the greatest number of times
-
-        filters have been nested inside each other) may be at most 10. The `search` leaf filter may
-
-        at most be used twice within a single `advancedFilter`, but all other filters can be used
-
-        as many times as you like as long as the other limits are respected.
-
-        '
-      oneOf:
-      - $ref: '#/components/schemas/TimeSeriesBoolFilter'
-      - $ref: '#/components/schemas/TimeSeriesLeafFilter'
-      example:
-        or:
-        - not:
-            and:
-            - equals:
-                property:
-                - metadata
-                - manufacturer
-                value: acme
-            - in:
-                property:
-                - name
-                values:
-                - pump-1-temperature
-                - motor-9-temperature
-            - range:
-                property:
-                - dataSetId
-                gte: 1
-                lt: 10
-        - and:
-          - equals:
-              property:
-              - assetId
-              value: 1234
-          - equals:
-              property:
-              - description
-              value: Temperature in Celsius
-    IgnoreUnknownIdsField:
-      type: object
-      properties:
-        ignoreUnknownIds:
-          description: Ignore IDs and external IDs that are not found
-          type: boolean
-          default: false
-    TimeSeriesCreateRequest:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          minItems: 1
-          maxItems: 1000
-          items:
-            $ref: '#/components/schemas/PostTimeSeriesMetadataDTO'
-    DataSetExternalId:
-      type: object
-      title: DataSetExternalId
-      required:
-      - externalId
-      properties:
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-    TimeSeriesUpdateById:
-      allOf:
-      - type: object
-        required:
-        - id
-        properties:
-          id:
-            $ref: '#/components/schemas/CogniteInternalId'
-      - $ref: '#/components/schemas/TimeSeriesPatch'
-    NotFoundResponse:
-      type: object
-      required:
-      - error
-      properties:
-        error:
-          type: object
-          description: Error details.
-          required:
-          - code
-          - message
-          - missing
-          properties:
-            code:
-              type: integer
-              description: HTTP status code
-              format: int32
-              example: 400
-            message:
-              type: string
-              description: Error message.
-            missing:
-              uniqueItems: true
-              type: array
-              description: Items that are not found.
-              items:
-                description: Ids, ExternalIds or InstanceIds that are not found.
-                oneOf:
-                - type: object
-                  title: id
-                  required:
-                  - id
-                  properties:
-                    id:
-                      $ref: '#/components/schemas/CogniteInternalId'
-                - type: object
-                  title: externalId
-                  required:
-                  - externalId
-                  properties:
-                    externalId:
-                      $ref: '#/components/schemas/CogniteExternalId'
-                - type: object
-                  title: instanceId
-                  required:
-                  - instanceId
-                  properties:
-                    instanceId:
-                      $ref: '#/components/schemas/CogniteInstanceId'
-    DatapointsGetDatapoint:
-      required:
-      - isString
-      - type
-      oneOf:
-      - $ref: '#/components/schemas/DatapointsGetDoubleDatapoint'
-      - $ref: '#/components/schemas/DatapointsGetStringDatapoint'
-    CogniteInternalId:
-      description: A server-generated ID for the object.
-      type: integer
-      minimum: 1
-      maximum: 9007199254740991
-      format: int64
-    TimeSeriesLookupById:
-      type: object
-      allOf:
-      - type: object
-        required:
-        - items
-        properties:
-          items:
-            uniqueItems: true
-            type: array
-            description: List of ID objects.
-            items:
-              oneOf:
-              - type: object
-                title: QueryWithInternalId
-                properties:
-                  id:
-                    $ref: '#/components/schemas/CogniteInternalId'
-              - type: object
-                title: QueryWithExternalId
-                properties:
-                  externalId:
-                    $ref: '#/components/schemas/CogniteExternalId'
-              - type: object
-                title: QueryWithInstanceId
-                properties:
-                  instanceId:
-                    $ref: '#/components/schemas/CogniteInstanceId'
-            maxItems: 1000
-            minItems: 1
-      - $ref: '#/components/schemas/IgnoreUnknownIdsField'
-    ArrayPatchLongSet:
-      title: set
-      type: object
-      required:
-      - set
-      properties:
-        set:
-          uniqueItems: true
-          type: array
-          items:
-            type: integer
-            format: int64
-    ObjectPatchSet:
-      title: set
-      type: object
-      required:
-      - set
-      properties:
-        set:
-          uniqueItems: true
-          type: object
-          description: Set the key-value pairs. All existing key-value pairs will be removed.
-          additionalProperties:
-            type: string
-          example:
-            key1: value1
-            key2: value2
-    CogniteExternalId:
-      description: The external ID provided by the client. Must be unique for the resource type.
+    CogniteExternalIdPrefix:
+      description: Filter by this (case-sensitive) prefix for the external ID.
       type: string
       maxLength: 255
-      example: my.known.id
-    TimeSeriesInAggregateValue:
-      description: 'The property key or property value (depending on the `aggregate` operation) on which you want to
-
-        filter the intermediate aggregate results.
-
-        '
-      oneOf:
-      - type: string
-        maxLength: 256
-      - type: number
-      - type: integer
-      - type: boolean
-    TimeSeriesUpdateByInstanceId:
-      allOf:
-      - type: object
-        required:
-        - instanceId
-        properties:
-          instanceId:
-            $ref: '#/components/schemas/CogniteInstanceId'
-      - $ref: '#/components/schemas/TimeSeriesPatchDM'
-    DatapointsDeleteQuery:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          description: List of delete filters.
-          minItems: 1
-          maxItems: 10000
-          items:
-            $ref: '#/components/schemas/DatapointsDeleteRequest'
-    ObjectPatchAddRemove:
-      title: add/remove
-      type: object
-      properties:
-        add:
-          uniqueItems: true
-          type: object
-          description: Add the key-value pairs. Values for existing keys will be overwritten.
-          additionalProperties:
-            type: string
-          example:
-            key1: value1
-            key2: value2
-        remove:
-          uniqueItems: true
-          type: array
-          description: Remove the key-value pairs with the specified keys.
-          example:
-          - value1
-          - value2
-          items:
-            type: string
+      example: my.known.prefix
     TimeSeriesLookupByIdWithoutInstanceId:
       type: object
       allOf:
@@ -1261,303 +668,6 @@ components:
             maxItems: 1000
             minItems: 1
       - $ref: '#/components/schemas/IgnoreUnknownIdsField'
-    DatapointsOrAggregatesResponse:
-      description: The list of responses. The order matches the requests order.
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          items:
-            oneOf:
-            - $ref: '#/components/schemas/DatapointsGetAggregateDatapoint'
-            - $ref: '#/components/schemas/DatapointsGetDatapoint'
-    Aggregate:
-      type: string
-      enum:
-      - average
-      - max
-      - maxDatapoint
-      - min
-      - minDatapoint
-      - count
-      - sum
-      - interpolation
-      - stepInterpolation
-      - totalVariation
-      - continuousVariance
-      - discreteVariance
-      - countGood
-      - countUncertain
-      - countBad
-      - durationGood
-      - durationUncertain
-      - durationBad
-    TimeSeriesListDTO:
-      description: Filter request for time series. Filters exact field matching or timestamp ranges inclusive min and max.
-      allOf:
-      - type: object
-        properties:
-          filter:
-            $ref: '#/components/schemas/Filter'
-          advancedFilter:
-            $ref: '#/components/schemas/TimeSeriesFilterLanguage'
-          limit:
-            description: Return up to this many results.
-            maximum: 1000
-            minimum: 1
-            type: integer
-            format: int32
-            default: 100
-      - $ref: '#/components/schemas/Cursor'
-      - $ref: '#/components/schemas/PartitionObject'
-      - $ref: '#/components/schemas/TimeSeriesSort'
-    CogniteInstanceId:
-      description: The ID of an [instance in Cognite Data Models](https://docs.cognite.com/cdf/dm/dm_concepts/dm_spaces_instances#instance).
-      type: object
-      required:
-      - space
-      - externalId
-      properties:
-        space:
-          type: string
-          minLength: 1
-          maxLength: 43
-        externalId:
-          type: string
-          minLength: 1
-          maxLength: 255
-    TimeSeriesUpdateByExternalId:
-      allOf:
-      - type: object
-        required:
-        - externalId
-        properties:
-          externalId:
-            $ref: '#/components/schemas/CogniteExternalId'
-      - $ref: '#/components/schemas/TimeSeriesPatch'
-    TimeSeriesContainsAnyFilter:
-      type: object
-      title: containsAny
-      required:
-      - containsAny
-      properties:
-        containsAny:
-          required:
-          - property
-          - values
-          description: 'Matches items where the property contains one or more of the given values.
-
-            This filter can only be applied to multivalued properties.
-
-            '
-          type: object
-          properties:
-            property:
-              $ref: '#/components/schemas/TimeSeriesFilterProperty'
-            values:
-              $ref: '#/components/schemas/TimeSeriesValues'
-    TimeSeriesValue:
-      description: 'A value that you wish to find in the provided property.
-
-        '
-      oneOf:
-      - type: string
-        maxLength: 256
-      - type: number
-      - type: integer
-      - type: boolean
-    TimeSeriesRangeAggregateFilter:
-      type: object
-      title: range
-      required:
-      - range
-      properties:
-        range:
-          description: "Matches intermediate aggregation results where the property key or the property value is within the\nprovided range. When the `aggregate` operation is `uniqueProperties` or `cardinalityProperties`,\nproperty _keys_ will be targeted; when it is `uniqueValues` or `cardinalityValues`, property \n_values_ will be targeted.\n\nAt least one of the following bounds must be specified:\n- `gte`: Greater than or equal to.\n- `gt`: Greater than.\n- `lte`: Less than or equal to.\n- `lt`: Less than.\n\nIt is not valid to specify both inclusive and exclusive bounds \"on the same side\" together:\nat most one of `lte` and `lt` may be specified, and at most one of `gte` and `gt`.\n\nIn the case of `aggregate` being `uniqueProperties` or `cardinalityProperties`,\n`gte`/`gt`/`lte`/`lt` must be set to a string. In the case of `aggregate` being `uniqueValues` or\n`cardinalityValues`, this filter may only be applied to string properties or number properties,\nwith `gte`/`gt`/`lte`/`lt` containing values of the corresponding type.\n"
-          type: object
-          properties:
-            gte:
-              $ref: '#/components/schemas/TimeSeriesRangeAggregateValue'
-            gt:
-              $ref: '#/components/schemas/TimeSeriesRangeAggregateValue'
-            lte:
-              $ref: '#/components/schemas/TimeSeriesRangeAggregateValue'
-            lt:
-              $ref: '#/components/schemas/TimeSeriesRangeAggregateValue'
-    AssetInternalId:
-      type: object
-      required:
-      - id
-      properties:
-        id:
-          $ref: '#/components/schemas/CogniteInternalId'
-    TimeSeriesUniquePropertiesAggregate:
-      title: UniqueProperties
-      allOf:
-      - type: object
-        required:
-        - aggregate
-        properties:
-          aggregate:
-            description: 'The `uniqueProperties` aggregation gets, from the time series that match the filter(s),
-
-              the set of unique properties (up to max 1000) whose property path begins with the given `path`.
-
-              Currently, the only supported value for `path` is `["metadata"]`, which means that this aggregation
-
-              will get the set of unique metadata keys. For each such property, the aggregation result will also
-
-              specify the frequency - that is, the number of time series that match the filter(s) and have that
-
-              property. The results are ordered by frequency in descending order.
-
-              '
-            type: string
-            enum:
-            - uniqueProperties
-      - $ref: '#/components/schemas/TimeSeriesAggregatePath'
-    AssetIdEither:
-      oneOf:
-      - $ref: '#/components/schemas/AssetInternalId'
-      - $ref: '#/components/schemas/AssetExternalId'
-    TimeSeriesAggregatePath:
-      type: object
-      required:
-      - path
-      properties:
-        path:
-          description: The scope within which properties should be aggregated. The only value that is currently allowed is `["metadata"]`, which will aggregate metadata keys.
-          type: array
-          minItems: 1
-          maxItems: 1
-          items:
-            type: string
-            enum:
-            - metadata
-    DatapointsQuery:
-      type: object
-      description: Parameters describing a query for data points.
-      oneOf:
-      - required:
-        - id
-        title: QueryWithInternalId
-        allOf:
-        - properties:
-            id:
-              $ref: '#/components/schemas/CogniteInternalId'
-        - $ref: '#/components/schemas/DatapointsQueryProperties'
-      - required:
-        - externalId
-        title: QueryWithExternalId
-        allOf:
-        - properties:
-            externalId:
-              $ref: '#/components/schemas/CogniteExternalId'
-        - $ref: '#/components/schemas/DatapointsQueryProperties'
-      - required:
-        - instanceId
-        title: QueryWithInstanceId
-        allOf:
-        - properties:
-            instanceId:
-              $ref: '#/components/schemas/CogniteInstanceId'
-        - $ref: '#/components/schemas/DatapointsQueryProperties'
-    TimeSeriesLeafFilter:
-      description: 'Leaf filter.
-
-        '
-      title: Leaf filter
-      type: object
-      oneOf:
-      - $ref: '#/components/schemas/TimeSeriesEqualsFilter'
-      - $ref: '#/components/schemas/TimeSeriesInFilter'
-      - $ref: '#/components/schemas/TimeSeriesRangeFilter'
-      - $ref: '#/components/schemas/TimeSeriesPrefixFilter'
-      - $ref: '#/components/schemas/TimeSeriesExistsFilter'
-      - $ref: '#/components/schemas/TimeSeriesContainsAnyFilter'
-      - $ref: '#/components/schemas/TimeSeriesContainsAllFilter'
-      - $ref: '#/components/schemas/TimeSeriesSearchFilter'
-    TimeSeriesFilterProperty:
-      description: "The property on which you want to filter. May be either:\n- A single-element list that contains the name of one of the predefined top-level\n  properties, in which case the filter will be applied to that top-level property.\n- A single-element list that contains `'metadata'`, in which case the filter will be applied\n  to _all_ metadata properties.\n- A two-element list where the first element is `'metadata'` and the second one is any\n  string, in which case the filter will be applied to metadata properties with that name.\n- A two-element list where the first element is `'instanceId'` and the second element is\n  either `'space'` or `'externalId'`.\n"
-      type: array
-      minItems: 1
-      maxItems: 2
-      items:
-        type: string
-        minLength: 1
-        maxLength: 256
-    Partition:
-      description: 'Splits the data set into `N` partitions.
-
-        The attribute is specified as a "M/N" string, where `M` is a natural number in the interval of `[1, N]`.
-
-        You need to follow the cursors within each partition in order to receive all the data.
-
-
-        To prevent unexpected problems and maximize read throughput, you should at most use 10 (N <= 10) partitions.
-
-
-        When using more than 10 partitions, CDF may reduce the number of partitions silently.
-
-        For example, CDF may reduce the number of partitions to `K = 10` so if you specify an `X/N` `partition` value where `X = 8` and `N = 20` - i.e. `"partition": "8/20"`- then
-
-        CDF will change `N` to `N = K = 10` and process the request.
-
-        But if you  specify the `X/N` `partition` value where `X = 11` (`X > K`) and `N = 20` - i.e. `"partition": "11/20"`- then
-
-        CDF will reply with an empty result list and no cursor in the response.\
-
-
-        In future releases of the resource APIs, Cognite may reject requests if you specify more than 10 partitions.
-
-        When Cognite enforces this behavior, the requests will result in a 400 Bad Request status.
-
-        '
-      type: string
-      example: 1/10
-    DataWithCursorGetTimeSeriesMetadataDTO:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          minItems: 0
-          items:
-            $ref: '#/components/schemas/GetTimeSeriesMetadataDTO'
-        nextCursor:
-          type: string
-          description: The cursor to get the next page of results (if available).
-      description: A list of objects and possible cursors to get the next results page.
-    DatapointsPostDatapoint:
-      type: object
-      oneOf:
-      - required:
-        - id
-        title: DatapointsWithInternalId
-        allOf:
-        - properties:
-            id:
-              $ref: '#/components/schemas/CogniteInternalId'
-        - $ref: '#/components/schemas/DatapointsInsertProperties'
-      - required:
-        - externalId
-        title: DatapointsWithExternalId
-        allOf:
-        - properties:
-            externalId:
-              $ref: '#/components/schemas/CogniteExternalId'
-        - $ref: '#/components/schemas/DatapointsInsertProperties'
-      - required:
-        - instanceId
-        title: DatapointsWithInstanceId
-        allOf:
-        - properties:
-            instanceId:
-              $ref: '#/components/schemas/CogniteInstanceId'
-        - $ref: '#/components/schemas/DatapointsInsertProperties'
     DatapointsQueryProperties:
       properties:
         start:
@@ -1637,22 +747,427 @@ components:
             '
           default: UTC
           example: Europe/Oslo or UTC+05:30
-    TimeSeriesAdvancedAggregateDTO:
-      type: object
+    TimeSeriesCardinalityValuesAggregate:
+      title: CardinalityValues
       allOf:
-      - properties:
-          advancedFilter:
-            $ref: '#/components/schemas/TimeSeriesFilterLanguage'
+      - type: object
+        required:
+        - aggregate
+        properties:
+          aggregate:
+            description: 'The `cardinalityValues` aggregation gets, from the time series that match the filter(s),
+
+              the approximate number of unique values that are taken on by the given property.
+
+              '
+            type: string
+            enum:
+            - cardinalityValues
+      - $ref: '#/components/schemas/TimeSeriesAggregateProperties'
+    DataSetExternalId:
+      type: object
+      title: DataSetExternalId
+      required:
+      - externalId
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+    TimeSeriesAggregateProperties:
+      type: object
+      required:
+      - properties
+      properties:
+        properties:
+          type: array
+          description: 'The properties to which the aggregation should be applied. While this parameter is a list, it
+
+            currently only accepts one element. Each element is an object with a single field called `property`,
+
+            whose value is another list (in order to accommodate nested properties). Thus, a top-level property
+
+            `name` must be specified as `[{"property": ["name"]}]`, and a metadata property `tag` must be
+
+            specified as `[{"property": ["metadata", "tag"]}]`.
+
+
+            The supported top-level properties are:
+
+            - `assetId`
+
+            - `assetRootId`
+
+            - `createdTime`
+
+            - `dataSetId`
+
+            - `description`
+
+            - `externalId`
+
+            - `id`
+
+            - `isStep`
+
+            - `isString`
+
+            - `lastUpdatedTime`
+
+            - `name`
+
+            - `securityCategories`
+
+            - `unit`
+
+            '
+          minItems: 1
+          maxItems: 1
+          items:
+            type: object
+            required:
+            - property
+            properties:
+              property:
+                type: array
+                minItems: 1
+                maxItems: 2
+                items:
+                  type: string
+                  minLength: 1
+                  maxLength: 256
+    TimeSeriesUniqueValuesAggregate:
+      title: UniqueValues
+      allOf:
+      - type: object
+        required:
+        - aggregate
+        properties:
+          aggregate:
+            description: 'The `uniqueValues` aggregation gets, from the time series that match the filter(s),
+
+              the set of unique values (up to max 1000) that are taken on by the given property. For each such
+
+              value, the aggregation result will also specify the frequency - that is, the number of time series
+
+              that match the filter(s) and have that property value. The results are ordered by frequency in
+
+              descending order.
+
+              '
+            type: string
+            enum:
+            - uniqueValues
+      - $ref: '#/components/schemas/TimeSeriesAggregateProperties'
+    DatapointsMetadata:
+      required:
+      - id
+      properties:
+        id:
+          $ref: '#/components/schemas/CogniteInternalId'
+        externalId:
+          maxLength: 255
+          type: string
+          description: The external ID of the time series the data points belong to.
+        instanceId:
+          $ref: '#/components/schemas/CogniteInstanceId'
+    TimestampOrStringEnd:
+      oneOf:
+      - type: integer
+      - type: string
+        default: now
+      description: Get datapoints up to, but excluding, this point in time. Same format as for start. Note that when using aggregates, the end will be rounded up such that the last aggregate represents a full aggregation interval containing the original end, where the interval is the granularity unit times the granularity multiplier. For granularity 2d, the aggregation interval is 2 days, if end was originally 3 days after the start, it will be rounded to 4 days after the start.
+    PostTimeSeriesMetadataDTO:
+      type: object
+      properties:
+        externalId:
+          maxLength: 255
+          type: string
+          description: Externally provided ID for the time series (optional, but recommended).
+        name:
+          maxLength: 255
+          type: string
+          description: Human readable name of the time series.
+        legacyName:
+          deprecated: true
+          maxLength: 255
+          type: string
+          description: This field is deprecated and ignored.
+        isString:
+          type: boolean
+          default: false
+          description: 'Defines whether the time series contains string values (true) or numeric values (false).
+
+            Not updatable - this field cannot be changed after the time series has been created.
+
+            '
+        metadata:
+          $ref: '#/components/schemas/TimeSeriesMetadata'
+        unit:
+          maxLength: 32
+          type: string
+          description: The physical unit of the time series (free-text field)
+        unitExternalId:
+          maxLength: 64
+          type: string
+          description: The physical unit of the time series as [represented in the unit catalog](<https://docs.cognite.com/dev/concepts/resource_types/units/>). Only available for numeric time series.
+        assetId:
+          description: Asset ID of equipment linked to this time series.
+          allOf:
+          - $ref: '#/components/schemas/CogniteInternalId'
+        isStep:
+          type: boolean
+          default: false
+          description: Defines whether the time series is a step series or not.
+        description:
+          maxLength: 1000
+          type: string
+          description: A description of the time series.
+        securityCategories:
+          type: array
+          description: The required security categories to access this time series.
+          items:
+            type: integer
+            description: The required security categories to access this time series.
+            format: int64
+        dataSetId:
+          $ref: '#/components/schemas/DataSetId'
+    TimeSeriesSort:
+      type: object
+      properties:
+        sort:
+          description: 'Sort by array of selected properties.
+
+            '
+          type: array
+          minItems: 1
+          maxItems: 2
+          items:
+            $ref: '#/components/schemas/TimeSeriesSortItem'
+    LatestDataPropertyFilter:
+      properties:
+        before:
+          type: string
+          description: 'Get data points before this time. The format is N[timeunit]-ago where timeunit is w,d,h,m,s.
+
+            Example: ''2d-ago'' gets data that is up to two days old. You can also specify time in milliseconds since epoch.'
+          default: now
+        targetUnit:
+          type: string
+          description: The [unit](<https://docs.cognite.com/dev/concepts/resource_types/units/>) externalId of the data points returned. If the time series does not have a unitExternalId that can be converted to the targetUnit, an error will be returned. Cannot be used with targetUnitSystem.
+          example: temperature:deg_f
+        targetUnitSystem:
+          type: string
+          description: The [unit system](<https://docs.cognite.com/dev/concepts/resource_types/units/>) of the data points returned. Cannot be used with targetUnit.
+          example: imperial
+        includeStatus:
+          type: boolean
+          description: 'Show the [status code](<https://docs.cognite.com/dev/concepts/reference/status_codes>) for each data point in the response.
+
+            _Good_ (code = 0) status codes are always omitted.'
+          default: false
+        ignoreBadDataPoints:
+          type: boolean
+          description: 'Treat data points with a _Bad_ status code as if they do not exist.
+
+            Set to false to include all data points.
+
+
+            Note that bad data points may contain the string values ''NaN'', ''Infinity'', or ''-Infinity'', or be null (omitted).'
+          default: true
+        treatUncertainAsBad:
+          type: boolean
+          description: 'Treat data points with _Uncertain_ status codes as _Bad_.
+
+            Set to false to to include uncertain data points.'
+          default: true
+    TimeSeriesListDTO:
+      description: Filter request for time series. Filters exact field matching or timestamp ranges inclusive min and max.
+      allOf:
+      - type: object
+        properties:
           filter:
             $ref: '#/components/schemas/Filter'
-          aggregateFilter:
-            $ref: '#/components/schemas/TimeSeriesAggregateFilter'
-      - oneOf:
-        - $ref: '#/components/schemas/TimeSeriesCountAggregate'
-        - $ref: '#/components/schemas/TimeSeriesCardinalityValuesAggregate'
-        - $ref: '#/components/schemas/TimeSeriesCardinalityPropertiesAggregate'
-        - $ref: '#/components/schemas/TimeSeriesUniqueValuesAggregate'
-        - $ref: '#/components/schemas/TimeSeriesUniquePropertiesAggregate'
+          advancedFilter:
+            $ref: '#/components/schemas/TimeSeriesFilterLanguage'
+          limit:
+            description: Return up to this many results.
+            maximum: 1000
+            minimum: 1
+            type: integer
+            format: int32
+            default: 100
+      - $ref: '#/components/schemas/Cursor'
+      - $ref: '#/components/schemas/PartitionObject'
+      - $ref: '#/components/schemas/TimeSeriesSort'
+    Search:
+      type: object
+      properties:
+        name:
+          description: Prefix and fuzzy search on name.
+          type: string
+        description:
+          description: Prefix and fuzzy search on description.
+          type: string
+        query:
+          description: 'Whitespace-separated terms to search for in time series. Does a
+
+            best-effort fuzzy search in relevant fields (currently name and
+
+            description) for variations of any search terms and
+
+            orders results by relevance. Uses a different search algorithm
+
+            than the name and description parameters and will generally give
+
+            much better results. Matching and ordering aren''t guaranteed to
+
+            be stable over time, and the fields being searched may be
+
+            extended.'
+          type: string
+          example: some other
+    TimeSeriesLookupById:
+      type: object
+      allOf:
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            uniqueItems: true
+            type: array
+            description: List of ID objects.
+            items:
+              oneOf:
+              - type: object
+                title: QueryWithInternalId
+                properties:
+                  id:
+                    $ref: '#/components/schemas/CogniteInternalId'
+              - type: object
+                title: QueryWithExternalId
+                properties:
+                  externalId:
+                    $ref: '#/components/schemas/CogniteExternalId'
+              - type: object
+                title: QueryWithInstanceId
+                properties:
+                  instanceId:
+                    $ref: '#/components/schemas/CogniteInstanceId'
+            maxItems: 1000
+            minItems: 1
+      - $ref: '#/components/schemas/IgnoreUnknownIdsField'
+    DataWithCursorGetTimeSeriesMetadataDTO:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 0
+          items:
+            $ref: '#/components/schemas/GetTimeSeriesMetadataDTO'
+        nextCursor:
+          type: string
+          description: The cursor to get the next page of results (if available).
+      description: A list of objects and possible cursors to get the next results page.
+    TimeSeriesUpdateByExternalId:
+      allOf:
+      - type: object
+        required:
+        - externalId
+        properties:
+          externalId:
+            $ref: '#/components/schemas/CogniteExternalId'
+      - $ref: '#/components/schemas/TimeSeriesPatch'
+    DatapointsGetAggregateDatapoint:
+      allOf:
+      - $ref: '#/components/schemas/DatapointsMetadata'
+      - type: object
+        required:
+        - datapoints
+        - isString
+        - type
+        - isStep
+        properties:
+          isString:
+            description: True if the time series contains string values; false if it contains numeric values. Always false for aggregates, as they can only be requested for numeric time series.
+            type: boolean
+            enum:
+            - false
+          type:
+            $ref: '#/components/schemas/TimeSeriesType'
+          isStep:
+            description: Defines whether the time series is a step series or not.
+            type: boolean
+          unit:
+            maxLength: 32
+            type: string
+            description: The physical unit of the time series (free-text field). Omitted if data points were converted to a different unit.
+          unitExternalId:
+            maxLength: 64
+            type: string
+            description: The physical unit of the time series as [represented in the unit catalog](<https://docs.cognite.com/dev/concepts/resource_types/units>). Replaced with target unit if data points were converted.
+          nextCursor:
+            type: string
+            description: 'The cursor to get the next page of results (if available).
+
+              `nextCursor` will be omitted when the next aggregate datapoint is after the end
+
+              of the interval. Increase start/end to fetch more data.
+
+              '
+          datapoints:
+            type: array
+            description: The list of datapoints
+            items:
+              $ref: '#/components/schemas/GetNumericAggregateDatapoint'
+    DatapointsGetDatapoint:
+      required:
+      - isString
+      - type
+      oneOf:
+      - $ref: '#/components/schemas/DatapointsGetDoubleDatapoint'
+      - $ref: '#/components/schemas/DatapointsGetStringDatapoint'
+    Aggregate:
+      type: string
+      enum:
+      - average
+      - max
+      - maxDatapoint
+      - min
+      - minDatapoint
+      - count
+      - sum
+      - interpolation
+      - stepInterpolation
+      - totalVariation
+      - continuousVariance
+      - discreteVariance
+      - countGood
+      - countUncertain
+      - countBad
+      - durationGood
+      - durationUncertain
+      - durationBad
+    CogniteExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
+      type: string
+      maxLength: 255
+      example: my.known.id
+    EpochTimestampRange:
+      description: Range between two timestamps (inclusive).
+      type: object
+      properties:
+        max:
+          description: Maximum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+          type: integer
+          minimum: 0
+          format: int64
+        min:
+          description: Minimum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+          type: integer
+          minimum: 0
+          format: int64
     TimeSeriesContainsAllFilter:
       type: object
       title: containsAll
@@ -1674,357 +1189,7 @@ components:
               $ref: '#/components/schemas/TimeSeriesFilterProperty'
             values:
               $ref: '#/components/schemas/TimeSeriesValues'
-    DatapointsLatestQuery:
-      type: object
-      allOf:
-      - type: object
-        required:
-        - items
-        properties:
-          items:
-            type: array
-            description: List of latest queries
-            minItems: 1
-            maxItems: 100
-            items:
-              $ref: '#/components/schemas/LatestDataBeforeRequest'
-      - $ref: '#/components/schemas/IgnoreUnknownIdsField'
-    GetStringDatapoint:
-      allOf:
-      - $ref: '#/components/schemas/GetDatapointMetadata'
-      - type: object
-        properties:
-          value:
-            type: string
-            description: 'The data value. The value is required unless the status is bad.
-
-              If the status is bad, the value may also be null (omitted).
-
-              '
-          status:
-            $ref: '#/components/schemas/DatapointStatus'
-    TimeSeriesSort:
-      type: object
-      properties:
-        sort:
-          description: 'Sort by array of selected properties.
-
-            '
-          type: array
-          minItems: 1
-          maxItems: 2
-          items:
-            $ref: '#/components/schemas/TimeSeriesSortItem'
-    DatapointsGetStringDatapoint:
-      allOf:
-      - $ref: '#/components/schemas/DatapointsMetadata'
-      - type: object
-        required:
-        - datapoints
-        - isString
-        - type
-        properties:
-          isString:
-            description: True if the time series contains string values; false if it contains numeric values.
-            type: boolean
-          type:
-            $ref: '#/components/schemas/TimeSeriesType'
-          unit:
-            maxLength: 32
-            type: string
-            description: The physical unit of the time series (free-text field).
-          nextCursor:
-            type: string
-            description: 'The cursor to get the next page of results (if available).
-
-              `nextCursor` will be omitted when the next data point is after the end of the
-
-              interval. Increase start/end to fetch more data.
-
-              '
-          datapoints:
-            type: array
-            description: The list of datapoints.
-            items:
-              $ref: '#/components/schemas/GetStringDatapoint'
-    NumericAggregateFunctions:
-      type: object
-      properties:
-        average:
-          type: number
-          description: The integral average value in the aggregate period.
-          format: double
-        max:
-          type: number
-          description: The maximum value in the aggregate period.
-          format: double
-        maxDatapoint:
-          type: object
-          required:
-          - timestamp
-          - value
-          description: Timestamp and value of the (first) maximum data point in the aggregate period.
-          properties:
-            timestamp:
-              $ref: '#/components/schemas/TimeSeriesEpochTimestamp'
-            value:
-              type: number
-              description: The maximum value in the aggregate period.
-              format: double
-            status:
-              $ref: '#/components/schemas/DatapointStatus'
-        min:
-          type: number
-          description: The minimum value in the aggregate period.
-          format: double
-        minDatapoint:
-          type: object
-          required:
-          - timestamp
-          - value
-          description: Timestamp and value of the (first) minimum data point in the aggregate period.
-          properties:
-            timestamp:
-              $ref: '#/components/schemas/TimeSeriesEpochTimestamp'
-            value:
-              type: number
-              description: The minimum value in the aggregate period.
-              format: double
-            status:
-              $ref: '#/components/schemas/DatapointStatus'
-        sum:
-          type: number
-          description: The sum of the data points in the aggregate period.
-          format: double
-        interpolation:
-          type: number
-          description: The interpolated value of the series in the beginning of the aggregate.
-          format: double
-        stepInterpolation:
-          type: number
-          description: The last value before or at the beginning of the aggregate.
-          format: double
-        continuousVariance:
-          type: number
-          description: The variance of the interpolated underlying function.
-          format: double
-        discreteVariance:
-          type: number
-          description: The variance of the data point values.
-          format: double
-        totalVariation:
-          type: number
-          description: The total variation of the interpolated underlying function.
-          format: double
-    TimeSeriesCardinalityValuesAggregateResponse:
-      type: object
-      title: CardinalityValues
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          minItems: 1
-          maxItems: 1
-          items:
-            type: object
-            required:
-            - count
-            properties:
-              count:
-                type: integer
-                format: int64
-                description: The approximate number of unique values for the given property among the time series that match the given filters.
-    TimeSeriesEpochTimestamp:
-      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds. Can be negative to define dates before 1970, up to 1900.
-      type: integer
-      minimum: -2208988800000
-      format: int64
-      example: 1638795554528
-    TimeSeriesBoolFilter:
-      description: 'A query that matches items matching boolean combinations of other queries.
-
-        It is built by nesting one or more Boolean clauses, each of which is one of `and`, `or`, and `not`.
-
-        Each such clause contains one or more child clauses (though `not` can only have one).
-
-        Each child clause can be either another Boolean clause or a leaf filter.
-
-        '
-      title: Boolean filter
-      type: object
-      oneOf:
-      - type: object
-        title: and
-        required:
-        - and
-        properties:
-          and:
-            description: All of the sub-clauses in the query must appear in matching items.
-            type: array
-            minItems: 1
-            maxItems: 99
-            items:
-              $ref: '#/components/schemas/TimeSeriesFilterLanguage'
-      - type: object
-        title: or
-        required:
-        - or
-        properties:
-          or:
-            description: At least one of the sub-clauses in the query must appear in matching items.
-            type: array
-            minItems: 1
-            maxItems: 99
-            items:
-              $ref: '#/components/schemas/TimeSeriesFilterLanguage'
-      - type: object
-        title: not
-        required:
-        - not
-        properties:
-          not:
-            title: Filter DSL
-            description: Sub-clauses in the query must not appear in matching items.
-            type: object
-            allOf:
-            - $ref: '#/components/schemas/TimeSeriesFilterLanguage'
-    TimeSeriesValues:
-      description: 'One or more values that you wish to find in the provided properties.
-
-        '
-      type: array
-      minItems: 1
-      maxItems: 100
-      items:
-        $ref: '#/components/schemas/TimeSeriesValue'
-    TimeSeriesPatch:
-      type: object
-      description: Changes will be applied to time series.
-      required:
-      - update
-      properties:
-        update:
-          type: object
-          properties:
-            externalId:
-              $ref: '#/components/schemas/NullableSinglePatchString'
-            name:
-              $ref: '#/components/schemas/NullableSinglePatchString'
-            metadata:
-              $ref: '#/components/schemas/ObjectPatch'
-            unit:
-              $ref: '#/components/schemas/NullableSinglePatchString'
-            unitExternalId:
-              $ref: '#/components/schemas/NullableSinglePatchString'
-            assetId:
-              $ref: '#/components/schemas/NullableSinglePatchLong'
-            isStep:
-              $ref: '#/components/schemas/SinglePatchBoolean'
-            description:
-              $ref: '#/components/schemas/NullableSinglePatchString'
-            securityCategories:
-              $ref: '#/components/schemas/ArrayPatchLong'
-            dataSetId:
-              $ref: '#/components/schemas/NullableSinglePatchLong'
-    TimestampOrStringStart:
-      oneOf:
-      - type: integer
-        default: 0
-      - type: string
-      description: 'Get datapoints starting from, and including, this time. The format is N[timeunit]-ago where
-
-        timeunit is w,d,h,m,s. Example: ''2d-ago'' gets datapoints that are up to 2 days
-
-        old. You can also specify time in milliseconds since epoch. Note that for aggregates, the start time is rounded down to a whole granularity unit (in UTC timezone). Daily granularities (d)
-
-        are rounded to 0:00 AM; hourly granularities (h) to the start of the hour, etc.'
-    CommonAggregateFunctions:
-      type: object
-      properties:
-        count:
-          type: integer
-          description: The number of data points in the aggregate period.
-          format: int32
-        countGood:
-          type: integer
-          description: The number of data points in the aggregate period that have a _Good_ [status code](<https://docs.cognite.com/dev/concepts/reference/status_codes>). _Uncertain_ does not count, irrespective of `treatUncertainAsBad` parameter.
-          format: int64
-        countUncertain:
-          type: integer
-          description: The number of data points in the aggregate period that have an _Uncertain_ [status code](<https://docs.cognite.com/dev/concepts/reference/status_codes>).
-          format: int64
-        countBad:
-          type: integer
-          description: The number of data points in the aggregate period that have a _Bad_ [status code](<https://docs.cognite.com/dev/concepts/reference/status_codes>). _Uncertain_ does not count, irrespective of `treatUncertainAsBad` parameter.
-          format: int64
-        durationGood:
-          type: integer
-          description: The duration the aggregate is defined and marked as good (regardless of `ignoreBadDataPoints` parameter). Measured in milliseconds. Equivalent to duration that the previous data point is _good_ and in range.
-          format: int64
-        durationUncertain:
-          type: integer
-          description: The duration the aggregate is defined and marked as uncertain (regardless of `ignoreBadDataPoints` parameter). Measured in milliseconds. Equivalent to duration that the previous data point is _uncertain_ and in range.
-          format: int64
-        durationBad:
-          type: integer
-          description: The duration the aggregate is defined but marked as bad (regardless of `ignoreBadDataPoints` parameter). Measured in milliseconds. Equivalent to duration that the previous data point is _bad_ and in range.
-          format: int64
-    TimeSeriesType:
-      type: string
-      description: 'The type of the time series. Currently, time series can either be of type `numeric` or `string`. ** The available types of time series may be extended in the future. **
-
-        '
-    DatapointStatus:
-      type: object
-      description: 'The [status code](<https://docs.cognite.com/dev/concepts/reference/status_codes>) of the datapoint.
-
-
-        The most common status codes are:\
-
-        _Good_ (0) (Default)\
-
-        _Uncertain_ (1073741824)\
-
-        _Bad_ (2147483648)
-
-
-        Only one of code and symbol is required. If both are defined, they must match.'
-      properties:
-        code:
-          type: integer
-          format: int64
-          description: The numeric status code of the data point.
-        symbol:
-          type: string
-          description: The status name of the data point.
-    TimeSeriesStringValue:
-      title: String
-      description: 'A value that you wish to find in the provided property.
-
-        '
-      type: string
-      maxLength: 256
-    TimeSeriesCardinalityPropertiesAggregateResponse:
-      type: object
-      title: CardinalityProperties
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          minItems: 1
-          maxItems: 1
-          items:
-            type: object
-            required:
-            - count
-            properties:
-              count:
-                type: integer
-                format: int64
-                description: The approximate number of unique properties that begin with the given property path among the time series that match the given filters.
-    TimeSeriesUpdateRequest:
+    TimeSeriesCreateRequest:
       type: object
       required:
       - items
@@ -2034,12 +1199,7 @@ components:
           minItems: 1
           maxItems: 1000
           items:
-            $ref: '#/components/schemas/TimeSeriesUpdate'
-    GetNumericAggregateDatapoint:
-      allOf:
-      - $ref: '#/components/schemas/GetDatapointMetadata'
-      - $ref: '#/components/schemas/CommonAggregateFunctions'
-      - $ref: '#/components/schemas/NumericAggregateFunctions'
+            $ref: '#/components/schemas/PostTimeSeriesMetadataDTO'
     Cursor:
       type: object
       properties:
@@ -2060,62 +1220,19 @@ components:
         notice. You should treat it as an opaque string and not attempt to craft your own cursors.
 
         '
-    TimeSeriesLeafAggregateFilter:
-      description: 'Leaf filter.
-
-        '
-      title: Leaf filter
+    ArrayPatchLongSet:
+      title: set
       type: object
-      oneOf:
-      - $ref: '#/components/schemas/TimeSeriesInAggregateFilter'
-      - $ref: '#/components/schemas/TimeSeriesRangeAggregateFilter'
-      - $ref: '#/components/schemas/TimeSeriesPrefixAggregateFilter'
-    TimeSeriesCardinalityValuesAggregate:
-      title: CardinalityValues
-      allOf:
-      - type: object
-        required:
-        - aggregate
-        properties:
-          aggregate:
-            description: 'The `cardinalityValues` aggregation gets, from the time series that match the filter(s),
-
-              the approximate number of unique values that are taken on by the given property.
-
-              '
-            type: string
-            enum:
-            - cardinalityValues
-      - $ref: '#/components/schemas/TimeSeriesAggregateProperties'
-    NullableSinglePatchLong:
-      oneOf:
-      - type: object
-        required:
-        - set
-        title: set
-        properties:
-          set:
+      required:
+      - set
+      properties:
+        set:
+          uniqueItems: true
+          type: array
+          items:
             type: integer
             format: int64
-      - type: object
-        required:
-        - setNull
-        title: remove
-        properties:
-          setNull:
-            type: boolean
-            enum:
-            - true
-      description: The change that will be applied to the key.
-    DatapointsDeleteRange:
-      required:
-      - inclusiveBegin
-      properties:
-        inclusiveBegin:
-          $ref: '#/components/schemas/TimeSeriesEpochTimestamp'
-        exclusiveEnd:
-          $ref: '#/components/schemas/TimeSeriesEpochTimestamp'
-    DuplicatedIdsInRequestResponse:
+    ExternalIdsAlreadyExistResponse:
       type: object
       required:
       - error
@@ -2132,31 +1249,22 @@ components:
               type: integer
               description: HTTP status code
               format: int32
-              example: 422
+              example: 409
             message:
               type: string
               description: Error message
             duplicated:
               uniqueItems: true
               type: array
-              description: Items that are duplicated in the request.
+              description: Items that are duplicated.
               items:
-                description: Ids and ExternalIds that are duplicated in the request.
-                oneOf:
-                - type: object
-                  required:
-                  - id
-                  title: id
-                  properties:
-                    id:
-                      $ref: '#/components/schemas/CogniteInternalId'
-                - type: object
-                  required:
-                  - externalId
-                  title: externalId
-                  properties:
-                    externalId:
-                      $ref: '#/components/schemas/CogniteExternalId'
+                description: ExternalIds that already exist.
+                type: object
+                required:
+                - externalId
+                properties:
+                  externalId:
+                    $ref: '#/components/schemas/CogniteExternalId'
     TimeSeriesRangeFilter:
       type: object
       title: range
@@ -2234,25 +1342,90 @@ components:
               $ref: '#/components/schemas/TimeSeriesFilterProperty'
             value:
               $ref: '#/components/schemas/TimeSeriesStringValue'
-    TimeSeriesCountAggregateResponse:
+    DatapointsGetDoubleDatapoint:
+      allOf:
+      - $ref: '#/components/schemas/DatapointsMetadata'
+      - type: object
+        required:
+        - datapoints
+        - isString
+        - type
+        properties:
+          isString:
+            description: True if the time series contains string values; false if it contains numeric values.
+            type: boolean
+          type:
+            $ref: '#/components/schemas/TimeSeriesType'
+          isStep:
+            description: Defines whether the time series is a step series or not.
+            type: boolean
+          unit:
+            maxLength: 32
+            type: string
+            description: The physical unit of the time series (free-text field). Omitted if data points were converted to a different unit.
+          unitExternalId:
+            maxLength: 64
+            type: string
+            description: The physical unit of the time series as [represented in the unit catalog](<https://docs.cognite.com/dev/concepts/resource_types/units/>). Replaced with target unit if data points were converted.
+          nextCursor:
+            type: string
+            description: 'The cursor to get the next page of results (if available).
+
+              `nextCursor` will be omitted when the next data point is after the end of the
+
+              interval. Increase start/end to fetch more data.
+
+              '
+          datapoints:
+            type: array
+            description: The list of data points.
+            items:
+              $ref: '#/components/schemas/GetDoubleDatapoint'
+    TimeSeriesPrefixAggregateValue:
+      title: String
+      description: 'A string value that represents either a property key or a property value, depending on the
+
+        `aggregate` operation.
+
+        '
+      type: string
+      maxLength: 256
+    DataSetId:
+      description: The dataSet Id for the item.
+      type: integer
+      minimum: 1
+      maximum: 9007199254740991
+      format: int64
+    AssetExternalId:
       type: object
-      title: Count
       required:
-      - items
+      - externalId
       properties:
-        items:
-          type: array
-          minItems: 1
-          maxItems: 1
-          items:
-            type: object
-            required:
-            - count
-            properties:
-              count:
-                type: integer
-                format: int64
-                description: The number of time series that match the given filters.
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+    TimeSeriesExistsFilter:
+      type: object
+      title: exists
+      required:
+      - exists
+      properties:
+        exists:
+          required:
+          - property
+          description: 'Matches items that have a value for the specified property.
+
+            '
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/TimeSeriesFilterProperty'
+    IgnoreUnknownIdsField:
+      type: object
+      properties:
+        ignoreUnknownIds:
+          description: Ignore IDs and external IDs that are not found
+          type: boolean
+          default: false
     DatapointsDeleteRequest:
       type: object
       description: Select time series and data points to delete.
@@ -2281,6 +1454,1632 @@ components:
             instanceId:
               $ref: '#/components/schemas/CogniteInstanceId'
         - $ref: '#/components/schemas/DatapointsDeleteRange'
+    TimeSeriesEpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds. Can be negative to define dates before 1970, up to 1900.
+      type: integer
+      minimum: -2208988800000
+      format: int64
+      example: 1638795554528
+    TimeSeriesUpdateById:
+      allOf:
+      - type: object
+        required:
+        - id
+        properties:
+          id:
+            $ref: '#/components/schemas/CogniteInternalId'
+      - $ref: '#/components/schemas/TimeSeriesPatch'
+    ArrayPatchLong:
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/ArrayPatchLongSet'
+      - $ref: '#/components/schemas/ArrayPatchLongAddOrRemove'
+      description: Change that will be applied to the array.
+    TimeSeriesFilterLanguage:
+      type: object
+      description: 'A filter DSL (Domain Specific Language) to define advanced filter queries.
+
+
+        At the top level, an `advancedFilter` expression is either a single Boolean filter or a
+
+        single leaf filter. Boolean filters contain other Boolean filters and/or leaf filters. The
+
+        total number of filters may be at most 100, and the depth (the greatest number of times
+
+        filters have been nested inside each other) may be at most 10. The `search` leaf filter may
+
+        at most be used twice within a single `advancedFilter`, but all other filters can be used
+
+        as many times as you like as long as the other limits are respected.
+
+        '
+      oneOf:
+      - $ref: '#/components/schemas/TimeSeriesBoolFilter'
+      - $ref: '#/components/schemas/TimeSeriesLeafFilter'
+      example:
+        or:
+        - not:
+            and:
+            - equals:
+                property:
+                - metadata
+                - manufacturer
+                value: acme
+            - in:
+                property:
+                - name
+                values:
+                - pump-1-temperature
+                - motor-9-temperature
+            - range:
+                property:
+                - dataSetId
+                gte: 1
+                lt: 10
+        - and:
+          - equals:
+              property:
+              - assetId
+              value: 1234
+          - equals:
+              property:
+              - description
+              value: Temperature in Celsius
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    AssetInternalId:
+      type: object
+      required:
+      - id
+      properties:
+        id:
+          $ref: '#/components/schemas/CogniteInternalId'
+    TimeSeriesRangeValue:
+      description: An upper or lower bound in a `range` filter.
+      oneOf:
+      - type: string
+        maxLength: 256
+      - type: number
+      - type: integer
+    TimeSeriesUpdateRequest:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items:
+            $ref: '#/components/schemas/TimeSeriesUpdate'
+    DatapointsResponse:
+      type: object
+      description: The list of responses. The order matches the requests order.
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DatapointsGetDatapoint'
+    DatapointsQuery:
+      type: object
+      description: Parameters describing a query for data points.
+      oneOf:
+      - required:
+        - id
+        title: QueryWithInternalId
+        allOf:
+        - properties:
+            id:
+              $ref: '#/components/schemas/CogniteInternalId'
+        - $ref: '#/components/schemas/DatapointsQueryProperties'
+      - required:
+        - externalId
+        title: QueryWithExternalId
+        allOf:
+        - properties:
+            externalId:
+              $ref: '#/components/schemas/CogniteExternalId'
+        - $ref: '#/components/schemas/DatapointsQueryProperties'
+      - required:
+        - instanceId
+        title: QueryWithInstanceId
+        allOf:
+        - properties:
+            instanceId:
+              $ref: '#/components/schemas/CogniteInstanceId'
+        - $ref: '#/components/schemas/DatapointsQueryProperties'
+    ObjectPatchSet:
+      title: set
+      type: object
+      required:
+      - set
+      properties:
+        set:
+          uniqueItems: true
+          type: object
+          description: Set the key-value pairs. All existing key-value pairs will be removed.
+          additionalProperties:
+            type: string
+          example:
+            key1: value1
+            key2: value2
+    GetDoubleDatapoint:
+      allOf:
+      - $ref: '#/components/schemas/GetDatapointMetadata'
+      - type: object
+        properties:
+          value:
+            type: number
+            description: 'The data value.
+
+              The value is required unless the status is bad.
+
+
+              If the status is bad, the value may also be one of the 3 special string values:
+
+              ''NaN'', ''Infinity'' or ''-Infinity''.'
+            format: double
+          status:
+            $ref: '#/components/schemas/DatapointStatus'
+    JsonArrayInt64:
+      type: string
+      format: jsonArray(int64)
+      example: '[1238712837, 238712361376, 23786237623]'
+    TimeSeriesInAggregateValues:
+      description: 'The property keys or property values (depending on the `aggregate` operation) on which you want to
+
+        filter the intermediate aggregate results.
+
+        '
+      type: array
+      minItems: 1
+      maxItems: 100
+      items:
+        $ref: '#/components/schemas/TimeSeriesInAggregateValue'
+    DatapointsDeleteRange:
+      required:
+      - inclusiveBegin
+      properties:
+        inclusiveBegin:
+          $ref: '#/components/schemas/TimeSeriesEpochTimestamp'
+        exclusiveEnd:
+          $ref: '#/components/schemas/TimeSeriesEpochTimestamp'
+    TimeSeriesLeafFilter:
+      description: 'Leaf filter.
+
+        '
+      title: Leaf filter
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/TimeSeriesEqualsFilter'
+      - $ref: '#/components/schemas/TimeSeriesInFilter'
+      - $ref: '#/components/schemas/TimeSeriesRangeFilter'
+      - $ref: '#/components/schemas/TimeSeriesPrefixFilter'
+      - $ref: '#/components/schemas/TimeSeriesExistsFilter'
+      - $ref: '#/components/schemas/TimeSeriesContainsAnyFilter'
+      - $ref: '#/components/schemas/TimeSeriesContainsAllFilter'
+      - $ref: '#/components/schemas/TimeSeriesSearchFilter'
+    GetNumericAggregateDatapoint:
+      allOf:
+      - $ref: '#/components/schemas/GetDatapointMetadata'
+      - $ref: '#/components/schemas/CommonAggregateFunctions'
+      - $ref: '#/components/schemas/NumericAggregateFunctions'
+    TimeSeriesSortItem:
+      type: object
+      required:
+      - property
+      properties:
+        property:
+          type: array
+          description: "Property to sort on.\nSorting can be done on the following properties:\n  | Property                          |\n  |-----------------------------------|\n  | `['assetId']`                     |\n  | `['createdTime']`                 |\n  | `['dataSetId']`                   |\n  | `['description']`                 |\n  | `['externalId']`                  |\n  | `['lastUpdatedTime']`             |\n  | `['metadata', '<someCustomKey>']` |\n  | `['name']`                        |\n  | `['_score_']`                     |\n  | `['instanceId', 'space']`         |\n  | `['instanceId', 'externalId']`    |"
+          minItems: 1
+          maxItems: 2
+          items:
+            type: string
+            maxLength: 128
+        order:
+          type: string
+          description: 'The `order` attribute is optional and defaults to `desc` for `_score_` and `asc` for all
+
+            other properties.'
+          enum:
+          - asc
+          - desc
+        nulls:
+          type: string
+          description: 'The `nulls` attribute is optional and defaults to `auto`. `auto` is translated to `last`
+
+            for the `asc` order and to `first` for the `desc` order.'
+          enum:
+          - first
+          - last
+          - auto
+          default: auto
+    DatapointsDeleteQuery:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          description: List of delete filters.
+          minItems: 1
+          maxItems: 10000
+          items:
+            $ref: '#/components/schemas/DatapointsDeleteRequest'
+    TimeSeriesCardinalityPropertiesAggregate:
+      title: CardinalityProperties
+      allOf:
+      - type: object
+        required:
+        - aggregate
+        properties:
+          aggregate:
+            description: 'The `cardinalityProperties` aggregation gets, from the time series that match the filter(s),
+
+              the approximate number of unique properties whose property path begins with the given `path`.
+
+              Currently, the only supported value for `path` is `["metadata"]`, which means that this aggregation
+
+              will get the approximate size of the set of unique metadata keys.
+
+              '
+            type: string
+            enum:
+            - cardinalityProperties
+      - $ref: '#/components/schemas/TimeSeriesAggregatePath'
+    PartitionObject:
+      type: object
+      properties:
+        partition:
+          $ref: '#/components/schemas/Partition'
+    CogniteInternalId:
+      description: A server-generated ID for the object.
+      type: integer
+      minimum: 1
+      maximum: 9007199254740991
+      format: int64
+    TimeSeriesPatchDM:
+      type: object
+      description: Changes will be applied to time series. Note that these changes will not be visible in data modeling.
+      required:
+      - update
+      properties:
+        update:
+          type: object
+          properties:
+            externalId:
+              $ref: '#/components/schemas/NullableSinglePatchString'
+            metadata:
+              $ref: '#/components/schemas/ObjectPatch'
+            assetId:
+              $ref: '#/components/schemas/NullableSinglePatchLong'
+            dataSetId:
+              $ref: '#/components/schemas/NullableSinglePatchLong'
+    Filter:
+      type: object
+      properties:
+        name:
+          description: Filter on name.
+          type: string
+        unit:
+          description: Filter on unit.
+          type: string
+        unitExternalId:
+          description: Filter on unitExternalId.
+          type: string
+        unitQuantity:
+          description: Filter on unitQuantity.
+          type: string
+        isString:
+          description: Filter on isString.
+          type: boolean
+        isStep:
+          description: Filter on isStep.
+          type: boolean
+        metadata:
+          $ref: '#/components/schemas/TimeSeriesMetadata'
+        assetIds:
+          type: array
+          description: Only includes time series that reference these specific asset IDs.
+          example:
+          - 363848954441724
+          - 793045462540095
+          - 1261042166839739
+          items:
+            $ref: '#/components/schemas/CogniteInternalId'
+          minItems: 1
+          maxItems: 100
+          uniqueItems: true
+        assetExternalIds:
+          type: array
+          uniqueItems: true
+          minItems: 1
+          maxItems: 100
+          description: Asset External IDs of related equipment that this time series relates to.
+          items:
+            $ref: '#/components/schemas/CogniteExternalId'
+        rootAssetIds:
+          type: array
+          description: Only includes time series that have a related asset in a tree rooted at any of these root `assetIds`.
+          example:
+          - 343099548723932
+          - 88483999203217
+          items:
+            $ref: '#/components/schemas/CogniteInternalId'
+          minItems: 1
+          maxItems: 100
+          uniqueItems: true
+        assetSubtreeIds:
+          type: array
+          uniqueItems: true
+          minItems: 1
+          maxItems: 100
+          description: Only includes time series that are related to an asset in a subtree rooted at any of these `assetIds` (including the roots given). If the total size of the given subtrees exceeds 100,000 assets, an error will be returned.
+          items:
+            $ref: '#/components/schemas/AssetIdEither'
+        dataSetIds:
+          type: array
+          uniqueItems: true
+          minItems: 1
+          maxItems: 100
+          description: Only includes time series that reference these specific data set IDs.
+          items:
+            $ref: '#/components/schemas/DataSetIdEither'
+        externalIdPrefix:
+          $ref: '#/components/schemas/CogniteExternalIdPrefix'
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestampRange'
+        lastUpdatedTime:
+          $ref: '#/components/schemas/EpochTimestampRange'
+    ObjectPatch:
+      type: object
+      description: Custom, application specific metadata. String key -> String value.
+      oneOf:
+      - $ref: '#/components/schemas/ObjectPatchSet'
+      - $ref: '#/components/schemas/ObjectPatchAddRemove'
+    DatapointsInsertQuery:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 10000
+          items:
+            $ref: '#/components/schemas/DatapointsPostDatapoint'
+    DataSetInternalId:
+      type: object
+      title: DataSetInternalId
+      required:
+      - id
+      properties:
+        id:
+          $ref: '#/components/schemas/CogniteInternalId'
+    TimeSeriesRangeAggregateFilter:
+      type: object
+      title: range
+      required:
+      - range
+      properties:
+        range:
+          description: "Matches intermediate aggregation results where the property key or the property value is within the\nprovided range. When the `aggregate` operation is `uniqueProperties` or `cardinalityProperties`,\nproperty _keys_ will be targeted; when it is `uniqueValues` or `cardinalityValues`, property \n_values_ will be targeted.\n\nAt least one of the following bounds must be specified:\n- `gte`: Greater than or equal to.\n- `gt`: Greater than.\n- `lte`: Less than or equal to.\n- `lt`: Less than.\n\nIt is not valid to specify both inclusive and exclusive bounds \"on the same side\" together:\nat most one of `lte` and `lt` may be specified, and at most one of `gte` and `gt`.\n\nIn the case of `aggregate` being `uniqueProperties` or `cardinalityProperties`,\n`gte`/`gt`/`lte`/`lt` must be set to a string. In the case of `aggregate` being `uniqueValues` or\n`cardinalityValues`, this filter may only be applied to string properties or number properties,\nwith `gte`/`gt`/`lte`/`lt` containing values of the corresponding type.\n"
+          type: object
+          properties:
+            gte:
+              $ref: '#/components/schemas/TimeSeriesRangeAggregateValue'
+            gt:
+              $ref: '#/components/schemas/TimeSeriesRangeAggregateValue'
+            lte:
+              $ref: '#/components/schemas/TimeSeriesRangeAggregateValue'
+            lt:
+              $ref: '#/components/schemas/TimeSeriesRangeAggregateValue'
+    TimeSeriesRangeAggregateValue:
+      description: 'An upper or lower bound for a property key or property value (depending on which `aggregate` was
+
+        specified at the top level of the aggregation request).
+
+        '
+      oneOf:
+      - type: string
+        maxLength: 256
+      - type: number
+      - type: integer
+    TimeSeriesValue:
+      description: 'A value that you wish to find in the provided property.
+
+        '
+      oneOf:
+      - type: string
+        maxLength: 256
+      - type: number
+      - type: integer
+      - type: boolean
+    ArrayPatchLongAddOrRemove:
+      title: add/remove
+      type: object
+      properties:
+        add:
+          uniqueItems: true
+          type: array
+          items:
+            type: integer
+            format: int64
+        remove:
+          uniqueItems: true
+          type: array
+          items:
+            type: integer
+            format: int64
+    NullableSinglePatchString:
+      oneOf:
+      - type: object
+        required:
+        - set
+        title: set
+        properties:
+          set:
+            type: string
+      - type: object
+        required:
+        - setNull
+        title: remove
+        properties:
+          setNull:
+            type: boolean
+            enum:
+            - true
+      description: The change that will be applied to the key.
+    DatapointsInsertProperties:
+      required:
+      - datapoints
+      properties:
+        datapoints:
+          type: array
+          description: The list of data points. The total number of data points in a single request is limited to 100000, across all time series.
+          items:
+            $ref: '#/components/schemas/PostDatapoint'
+    TimeSeriesBoolFilter:
+      description: 'A query that matches items matching boolean combinations of other queries.
+
+        It is built by nesting one or more Boolean clauses, each of which is one of `and`, `or`, and `not`.
+
+        Each such clause contains one or more child clauses (though `not` can only have one).
+
+        Each child clause can be either another Boolean clause or a leaf filter.
+
+        '
+      title: Boolean filter
+      type: object
+      oneOf:
+      - type: object
+        title: and
+        required:
+        - and
+        properties:
+          and:
+            description: All of the sub-clauses in the query must appear in matching items.
+            type: array
+            minItems: 1
+            maxItems: 99
+            items:
+              $ref: '#/components/schemas/TimeSeriesFilterLanguage'
+      - type: object
+        title: or
+        required:
+        - or
+        properties:
+          or:
+            description: At least one of the sub-clauses in the query must appear in matching items.
+            type: array
+            minItems: 1
+            maxItems: 99
+            items:
+              $ref: '#/components/schemas/TimeSeriesFilterLanguage'
+      - type: object
+        title: not
+        required:
+        - not
+        properties:
+          not:
+            title: Filter DSL
+            description: Sub-clauses in the query must not appear in matching items.
+            type: object
+            allOf:
+            - $ref: '#/components/schemas/TimeSeriesFilterLanguage'
+    TimeSeriesPrefixFilter:
+      type: object
+      title: prefix
+      required:
+      - prefix
+      properties:
+        prefix:
+          required:
+          - property
+          - value
+          description: 'Matches items where the provided property begins with the given text.
+
+            '
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/TimeSeriesFilterProperty'
+            value:
+              $ref: '#/components/schemas/TimeSeriesStringValue'
+    TimeSeriesUniquePropertiesAggregateResponse:
+      type: object
+      title: UniqueProperties
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required:
+            - values
+            - count
+            properties:
+              values:
+                type: array
+                minItems: 1
+                maxItems: 1
+                items:
+                  type: object
+                  required:
+                  - property
+                  properties:
+                    property:
+                      type: array
+                      minItems: 1
+                      maxItems: 2
+                      description: The single element in this array is a property specification - either a top-level property, such as `['name']`, or a metadata property, such as `['metadata', 'tag']`.
+                      items:
+                        type: string
+                        maxLength: 10000
+              count:
+                type: integer
+                format: int64
+                description: The number of time series that match the given filters and have the corresponding property.
+    DatapointsGetStringDatapoint:
+      allOf:
+      - $ref: '#/components/schemas/DatapointsMetadata'
+      - type: object
+        required:
+        - datapoints
+        - isString
+        - type
+        properties:
+          isString:
+            description: True if the time series contains string values; false if it contains numeric values.
+            type: boolean
+          type:
+            $ref: '#/components/schemas/TimeSeriesType'
+          unit:
+            maxLength: 32
+            type: string
+            description: The physical unit of the time series (free-text field).
+          nextCursor:
+            type: string
+            description: 'The cursor to get the next page of results (if available).
+
+              `nextCursor` will be omitted when the next data point is after the end of the
+
+              interval. Increase start/end to fetch more data.
+
+              '
+          datapoints:
+            type: array
+            description: The list of datapoints.
+            items:
+              $ref: '#/components/schemas/GetStringDatapoint'
+    TimeSeriesInAggregateValue:
+      description: 'The property key or property value (depending on the `aggregate` operation) on which you want to
+
+        filter the intermediate aggregate results.
+
+        '
+      oneOf:
+      - type: string
+        maxLength: 256
+      - type: number
+      - type: integer
+      - type: boolean
+    AssetIdEither:
+      oneOf:
+      - $ref: '#/components/schemas/AssetInternalId'
+      - $ref: '#/components/schemas/AssetExternalId'
+    DataSetIdEither:
+      oneOf:
+      - $ref: '#/components/schemas/DataSetInternalId'
+      - $ref: '#/components/schemas/DataSetExternalId'
+    SinglePatchBoolean:
+      type: object
+      title: set
+      required:
+      - set
+      properties:
+        set:
+          type: boolean
+    DatapointsPostDatapoint:
+      type: object
+      oneOf:
+      - required:
+        - id
+        title: DatapointsWithInternalId
+        allOf:
+        - properties:
+            id:
+              $ref: '#/components/schemas/CogniteInternalId'
+        - $ref: '#/components/schemas/DatapointsInsertProperties'
+      - required:
+        - externalId
+        title: DatapointsWithExternalId
+        allOf:
+        - properties:
+            externalId:
+              $ref: '#/components/schemas/CogniteExternalId'
+        - $ref: '#/components/schemas/DatapointsInsertProperties'
+      - required:
+        - instanceId
+        title: DatapointsWithInstanceId
+        allOf:
+        - properties:
+            instanceId:
+              $ref: '#/components/schemas/CogniteInstanceId'
+        - $ref: '#/components/schemas/DatapointsInsertProperties'
+    TimeSeriesInFilter:
+      type: object
+      title: in
+      required:
+      - in
+      properties:
+        in:
+          required:
+          - property
+          - values
+          description: 'Matches items where the given property is **exactly** equal to one of the given values.
+
+            This filter can only be applied to single-valued properties.
+
+            '
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/TimeSeriesFilterProperty'
+            values:
+              $ref: '#/components/schemas/TimeSeriesValues'
+    NullableSinglePatchLong:
+      oneOf:
+      - type: object
+        required:
+        - set
+        title: set
+        properties:
+          set:
+            type: integer
+            format: int64
+      - type: object
+        required:
+        - setNull
+        title: remove
+        properties:
+          setNull:
+            type: boolean
+            enum:
+            - true
+      description: The change that will be applied to the key.
+    NotFoundResponseWithoutInstanceId:
+      type: object
+      required:
+      - error
+      properties:
+        error:
+          type: object
+          description: Error details.
+          required:
+          - code
+          - message
+          - missing
+          properties:
+            code:
+              type: integer
+              description: HTTP status code
+              format: int32
+              example: 400
+            message:
+              type: string
+              description: Error message.
+            missing:
+              uniqueItems: true
+              type: array
+              description: Items that are not found.
+              items:
+                description: Ids, ExternalIds or InstanceIds that are not found.
+                oneOf:
+                - type: object
+                  required:
+                  - id
+                  title: id
+                  properties:
+                    id:
+                      $ref: '#/components/schemas/CogniteInternalId'
+                - type: object
+                  required:
+                  - externalId
+                  title: externalId
+                  properties:
+                    externalId:
+                      $ref: '#/components/schemas/CogniteExternalId'
+    TimeSeriesSearchDTO:
+      type: object
+      properties:
+        filter:
+          $ref: '#/components/schemas/Filter'
+        search:
+          $ref: '#/components/schemas/Search'
+        limit:
+          description: Return up to this many results.
+          maximum: 1000
+          minimum: 1
+          type: integer
+          format: int32
+          default: 100
+    TimeSeriesLeafAggregateFilter:
+      description: 'Leaf filter.
+
+        '
+      title: Leaf filter
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/TimeSeriesInAggregateFilter'
+      - $ref: '#/components/schemas/TimeSeriesRangeAggregateFilter'
+      - $ref: '#/components/schemas/TimeSeriesPrefixAggregateFilter'
+    PostDatapoint:
+      oneOf:
+      - required:
+        - timestamp
+        title: NumericalDatapoint
+        type: object
+        properties:
+          timestamp:
+            minimum: -2208988800000
+            maximum: 4102444799999
+            description: The timestamp in milliseconds since the Epoch (Jan 1, 1970). The timestamp must be from a year between 1900 and 2099, inclusive. Use a negative number for timestamps before 1970.
+          value:
+            type: number
+            description: 'The numerical data value of a numerical metric.
+
+              Numerical data values can be in the range (-1e100, 1e100)
+
+
+              The value is required unless the status is bad. Bad data points may also have one
+
+              of the three special string values: ''NaN'', ''Infinity'' or ''-Infinity''.'
+          status:
+            $ref: '#/components/schemas/DatapointStatus'
+      - required:
+        - timestamp
+        type: object
+        title: StringDatapoint
+        properties:
+          timestamp:
+            minimum: -2208988800000
+            maximum: 4102444799999
+            description: The timestamp in milliseconds since the Epoch (Jan 1, 1970). The timestamp must be from a year between 1900 and 2099, inclusive. Use a negative number for timestamps before 1970.
+          value:
+            maxLength: 1023
+            type: string
+            description: "The string data value of a string metric. The value is required unless the status is bad. The max length is 1023 bytes (UTF-8 encoded). The \"character-to-byte ratio\" is dependent on the language / alphabet used. The following can be used as a **loose** guide for estimation:\n  * Basic Latin characters (ASCII): 1 byte / character\n  * Latin-based alphabets with diacritics (e.g., French, German): 1-2 bytes / character\n  * Greek, Cyrillic, Arabic, Hebrew: typically 2 bytes / character\n  * CJK logograms (e.g., Chinese, Japanese, Korean): typically 3 bytes / character\n  * Emojis and other symbols: typically 4 bytes / character\n"
+          status:
+            $ref: '#/components/schemas/DatapointStatus'
+    TimeSeriesContainsAnyFilter:
+      type: object
+      title: containsAny
+      required:
+      - containsAny
+      properties:
+        containsAny:
+          required:
+          - property
+          - values
+          description: 'Matches items where the property contains one or more of the given values.
+
+            This filter can only be applied to multivalued properties.
+
+            '
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/TimeSeriesFilterProperty'
+            values:
+              $ref: '#/components/schemas/TimeSeriesValues'
+    NotFoundResponse:
+      type: object
+      required:
+      - error
+      properties:
+        error:
+          type: object
+          description: Error details.
+          required:
+          - code
+          - message
+          - missing
+          properties:
+            code:
+              type: integer
+              description: HTTP status code
+              format: int32
+              example: 400
+            message:
+              type: string
+              description: Error message.
+            missing:
+              uniqueItems: true
+              type: array
+              description: Items that are not found.
+              items:
+                description: Ids, ExternalIds or InstanceIds that are not found.
+                oneOf:
+                - type: object
+                  title: id
+                  required:
+                  - id
+                  properties:
+                    id:
+                      $ref: '#/components/schemas/CogniteInternalId'
+                - type: object
+                  title: externalId
+                  required:
+                  - externalId
+                  properties:
+                    externalId:
+                      $ref: '#/components/schemas/CogniteExternalId'
+                - type: object
+                  title: instanceId
+                  required:
+                  - instanceId
+                  properties:
+                    instanceId:
+                      $ref: '#/components/schemas/CogniteInstanceId'
+    TimeSeriesAdvancedAggregateDTO:
+      type: object
+      allOf:
+      - properties:
+          advancedFilter:
+            $ref: '#/components/schemas/TimeSeriesFilterLanguage'
+          filter:
+            $ref: '#/components/schemas/Filter'
+          aggregateFilter:
+            $ref: '#/components/schemas/TimeSeriesAggregateFilter'
+      - oneOf:
+        - $ref: '#/components/schemas/TimeSeriesCountAggregate'
+        - $ref: '#/components/schemas/TimeSeriesCardinalityValuesAggregate'
+        - $ref: '#/components/schemas/TimeSeriesCardinalityPropertiesAggregate'
+        - $ref: '#/components/schemas/TimeSeriesUniqueValuesAggregate'
+        - $ref: '#/components/schemas/TimeSeriesUniquePropertiesAggregate'
+    CommonAggregateFunctions:
+      type: object
+      properties:
+        count:
+          type: integer
+          description: The number of data points in the aggregate period.
+          format: int32
+        countGood:
+          type: integer
+          description: The number of data points in the aggregate period that have a _Good_ [status code](<https://docs.cognite.com/dev/concepts/reference/status_codes>). _Uncertain_ does not count, irrespective of `treatUncertainAsBad` parameter.
+          format: int64
+        countUncertain:
+          type: integer
+          description: The number of data points in the aggregate period that have an _Uncertain_ [status code](<https://docs.cognite.com/dev/concepts/reference/status_codes>).
+          format: int64
+        countBad:
+          type: integer
+          description: The number of data points in the aggregate period that have a _Bad_ [status code](<https://docs.cognite.com/dev/concepts/reference/status_codes>). _Uncertain_ does not count, irrespective of `treatUncertainAsBad` parameter.
+          format: int64
+        durationGood:
+          type: integer
+          description: The duration the aggregate is defined and marked as good (regardless of `ignoreBadDataPoints` parameter). Measured in milliseconds. Equivalent to duration that the previous data point is _good_ and in range.
+          format: int64
+        durationUncertain:
+          type: integer
+          description: The duration the aggregate is defined and marked as uncertain (regardless of `ignoreBadDataPoints` parameter). Measured in milliseconds. Equivalent to duration that the previous data point is _uncertain_ and in range.
+          format: int64
+        durationBad:
+          type: integer
+          description: The duration the aggregate is defined but marked as bad (regardless of `ignoreBadDataPoints` parameter). Measured in milliseconds. Equivalent to duration that the previous data point is _bad_ and in range.
+          format: int64
+    TimeSeriesCardinalityValuesAggregateResponse:
+      type: object
+      title: CardinalityValues
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 1
+          items:
+            type: object
+            required:
+            - count
+            properties:
+              count:
+                type: integer
+                format: int64
+                description: The approximate number of unique values for the given property among the time series that match the given filters.
+    TimeSeriesEqualsFilter:
+      type: object
+      title: equals
+      required:
+      - equals
+      properties:
+        equals:
+          required:
+          - property
+          - value
+          description: 'Matches items where the given property is **exactly** equal to the given value.
+
+            '
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/TimeSeriesFilterProperty'
+            value:
+              $ref: '#/components/schemas/TimeSeriesValue'
+    TimeSeriesBoolAggregateFilter:
+      description: 'A query that matches items matching boolean combinations of other queries.
+
+        It''s built by nesting one or more Boolean clauses, each of which is one of `and`, `or`, and `not`.
+
+        Each such clause contains one or more child clauses (though `not` can only have one).
+
+        Each child clause can be either another Boolean clause or a leaf filter.
+
+        '
+      title: Boolean filter
+      type: object
+      oneOf:
+      - type: object
+        title: and
+        required:
+        - and
+        properties:
+          and:
+            title: Aggregate filter DSL
+            description: 'The aggregation result will only contain items that match _all_ of the given
+
+              sub-clauses.
+
+              '
+            type: array
+            minItems: 1
+            maxItems: 19
+            items:
+              $ref: '#/components/schemas/TimeSeriesAggregateFilter'
+      - type: object
+        title: or
+        required:
+        - or
+        properties:
+          or:
+            title: Aggregate filter DSL
+            description: 'The aggregation result will only contain items that match _at least one_
+
+              (but potentially many or even all) of the given sub-clauses.
+
+              '
+            type: array
+            minItems: 1
+            maxItems: 19
+            items:
+              $ref: '#/components/schemas/TimeSeriesAggregateFilter'
+      - type: object
+        title: not
+        required:
+        - not
+        properties:
+          not:
+            title: Aggregate filter DSL
+            description: 'The aggregation result will only contain items that do _not_ match the given
+
+              sub-clause.
+
+              '
+            type: object
+            allOf:
+            - $ref: '#/components/schemas/TimeSeriesAggregateFilter'
+    ObjectPatchAddRemove:
+      title: add/remove
+      type: object
+      properties:
+        add:
+          uniqueItems: true
+          type: object
+          description: Add the key-value pairs. Values for existing keys will be overwritten.
+          additionalProperties:
+            type: string
+          example:
+            key1: value1
+            key2: value2
+        remove:
+          uniqueItems: true
+          type: array
+          description: Remove the key-value pairs with the specified keys.
+          example:
+          - value1
+          - value2
+          items:
+            type: string
+    TimeSeriesUniqueValuesAggregateResponse:
+      type: object
+      title: UniqueValues
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required:
+            - values
+            - count
+            properties:
+              values:
+                type: array
+                minItems: 1
+                maxItems: 1
+                description: The single element in this array is a value that's taken on by the given property in one or more of the time series that match the given filters. Note that even if the original value was a number or a boolean, the value would be represented as a string in this array.
+                items:
+                  type: string
+                  maxLength: 10000
+              count:
+                type: integer
+                format: int64
+                description: The number of time series that match the given filters and have the corresponding value for the given property.
+    TimeSeriesFilterProperty:
+      description: "The property on which you want to filter. May be either:\n- A single-element list that contains the name of one of the predefined top-level\n  properties, in which case the filter will be applied to that top-level property.\n- A single-element list that contains `'metadata'`, in which case the filter will be applied\n  to _all_ metadata properties.\n- A two-element list where the first element is `'metadata'` and the second one is any\n  string, in which case the filter will be applied to metadata properties with that name.\n- A two-element list where the first element is `'instanceId'` and the second element is\n  either `'space'` or `'externalId'`.\n"
+      type: array
+      minItems: 1
+      maxItems: 2
+      items:
+        type: string
+        minLength: 1
+        maxLength: 256
+    TimeSeriesStringValue:
+      title: String
+      description: 'A value that you wish to find in the provided property.
+
+        '
+      type: string
+      maxLength: 256
+    GetTimeSeriesMetadataDTO:
+      required:
+      - id
+      - isString
+      - isStep
+      - type
+      - createdTime
+      - lastUpdatedTime
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/CogniteInternalId'
+        externalId:
+          maxLength: 255
+          type: string
+          description: The externally supplied ID for the time series.
+        instanceId:
+          $ref: '#/components/schemas/CogniteInstanceId'
+        name:
+          maxLength: 255
+          type: string
+          description: The display short name of the time series.
+        isString:
+          type: boolean
+          description: 'True if the time series contains string values; false if it contains numeric values.
+
+            '
+        type:
+          $ref: '#/components/schemas/TimeSeriesType'
+        metadata:
+          $ref: '#/components/schemas/TimeSeriesMetadata'
+        unit:
+          maxLength: 32
+          type: string
+          description: The physical unit of the time series (free-text field)
+        unitExternalId:
+          maxLength: 64
+          type: string
+          description: The physical unit of the time series as [represented in the unit catalog](<https://docs.cognite.com/dev/concepts/resource_types/units/>).
+        assetId:
+          description: Asset ID of equipment linked to this time series.
+          allOf:
+          - $ref: '#/components/schemas/CogniteInternalId'
+        isStep:
+          type: boolean
+          description: Defines whether the time series is a step series or not.
+        description:
+          maxLength: 1000
+          type: string
+          description: Description of the time series.
+        securityCategories:
+          type: array
+          description: The required security categories to access this time series.
+          items:
+            type: integer
+            description: Security categories required to access this time series.
+            format: int64
+        dataSetId:
+          $ref: '#/components/schemas/DataSetId'
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        lastUpdatedTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+    DatapointsLatestQuery:
+      type: object
+      allOf:
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
+            description: List of latest queries
+            minItems: 1
+            maxItems: 100
+            items:
+              $ref: '#/components/schemas/LatestDataBeforeRequest'
+      - $ref: '#/components/schemas/IgnoreUnknownIdsField'
+    GetDatapointMetadata:
+      type: object
+      required:
+      - timestamp
+      properties:
+        timestamp:
+          $ref: '#/components/schemas/TimeSeriesEpochTimestamp'
+    TimeSeriesCardinalityPropertiesAggregateResponse:
+      type: object
+      title: CardinalityProperties
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 1
+          items:
+            type: object
+            required:
+            - count
+            properties:
+              count:
+                type: integer
+                format: int64
+                description: The approximate number of unique properties that begin with the given property path among the time series that match the given filters.
+    TimestampOrStringStart:
+      oneOf:
+      - type: integer
+        default: 0
+      - type: string
+      description: 'Get datapoints starting from, and including, this time. The format is N[timeunit]-ago where
+
+        timeunit is w,d,h,m,s. Example: ''2d-ago'' gets datapoints that are up to 2 days
+
+        old. You can also specify time in milliseconds since epoch. Note that for aggregates, the start time is rounded down to a whole granularity unit (in UTC timezone). Daily granularities (d)
+
+        are rounded to 0:00 AM; hourly granularities (h) to the start of the hour, etc.'
+    DuplicatedIdsInRequestResponse:
+      type: object
+      required:
+      - error
+      properties:
+        error:
+          type: object
+          description: Error details
+          required:
+          - code
+          - message
+          - duplicated
+          properties:
+            code:
+              type: integer
+              description: HTTP status code
+              format: int32
+              example: 422
+            message:
+              type: string
+              description: Error message
+            duplicated:
+              uniqueItems: true
+              type: array
+              description: Items that are duplicated in the request.
+              items:
+                description: Ids and ExternalIds that are duplicated in the request.
+                oneOf:
+                - type: object
+                  required:
+                  - id
+                  title: id
+                  properties:
+                    id:
+                      $ref: '#/components/schemas/CogniteInternalId'
+                - type: object
+                  required:
+                  - externalId
+                  title: externalId
+                  properties:
+                    externalId:
+                      $ref: '#/components/schemas/CogniteExternalId'
+    TimeSeriesType:
+      type: string
+      description: 'The type of the time series. Currently, time series can either be of type `numeric` or `string`. ** The available types of time series may be extended in the future. **
+
+        '
+    TimeSeriesPatch:
+      type: object
+      description: Changes will be applied to time series.
+      required:
+      - update
+      properties:
+        update:
+          type: object
+          properties:
+            externalId:
+              $ref: '#/components/schemas/NullableSinglePatchString'
+            name:
+              $ref: '#/components/schemas/NullableSinglePatchString'
+            metadata:
+              $ref: '#/components/schemas/ObjectPatch'
+            unit:
+              $ref: '#/components/schemas/NullableSinglePatchString'
+            unitExternalId:
+              $ref: '#/components/schemas/NullableSinglePatchString'
+            assetId:
+              $ref: '#/components/schemas/NullableSinglePatchLong'
+            isStep:
+              $ref: '#/components/schemas/SinglePatchBoolean'
+            description:
+              $ref: '#/components/schemas/NullableSinglePatchString'
+            securityCategories:
+              $ref: '#/components/schemas/ArrayPatchLong'
+            dataSetId:
+              $ref: '#/components/schemas/NullableSinglePatchLong'
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
+    TimeSeriesCountAggregateResponse:
+      type: object
+      title: Count
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 1
+          items:
+            type: object
+            required:
+            - count
+            properties:
+              count:
+                type: integer
+                format: int64
+                description: The number of time series that match the given filters.
+    LatestDataBeforeRequest:
+      type: object
+      description: Describes the latest query.
+      oneOf:
+      - required:
+        - id
+        title: QueryWithInternalId
+        allOf:
+        - properties:
+            id:
+              $ref: '#/components/schemas/CogniteInternalId'
+        - $ref: '#/components/schemas/LatestDataPropertyFilter'
+      - required:
+        - externalId
+        title: QueryWithExternalId
+        allOf:
+        - properties:
+            externalId:
+              $ref: '#/components/schemas/CogniteExternalId'
+        - $ref: '#/components/schemas/LatestDataPropertyFilter'
+      - required:
+        - instanceId
+        title: QueryWithInstanceId
+        allOf:
+        - properties:
+            instanceId:
+              $ref: '#/components/schemas/CogniteInstanceId'
+        - $ref: '#/components/schemas/LatestDataPropertyFilter'
+    Partition:
+      description: 'Splits the data set into `N` partitions.
+
+        The attribute is specified as a "M/N" string, where `M` is a natural number in the interval of `[1, N]`.
+
+        You need to follow the cursors within each partition in order to receive all the data.
+
+
+        To prevent unexpected problems and maximize read throughput, you should at most use 10 (N <= 10) partitions.
+
+
+        When using more than 10 partitions, CDF may reduce the number of partitions silently.
+
+        For example, CDF may reduce the number of partitions to `K = 10` so if you specify an `X/N` `partition` value where `X = 8` and `N = 20` - i.e. `"partition": "8/20"`- then
+
+        CDF will change `N` to `N = K = 10` and process the request.
+
+        But if you  specify the `X/N` `partition` value where `X = 11` (`X > K`) and `N = 20` - i.e. `"partition": "11/20"`- then
+
+        CDF will reply with an empty result list and no cursor in the response.\
+
+
+        In future releases of the resource APIs, Cognite may reject requests if you specify more than 10 partitions.
+
+        When Cognite enforces this behavior, the requests will result in a 400 Bad Request status.
+
+        '
+      type: string
+      example: 1/10
+    TimeSeriesAggregateFilter:
+      type: object
+      description: 'A filter DSL (Domain Specific Language) to define aggregate filters.
+
+        '
+      oneOf:
+      - $ref: '#/components/schemas/TimeSeriesBoolAggregateFilter'
+      - $ref: '#/components/schemas/TimeSeriesLeafAggregateFilter'
+    DatapointStatus:
+      type: object
+      description: 'The [status code](<https://docs.cognite.com/dev/concepts/reference/status_codes>) of the datapoint.
+
+
+        The most common status codes are:\
+
+        _Good_ (0) (Default)\
+
+        _Uncertain_ (1073741824)\
+
+        _Bad_ (2147483648)
+
+
+        Only one of code and symbol is required. If both are defined, they must match.'
+      properties:
+        code:
+          type: integer
+          format: int64
+          description: The numeric status code of the data point.
+        symbol:
+          type: string
+          description: The status name of the data point.
+    TimeSeriesPrefixAggregateFilter:
+      type: object
+      title: prefix
+      required:
+      - prefix
+      properties:
+        prefix:
+          required:
+          - value
+          description: 'Matches intermediate aggregation results where the property key or the property value begins with
+
+            the given text. When the `aggregate` operation is `uniqueProperties` or `cardinalityProperties`,
+
+            property _keys_ will be targeted; when it is `uniqueValues` or `cardinalityValues`, property
+
+            _values_ will be targeted.
+
+            '
+          type: object
+          properties:
+            value:
+              $ref: '#/components/schemas/TimeSeriesPrefixAggregateValue'
+    TimeSeriesValues:
+      description: 'One or more values that you wish to find in the provided properties.
+
+        '
+      type: array
+      minItems: 1
+      maxItems: 100
+      items:
+        $ref: '#/components/schemas/TimeSeriesValue'
+    TimeSeriesAggregatePath:
+      type: object
+      required:
+      - path
+      properties:
+        path:
+          description: The scope within which properties should be aggregated. The only value that is currently allowed is `["metadata"]`, which will aggregate metadata keys.
+          type: array
+          minItems: 1
+          maxItems: 1
+          items:
+            type: string
+            enum:
+            - metadata
+    NumericAggregateFunctions:
+      type: object
+      properties:
+        average:
+          type: number
+          description: The integral average value in the aggregate period.
+          format: double
+        max:
+          type: number
+          description: The maximum value in the aggregate period.
+          format: double
+        maxDatapoint:
+          type: object
+          required:
+          - timestamp
+          - value
+          description: Timestamp and value of the (first) maximum data point in the aggregate period.
+          properties:
+            timestamp:
+              $ref: '#/components/schemas/TimeSeriesEpochTimestamp'
+            value:
+              type: number
+              description: The maximum value in the aggregate period.
+              format: double
+            status:
+              $ref: '#/components/schemas/DatapointStatus'
+        min:
+          type: number
+          description: The minimum value in the aggregate period.
+          format: double
+        minDatapoint:
+          type: object
+          required:
+          - timestamp
+          - value
+          description: Timestamp and value of the (first) minimum data point in the aggregate period.
+          properties:
+            timestamp:
+              $ref: '#/components/schemas/TimeSeriesEpochTimestamp'
+            value:
+              type: number
+              description: The minimum value in the aggregate period.
+              format: double
+            status:
+              $ref: '#/components/schemas/DatapointStatus'
+        sum:
+          type: number
+          description: The sum of the data points in the aggregate period.
+          format: double
+        interpolation:
+          type: number
+          description: The interpolated value of the series in the beginning of the aggregate.
+          format: double
+        stepInterpolation:
+          type: number
+          description: The last value before or at the beginning of the aggregate.
+          format: double
+        continuousVariance:
+          type: number
+          description: The variance of the interpolated underlying function.
+          format: double
+        discreteVariance:
+          type: number
+          description: The variance of the data point values.
+          format: double
+        totalVariation:
+          type: number
+          description: The total variation of the interpolated underlying function.
+          format: double
+    TimeSeriesUniquePropertiesAggregate:
+      title: UniqueProperties
+      allOf:
+      - type: object
+        required:
+        - aggregate
+        properties:
+          aggregate:
+            description: 'The `uniqueProperties` aggregation gets, from the time series that match the filter(s),
+
+              the set of unique properties (up to max 1000) whose property path begins with the given `path`.
+
+              Currently, the only supported value for `path` is `["metadata"]`, which means that this aggregation
+
+              will get the set of unique metadata keys. For each such property, the aggregation result will also
+
+              specify the frequency - that is, the number of time series that match the filter(s) and have that
+
+              property. The results are ordered by frequency in descending order.
+
+              '
+            type: string
+            enum:
+            - uniqueProperties
+      - $ref: '#/components/schemas/TimeSeriesAggregatePath'
+    GetStringDatapoint:
+      allOf:
+      - $ref: '#/components/schemas/GetDatapointMetadata'
+      - type: object
+        properties:
+          value:
+            type: string
+            description: 'The data value. The value is required unless the status is bad.
+
+              If the status is bad, the value may also be null (omitted).
+
+              '
+          status:
+            $ref: '#/components/schemas/DatapointStatus'
+    DatapointsOrAggregatesResponse:
+      description: The list of responses. The order matches the requests order.
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/DatapointsGetAggregateDatapoint'
+            - $ref: '#/components/schemas/DatapointsGetDatapoint'
+    TimeSeriesInAggregateFilter:
+      type: object
+      title: in
+      required:
+      - in
+      properties:
+        in:
+          required:
+          - values
+          description: 'Matches intermediate aggregation results where the property key or the property value is _exactly_
+
+            equal to one of the given values. When the `aggregate` operation is `uniqueProperties` or
+
+            `cardinalityProperties`, property _keys_ will be targeted; when it is `uniqueValues` or
+
+            `cardinalityValues`, property _values_ will be targeted.
+
+            '
+          type: object
+          properties:
+            values:
+              $ref: '#/components/schemas/TimeSeriesInAggregateValues'
+    TimeSeriesMetadata:
+      type: object
+      description: Custom, application specific metadata. String key -> String value. Maximum length of key is 128 bytes, up to 256 key-value pairs, of total size of at most 10000 bytes across all keys and values.
+      additionalProperties:
+        type: string
     DatapointsMultiQuery:
       type: object
       allOf:
@@ -2359,165 +3158,39 @@ components:
             default: UTC
             example: Europe/Oslo or UTC+05:30
       - $ref: '#/components/schemas/IgnoreUnknownIdsField'
-    EpochTimestampRange:
-      description: Range between two timestamps (inclusive).
+    TimeSeriesCountAggregate:
       type: object
+      title: Count
       properties:
-        max:
-          description: Maximum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-          type: integer
-          minimum: 0
-          format: int64
-        min:
-          description: Minimum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-          type: integer
-          minimum: 0
-          format: int64
-    ArrayPatchLongAddOrRemove:
-      title: add/remove
-      type: object
-      properties:
-        add:
-          uniqueItems: true
-          type: array
-          items:
-            type: integer
-            format: int64
-        remove:
-          uniqueItems: true
-          type: array
-          items:
-            type: integer
-            format: int64
-    DatapointsInsertProperties:
-      required:
-      - datapoints
-      properties:
-        datapoints:
-          type: array
-          description: The list of data points. The total number of data points in a single request is limited to 100000, across all time series.
-          items:
-            $ref: '#/components/schemas/PostDatapoint'
-    GetTimeSeriesMetadataDTO:
-      required:
-      - id
-      - isString
-      - isStep
-      - type
-      - createdTime
-      - lastUpdatedTime
-      type: object
-      properties:
-        id:
-          $ref: '#/components/schemas/CogniteInternalId'
-        externalId:
-          maxLength: 255
-          type: string
-          description: The externally supplied ID for the time series.
-        instanceId:
-          $ref: '#/components/schemas/CogniteInstanceId'
-        name:
-          maxLength: 255
-          type: string
-          description: The display short name of the time series.
-        isString:
-          type: boolean
-          description: 'True if the time series contains string values; false if it contains numeric values.
+        aggregate:
+          description: 'The `count` aggregation gets the number of time series that match the filter(s). This is the
+
+            default aggregation, which will also be applied if `aggregate` is not specified.
 
             '
-        type:
-          $ref: '#/components/schemas/TimeSeriesType'
-        metadata:
-          $ref: '#/components/schemas/TimeSeriesMetadata'
-        unit:
-          maxLength: 32
           type: string
-          description: The physical unit of the time series (free-text field)
-        unitExternalId:
-          maxLength: 64
-          type: string
-          description: The physical unit of the time series as [represented in the unit catalog](<https://docs.cognite.com/dev/concepts/resource_types/units/>).
-        assetId:
-          description: Asset ID of equipment linked to this time series.
-          allOf:
-          - $ref: '#/components/schemas/CogniteInternalId'
-        isStep:
-          type: boolean
-          description: Defines whether the time series is a step series or not.
-        description:
-          maxLength: 1000
-          type: string
-          description: Description of the time series.
-        securityCategories:
-          type: array
-          description: The required security categories to access this time series.
-          items:
-            type: integer
-            description: Security categories required to access this time series.
-            format: int64
-        dataSetId:
-          $ref: '#/components/schemas/DataSetId'
-        createdTime:
-          $ref: '#/components/schemas/EpochTimestamp'
-        lastUpdatedTime:
-          $ref: '#/components/schemas/EpochTimestamp'
-    NullableSinglePatchString:
-      oneOf:
-      - type: object
-        required:
-        - set
-        title: set
-        properties:
-          set:
-            type: string
-      - type: object
-        required:
-        - setNull
-        title: remove
-        properties:
-          setNull:
-            type: boolean
-            enum:
-            - true
-      description: The change that will be applied to the key.
-    DatapointsMetadata:
-      required:
-      - id
-      properties:
-        id:
-          $ref: '#/components/schemas/CogniteInternalId'
-        externalId:
-          maxLength: 255
-          type: string
-          description: The external ID of the time series the data points belong to.
-        instanceId:
-          $ref: '#/components/schemas/CogniteInstanceId'
-    TimeSeriesUniqueValuesAggregateResponse:
+          enum:
+          - count
+    CogniteInstanceId:
+      description: The ID of an [instance in Cognite Data Models](https://docs.cognite.com/cdf/dm/dm_concepts/dm_spaces_instances#instance).
       type: object
-      title: UniqueValues
       required:
-      - items
+      - space
+      - externalId
       properties:
-        items:
-          type: array
-          items:
-            type: object
-            required:
-            - values
-            - count
-            properties:
-              values:
-                type: array
-                minItems: 1
-                maxItems: 1
-                description: The single element in this array is a value that's taken on by the given property in one or more of the time series that match the given filters. Note that even if the original value was a number or a boolean, the value would be represented as a string in this array.
-                items:
-                  type: string
-                  maxLength: 10000
-              count:
-                type: integer
-                format: int64
-                description: The number of time series that match the given filters and have the corresponding value for the given property.
+        space:
+          type: string
+          minLength: 1
+          maxLength: 43
+        externalId:
+          type: string
+          minLength: 1
+          maxLength: 255
+    TimeSeriesUpdate:
+      oneOf:
+      - $ref: '#/components/schemas/TimeSeriesUpdateById'
+      - $ref: '#/components/schemas/TimeSeriesUpdateByExternalId'
+      - $ref: '#/components/schemas/TimeSeriesUpdateByInstanceId'
     DataGetTimeSeriesMetadataDTO:
       description: List of responses. The order matches the requests order.
       type: object
@@ -2528,734 +3201,43 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/GetTimeSeriesMetadataDTO'
-    TimeSeriesCardinalityPropertiesAggregate:
-      title: CardinalityProperties
+    TimeSeriesUpdateByInstanceId:
       allOf:
       - type: object
         required:
-        - aggregate
-        properties:
-          aggregate:
-            description: 'The `cardinalityProperties` aggregation gets, from the time series that match the filter(s),
-
-              the approximate number of unique properties whose property path begins with the given `path`.
-
-              Currently, the only supported value for `path` is `["metadata"]`, which means that this aggregation
-
-              will get the approximate size of the set of unique metadata keys.
-
-              '
-            type: string
-            enum:
-            - cardinalityProperties
-      - $ref: '#/components/schemas/TimeSeriesAggregatePath'
-    TimeSeriesInFilter:
-      type: object
-      title: in
-      required:
-      - in
-      properties:
-        in:
-          required:
-          - property
-          - values
-          description: 'Matches items where the given property is **exactly** equal to one of the given values.
-
-            This filter can only be applied to single-valued properties.
-
-            '
-          type: object
-          properties:
-            property:
-              $ref: '#/components/schemas/TimeSeriesFilterProperty'
-            values:
-              $ref: '#/components/schemas/TimeSeriesValues'
-    ArrayPatchLong:
-      type: object
-      oneOf:
-      - $ref: '#/components/schemas/ArrayPatchLongSet'
-      - $ref: '#/components/schemas/ArrayPatchLongAddOrRemove'
-      description: Change that will be applied to the array.
-    TimeSeriesExistsFilter:
-      type: object
-      title: exists
-      required:
-      - exists
-      properties:
-        exists:
-          required:
-          - property
-          description: 'Matches items that have a value for the specified property.
-
-            '
-          type: object
-          properties:
-            property:
-              $ref: '#/components/schemas/TimeSeriesFilterProperty'
-    NotFoundResponseWithoutInstanceId:
-      type: object
-      required:
-      - error
-      properties:
-        error:
-          type: object
-          description: Error details.
-          required:
-          - code
-          - message
-          - missing
-          properties:
-            code:
-              type: integer
-              description: HTTP status code
-              format: int32
-              example: 400
-            message:
-              type: string
-              description: Error message.
-            missing:
-              uniqueItems: true
-              type: array
-              description: Items that are not found.
-              items:
-                description: Ids, ExternalIds or InstanceIds that are not found.
-                oneOf:
-                - type: object
-                  required:
-                  - id
-                  title: id
-                  properties:
-                    id:
-                      $ref: '#/components/schemas/CogniteInternalId'
-                - type: object
-                  required:
-                  - externalId
-                  title: externalId
-                  properties:
-                    externalId:
-                      $ref: '#/components/schemas/CogniteExternalId'
-    TimeSeriesRangeValue:
-      description: An upper or lower bound in a `range` filter.
-      oneOf:
-      - type: string
-        maxLength: 256
-      - type: number
-      - type: integer
-    DataSetInternalId:
-      type: object
-      title: DataSetInternalId
-      required:
-      - id
-      properties:
-        id:
-          $ref: '#/components/schemas/CogniteInternalId'
-    ObjectPatch:
-      type: object
-      description: Custom, application specific metadata. String key -> String value.
-      oneOf:
-      - $ref: '#/components/schemas/ObjectPatchSet'
-      - $ref: '#/components/schemas/ObjectPatchAddRemove'
-    EpochTimestamp:
-      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-      type: integer
-      minimum: 0
-      format: int64
-      example: 1730204346000
-    TimeSeriesAggregateProperties:
-      type: object
-      required:
-      - properties
-      properties:
-        properties:
-          type: array
-          description: 'The properties to which the aggregation should be applied. While this parameter is a list, it
-
-            currently only accepts one element. Each element is an object with a single field called `property`,
-
-            whose value is another list (in order to accommodate nested properties). Thus, a top-level property
-
-            `name` must be specified as `[{"property": ["name"]}]`, and a metadata property `tag` must be
-
-            specified as `[{"property": ["metadata", "tag"]}]`.
-
-
-            The supported top-level properties are:
-
-            - `assetId`
-
-            - `assetRootId`
-
-            - `createdTime`
-
-            - `dataSetId`
-
-            - `description`
-
-            - `externalId`
-
-            - `id`
-
-            - `isStep`
-
-            - `isString`
-
-            - `lastUpdatedTime`
-
-            - `name`
-
-            - `securityCategories`
-
-            - `unit`
-
-            '
-          minItems: 1
-          maxItems: 1
-          items:
-            type: object
-            required:
-            - property
-            properties:
-              property:
-                type: array
-                minItems: 1
-                maxItems: 2
-                items:
-                  type: string
-                  minLength: 1
-                  maxLength: 256
-    Filter:
-      type: object
-      properties:
-        name:
-          description: Filter on name.
-          type: string
-        unit:
-          description: Filter on unit.
-          type: string
-        unitExternalId:
-          description: Filter on unitExternalId.
-          type: string
-        unitQuantity:
-          description: Filter on unitQuantity.
-          type: string
-        isString:
-          description: Filter on isString.
-          type: boolean
-        isStep:
-          description: Filter on isStep.
-          type: boolean
-        metadata:
-          $ref: '#/components/schemas/TimeSeriesMetadata'
-        assetIds:
-          type: array
-          description: Only includes time series that reference these specific asset IDs.
-          example:
-          - 363848954441724
-          - 793045462540095
-          - 1261042166839739
-          items:
-            $ref: '#/components/schemas/CogniteInternalId'
-          minItems: 1
-          maxItems: 100
-          uniqueItems: true
-        assetExternalIds:
-          type: array
-          uniqueItems: true
-          minItems: 1
-          maxItems: 100
-          description: Asset External IDs of related equipment that this time series relates to.
-          items:
-            $ref: '#/components/schemas/CogniteExternalId'
-        rootAssetIds:
-          type: array
-          description: Only includes time series that have a related asset in a tree rooted at any of these root `assetIds`.
-          example:
-          - 343099548723932
-          - 88483999203217
-          items:
-            $ref: '#/components/schemas/CogniteInternalId'
-          minItems: 1
-          maxItems: 100
-          uniqueItems: true
-        assetSubtreeIds:
-          type: array
-          uniqueItems: true
-          minItems: 1
-          maxItems: 100
-          description: Only includes time series that are related to an asset in a subtree rooted at any of these `assetIds` (including the roots given). If the total size of the given subtrees exceeds 100,000 assets, an error will be returned.
-          items:
-            $ref: '#/components/schemas/AssetIdEither'
-        dataSetIds:
-          type: array
-          uniqueItems: true
-          minItems: 1
-          maxItems: 100
-          description: Only includes time series that reference these specific data set IDs.
-          items:
-            $ref: '#/components/schemas/DataSetIdEither'
-        externalIdPrefix:
-          $ref: '#/components/schemas/CogniteExternalIdPrefix'
-        createdTime:
-          $ref: '#/components/schemas/EpochTimestampRange'
-        lastUpdatedTime:
-          $ref: '#/components/schemas/EpochTimestampRange'
-    CogniteExternalIdPrefix:
-      description: Filter by this (case-sensitive) prefix for the external ID.
-      type: string
-      maxLength: 255
-      example: my.known.prefix
-    PostTimeSeriesMetadataDTO:
-      type: object
-      properties:
-        externalId:
-          maxLength: 255
-          type: string
-          description: Externally provided ID for the time series (optional, but recommended).
-        name:
-          maxLength: 255
-          type: string
-          description: Human readable name of the time series.
-        legacyName:
-          deprecated: true
-          maxLength: 255
-          type: string
-          description: This field is deprecated and ignored.
-        isString:
-          type: boolean
-          default: false
-          description: 'Defines whether the time series contains string values (true) or numeric values (false).
-
-            Not updatable - this field cannot be changed after the time series has been created.
-
-            '
-        metadata:
-          $ref: '#/components/schemas/TimeSeriesMetadata'
-        unit:
-          maxLength: 32
-          type: string
-          description: The physical unit of the time series (free-text field)
-        unitExternalId:
-          maxLength: 64
-          type: string
-          description: The physical unit of the time series as [represented in the unit catalog](<https://docs.cognite.com/dev/concepts/resource_types/units/>). Only available for numeric time series.
-        assetId:
-          description: Asset ID of equipment linked to this time series.
-          allOf:
-          - $ref: '#/components/schemas/CogniteInternalId'
-        isStep:
-          type: boolean
-          default: false
-          description: Defines whether the time series is a step series or not.
-        description:
-          maxLength: 1000
-          type: string
-          description: A description of the time series.
-        securityCategories:
-          type: array
-          description: The required security categories to access this time series.
-          items:
-            type: integer
-            description: The required security categories to access this time series.
-            format: int64
-        dataSetId:
-          $ref: '#/components/schemas/DataSetId'
-    ExternalIdsAlreadyExistResponse:
-      type: object
-      required:
-      - error
-      properties:
-        error:
-          type: object
-          description: Error details
-          required:
-          - code
-          - message
-          - duplicated
-          properties:
-            code:
-              type: integer
-              description: HTTP status code
-              format: int32
-              example: 409
-            message:
-              type: string
-              description: Error message
-            duplicated:
-              uniqueItems: true
-              type: array
-              description: Items that are duplicated.
-              items:
-                description: ExternalIds that already exist.
-                type: object
-                required:
-                - externalId
-                properties:
-                  externalId:
-                    $ref: '#/components/schemas/CogniteExternalId'
-    TimeSeriesPrefixAggregateValue:
-      title: String
-      description: 'A string value that represents either a property key or a property value, depending on the
-
-        `aggregate` operation.
-
-        '
-      type: string
-      maxLength: 256
-    TimeSeriesEqualsFilter:
-      type: object
-      title: equals
-      required:
-      - equals
-      properties:
-        equals:
-          required:
-          - property
-          - value
-          description: 'Matches items where the given property is **exactly** equal to the given value.
-
-            '
-          type: object
-          properties:
-            property:
-              $ref: '#/components/schemas/TimeSeriesFilterProperty'
-            value:
-              $ref: '#/components/schemas/TimeSeriesValue'
-    DatapointsInsertQuery:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          minItems: 1
-          maxItems: 10000
-          items:
-            $ref: '#/components/schemas/DatapointsPostDatapoint'
-    TimeSeriesSearchDTO:
-      type: object
-      properties:
-        filter:
-          $ref: '#/components/schemas/Filter'
-        search:
-          $ref: '#/components/schemas/Search'
-        limit:
-          description: Return up to this many results.
-          maximum: 1000
-          minimum: 1
-          type: integer
-          format: int32
-          default: 100
-    DataSetId:
-      description: The dataSet Id for the item.
-      type: integer
-      minimum: 1
-      maximum: 9007199254740991
-      format: int64
-    JsonArrayInt64:
-      type: string
-      format: jsonArray(int64)
-      example: '[1238712837, 238712361376, 23786237623]'
-    LatestDataBeforeRequest:
-      type: object
-      description: Describes the latest query.
-      oneOf:
-      - required:
-        - id
-        title: QueryWithInternalId
-        allOf:
-        - properties:
-            id:
-              $ref: '#/components/schemas/CogniteInternalId'
-        - $ref: '#/components/schemas/LatestDataPropertyFilter'
-      - required:
-        - externalId
-        title: QueryWithExternalId
-        allOf:
-        - properties:
-            externalId:
-              $ref: '#/components/schemas/CogniteExternalId'
-        - $ref: '#/components/schemas/LatestDataPropertyFilter'
-      - required:
         - instanceId
-        title: QueryWithInstanceId
-        allOf:
-        - properties:
-            instanceId:
-              $ref: '#/components/schemas/CogniteInstanceId'
-        - $ref: '#/components/schemas/LatestDataPropertyFilter'
-    DataSetIdEither:
-      oneOf:
-      - $ref: '#/components/schemas/DataSetInternalId'
-      - $ref: '#/components/schemas/DataSetExternalId'
-    TimeSeriesBoolAggregateFilter:
-      description: 'A query that matches items matching boolean combinations of other queries.
+        properties:
+          instanceId:
+            $ref: '#/components/schemas/CogniteInstanceId'
+      - $ref: '#/components/schemas/TimeSeriesPatchDM'
+  parameters:
+    Cursor:
+      name: cursor
+      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
 
-        It''s built by nesting one or more Boolean clauses, each of which is one of `and`, `or`, and `not`.
+        property, it means that there may be more results, and you should pass that value as the
 
-        Each such clause contains one or more child clauses (though `not` can only have one).
+        `cursor` parameter in the next request.
 
-        Each child clause can be either another Boolean clause or a leaf filter.
+
+        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
+
+        decoded. Its internal structure is not a part of the public API, and may change without
+
+        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
 
         '
-      title: Boolean filter
-      type: object
-      oneOf:
-      - type: object
-        title: and
-        required:
-        - and
-        properties:
-          and:
-            title: Aggregate filter DSL
-            description: 'The aggregation result will only contain items that match _all_ of the given
-
-              sub-clauses.
-
-              '
-            type: array
-            minItems: 1
-            maxItems: 19
-            items:
-              $ref: '#/components/schemas/TimeSeriesAggregateFilter'
-      - type: object
-        title: or
-        required:
-        - or
-        properties:
-          or:
-            title: Aggregate filter DSL
-            description: 'The aggregation result will only contain items that match _at least one_
-
-              (but potentially many or even all) of the given sub-clauses.
-
-              '
-            type: array
-            minItems: 1
-            maxItems: 19
-            items:
-              $ref: '#/components/schemas/TimeSeriesAggregateFilter'
-      - type: object
-        title: not
-        required:
-        - not
-        properties:
-          not:
-            title: Aggregate filter DSL
-            description: 'The aggregation result will only contain items that do _not_ match the given
-
-              sub-clause.
-
-              '
-            type: object
-            allOf:
-            - $ref: '#/components/schemas/TimeSeriesAggregateFilter'
-    SinglePatchBoolean:
-      type: object
-      title: set
-      required:
-      - set
-      properties:
-        set:
-          type: boolean
-    GetDatapointMetadata:
-      type: object
-      required:
-      - timestamp
-      properties:
-        timestamp:
-          $ref: '#/components/schemas/TimeSeriesEpochTimestamp'
-    TimeSeriesPatchDM:
-      type: object
-      description: Changes will be applied to time series. Note that these changes will not be visible in data modeling.
-      required:
-      - update
-      properties:
-        update:
-          type: object
-          properties:
-            externalId:
-              $ref: '#/components/schemas/NullableSinglePatchString'
-            metadata:
-              $ref: '#/components/schemas/ObjectPatch'
-            assetId:
-              $ref: '#/components/schemas/NullableSinglePatchLong'
-            dataSetId:
-              $ref: '#/components/schemas/NullableSinglePatchLong'
-    GetDoubleDatapoint:
-      allOf:
-      - $ref: '#/components/schemas/GetDatapointMetadata'
-      - type: object
-        properties:
-          value:
-            type: number
-            description: 'The data value.
-
-              The value is required unless the status is bad.
-
-
-              If the status is bad, the value may also be one of the 3 special string values:
-
-              ''NaN'', ''Infinity'' or ''-Infinity''.'
-            format: double
-          status:
-            $ref: '#/components/schemas/DatapointStatus'
-    TimeSeriesUpdate:
-      oneOf:
-      - $ref: '#/components/schemas/TimeSeriesUpdateById'
-      - $ref: '#/components/schemas/TimeSeriesUpdateByExternalId'
-      - $ref: '#/components/schemas/TimeSeriesUpdateByInstanceId'
-    TimestampOrStringEnd:
-      oneOf:
-      - type: integer
-      - type: string
-        default: now
-      description: Get datapoints up to, but excluding, this point in time. Same format as for start. Note that when using aggregates, the end will be rounded up such that the last aggregate represents a full aggregation interval containing the original end, where the interval is the granularity unit times the granularity multiplier. For granularity 2d, the aggregation interval is 2 days, if end was originally 3 days after the start, it will be rounded to 4 days after the start.
-    AssetExternalId:
-      type: object
-      required:
-      - externalId
-      properties:
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-    TimeSeriesSortItem:
-      type: object
-      required:
-      - property
-      properties:
-        property:
-          type: array
-          description: "Property to sort on.\nSorting can be done on the following properties:\n  | Property                          |\n  |-----------------------------------|\n  | `['assetId']`                     |\n  | `['createdTime']`                 |\n  | `['dataSetId']`                   |\n  | `['description']`                 |\n  | `['externalId']`                  |\n  | `['lastUpdatedTime']`             |\n  | `['metadata', '<someCustomKey>']` |\n  | `['name']`                        |\n  | `['_score_']`                     |\n  | `['instanceId', 'space']`         |\n  | `['instanceId', 'externalId']`    |"
-          minItems: 1
-          maxItems: 2
-          items:
-            type: string
-            maxLength: 128
-        order:
-          type: string
-          description: 'The `order` attribute is optional and defaults to `desc` for `_score_` and `asc` for all
-
-            other properties.'
-          enum:
-          - asc
-          - desc
-        nulls:
-          type: string
-          description: 'The `nulls` attribute is optional and defaults to `auto`. `auto` is translated to `last`
-
-            for the `asc` order and to `first` for the `desc` order.'
-          enum:
-          - first
-          - last
-          - auto
-          default: auto
-    TimeSeriesUniquePropertiesAggregateResponse:
-      type: object
-      title: UniqueProperties
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          items:
-            type: object
-            required:
-            - values
-            - count
-            properties:
-              values:
-                type: array
-                minItems: 1
-                maxItems: 1
-                items:
-                  type: object
-                  required:
-                  - property
-                  properties:
-                    property:
-                      type: array
-                      minItems: 1
-                      maxItems: 2
-                      description: The single element in this array is a property specification - either a top-level property, such as `['name']`, or a metadata property, such as `['metadata', 'tag']`.
-                      items:
-                        type: string
-                        maxLength: 10000
-              count:
-                type: integer
-                format: int64
-                description: The number of time series that match the given filters and have the corresponding property.
-    Search:
-      type: object
-      properties:
-        name:
-          description: Prefix and fuzzy search on name.
-          type: string
-        description:
-          description: Prefix and fuzzy search on description.
-          type: string
-        query:
-          description: 'Whitespace-separated terms to search for in time series. Does a
-
-            best-effort fuzzy search in relevant fields (currently name and
-
-            description) for variations of any search terms and
-
-            orders results by relevance. Uses a different search algorithm
-
-            than the name and description parameters and will generally give
-
-            much better results. Matching and ordering aren''t guaranteed to
-
-            be stable over time, and the fields being searched may be
-
-            extended.'
-          type: string
-          example: some other
-  responses:
-    EmptyResponse:
-      description: Empty response.
-      content:
-        application/json:
-          schema:
-            type: object
-    ErrorResponse:
-      description: The response for a failed request.
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - error
-            properties:
-              error:
-                $ref: '#/components/schemas/Error'
-    MissingField:
-      description: Missing required fields.
-      content:
-        application/json:
-          schema:
-            type: object
-            description: Some required fields are missing.
-            required:
-            - code
-            - message
-            - missingFields
-            properties:
-              code:
-                type: integer
-                description: HTTP status code.
-                format: int32
-                example: 400
-              message:
-                type: string
-                description: Error message.
-              missingFields:
-                uniqueItems: true
-                type: array
-                description: Fields that are missing.
-                items:
-                  type: object
-                  description: Fields that are missing.
-  parameters:
+      in: query
+      schema:
+        type: string
+        example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+    IncludeMetadata:
+      name: includeMetadata
+      in: query
+      description: Whether the metadata field should be returned or not.
+      schema:
+        type: boolean
+        default: true
     partition:
       in: query
       name: partition
@@ -3289,33 +3271,51 @@ components:
       schema:
         type: string
         example: 1/10
-    Cursor:
-      name: cursor
-      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
-
-        property, it means that there may be more results, and you should pass that value as the
-
-        `cursor` parameter in the next request.
-
-
-        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
-
-        decoded. Its internal structure is not a part of the public API, and may change without
-
-        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
-
-        '
-      in: query
-      schema:
-        type: string
-        example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
-    IncludeMetadata:
-      name: includeMetadata
-      in: query
-      description: Whether the metadata field should be returned or not.
-      schema:
-        type: boolean
-        default: true
+  responses:
+    MissingField:
+      description: Missing required fields.
+      content:
+        application/json:
+          schema:
+            type: object
+            description: Some required fields are missing.
+            required:
+            - code
+            - message
+            - missingFields
+            properties:
+              code:
+                type: integer
+                description: HTTP status code.
+                format: int32
+                example: 400
+              message:
+                type: string
+                description: Error message.
+              missingFields:
+                uniqueItems: true
+                type: array
+                description: Fields that are missing.
+                items:
+                  type: object
+                  description: Fields that are missing.
+    EmptyResponse:
+      description: Empty response.
+      content:
+        application/json:
+          schema:
+            type: object
+    ErrorResponse:
+      description: The response for a failed request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
   securitySchemes:
     oidc-token:
       type: http

@@ -228,89 +228,47 @@ paths:
           '
 components:
   schemas:
-    SimulatorInput:
+    WorkflowFilter:
       type: object
+      description: If the version is not specified, all versions for the workflow will be included, ordered by createdTime.
       properties:
-        referenceId:
-          type: string
-          description: Reference id of the value to override
-        value:
-          anyOf:
-          - type: string
-            maxLength: 1024
-            minLength: 1
-          - type: number
-          - items:
-              type: string
-            type: array
-            maxItems: 200
-            minItems: 1
-          - items:
-              type: number
-            type: array
-            maxItems: 200
-            minItems: 1
-          title: Value
-          description: Override the value used for a simulation run
-        unit:
-          description: Override the unit of the value
-          anyOf:
-          - $ref: '#/components/schemas/SimulatorInputsUnit'
-          - type: 'null'
-      required:
-      - referenceId
-      - value
-    Error:
-      type: object
-      required:
-      - code
-      - message
-      description: Cognite API error.
-      properties:
-        code:
-          type: integer
-          description: HTTP status code.
-          format: int32
-          example: 401
-        message:
-          type: string
-          description: Error message.
-          example: Could not authenticate.
-        missing:
-          type: array
-          description: List of lookup objects that do not match any results.
-          items:
-            type: object
-            additionalProperties: true
-        duplicated:
-          type: array
-          description: List of objects that are not unique.
-          items:
-            type: object
-            additionalProperties: true
-    TaskType:
-      type: string
-      enum:
-      - function
-      - transformation
-      - cdf
-      - dynamic
-      - subworkflow
-      - simulation
-    WorkflowVersionView:
-      title: Workflow Version
-      type: object
-      properties:
-        workflowExternalId:
+        externalId:
           $ref: '#/components/schemas/WorkflowExternalId'
         version:
           $ref: '#/components/schemas/Version'
-        workflowDefinition:
-          $ref: '#/components/schemas/WorkflowDefinitionResponse'
-        createdTime:
-          $ref: '#/components/schemas/EpochTimestamp'
-        lastUpdatedTime:
-          $ref: '#/components/schemas/EpochTimestamp'
+      required:
+      - externalId
+    SimulatorTaskParameters:
+      title: Simulation Task Parameters
+      type: object
+      description: Parameters for the Simulation run task type.
+      properties:
+        simulation:
+          type: object
+          properties:
+            routineExternalId:
+              description: The external id of the routine to be executed.
+              oneOf:
+              - $ref: '#/components/schemas/CogniteExternalId'
+            runTime:
+              anyOf:
+              - type: integer
+              - type: 'null'
+              title: RunTime
+              description: Run time in milliseconds. Reference timestamp used for data pre-processing and data sampling.
+            inputs:
+              type: array
+              maxItems: 200
+              minItems: 0
+              description: List of input overrides
+              items:
+                $ref: '#/components/schemas/SimulatorInput'
+          required:
+          - routineExternalId
+    TaskExternalId:
+      type: string
+      description: Identifier for the task. Must be unique within the version. No trailing or leading whitespace and no null characters allowed. Task external IDs cannot be exactly 'workflow' or start with '__' (double underscore) as these are reserved.
+      maxLength: 255
     TaskDefinition:
       title: Task Definition
       type: object
@@ -365,178 +323,112 @@ components:
       - externalId
       - type
       - parameters
-    TaskDepends:
+    SubworkflowTaskParameters:
+      title: Subworkflow Task Parameters
       type: object
       properties:
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-      required:
-      - externalId
-    SimulatorTaskParameters:
-      title: Simulation Task Parameters
-      type: object
-      description: Parameters for the Simulation run task type.
-      properties:
-        simulation:
-          type: object
-          properties:
-            routineExternalId:
-              description: The external id of the routine to be executed.
-              oneOf:
-              - $ref: '#/components/schemas/CogniteExternalId'
-            runTime:
-              anyOf:
-              - type: integer
-              - type: 'null'
-              title: RunTime
-              description: Run time in milliseconds. Reference timestamp used for data pre-processing and data sampling.
-            inputs:
-              type: array
-              maxItems: 200
-              minItems: 0
-              description: List of input overrides
-              items:
-                $ref: '#/components/schemas/SimulatorInput'
-          required:
-          - routineExternalId
+        subworkflow:
+          oneOf:
+          - type: object
+            properties:
+              tasks:
+                description: 'A list of tasks with their inputs and interdependencies. Similar to the way tasks are defined in a workflow definition.
+
+                  Note: subworkflows cannot contain dynamic tasks or nested subworkflows
+
+                  '
+                type: array
+                items:
+                  $ref: '#/components/schemas/TaskDefinition'
+                maxItems: 100
+                minItems: 1
+            required:
+            - tasks
+          - type: object
+            description: 'Run another workflow embedded as a subworkflow. The tasks within the subworkflow will count towards the limit on total number of tasks in a workflow.
+
+
+              Note: the referenced subworkflow cannot contain dynamic tasks or nested subworkflows
+
+              '
+            properties:
+              workflowExternalId:
+                type: string
+                description: External ID of the referenced workflow
+              version:
+                type: string
+                description: Version of the referenced workflow
+            required:
+            - workflowExternalId
+            - version
     cursor:
       type: string
       example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
       description: Cursor to use for paging through results. This cursor is returned in the response of a previous request as `nextCursor`. If not specified, start from the first page of results.
-    Version:
-      type: string
-      description: Identifier for a version. Must be unique for the workflow. No trailing or leading whitespace and no null characters allowed.
-      maxLength: 255
-    limit:
-      type: integer
-      minimum: 1
-      maximum: 1000
-      default: 100
-      description: The maximum number of results to return.
-    TaskExternalId:
-      type: string
-      description: Identifier for the task. Must be unique within the version. No trailing or leading whitespace and no null characters allowed. Task external IDs cannot be exactly 'workflow' or start with '__' (double underscore) as these are reserved.
-      maxLength: 255
-    TransformationTaskParameters:
-      title: Transformation Task Parameters
+    WorkflowDefinition:
+      title: Workflow Definition
       type: object
       properties:
-        transformation:
-          type: object
-          description: Parameters for the CDF Transformation task type.
-          properties:
-            externalId:
-              description: The external id of the Transformation in the project.
-              oneOf:
-              - $ref: '#/components/schemas/CogniteExternalId'
-              - $ref: '#/components/schemas/Reference'
-            concurrencyPolicy:
-              type: string
-              enum:
-              - fail
-              - waitForCurrent
-              - restartAfterCurrent
-              default: fail
-              description: 'Determines the behavior of the task if the Transformation is already running.
-
-                - fail: The task fails if another instance of the Transformation is currently running.
-
-                - waitForCurrent: The task will pause and wait for the already running Transformation to complete. Once completed, the task is completed. This mode is useful for preventing redundant Transformation runs.
-
-                - restartAfterCurrent: The task waits for the ongoing Transformation to finish. After completion, the task restarts the Transformation. This mode ensures that the most recent data can be used by following tasks.
-
-                '
-            useTransformationCredentials:
-              type: boolean
-              default: false
-              description: 'If set to `true`, the transformation will run using the client credentials configured on the transformation.
-
-                If set to `false`, the transformation will run using the client credentials used to trigger the workflow.
-
-                '
-          required:
-          - externalId
-    DynamicTaskParameters:
-      title: Dynamic Task Parameters
-      type: object
-      description: 'Dynamic tasks allow the dynamic creation of additional tasks during a workflow execution.
-
-
-        There are two things needed to execute a dynamic task.
-
-        - A list of task definitions (similar to the way tasks are defined in the workflow definition when creating a workflow version).
-
-        - A workflow task prior to the dynamic task that outputs the above list
-
-
-        Note: a dynamic task cannot start other dynamic tasks or subworkflows.
-
-        '
-      properties:
-        dynamic:
-          type: object
-          description: Tasks should reference a list of task definitions, defined exactly like they are during version creation.
-          properties:
-            tasks:
-              $ref: '#/components/schemas/Reference'
-    EpochTimestamp:
-      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-      type: integer
-      minimum: 0
-      format: int64
-      example: 1730204346000
-    SimulatorInputsUnit:
-      type: object
-      properties:
-        name:
+        description:
           type: string
-          description: Name of the unit.
-    CogniteExternalId:
-      description: The external ID provided by the client. Must be unique for the resource type.
-      type: string
-      maxLength: 255
-      example: my.known.id
-    FunctionTaskParameters:
-      title: Function Task Parameters
-      type: object
-      description: Parameters for the Cognite Function task type.
-      properties:
-        function:
-          type: object
-          properties:
-            externalId:
-              description: The external id of the Cognite Function in the project.
-              oneOf:
-              - $ref: '#/components/schemas/CogniteExternalId'
-              - $ref: '#/components/schemas/Reference'
-            data:
-              description: Input data that will be passed to the Cognite Function. Limited to 100KB in size.
-              oneOf:
-              - type: object
-                example:
-                  key1: value1
-                  key2: value2
-                maxLength: 100000
-              - $ref: '#/components/schemas/Reference'
-          required:
-          - externalId
-        isAsyncComplete:
-          type: boolean
-          default: false
-          description: "Defines if the execution of the task should be completed asynchronously.\n\n  - If `false`, the status of the task will be set to `COMPLETED` when the Cognite Function call completes successfully.\\\n  - If `true`, the task status will remain `IN_PROGRESS` even when the Cognite Function call completes successfully.\\\n  It will then wait for an external process to update the task status directly using the task update endpoint.\\\n  The task id required for the callback to update the task status is included in the input data of the Function with key \"cogniteOrchestrationTaskId\"."
-    nextCursor:
-      description: Cursor to get the next page of results. If not present, no more results are available.
-      type: string
-      example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
-    ListVersionsQuery:
+          maxLength: 500
+        tasks:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/TaskDefinition'
+      required:
+      - tasks
+    ListVersionsFilter:
       type: object
       properties:
-        filter:
-          $ref: '#/components/schemas/ListVersionsFilter'
-        limit:
-          $ref: '#/components/schemas/limit'
-        cursor:
-          $ref: '#/components/schemas/cursor'
+        workflowFilters:
+          type: array
+          maxItems: 100
+          description: Allows filtering versions by their specific workflows (and optionally version identifiers). If no workflowFilters are specified, all versions for all workflows will be included, ordered by createdTime.
+          items:
+            $ref: '#/components/schemas/WorkflowFilter'
+    TaskType:
+      type: string
+      enum:
+      - function
+      - transformation
+      - cdf
+      - dynamic
+      - subworkflow
+      - simulation
+    SimulatorInput:
+      type: object
+      properties:
+        referenceId:
+          type: string
+          description: Reference id of the value to override
+        value:
+          anyOf:
+          - type: string
+            maxLength: 1024
+            minLength: 1
+          - type: number
+          - items:
+              type: string
+            type: array
+            maxItems: 200
+            minItems: 1
+          - items:
+              type: number
+            type: array
+            maxItems: 200
+            minItems: 1
+          title: Value
+          description: Override the value used for a simulation run
+        unit:
+          description: Override the unit of the value
+          anyOf:
+          - $ref: '#/components/schemas/SimulatorInputsUnit'
+          - type: 'null'
+      required:
+      - referenceId
+      - value
     CdfTaskParameters:
       title: CDF Task Parameters
       type: object
@@ -595,15 +487,172 @@ components:
           required:
           - resourcePath
           - method
-    ListVersionsFilter:
+    Version:
+      type: string
+      description: Identifier for a version. Must be unique for the workflow. No trailing or leading whitespace and no null characters allowed.
+      maxLength: 255
+    WorkflowVersionView:
+      title: Workflow Version
       type: object
       properties:
-        workflowFilters:
+        workflowExternalId:
+          $ref: '#/components/schemas/WorkflowExternalId'
+        version:
+          $ref: '#/components/schemas/Version'
+        workflowDefinition:
+          $ref: '#/components/schemas/WorkflowDefinitionResponse'
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        lastUpdatedTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+    TransformationTaskParameters:
+      title: Transformation Task Parameters
+      type: object
+      properties:
+        transformation:
+          type: object
+          description: Parameters for the CDF Transformation task type.
+          properties:
+            externalId:
+              description: The external id of the Transformation in the project.
+              oneOf:
+              - $ref: '#/components/schemas/CogniteExternalId'
+              - $ref: '#/components/schemas/Reference'
+            concurrencyPolicy:
+              type: string
+              enum:
+              - fail
+              - waitForCurrent
+              - restartAfterCurrent
+              default: fail
+              description: 'Determines the behavior of the task if the Transformation is already running.
+
+                - fail: The task fails if another instance of the Transformation is currently running.
+
+                - waitForCurrent: The task will pause and wait for the already running Transformation to complete. Once completed, the task is completed. This mode is useful for preventing redundant Transformation runs.
+
+                - restartAfterCurrent: The task waits for the ongoing Transformation to finish. After completion, the task restarts the Transformation. This mode ensures that the most recent data can be used by following tasks.
+
+                '
+            useTransformationCredentials:
+              type: boolean
+              default: false
+              description: 'If set to `true`, the transformation will run using the client credentials configured on the transformation.
+
+                If set to `false`, the transformation will run using the client credentials used to trigger the workflow.
+
+                '
+          required:
+          - externalId
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
           type: array
-          maxItems: 100
-          description: Allows filtering versions by their specific workflows (and optionally version identifiers). If no workflowFilters are specified, all versions for all workflows will be included, ordered by createdTime.
+          description: List of lookup objects that do not match any results.
           items:
-            $ref: '#/components/schemas/WorkflowFilter'
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
+    DynamicTaskParameters:
+      title: Dynamic Task Parameters
+      type: object
+      description: 'Dynamic tasks allow the dynamic creation of additional tasks during a workflow execution.
+
+
+        There are two things needed to execute a dynamic task.
+
+        - A list of task definitions (similar to the way tasks are defined in the workflow definition when creating a workflow version).
+
+        - A workflow task prior to the dynamic task that outputs the above list
+
+
+        Note: a dynamic task cannot start other dynamic tasks or subworkflows.
+
+        '
+      properties:
+        dynamic:
+          type: object
+          description: Tasks should reference a list of task definitions, defined exactly like they are during version creation.
+          properties:
+            tasks:
+              $ref: '#/components/schemas/Reference'
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    ListVersionsQuery:
+      type: object
+      properties:
+        filter:
+          $ref: '#/components/schemas/ListVersionsFilter'
+        limit:
+          $ref: '#/components/schemas/limit'
+        cursor:
+          $ref: '#/components/schemas/cursor'
+    FunctionTaskParameters:
+      title: Function Task Parameters
+      type: object
+      description: Parameters for the Cognite Function task type.
+      properties:
+        function:
+          type: object
+          properties:
+            externalId:
+              description: The external id of the Cognite Function in the project.
+              oneOf:
+              - $ref: '#/components/schemas/CogniteExternalId'
+              - $ref: '#/components/schemas/Reference'
+            data:
+              description: Input data that will be passed to the Cognite Function. Limited to 100KB in size.
+              oneOf:
+              - type: object
+                example:
+                  key1: value1
+                  key2: value2
+                maxLength: 100000
+              - $ref: '#/components/schemas/Reference'
+          required:
+          - externalId
+        isAsyncComplete:
+          type: boolean
+          default: false
+          description: "Defines if the execution of the task should be completed asynchronously.\n\n  - If `false`, the status of the task will be set to `COMPLETED` when the Cognite Function call completes successfully.\\\n  - If `true`, the task status will remain `IN_PROGRESS` even when the Cognite Function call completes successfully.\\\n  It will then wait for an external process to update the task status directly using the task update endpoint.\\\n  The task id required for the callback to update the task status is included in the input data of the Function with key \"cogniteOrchestrationTaskId\"."
+    nextCursor:
+      description: Cursor to get the next page of results. If not present, no more results are available.
+      type: string
+      example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+    Reference:
+      type: string
+      description: 'A Reference is an expression that allows dynamically injecting input to a task during execution. References can be used to reference the input of the Workflow, the output of a previous task in the Workflow, or the input of a previous task in the Workflow. Note that the injected value must be valid in the context of the property it is injected into.
+
+        Example Task reference: ${myTaskExternalId.output.someKey} Example Workflow input reference: ${workflow.input.myKey}'
+    limit:
+      type: integer
+      minimum: 1
+      maximum: 1000
+      default: 100
+      description: The maximum number of results to return.
     WorkflowExternalId:
       type: string
       description: Identifier for a workflow. Must be unique for the project. No trailing or leading whitespace and no null characters allowed.
@@ -624,73 +673,24 @@ components:
       required:
       - hash
       - tasks
-    Reference:
+    CogniteExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
       type: string
-      description: 'A Reference is an expression that allows dynamically injecting input to a task during execution. References can be used to reference the input of the Workflow, the output of a previous task in the Workflow, or the input of a previous task in the Workflow. Note that the injected value must be valid in the context of the property it is injected into.
-
-        Example Task reference: ${myTaskExternalId.output.someKey} Example Workflow input reference: ${workflow.input.myKey}'
-    WorkflowDefinition:
-      title: Workflow Definition
+      maxLength: 255
+      example: my.known.id
+    SimulatorInputsUnit:
       type: object
       properties:
-        description:
+        name:
           type: string
-          maxLength: 500
-        tasks:
-          type: array
-          maxItems: 100
-          items:
-            $ref: '#/components/schemas/TaskDefinition'
-      required:
-      - tasks
-    WorkflowFilter:
+          description: Name of the unit.
+    TaskDepends:
       type: object
-      description: If the version is not specified, all versions for the workflow will be included, ordered by createdTime.
       properties:
         externalId:
-          $ref: '#/components/schemas/WorkflowExternalId'
-        version:
-          $ref: '#/components/schemas/Version'
+          $ref: '#/components/schemas/CogniteExternalId'
       required:
       - externalId
-    SubworkflowTaskParameters:
-      title: Subworkflow Task Parameters
-      type: object
-      properties:
-        subworkflow:
-          oneOf:
-          - type: object
-            properties:
-              tasks:
-                description: 'A list of tasks with their inputs and interdependencies. Similar to the way tasks are defined in a workflow definition.
-
-                  Note: subworkflows cannot contain dynamic tasks or nested subworkflows
-
-                  '
-                type: array
-                items:
-                  $ref: '#/components/schemas/TaskDefinition'
-                maxItems: 100
-                minItems: 1
-            required:
-            - tasks
-          - type: object
-            description: 'Run another workflow embedded as a subworkflow. The tasks within the subworkflow will count towards the limit on total number of tasks in a workflow.
-
-
-              Note: the referenced subworkflow cannot contain dynamic tasks or nested subworkflows
-
-              '
-            properties:
-              workflowExternalId:
-                type: string
-                description: External ID of the referenced workflow
-              version:
-                type: string
-                description: Version of the referenced workflow
-            required:
-            - workflowExternalId
-            - version
   responses:
     EmptyResponse:
       description: Empty response.

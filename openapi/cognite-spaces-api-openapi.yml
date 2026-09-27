@@ -175,6 +175,108 @@ paths:
           '
 components:
   schemas:
+    NextCursorV3:
+      description: The cursor value used to return (paginate to) the next page of results, when more data is available.
+      type: string
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    UpsertConflict:
+      type: object
+      required:
+      - error
+      properties:
+        error:
+          type: object
+          description: Details about the error caused by the upsert/update.
+          required:
+          - code
+          - message
+          properties:
+            code:
+              type: integer
+              description: The HTTP status code returned
+              format: int32
+              example: 409
+            message:
+              type: string
+              description: The error message returned from the service.
+            isAutoRetryable:
+              type: boolean
+              description: Whether or not the error is auto-retryable. If present and true, the client can automatically retry the request after some delay.
+    SpaceCreateCollection:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          description: List of spaces to create/update
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/SpaceCreateDefinition'
+    SpaceSpecification:
+      type: string
+      pattern: ^[a-zA-Z][a-zA-Z0-9_-]{0,41}[a-zA-Z0-9]?$
+      minLength: 1
+      maxLength: 43
+    ListOfSpaceIdsRequest:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            type: object
+            required:
+            - space
+            properties:
+              space:
+                description: Ids for the spaces to perform operations on
+                allOf:
+                - $ref: '#/components/schemas/SpaceSpecification'
+    SpaceDefinition:
+      allOf:
+      - $ref: '#/components/schemas/SpaceCreateDefinition'
+      - type: object
+        required:
+        - createdTime
+        - lastUpdatedTime
+        - isGlobal
+        properties:
+          createdTime:
+            $ref: '#/components/schemas/EpochTimestamp'
+          lastUpdatedTime:
+            $ref: '#/components/schemas/EpochTimestamp'
+          isGlobal:
+            type: boolean
+            description: Is this a global space.
+    SpaceCreateDefinition:
+      type: object
+      required:
+      - space
+      properties:
+        space:
+          type: string
+          description: "The Space identifier (id).\n\n\nNote that we have reserved the use of certain space ids.  These reserved spaces are:\n * `space`\n * `cdf`\n * `dms`\n * `pg3`\n * `shared`\n * `system`\n * `node`\n * `edge`\n "
+          pattern: (?!^(space|cdf|dms|pg3|shared|system|node|edge)$)(^[a-zA-Z][a-zA-Z0-9_-]{0,41}[a-zA-Z0-9]?$)
+          minLength: 1
+          maxLength: 43
+        description:
+          type: string
+          description: Used to describe the space you're defining.
+          maxLength: 1024
+        name:
+          type: string
+          description: Human-readable name for the space.
+          maxLength: 255
     Error:
       type: object
       required:
@@ -203,157 +305,7 @@ components:
           items:
             type: object
             additionalProperties: true
-    ListOfSpaceIdsRequest:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          minItems: 1
-          maxItems: 100
-          items:
-            type: object
-            required:
-            - space
-            properties:
-              space:
-                description: Ids for the spaces to perform operations on
-                allOf:
-                - $ref: '#/components/schemas/SpaceSpecification'
-    SpaceSpecification:
-      type: string
-      pattern: ^[a-zA-Z][a-zA-Z0-9_-]{0,41}[a-zA-Z0-9]?$
-      minLength: 1
-      maxLength: 43
-    NextCursorV3:
-      description: The cursor value used to return (paginate to) the next page of results, when more data is available.
-      type: string
-    EpochTimestamp:
-      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-      type: integer
-      minimum: 0
-      format: int64
-      example: 1730204346000
-    SpaceCreateCollection:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          description: List of spaces to create/update
-          minItems: 1
-          maxItems: 100
-          items:
-            $ref: '#/components/schemas/SpaceCreateDefinition'
-    SpaceCreateDefinition:
-      type: object
-      required:
-      - space
-      properties:
-        space:
-          type: string
-          description: "The Space identifier (id).\n\n\nNote that we have reserved the use of certain space ids.  These reserved spaces are:\n * `space`\n * `cdf`\n * `dms`\n * `pg3`\n * `shared`\n * `system`\n * `node`\n * `edge`\n "
-          pattern: (?!^(space|cdf|dms|pg3|shared|system|node|edge)$)(^[a-zA-Z][a-zA-Z0-9_-]{0,41}[a-zA-Z0-9]?$)
-          minLength: 1
-          maxLength: 43
-        description:
-          type: string
-          description: Used to describe the space you're defining.
-          maxLength: 1024
-        name:
-          type: string
-          description: Human-readable name for the space.
-          maxLength: 255
-    SpaceDefinition:
-      allOf:
-      - $ref: '#/components/schemas/SpaceCreateDefinition'
-      - type: object
-        required:
-        - createdTime
-        - lastUpdatedTime
-        - isGlobal
-        properties:
-          createdTime:
-            $ref: '#/components/schemas/EpochTimestamp'
-          lastUpdatedTime:
-            $ref: '#/components/schemas/EpochTimestamp'
-          isGlobal:
-            type: boolean
-            description: Is this a global space.
-    UpsertConflict:
-      type: object
-      required:
-      - error
-      properties:
-        error:
-          type: object
-          description: Details about the error caused by the upsert/update.
-          required:
-          - code
-          - message
-          properties:
-            code:
-              type: integer
-              description: The HTTP status code returned
-              format: int32
-              example: 409
-            message:
-              type: string
-              description: The error message returned from the service.
-            isAutoRetryable:
-              type: boolean
-              description: Whether or not the error is auto-retryable. If present and true, the client can automatically retry the request after some delay.
-  parameters:
-    ReducedLimit:
-      name: limit
-      description: Limit the number of results returned. The largest result-set returned by the server will be 1000 items, even if you specify a higher limit.
-      in: query
-      schema:
-        type: integer
-        default: 10
-        minimum: 1
-        maximum: 1000
-    IncludeGlobal:
-      name: includeGlobal
-      in: query
-      description: If the global items of the entity should be returned. Defaults to false which excludes global items.
-      schema:
-        type: boolean
-        default: false
-    Cursor:
-      name: cursor
-      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
-
-        property, it means that there may be more results, and you should pass that value as the
-
-        `cursor` parameter in the next request.
-
-
-        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
-
-        decoded. Its internal structure is not a part of the public API, and may change without
-
-        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
-
-        '
-      in: query
-      schema:
-        type: string
-        example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
   responses:
-    ErrorResponse:
-      description: The response for a failed request.
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - error
-            properties:
-              error:
-                $ref: '#/components/schemas/Error'
     SpaceCollectionResponseWithCursor:
       description: List of spaces
       content:
@@ -370,20 +322,6 @@ components:
                   $ref: '#/components/schemas/SpaceDefinition'
               nextCursor:
                 $ref: '#/components/schemas/NextCursorV3'
-    SpaceCollectionResponseV3:
-      description: List of spaces
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - items
-            properties:
-              items:
-                type: array
-                description: List of spaces
-                items:
-                  $ref: '#/components/schemas/SpaceDefinition'
     ListOfSpaceIdsResponse:
       description: List of space id(s) affected by the request
       content:
@@ -406,6 +344,68 @@ components:
                       description: List of space ids for the requested item(s)
                       allOf:
                       - $ref: '#/components/schemas/SpaceSpecification'
+    ErrorResponse:
+      description: The response for a failed request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+    SpaceCollectionResponseV3:
+      description: List of spaces
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            properties:
+              items:
+                type: array
+                description: List of spaces
+                items:
+                  $ref: '#/components/schemas/SpaceDefinition'
+  parameters:
+    Cursor:
+      name: cursor
+      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
+
+        property, it means that there may be more results, and you should pass that value as the
+
+        `cursor` parameter in the next request.
+
+
+        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
+
+        decoded. Its internal structure is not a part of the public API, and may change without
+
+        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
+
+        '
+      in: query
+      schema:
+        type: string
+        example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+    IncludeGlobal:
+      name: includeGlobal
+      in: query
+      description: If the global items of the entity should be returned. Defaults to false which excludes global items.
+      schema:
+        type: boolean
+        default: false
+    ReducedLimit:
+      name: limit
+      description: Limit the number of results returned. The largest result-set returned by the server will be 1000 items, even if you specify a higher limit.
+      in: query
+      schema:
+        type: integer
+        default: 10
+        minimum: 1
+        maximum: 1000
   securitySchemes:
     oidc-token:
       type: http

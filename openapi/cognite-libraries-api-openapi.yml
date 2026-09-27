@@ -201,35 +201,195 @@ paths:
         '400':
           $ref: '#/components/responses/ErrorResponse'
 components:
+  responses:
+    LibrariesListWithCursorResponse:
+      description: List of libraries with next cursor
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            properties:
+              items:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LibraryDto'
+              nextCursor:
+                $ref: '#/components/schemas/NextCursorV3'
+    LibrariesListResponse:
+      description: List of libraries
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            properties:
+              items:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LibraryDto'
+    CopyLibraryResponse:
+      description: The copied library with its symbols and geometries
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ExtendedLibraryDto'
+    ErrorResponse:
+      description: The response for a failed request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+    ExtendedLibraryResponse:
+      description: A single library with its symbols and geometries
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ExtendedLibraryDto'
+    ExternalIdsResponse:
+      description: List of external IDs returned in a response
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            properties:
+              items:
+                type: array
+                minItems: 1
+                maxItems: 100
+                items:
+                  $ref: '#/components/schemas/CogniteExternalId'
   schemas:
-    Error:
+    GeometryDto:
       type: object
       required:
-      - code
-      - message
-      description: Cognite API error.
+      - createdTime
+      - externalId
+      - lastUpdatedTime
+      - paths
+      - symbolId
       properties:
-        code:
-          type: integer
-          description: HTTP status code.
-          format: int32
-          example: 401
-        message:
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        externalId:
+          description: The external ID of the geometry
+          $ref: '#/components/schemas/CogniteExternalId'
+        lastUpdatedTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        paths:
+          type: array
+          description: List of paths of this geometry
+          items:
+            $ref: '#/components/schemas/Path'
+        symbolId:
+          description: The external ID of a symbol the geometry belongs to
+          $ref: '#/components/schemas/CogniteExternalId'
+    CreateLibrariesRequest:
+      type: object
+      required:
+      - items
+      description: List of libraries to create
+      minItems: 1
+      maxItems: 100
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            type: object
+            $ref: '#/components/schemas/LibraryCreateDraft'
+    LibraryScope:
+      description: Global or project scope where library is available
+      type: string
+      enum:
+      - Global
+      - Project
+    ExternalIdsRequest:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            type: object
+            required:
+            - externalId
+            properties:
+              externalId:
+                $ref: '#/components/schemas/CogniteExternalId'
+    ExtendedSymbolDto:
+      description: Symbol with all of its geometries joined
+      type: object
+      required:
+      - assetTypeId
+      - externalId
+      - geometries
+      - lastUpdatedTime
+      - libraryId
+      properties:
+        assetTypeId:
+          $ref: '#/components/schemas/DmsId'
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        externalId:
+          description: The external ID of the symbol
+          $ref: '#/components/schemas/CogniteExternalId'
+        geometries:
+          description: List of geometries of this symbol
+          type: array
+          items:
+            $ref: '#/components/schemas/GeometryDto'
+        lastUpdatedTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        libraryId:
+          description: The external ID of a library the symbol belongs to
+          $ref: '#/components/schemas/CogniteExternalId'
+    DmsId:
+      description: A DMS Identifier using the space and externalId
+      type: object
+      required:
+      - space
+      - externalId
+      properties:
+        space:
           type: string
-          description: Error message.
-          example: Could not authenticate.
-        missing:
-          type: array
-          description: List of lookup objects that do not match any results.
-          items:
-            type: object
-            additionalProperties: true
-        duplicated:
-          type: array
-          description: List of objects that are not unique.
-          items:
-            type: object
-            additionalProperties: true
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+    LibraryDto:
+      type: object
+      required:
+      - createdTime
+      - externalId
+      - lastUpdatedTime
+      - name
+      - scope
+      properties:
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        externalId:
+          description: The external ID of the library
+          $ref: '#/components/schemas/CogniteExternalId'
+        lastUpdatedTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        name:
+          description: The name of the library
+          type: string
+        scope:
+          description: Global or project scope where the library is available
+          $ref: '#/components/schemas/LibraryScope'
     ExtendedLibraryDto:
       description: Library with all of its symbols and geometries joined
       type: object
@@ -259,45 +419,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ExtendedSymbolDto'
-    LibraryUpdateItem:
-      type: object
-      required:
-      - externalId
-      - update
-      properties:
-        externalId:
-          description: The external ID of the library
-          $ref: '#/components/schemas/CogniteExternalId'
-        update:
-          description: The properties to be updated
-          $ref: '#/components/schemas/LibraryUpdateDraft'
-    ExtendedSymbolDto:
-      description: Symbol with all of its geometries joined
-      type: object
-      required:
-      - assetTypeId
-      - externalId
-      - geometries
-      - lastUpdatedTime
-      - libraryId
-      properties:
-        assetTypeId:
-          $ref: '#/components/schemas/DmsId'
-        createdTime:
-          $ref: '#/components/schemas/EpochTimestamp'
-        externalId:
-          description: The external ID of the symbol
-          $ref: '#/components/schemas/CogniteExternalId'
-        geometries:
-          description: List of geometries of this symbol
-          type: array
-          items:
-            $ref: '#/components/schemas/GeometryDto'
-        lastUpdatedTime:
-          $ref: '#/components/schemas/EpochTimestamp'
-        libraryId:
-          description: The external ID of a library the symbol belongs to
-          $ref: '#/components/schemas/CogniteExternalId'
     LibraryCreateDraft:
       type: object
       required:
@@ -310,17 +431,40 @@ components:
         name:
           description: The name of the library
           type: string
-    DmsId:
-      description: A DMS Identifier using the space and externalId
+    Error:
       type: object
       required:
-      - space
-      - externalId
+      - code
+      - message
+      description: Cognite API error.
       properties:
-        space:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
           type: string
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
+          description: Error message.
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
     UpdateLibrariesRequest:
       type: object
       required:
@@ -336,102 +480,6 @@ components:
           items:
             type: object
             $ref: '#/components/schemas/LibraryUpdateItem'
-    ExternalIdsRequest:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          minItems: 1
-          maxItems: 100
-          items:
-            type: object
-            required:
-            - externalId
-            properties:
-              externalId:
-                $ref: '#/components/schemas/CogniteExternalId'
-    LibraryScope:
-      description: Global or project scope where library is available
-      type: string
-      enum:
-      - Global
-      - Project
-    EpochTimestamp:
-      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-      type: integer
-      minimum: 0
-      format: int64
-      example: 1730204346000
-    LibraryDto:
-      type: object
-      required:
-      - createdTime
-      - externalId
-      - lastUpdatedTime
-      - name
-      - scope
-      properties:
-        createdTime:
-          $ref: '#/components/schemas/EpochTimestamp'
-        externalId:
-          description: The external ID of the library
-          $ref: '#/components/schemas/CogniteExternalId'
-        lastUpdatedTime:
-          $ref: '#/components/schemas/EpochTimestamp'
-        name:
-          description: The name of the library
-          type: string
-        scope:
-          description: Global or project scope where the library is available
-          $ref: '#/components/schemas/LibraryScope'
-    CopyLibraryInput:
-      type: object
-      required:
-      - name
-      properties:
-        name:
-          description: The name of the copied library
-          type: string
-    LibraryUpdateDraft:
-      type: object
-      properties:
-        name:
-          description: The name of the library
-          type: string
-    CogniteExternalId:
-      description: The external ID provided by the client. Must be unique for the resource type.
-      type: string
-      maxLength: 255
-      example: my.known.id
-    NextCursorV3:
-      description: The cursor value used to return (paginate to) the next page of results, when more data is available.
-      type: string
-    GeometryDto:
-      type: object
-      required:
-      - createdTime
-      - externalId
-      - lastUpdatedTime
-      - paths
-      - symbolId
-      properties:
-        createdTime:
-          $ref: '#/components/schemas/EpochTimestamp'
-        externalId:
-          description: The external ID of the geometry
-          $ref: '#/components/schemas/CogniteExternalId'
-        lastUpdatedTime:
-          $ref: '#/components/schemas/EpochTimestamp'
-        paths:
-          type: array
-          description: List of paths of this geometry
-          items:
-            $ref: '#/components/schemas/Path'
-        symbolId:
-          description: The external ID of a symbol the geometry belongs to
-          $ref: '#/components/schemas/CogniteExternalId'
     Path:
       description: SVG path in a custom format
       type: object
@@ -447,88 +495,40 @@ components:
         styleId:
           description: The id of the style used for this path
           type: string
-    CreateLibrariesRequest:
+    NextCursorV3:
+      description: The cursor value used to return (paginate to) the next page of results, when more data is available.
+      type: string
+    LibraryUpdateItem:
       type: object
       required:
-      - items
-      description: List of libraries to create
-      minItems: 1
-      maxItems: 100
+      - externalId
+      - update
       properties:
-        items:
-          type: array
-          minItems: 1
-          maxItems: 100
-          items:
-            type: object
-            $ref: '#/components/schemas/LibraryCreateDraft'
-  responses:
-    ExternalIdsResponse:
-      description: List of external IDs returned in a response
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - items
-            properties:
-              items:
-                type: array
-                minItems: 1
-                maxItems: 100
-                items:
-                  $ref: '#/components/schemas/CogniteExternalId'
-    ErrorResponse:
-      description: The response for a failed request.
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - error
-            properties:
-              error:
-                $ref: '#/components/schemas/Error'
-    LibrariesListWithCursorResponse:
-      description: List of libraries with next cursor
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - items
-            properties:
-              items:
-                type: array
-                items:
-                  $ref: '#/components/schemas/LibraryDto'
-              nextCursor:
-                $ref: '#/components/schemas/NextCursorV3'
-    ExtendedLibraryResponse:
-      description: A single library with its symbols and geometries
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ExtendedLibraryDto'
-    LibrariesListResponse:
-      description: List of libraries
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - items
-            properties:
-              items:
-                type: array
-                items:
-                  $ref: '#/components/schemas/LibraryDto'
-    CopyLibraryResponse:
-      description: The copied library with its symbols and geometries
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ExtendedLibraryDto'
+        externalId:
+          description: The external ID of the library
+          $ref: '#/components/schemas/CogniteExternalId'
+        update:
+          description: The properties to be updated
+          $ref: '#/components/schemas/LibraryUpdateDraft'
+    CopyLibraryInput:
+      type: object
+      required:
+      - name
+      properties:
+        name:
+          description: The name of the copied library
+          type: string
+    CogniteExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
+      type: string
+      maxLength: 255
+      example: my.known.id
+    LibraryUpdateDraft:
+      type: object
+      properties:
+        name:
+          description: The name of the library
+          type: string
   parameters:
     libraryIdPath:
       name: libraryId

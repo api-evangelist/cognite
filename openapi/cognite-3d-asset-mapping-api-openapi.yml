@@ -347,6 +347,204 @@ paths:
       x-operation-id-source: derived
 components:
   schemas:
+    Cursor:
+      type: object
+      properties:
+        cursor:
+          type: string
+          example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
+
+        property, it means that there may be more results, and you should pass that value as the
+
+        `cursor` parameter in the next request.
+
+
+        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
+
+        decoded. Its internal structure is not a part of the public API, and may change without
+
+        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
+
+        '
+    AssetMapping3DList:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AssetMapping3D'
+    SubtreeSize:
+      type: integer
+      description: The number of descendants of the node, plus one (counting itself).
+      format: int64
+      example: 4
+    NodesWithBoundingBoxList:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/NodesWithBoundingBox'
+    CreateAssetMapping3DDmsBody:
+      type: object
+      required:
+      - items
+      - dmsContextualizationConfig
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/CreateAssetMapping3DDms'
+        dmsContextualizationConfig:
+          $ref: '#/components/schemas/DmsCADContextualizationConfig'
+    TreeIndex:
+      type: integer
+      minimum: 0
+      description: The index of the node in the 3D model hierarchy, starting from 0. The tree is traversed in a depth-first order.
+      format: int64
+      example: 3
+    ProjectAssetMapping3DList:
+      allOf:
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
+            items:
+              $ref: '#/components/schemas/Node3DAssetMapping'
+      - $ref: '#/components/schemas/NextCursorData'
+    AssetMapping3DNodeFilter:
+      type: object
+      required:
+      - nodeIds
+      properties:
+        nodeIds:
+          type: array
+          minItems: 0
+          maxItems: 100
+          items:
+            type: integer
+            format: int64
+    DeleteAssetMapping3DDms:
+      type: object
+      required:
+      - nodeId
+      - assetInstanceId
+      properties:
+        nodeId:
+          type: integer
+          description: The ID of the node.
+          format: int64
+          example: 1003
+        assetInstanceId:
+          $ref: '#/components/schemas/DirectRelationReference'
+    DirectRelationReference:
+      type: object
+      description: Reference to the node pointed to by the direct relation. The reference consists of a space and an external-id.
+      required:
+      - space
+      - externalId
+      properties:
+        space:
+          $ref: '#/components/schemas/SpaceSpecification'
+        externalId:
+          $ref: '#/components/schemas/NodeOrEdgeExternalId'
+    CreateAssetMapping3DDms:
+      type: object
+      required:
+      - nodeId
+      - assetInstanceId
+      properties:
+        nodeId:
+          type: integer
+          description: The ID of the node.
+          format: int64
+          example: 1003
+        assetInstanceId:
+          $ref: '#/components/schemas/DirectRelationReference'
+    AssetMapping3DAssetInstanceIdFilter:
+      type: object
+      required:
+      - assetInstanceIds
+      properties:
+        assetInstanceIds:
+          type: array
+          minItems: 0
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/CogniteInstanceId'
+    AssetMapping3DFilter:
+      type: object
+      properties:
+        getDmsInstances:
+          type: boolean
+          description: If true, the response will include only the mappings with assetInstanceId values, for DMS based assets.
+          default: false
+        filter:
+          oneOf:
+          - $ref: '#/components/schemas/AssetMapping3DAssetFilter'
+          - $ref: '#/components/schemas/AssetMapping3DAssetInstanceIdFilter'
+          - $ref: '#/components/schemas/AssetMapping3DNodeFilter'
+          - $ref: '#/components/schemas/AssetMapping3DTreeIndexFilter'
+        limit:
+          description: Limits the number of results to return.
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 1000
+          default: 100
+    AssetMapping3D:
+      type: object
+      required:
+      - nodeId
+      properties:
+        nodeId:
+          type: integer
+          description: The ID of the node.
+          format: int64
+          example: 1003
+        assetId:
+          type: integer
+          description: The ID of the associated asset (Cognite's Assets API).
+          format: int64
+          example: 3001
+        assetInstanceId:
+          $ref: '#/components/schemas/DirectRelationReference'
+        treeIndex:
+          $ref: '#/components/schemas/TreeIndex'
+        subtreeSize:
+          $ref: '#/components/schemas/SubtreeSize'
+    BoundingBox3D:
+      type: object
+      required:
+      - min
+      - max
+      properties:
+        max:
+          maxItems: 3
+          minItems: 3
+          type: array
+          items:
+            type: number
+            description: The maximal coordinates of the bounding box.
+            format: double
+        min:
+          maxItems: 3
+          minItems: 3
+          type: array
+          items:
+            type: number
+            description: The minimal coordinates of the bounding box.
+            format: double
+      description: The bounding box of the subtree with this sector as the root sector. Is null if there are no geometries in the subtree.
     Error:
       type: object
       required:
@@ -375,155 +573,6 @@ components:
           items:
             type: object
             additionalProperties: true
-    AssetMapping3DNodeFilter:
-      type: object
-      required:
-      - nodeIds
-      properties:
-        nodeIds:
-          type: array
-          minItems: 0
-          maxItems: 100
-          items:
-            type: integer
-            format: int64
-    CreateAssetMapping3D:
-      type: object
-      required:
-      - nodeId
-      properties:
-        nodeId:
-          type: integer
-          description: The ID of the node.
-          format: int64
-          example: 1003
-        assetId:
-          type: integer
-          description: The ID of the associated asset (Cognite's Assets API).
-          format: int64
-          example: 3001
-        assetInstanceId:
-          $ref: '#/components/schemas/DirectRelationReference'
-    CogniteInstanceId:
-      description: The ID of an [instance in Cognite Data Models](https://docs.cognite.com/cdf/dm/dm_concepts/dm_spaces_instances#instance).
-      type: object
-      required:
-      - space
-      - externalId
-      properties:
-        space:
-          type: string
-          minLength: 1
-          maxLength: 43
-        externalId:
-          type: string
-          minLength: 1
-          maxLength: 255
-    BoundingBox3D:
-      type: object
-      required:
-      - min
-      - max
-      properties:
-        max:
-          maxItems: 3
-          minItems: 3
-          type: array
-          items:
-            type: number
-            description: The maximal coordinates of the bounding box.
-            format: double
-        min:
-          maxItems: 3
-          minItems: 3
-          type: array
-          items:
-            type: number
-            description: The minimal coordinates of the bounding box.
-            format: double
-      description: The bounding box of the subtree with this sector as the root sector. Is null if there are no geometries in the subtree.
-    SpaceSpecification:
-      type: string
-      pattern: ^[a-zA-Z][a-zA-Z0-9_-]{0,41}[a-zA-Z0-9]?$
-      minLength: 1
-      maxLength: 43
-    AssetMapping3D:
-      type: object
-      required:
-      - nodeId
-      properties:
-        nodeId:
-          type: integer
-          description: The ID of the node.
-          format: int64
-          example: 1003
-        assetId:
-          type: integer
-          description: The ID of the associated asset (Cognite's Assets API).
-          format: int64
-          example: 3001
-        assetInstanceId:
-          $ref: '#/components/schemas/DirectRelationReference'
-        treeIndex:
-          $ref: '#/components/schemas/TreeIndex'
-        subtreeSize:
-          $ref: '#/components/schemas/SubtreeSize'
-    NodesWithBoundingBoxList:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/NodesWithBoundingBox'
-    BoundingBox:
-      type: object
-      required:
-      - xMin
-      - xMax
-      - yMin
-      - yMax
-      - zMin
-      - zMax
-      properties:
-        xMin:
-          $ref: '#/components/schemas/Float'
-        xMax:
-          $ref: '#/components/schemas/Float'
-        yMin:
-          $ref: '#/components/schemas/Float'
-        yMax:
-          $ref: '#/components/schemas/Float'
-        zMin:
-          $ref: '#/components/schemas/Float'
-        zMax:
-          $ref: '#/components/schemas/Float'
-    AssetMapping3DTreeIndexFilter:
-      type: object
-      required:
-      - treeIndexes
-      properties:
-        treeIndexes:
-          type: array
-          minItems: 0
-          maxItems: 100
-          items:
-            $ref: '#/components/schemas/TreeIndex'
-    DmsCADContextualizationConfig:
-      type: object
-      required:
-      - object3DSpace
-      - cadNodeSpace
-      properties:
-        object3DSpace:
-          $ref: '#/components/schemas/SpaceSpecification'
-        cadNodeSpace:
-          $ref: '#/components/schemas/SpaceSpecification'
-    AssetMapping3DFilterRequest:
-      allOf:
-      - $ref: '#/components/schemas/AssetMapping3DFilter'
-      - $ref: '#/components/schemas/Cursor'
     FilterNodesByBoundingBox:
       type: object
       required:
@@ -537,88 +586,10 @@ components:
           items:
             type: integer
             format: int64
-    DeleteAssetMapping3DClassicBody:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          minItems: 1
-          maxItems: 1000
-          items:
-            $ref: '#/components/schemas/DeleteAssetMapping3D'
-    FilterNodesByBoundingBoxResponse:
+    AssetMapping3DWithCursorResponse:
       allOf:
-      - $ref: '#/components/schemas/NodesWithBoundingBoxList'
+      - $ref: '#/components/schemas/AssetMapping3DList'
       - $ref: '#/components/schemas/NextCursorData'
-    DeleteAssetMapping3DDms:
-      type: object
-      required:
-      - nodeId
-      - assetInstanceId
-      properties:
-        nodeId:
-          type: integer
-          description: The ID of the node.
-          format: int64
-          example: 1003
-        assetInstanceId:
-          $ref: '#/components/schemas/DirectRelationReference'
-    AssetMapping3DList:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/AssetMapping3D'
-    Cursor:
-      type: object
-      properties:
-        cursor:
-          type: string
-          example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
-      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
-
-        property, it means that there may be more results, and you should pass that value as the
-
-        `cursor` parameter in the next request.
-
-
-        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
-
-        decoded. Its internal structure is not a part of the public API, and may change without
-
-        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
-
-        '
-    FilterNodesByBoundingBoxRequest:
-      type: object
-      required:
-      - model
-      - revision
-      - filterNodesByBoundingBox
-      properties:
-        model:
-          $ref: '#/components/schemas/InstanceReference'
-        revision:
-          $ref: '#/components/schemas/InstanceReference'
-        filterNodesByBoundingBox:
-          $ref: '#/components/schemas/FilterNodesByBoundingBox'
-    InstanceReference:
-      type: object
-      required:
-      - instanceId
-      properties:
-        instanceId:
-          $ref: '#/components/schemas/CogniteInstanceId'
-    SubtreeSize:
-      type: integer
-      description: The number of descendants of the node, plus one (counting itself).
-      format: int64
-      example: 4
     NodesWithBoundingBox:
       type: object
       required:
@@ -649,6 +620,179 @@ components:
           $ref: '#/components/schemas/SubtreeSize'
         boundingBox:
           $ref: '#/components/schemas/BoundingBox3D'
+    Float:
+      type: number
+      format: float
+    BoundingBox:
+      type: object
+      required:
+      - xMin
+      - xMax
+      - yMin
+      - yMax
+      - zMin
+      - zMax
+      properties:
+        xMin:
+          $ref: '#/components/schemas/Float'
+        xMax:
+          $ref: '#/components/schemas/Float'
+        yMin:
+          $ref: '#/components/schemas/Float'
+        yMax:
+          $ref: '#/components/schemas/Float'
+        zMin:
+          $ref: '#/components/schemas/Float'
+        zMax:
+          $ref: '#/components/schemas/Float'
+    FilterNodesByBoundingBoxResponse:
+      allOf:
+      - $ref: '#/components/schemas/NodesWithBoundingBoxList'
+      - $ref: '#/components/schemas/NextCursorData'
+    DeleteAssetMapping3D:
+      type: object
+      required:
+      - nodeId
+      properties:
+        nodeId:
+          type: integer
+          description: The ID of the node.
+          format: int64
+          example: 1003
+        assetId:
+          type: integer
+          description: The ID of the associated asset (Cognite's Assets API).
+          format: int64
+          example: 3001
+        assetInstanceId:
+          $ref: '#/components/schemas/DirectRelationReference'
+    AssetMapping3DAssetFilter:
+      type: object
+      required:
+      - assetIds
+      properties:
+        assetIds:
+          type: array
+          minItems: 0
+          maxItems: 100
+          items:
+            type: integer
+            format: int64
+    CogniteInstanceId:
+      description: The ID of an [instance in Cognite Data Models](https://docs.cognite.com/cdf/dm/dm_concepts/dm_spaces_instances#instance).
+      type: object
+      required:
+      - space
+      - externalId
+      properties:
+        space:
+          type: string
+          minLength: 1
+          maxLength: 43
+        externalId:
+          type: string
+          minLength: 1
+          maxLength: 255
+    AssetMapping3DFilterRequest:
+      allOf:
+      - $ref: '#/components/schemas/AssetMapping3DFilter'
+      - $ref: '#/components/schemas/Cursor'
+    CreateAssetMapping3D:
+      type: object
+      required:
+      - nodeId
+      properties:
+        nodeId:
+          type: integer
+          description: The ID of the node.
+          format: int64
+          example: 1003
+        assetId:
+          type: integer
+          description: The ID of the associated asset (Cognite's Assets API).
+          format: int64
+          example: 3001
+        assetInstanceId:
+          $ref: '#/components/schemas/DirectRelationReference'
+    DeleteAssetMapping3DDmsBody:
+      type: object
+      required:
+      - items
+      - dmsContextualizationConfig
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/DeleteAssetMapping3DDms'
+        dmsContextualizationConfig:
+          $ref: '#/components/schemas/DmsCADContextualizationConfig'
+    DeleteAssetMapping3DClassicBody:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items:
+            $ref: '#/components/schemas/DeleteAssetMapping3D'
+    FilterNodesByBoundingBoxRequest:
+      type: object
+      required:
+      - model
+      - revision
+      - filterNodesByBoundingBox
+      properties:
+        model:
+          $ref: '#/components/schemas/InstanceReference'
+        revision:
+          $ref: '#/components/schemas/InstanceReference'
+        filterNodesByBoundingBox:
+          $ref: '#/components/schemas/FilterNodesByBoundingBox'
+    AssetMapping3DTreeIndexFilter:
+      type: object
+      required:
+      - treeIndexes
+      properties:
+        treeIndexes:
+          type: array
+          minItems: 0
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/TreeIndex'
+    DmsCADContextualizationConfig:
+      type: object
+      required:
+      - object3DSpace
+      - cadNodeSpace
+      properties:
+        object3DSpace:
+          $ref: '#/components/schemas/SpaceSpecification'
+        cadNodeSpace:
+          $ref: '#/components/schemas/SpaceSpecification'
+    NodeOrEdgeExternalId:
+      type: string
+      pattern: ^[^\\x00]{1,256}$
+      minLength: 1
+      maxLength: 256
+    NextCursor:
+      type: string
+      description: Cursor to get the next page of results (if available).
+    InstanceReference:
+      type: object
+      required:
+      - instanceId
+      properties:
+        instanceId:
+          $ref: '#/components/schemas/CogniteInstanceId'
+    SpaceSpecification:
+      type: string
+      pattern: ^[a-zA-Z][a-zA-Z0-9_-]{0,41}[a-zA-Z0-9]?$
+      minLength: 1
+      maxLength: 43
     Node3DAssetMapping:
       type: object
       required:
@@ -671,9 +815,11 @@ components:
           description: The ID of the node.
           format: int64
           example: 1003
-    Float:
-      type: number
-      format: float
+    NextCursorData:
+      type: object
+      properties:
+        nextCursor:
+          $ref: '#/components/schemas/NextCursor'
     CreateAssetMapping3DClassicBody:
       type: object
       required:
@@ -685,177 +831,19 @@ components:
           maxItems: 1000
           items:
             $ref: '#/components/schemas/CreateAssetMapping3D'
-    AssetMapping3DAssetInstanceIdFilter:
-      type: object
-      required:
-      - assetInstanceIds
-      properties:
-        assetInstanceIds:
-          type: array
-          minItems: 0
-          maxItems: 100
-          items:
-            $ref: '#/components/schemas/CogniteInstanceId'
-    TreeIndex:
-      type: integer
-      minimum: 0
-      description: The index of the node in the 3D model hierarchy, starting from 0. The tree is traversed in a depth-first order.
-      format: int64
-      example: 3
-    ProjectAssetMapping3DList:
-      allOf:
-      - type: object
-        required:
-        - items
-        properties:
-          items:
-            type: array
-            items:
-              $ref: '#/components/schemas/Node3DAssetMapping'
-      - $ref: '#/components/schemas/NextCursorData'
-    NextCursorData:
-      type: object
-      properties:
-        nextCursor:
-          $ref: '#/components/schemas/NextCursor'
-    AssetMapping3DWithCursorResponse:
-      allOf:
-      - $ref: '#/components/schemas/AssetMapping3DList'
-      - $ref: '#/components/schemas/NextCursorData'
-    DeleteAssetMapping3D:
-      type: object
-      required:
-      - nodeId
-      properties:
-        nodeId:
-          type: integer
-          description: The ID of the node.
-          format: int64
-          example: 1003
-        assetId:
-          type: integer
-          description: The ID of the associated asset (Cognite's Assets API).
-          format: int64
-          example: 3001
-        assetInstanceId:
-          $ref: '#/components/schemas/DirectRelationReference'
-    CreateAssetMapping3DDms:
-      type: object
-      required:
-      - nodeId
-      - assetInstanceId
-      properties:
-        nodeId:
-          type: integer
-          description: The ID of the node.
-          format: int64
-          example: 1003
-        assetInstanceId:
-          $ref: '#/components/schemas/DirectRelationReference'
-    AssetMapping3DFilter:
-      type: object
-      properties:
-        getDmsInstances:
-          type: boolean
-          description: If true, the response will include only the mappings with assetInstanceId values, for DMS based assets.
-          default: false
-        filter:
-          oneOf:
-          - $ref: '#/components/schemas/AssetMapping3DAssetFilter'
-          - $ref: '#/components/schemas/AssetMapping3DAssetInstanceIdFilter'
-          - $ref: '#/components/schemas/AssetMapping3DNodeFilter'
-          - $ref: '#/components/schemas/AssetMapping3DTreeIndexFilter'
-        limit:
-          description: Limits the number of results to return.
-          type: integer
-          format: int32
-          minimum: 1
-          maximum: 1000
-          default: 100
-    AssetMapping3DAssetFilter:
-      type: object
-      required:
-      - assetIds
-      properties:
-        assetIds:
-          type: array
-          minItems: 0
-          maxItems: 100
-          items:
-            type: integer
-            format: int64
-    CreateAssetMapping3DDmsBody:
-      type: object
-      required:
-      - items
-      - dmsContextualizationConfig
-      properties:
-        items:
-          type: array
-          minItems: 1
-          maxItems: 100
-          items:
-            $ref: '#/components/schemas/CreateAssetMapping3DDms'
-        dmsContextualizationConfig:
-          $ref: '#/components/schemas/DmsCADContextualizationConfig'
-    DirectRelationReference:
-      type: object
-      description: Reference to the node pointed to by the direct relation. The reference consists of a space and an external-id.
-      required:
-      - space
-      - externalId
-      properties:
-        space:
-          $ref: '#/components/schemas/SpaceSpecification'
-        externalId:
-          $ref: '#/components/schemas/NodeOrEdgeExternalId'
-    DeleteAssetMapping3DDmsBody:
-      type: object
-      required:
-      - items
-      - dmsContextualizationConfig
-      properties:
-        items:
-          type: array
-          minItems: 1
-          maxItems: 100
-          items:
-            $ref: '#/components/schemas/DeleteAssetMapping3DDms'
-        dmsContextualizationConfig:
-          $ref: '#/components/schemas/DmsCADContextualizationConfig'
-    NodeOrEdgeExternalId:
-      type: string
-      pattern: ^[^\\x00]{1,256}$
-      minLength: 1
-      maxLength: 256
-    NextCursor:
-      type: string
-      description: Cursor to get the next page of results (if available).
   parameters:
-    Cursor:
-      name: cursor
-      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
-
-        property, it means that there may be more results, and you should pass that value as the
-
-        `cursor` parameter in the next request.
-
-
-        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
-
-        decoded. Its internal structure is not a part of the public API, and may change without
-
-        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
-
-        '
-      in: query
-      schema:
-        type: string
-        example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
     ModelId:
       name: modelId
       in: path
       description: Model ID.
+      required: true
+      schema:
+        type: integer
+        format: int64
+    RevisionId:
+      name: revisionId
+      in: path
+      description: Revision ID.
       required: true
       schema:
         type: integer
@@ -877,14 +865,26 @@ components:
         default: 100
         minimum: 1
         maximum: 1000
-    RevisionId:
-      name: revisionId
-      in: path
-      description: Revision ID.
-      required: true
+    Cursor:
+      name: cursor
+      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
+
+        property, it means that there may be more results, and you should pass that value as the
+
+        `cursor` parameter in the next request.
+
+
+        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
+
+        decoded. Its internal structure is not a part of the public API, and may change without
+
+        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
+
+        '
+      in: query
       schema:
-        type: integer
-        format: int64
+        type: string
+        example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
   responses:
     EmptyResponse:
       description: Empty response.

@@ -239,6 +239,216 @@ paths:
       description: '> **Required capabilities:** `datasetsAcl:WRITE`'
 components:
   schemas:
+    RemoveField:
+      title: remove
+      type: object
+      required:
+      - setNull
+      properties:
+        setNull:
+          type: boolean
+          example: true
+    DataSetAggregate:
+      description: Aggregation group of data sets
+      type: object
+      required:
+      - count
+      properties:
+        count:
+          type: integer
+          description: Size of the aggregation group
+          format: int64
+    DataSetMetadata:
+      type: object
+      description: 'Custom, application specific metadata. String key -> String value. Limits: Maximum length of key is 128 bytes, value 10240 bytes, up to 256 key-value pairs, of total size at most 10240.'
+      additionalProperties:
+        type: string
+        maxLength: 10240
+      x-maxKeyLength: 128
+      x-maxTotalSize: 10240
+      maxProperties: 256
+    Cursor:
+      type: object
+      properties:
+        cursor:
+          type: string
+          example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
+
+        property, it means that there may be more results, and you should pass that value as the
+
+        `cursor` parameter in the next request.
+
+
+        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
+
+        decoded. Its internal structure is not a part of the public API, and may change without
+
+        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
+
+        '
+    CogniteExternalIdPrefix:
+      description: Filter by this (case-sensitive) prefix for the external ID.
+      type: string
+      maxLength: 255
+      example: my.known.prefix
+    DataSetSpecList:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DataSetSpec'
+          minItems: 1
+          maxItems: 10
+    DataSetIdEitherList:
+      type: object
+      allOf:
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
+            minItems: 1
+            maxItems: 1000
+            uniqueItems: true
+            items:
+              $ref: '#/components/schemas/DataSetIdEither'
+      - $ref: '#/components/schemas/IgnoreUnknownIdsField'
+    ObjectPatchDataSet:
+      type: object
+      description: 'Custom, application specific metadata. String key -> String value. Limits of updated asset: Maximum length of key is 128 bytes, value 10240 bytes, up to 256 key-value pairs, of total size at most 10240.'
+      oneOf:
+      - $ref: '#/components/schemas/ObjectPatchSetDataSet'
+      - $ref: '#/components/schemas/ObjectPatchAddRemoveDataSet'
+    CogniteInternalId:
+      description: A server-generated ID for the object.
+      type: integer
+      minimum: 1
+      maximum: 9007199254740991
+      format: int64
+    DataSetInternalId:
+      type: object
+      title: DataSetInternalId
+      required:
+      - id
+      properties:
+        id:
+          $ref: '#/components/schemas/CogniteInternalId'
+    SetDataSetName:
+      type: object
+      title: set
+      required:
+      - set
+      properties:
+        set:
+          type: string
+          description: Set a new value for the string, or remove the value.
+          minLength: 1
+          maxLength: 50
+    DataSetExternalId:
+      type: object
+      title: DataSetExternalId
+      required:
+      - externalId
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+    ObjectPatchAddRemoveDataSet:
+      title: add/remove
+      type: object
+      properties:
+        add:
+          uniqueItems: true
+          type: object
+          description: Add the key-value pairs. Values for existing keys will be overwritten.
+          additionalProperties:
+            type: string
+            maxLength: 10240
+          x-maxKeyLength: 128
+          x-maxTotalSize: 10240
+          maxProperties: 256
+          example:
+            key1: value1
+            key2: value2
+        remove:
+          uniqueItems: true
+          type: array
+          description: Remove the key-value pairs with the specified keys.
+          example:
+          - value1
+          - value2
+          items:
+            type: string
+    SinglePatchDataSetDescription:
+      title: set
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/SetDataSetDescription'
+      - $ref: '#/components/schemas/RemoveField'
+    DataSetChangeByExternalId:
+      allOf:
+      - $ref: '#/components/schemas/DataSetPatch'
+      - type: object
+        required:
+        - externalId
+        properties:
+          externalId:
+            $ref: '#/components/schemas/CogniteExternalId'
+    IgnoreUnknownIdsField:
+      type: object
+      properties:
+        ignoreUnknownIds:
+          description: Ignore IDs and external IDs that are not found
+          type: boolean
+          default: false
+    DataSetChangeById:
+      allOf:
+      - $ref: '#/components/schemas/DataSetPatch'
+      - type: object
+        required:
+        - id
+        properties:
+          id:
+            $ref: '#/components/schemas/CogniteInternalId'
+    SinglePatchDataSetName:
+      title: set
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/SetDataSetName'
+      - $ref: '#/components/schemas/RemoveField'
+    DataSetUpdate:
+      oneOf:
+      - $ref: '#/components/schemas/DataSetChangeById'
+      - $ref: '#/components/schemas/DataSetChangeByExternalId'
+    DataSet:
+      allOf:
+      - $ref: '#/components/schemas/DataSetSpec'
+      - type: object
+        required:
+        - id
+        - createdTime
+        - lastUpdatedTime
+        - writeProtected
+        properties:
+          id:
+            $ref: '#/components/schemas/CogniteInternalId'
+          createdTime:
+            $ref: '#/components/schemas/EpochTimestamp'
+          lastUpdatedTime:
+            $ref: '#/components/schemas/EpochTimestamp'
+    DataSetListWithCursor:
+      type: object
+      allOf:
+      - $ref: '#/components/schemas/DataSetList'
+      - type: object
+        properties:
+          nextCursor:
+            type: string
+            description: The cursor to get the next page of results (if available).
     Error:
       type: object
       required:
@@ -267,6 +477,143 @@ components:
           items:
             type: object
             additionalProperties: true
+    DataSetAggregateRequest:
+      description: Aggregation request of data sets. Filters exact field matching or timestamp ranges inclusive min and max.
+      allOf:
+      - type: object
+        properties:
+          filter:
+            $ref: '#/components/schemas/DataSetFilter'
+    DataSetIdEither:
+      oneOf:
+      - $ref: '#/components/schemas/DataSetInternalId'
+      - $ref: '#/components/schemas/DataSetExternalId'
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    SinglePatchBoolean:
+      type: object
+      title: set
+      required:
+      - set
+      properties:
+        set:
+          type: boolean
+    DataSetFilterRequest:
+      allOf:
+      - type: object
+        properties:
+          filter:
+            $ref: '#/components/schemas/DataSetFilter'
+          limit:
+            description: Limits the number of results to return.
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 1000
+            default: 100
+      - $ref: '#/components/schemas/Cursor'
+    ObjectPatchSetDataSet:
+      title: set
+      type: object
+      required:
+      - set
+      properties:
+        set:
+          uniqueItems: true
+          type: object
+          description: Set the key-value pairs. All existing key-value pairs will be removed.
+          additionalProperties:
+            type: string
+            maxLength: 10240
+          x-maxKeyLength: 128
+          x-maxTotalSize: 10240
+          maxProperties: 256
+          example:
+            key1: value1
+            key2: value2
+    SetStringField:
+      type: object
+      title: set
+      required:
+      - set
+      properties:
+        set:
+          type: string
+    DataSetUpdateList:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DataSetUpdate'
+    SetDataSetDescription:
+      type: object
+      title: set
+      required:
+      - set
+      properties:
+        set:
+          type: string
+          description: Set a new value for the string, or remove the value.
+          minLength: 1
+          maxLength: 500
+    DataDataSetAggregate:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 1
+          items:
+            $ref: '#/components/schemas/DataSetAggregate'
+    DataSetPatch:
+      type: object
+      description: Update applied to single data set
+      required:
+      - update
+      properties:
+        update:
+          type: object
+          properties:
+            externalId:
+              $ref: '#/components/schemas/SinglePatchString'
+            name:
+              $ref: '#/components/schemas/SinglePatchDataSetName'
+            description:
+              $ref: '#/components/schemas/SinglePatchDataSetDescription'
+            metadata:
+              $ref: '#/components/schemas/ObjectPatchDataSet'
+            writeProtected:
+              $ref: '#/components/schemas/SinglePatchBoolean'
+    CogniteExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
+      type: string
+      maxLength: 255
+      example: my.known.id
+    SinglePatchString:
+      title: set
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/SetStringField'
+      - $ref: '#/components/schemas/RemoveField'
+      description: Set a new value for the string, or remove the value.
+    DataSetList:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DataSet'
     DataSetSpec:
       type: object
       properties:
@@ -288,307 +635,6 @@ components:
           default: false
           type: boolean
           description: To write data to a write-protected data set, you need to be a member of a group that has the "datasets:owner" action for the data set. To learn more about write-protected data sets, follow this [guide](https://docs.cognite.com/cdf/data_governance/concepts/datasets/#write-protection).
-    DataSetIdEitherList:
-      type: object
-      allOf:
-      - type: object
-        required:
-        - items
-        properties:
-          items:
-            type: array
-            minItems: 1
-            maxItems: 1000
-            uniqueItems: true
-            items:
-              $ref: '#/components/schemas/DataSetIdEither'
-      - $ref: '#/components/schemas/IgnoreUnknownIdsField'
-    DataSetSpecList:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/DataSetSpec'
-          minItems: 1
-          maxItems: 10
-    DataSetUpdateList:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/DataSetUpdate'
-    SetDataSetName:
-      type: object
-      title: set
-      required:
-      - set
-      properties:
-        set:
-          type: string
-          description: Set a new value for the string, or remove the value.
-          minLength: 1
-          maxLength: 50
-    Cursor:
-      type: object
-      properties:
-        cursor:
-          type: string
-          example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
-      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
-
-        property, it means that there may be more results, and you should pass that value as the
-
-        `cursor` parameter in the next request.
-
-
-        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
-
-        decoded. Its internal structure is not a part of the public API, and may change without
-
-        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
-
-        '
-    DataSetInternalId:
-      type: object
-      title: DataSetInternalId
-      required:
-      - id
-      properties:
-        id:
-          $ref: '#/components/schemas/CogniteInternalId'
-    DataSetAggregate:
-      description: Aggregation group of data sets
-      type: object
-      required:
-      - count
-      properties:
-        count:
-          type: integer
-          description: Size of the aggregation group
-          format: int64
-    SetStringField:
-      type: object
-      title: set
-      required:
-      - set
-      properties:
-        set:
-          type: string
-    EpochTimestamp:
-      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-      type: integer
-      minimum: 0
-      format: int64
-      example: 1730204346000
-    ObjectPatchDataSet:
-      type: object
-      description: 'Custom, application specific metadata. String key -> String value. Limits of updated asset: Maximum length of key is 128 bytes, value 10240 bytes, up to 256 key-value pairs, of total size at most 10240.'
-      oneOf:
-      - $ref: '#/components/schemas/ObjectPatchSetDataSet'
-      - $ref: '#/components/schemas/ObjectPatchAddRemoveDataSet'
-    ObjectPatchAddRemoveDataSet:
-      title: add/remove
-      type: object
-      properties:
-        add:
-          uniqueItems: true
-          type: object
-          description: Add the key-value pairs. Values for existing keys will be overwritten.
-          additionalProperties:
-            type: string
-            maxLength: 10240
-          x-maxKeyLength: 128
-          x-maxTotalSize: 10240
-          maxProperties: 256
-          example:
-            key1: value1
-            key2: value2
-        remove:
-          uniqueItems: true
-          type: array
-          description: Remove the key-value pairs with the specified keys.
-          example:
-          - value1
-          - value2
-          items:
-            type: string
-    DataSetChangeByExternalId:
-      allOf:
-      - $ref: '#/components/schemas/DataSetPatch'
-      - type: object
-        required:
-        - externalId
-        properties:
-          externalId:
-            $ref: '#/components/schemas/CogniteExternalId'
-    SinglePatchDataSetDescription:
-      title: set
-      type: object
-      oneOf:
-      - $ref: '#/components/schemas/SetDataSetDescription'
-      - $ref: '#/components/schemas/RemoveField'
-    CogniteExternalIdPrefix:
-      description: Filter by this (case-sensitive) prefix for the external ID.
-      type: string
-      maxLength: 255
-      example: my.known.prefix
-    SinglePatchString:
-      title: set
-      type: object
-      oneOf:
-      - $ref: '#/components/schemas/SetStringField'
-      - $ref: '#/components/schemas/RemoveField'
-      description: Set a new value for the string, or remove the value.
-    IgnoreUnknownIdsField:
-      type: object
-      properties:
-        ignoreUnknownIds:
-          description: Ignore IDs and external IDs that are not found
-          type: boolean
-          default: false
-    ObjectPatchSetDataSet:
-      title: set
-      type: object
-      required:
-      - set
-      properties:
-        set:
-          uniqueItems: true
-          type: object
-          description: Set the key-value pairs. All existing key-value pairs will be removed.
-          additionalProperties:
-            type: string
-            maxLength: 10240
-          x-maxKeyLength: 128
-          x-maxTotalSize: 10240
-          maxProperties: 256
-          example:
-            key1: value1
-            key2: value2
-    DataSetExternalId:
-      type: object
-      title: DataSetExternalId
-      required:
-      - externalId
-      properties:
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-    DataSetPatch:
-      type: object
-      description: Update applied to single data set
-      required:
-      - update
-      properties:
-        update:
-          type: object
-          properties:
-            externalId:
-              $ref: '#/components/schemas/SinglePatchString'
-            name:
-              $ref: '#/components/schemas/SinglePatchDataSetName'
-            description:
-              $ref: '#/components/schemas/SinglePatchDataSetDescription'
-            metadata:
-              $ref: '#/components/schemas/ObjectPatchDataSet'
-            writeProtected:
-              $ref: '#/components/schemas/SinglePatchBoolean'
-    SetDataSetDescription:
-      type: object
-      title: set
-      required:
-      - set
-      properties:
-        set:
-          type: string
-          description: Set a new value for the string, or remove the value.
-          minLength: 1
-          maxLength: 500
-    DataSetListWithCursor:
-      type: object
-      allOf:
-      - $ref: '#/components/schemas/DataSetList'
-      - type: object
-        properties:
-          nextCursor:
-            type: string
-            description: The cursor to get the next page of results (if available).
-    DataSetList:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/DataSet'
-    CogniteInternalId:
-      description: A server-generated ID for the object.
-      type: integer
-      minimum: 1
-      maximum: 9007199254740991
-      format: int64
-    DataSet:
-      allOf:
-      - $ref: '#/components/schemas/DataSetSpec'
-      - type: object
-        required:
-        - id
-        - createdTime
-        - lastUpdatedTime
-        - writeProtected
-        properties:
-          id:
-            $ref: '#/components/schemas/CogniteInternalId'
-          createdTime:
-            $ref: '#/components/schemas/EpochTimestamp'
-          lastUpdatedTime:
-            $ref: '#/components/schemas/EpochTimestamp'
-    EpochTimestampRange:
-      description: Range between two timestamps (inclusive).
-      type: object
-      properties:
-        max:
-          description: Maximum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-          type: integer
-          minimum: 0
-          format: int64
-        min:
-          description: Minimum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-          type: integer
-          minimum: 0
-          format: int64
-    CogniteExternalId:
-      description: The external ID provided by the client. Must be unique for the resource type.
-      type: string
-      maxLength: 255
-      example: my.known.id
-    DataSetIdEither:
-      oneOf:
-      - $ref: '#/components/schemas/DataSetInternalId'
-      - $ref: '#/components/schemas/DataSetExternalId'
-    SinglePatchBoolean:
-      type: object
-      title: set
-      required:
-      - set
-      properties:
-        set:
-          type: boolean
-    RemoveField:
-      title: remove
-      type: object
-      required:
-      - setNull
-      properties:
-        setNull:
-          type: boolean
-          example: true
     DataSetFilter:
       description: Filter on data sets with strict matching.
       type: object
@@ -603,66 +649,20 @@ components:
           $ref: '#/components/schemas/CogniteExternalIdPrefix'
         writeProtected:
           type: boolean
-    SinglePatchDataSetName:
-      title: set
+    EpochTimestampRange:
+      description: Range between two timestamps (inclusive).
       type: object
-      oneOf:
-      - $ref: '#/components/schemas/SetDataSetName'
-      - $ref: '#/components/schemas/RemoveField'
-    DataSetChangeById:
-      allOf:
-      - $ref: '#/components/schemas/DataSetPatch'
-      - type: object
-        required:
-        - id
-        properties:
-          id:
-            $ref: '#/components/schemas/CogniteInternalId'
-    DataSetMetadata:
-      type: object
-      description: 'Custom, application specific metadata. String key -> String value. Limits: Maximum length of key is 128 bytes, value 10240 bytes, up to 256 key-value pairs, of total size at most 10240.'
-      additionalProperties:
-        type: string
-        maxLength: 10240
-      x-maxKeyLength: 128
-      x-maxTotalSize: 10240
-      maxProperties: 256
-    DataSetAggregateRequest:
-      description: Aggregation request of data sets. Filters exact field matching or timestamp ranges inclusive min and max.
-      allOf:
-      - type: object
-        properties:
-          filter:
-            $ref: '#/components/schemas/DataSetFilter'
-    DataDataSetAggregate:
-      type: object
-      required:
-      - items
       properties:
-        items:
-          type: array
-          minItems: 1
-          maxItems: 1
-          items:
-            $ref: '#/components/schemas/DataSetAggregate'
-    DataSetFilterRequest:
-      allOf:
-      - type: object
-        properties:
-          filter:
-            $ref: '#/components/schemas/DataSetFilter'
-          limit:
-            description: Limits the number of results to return.
-            type: integer
-            format: int32
-            minimum: 1
-            maximum: 1000
-            default: 100
-      - $ref: '#/components/schemas/Cursor'
-    DataSetUpdate:
-      oneOf:
-      - $ref: '#/components/schemas/DataSetChangeById'
-      - $ref: '#/components/schemas/DataSetChangeByExternalId'
+        max:
+          description: Maximum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+          type: integer
+          minimum: 0
+          format: int64
+        min:
+          description: Minimum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+          type: integer
+          minimum: 0
+          format: int64
   responses:
     DataSetFilterResponse:
       description: A list of data sets.
@@ -670,6 +670,18 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/DataSetListWithCursor'
+    DataSetAggregateResponse:
+      description: Response with list of data set aggregations
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/DataDataSetAggregate'
+    DataSetListResponse:
+      description: A list of data sets.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/DataSetList'
     ErrorResponse:
       description: The response for a failed request.
       content:
@@ -681,18 +693,6 @@ components:
             properties:
               error:
                 $ref: '#/components/schemas/Error'
-    DataSetListResponse:
-      description: A list of data sets.
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/DataSetList'
-    DataSetAggregateResponse:
-      description: Response with list of data set aggregations
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/DataDataSetAggregate'
   securitySchemes:
     oidc-token:
       type: http

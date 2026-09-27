@@ -254,66 +254,54 @@ paths:
       description: '> **Required capabilities:** `threedAcl:READ`'
 components:
   schemas:
-    Error:
+    RemoveField:
+      title: remove
       type: object
       required:
-      - code
-      - message
-      description: Cognite API error.
+      - setNull
       properties:
-        code:
-          type: integer
-          description: HTTP status code.
-          format: int32
-          example: 401
-        message:
-          type: string
-          description: Error message.
-          example: Could not authenticate.
-        missing:
-          type: array
-          description: List of lookup objects that do not match any results.
-          items:
-            type: object
-            additionalProperties: true
-        duplicated:
-          type: array
-          description: List of objects that are not unique.
-          items:
-            type: object
-            additionalProperties: true
-    CogniteInstanceId:
-      description: The ID of an [instance in Cognite Data Models](https://docs.cognite.com/cdf/dm/dm_concepts/dm_spaces_instances#instance).
+        setNull:
+          type: boolean
+          example: true
+    CreatedTime:
+      type: integer
+      description: The creation time of the resource, in milliseconds since January 1, 1970 at 00:00 UTC.
+      format: int64
+      example: 0
+    CogniteInternalId:
+      description: A server-generated ID for the object.
+      type: integer
+      minimum: 1
+      maximum: 9007199254740991
+      format: int64
+    ObjectPatchAddRemove:
+      title: add/remove
       type: object
-      required:
-      - space
-      - externalId
       properties:
-        space:
-          type: string
-          minLength: 1
-          maxLength: 43
-        externalId:
-          type: string
-          minLength: 1
-          maxLength: 255
-    SpaceSpecification:
-      type: string
-      pattern: ^[a-zA-Z][a-zA-Z0-9_-]{0,41}[a-zA-Z0-9]?$
-      minLength: 1
-      maxLength: 43
-    UpdateModel3DDmsOnly:
-      allOf:
-      - $ref: '#/components/schemas/InstanceReference'
-      - type: object
-        properties:
-          update:
-            type: object
-            properties:
-              name:
-                $ref: '#/components/schemas/SetModelNameField'
-              thumbnailReference:
-                $ref: '#/components/schemas/SinglePatchDirectRelationReference'
+        add:
+          uniqueItems: true
+          type: object
+          description: Add the key-value pairs. Values for existing keys will be overwritten.
+          additionalProperties:
+            type: string
+          example:
+            key1: value1
+            key2: value2
+        remove:
+          uniqueItems: true
+          type: array
+          description: Remove the key-value pairs with the specified keys.
+          example:
+          - value1
+          - value2
+          items:
+            type: string
+    ObjectPatch:
+      type: object
+      description: Custom, application specific metadata. String key -> String value.
+      oneOf:
+      - $ref: '#/components/schemas/ObjectPatchSet'
+      - $ref: '#/components/schemas/ObjectPatchAddRemove'
     CreateModel3DClassicBody:
       type: object
       required:
@@ -325,6 +313,23 @@ components:
           maxItems: 1000
           items:
             $ref: '#/components/schemas/CreateModel3D'
+    NextCursorData:
+      type: object
+      properties:
+        nextCursor:
+          $ref: '#/components/schemas/NextCursor'
+    SinglePatchDirectRelationReference:
+      title: set
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/SetDirectRelationReference'
+      - $ref: '#/components/schemas/RemoveField'
+    DataSetId:
+      description: The dataSet Id for the item.
+      type: integer
+      minimum: 1
+      maximum: 9007199254740991
+      format: int64
     Model3D:
       type: object
       required:
@@ -349,180 +354,33 @@ components:
           $ref: '#/components/schemas/SpaceSpecification'
         metadata:
           $ref: '#/components/schemas/Metadata3D'
-    CreateModel3D:
+    DirectRelationReference:
       type: object
+      description: Reference to the node pointed to by the direct relation. The reference consists of a space and an external-id.
       required:
-      - name
-      properties:
-        name:
-          type: string
-          minLength: 1
-          maxLength: 255
-          description: The name of the model.
-          example: My Model
-        dataSetId:
-          $ref: '#/components/schemas/DataSetId'
-        metadata:
-          $ref: '#/components/schemas/Metadata3D'
-    Model3DWithRevisionInfo:
-      allOf:
-      - $ref: '#/components/schemas/Model3D'
-      - type: object
-        properties:
-          lastRevisionInfo:
-            $ref: '#/components/schemas/RevisionStatus'
-    InstanceReference:
-      type: object
-      required:
-      - instanceId
-      properties:
-        instanceId:
-          $ref: '#/components/schemas/CogniteInstanceId'
-    ObjectPatch:
-      type: object
-      description: Custom, application specific metadata. String key -> String value.
-      oneOf:
-      - $ref: '#/components/schemas/ObjectPatchSet'
-      - $ref: '#/components/schemas/ObjectPatchAddRemove'
-    CreateModel3DDmsOnly:
-      type: object
-      required:
-      - name
       - space
-      - type
+      - externalId
       properties:
-        name:
-          type: string
-          minLength: 1
-          maxLength: 255
-          description: The name of the model.
-          example: My Model
         space:
           $ref: '#/components/schemas/SpaceSpecification'
-        thumbnailReference:
-          $ref: '#/components/schemas/DirectRelationReference'
-        type:
-          $ref: '#/components/schemas/ModelType'
-    SetDataSetId:
-      type: object
-      required:
-      - set
-      properties:
-        set:
-          $ref: '#/components/schemas/DataSetId'
-    Model3DWithCursorResponse:
+        externalId:
+          $ref: '#/components/schemas/NodeOrEdgeExternalId'
+    UpdateModel3D:
       allOf:
-      - $ref: '#/components/schemas/Model3DList'
-      - $ref: '#/components/schemas/NextCursorData'
-    Model3DList:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/Model3D'
-    UpdateModel3DDmsOnlyBody:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          minItems: 1
-          maxItems: 1
-          items:
-            $ref: '#/components/schemas/UpdateModel3DDmsOnly'
-    SinglePatchDirectRelationReference:
-      title: set
-      type: object
-      oneOf:
-      - $ref: '#/components/schemas/SetDirectRelationReference'
-      - $ref: '#/components/schemas/RemoveField'
-    SinglePatchDataSetId:
-      title: set
-      type: object
-      oneOf:
-      - $ref: '#/components/schemas/SetDataSetId'
-      - $ref: '#/components/schemas/RemoveField'
-    NextCursorData:
-      type: object
-      properties:
-        nextCursor:
-          $ref: '#/components/schemas/NextCursor'
-    DataSetId:
-      description: The dataSet Id for the item.
-      type: integer
-      minimum: 1
-      maximum: 9007199254740991
-      format: int64
-    CreatedTime:
-      type: integer
-      description: The creation time of the resource, in milliseconds since January 1, 1970 at 00:00 UTC.
-      format: int64
-      example: 0
-    CogniteInternalId:
-      description: A server-generated ID for the object.
-      type: integer
-      minimum: 1
-      maximum: 9007199254740991
-      format: int64
-    ModelType:
-      type: string
-      enum:
-      - CAD
-      - PointCloud
-      - Image360
-    CreateModel3DDmsOnlyBody:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          minItems: 1
-          maxItems: 1
-          items:
-            $ref: '#/components/schemas/CreateModel3DDmsOnly'
-    UpdateModel3DClassicBody:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          minItems: 1
-          maxItems: 1000
-          items:
-            $ref: '#/components/schemas/UpdateModel3D'
-    SetModelNameField:
-      type: object
-      properties:
-        set:
-          type: string
-          minLength: 1
-          maxLength: 255
-    Metadata3D:
-      type: object
-      description: 'Custom, application specific metadata. String key -> String value. Limits: Maximum length of key is 32 bytes, value 512 bytes, up to 16 key-value pairs.'
-      additionalProperties:
-        type: string
-    ObjectPatchSet:
-      title: set
-      type: object
-      required:
-      - set
-      properties:
-        set:
-          uniqueItems: true
-          type: object
-          description: Set the key-value pairs. All existing key-value pairs will be removed.
-          additionalProperties:
-            type: string
-          example:
-            key1: value1
-            key2: value2
+      - $ref: '#/components/schemas/DataIdentifier'
+      - type: object
+        properties:
+          update:
+            type: object
+            properties:
+              name:
+                $ref: '#/components/schemas/SetModelNameField'
+              dataSetId:
+                $ref: '#/components/schemas/SinglePatchDataSetId'
+              metadata:
+                allOf:
+                - description: 'Custom, application specific metadata. String key -> String value. Limits: Maximum length of key is 32 bytes, value 512 bytes, up to 16 key-value pairs.'
+                - $ref: '#/components/schemas/ObjectPatch'
     DataIdentifiers:
       type: object
       required:
@@ -536,26 +394,51 @@ components:
             $ref: '#/components/schemas/DataIdentifier'
           maxItems: 1000
           minItems: 1
-    Model3DWithRevisionInfoAndCursorResponse:
-      allOf:
-      - type: object
-        required:
-        - items
-        properties:
-          items:
-            type: array
-            items:
-              $ref: '#/components/schemas/Model3DWithRevisionInfo'
-      - $ref: '#/components/schemas/NextCursorData'
-    RemoveField:
-      title: remove
+    SinglePatchDataSetId:
+      title: set
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/SetDataSetId'
+      - $ref: '#/components/schemas/RemoveField'
+    CreateModel3DDmsOnlyBody:
       type: object
       required:
-      - setNull
+      - items
       properties:
-        setNull:
-          type: boolean
-          example: true
+        items:
+          type: array
+          minItems: 1
+          maxItems: 1
+          items:
+            $ref: '#/components/schemas/CreateModel3DDmsOnly'
+    NextCursor:
+      type: string
+      description: Cursor to get the next page of results (if available).
+    SetDirectRelationReference:
+      type: object
+      required:
+      - set
+      properties:
+        set:
+          $ref: '#/components/schemas/DirectRelationReference'
+    ModelType:
+      type: string
+      enum:
+      - CAD
+      - PointCloud
+      - Image360
+    UpdateModel3DDmsOnly:
+      allOf:
+      - $ref: '#/components/schemas/InstanceReference'
+      - type: object
+        properties:
+          update:
+            type: object
+            properties:
+              name:
+                $ref: '#/components/schemas/SetModelNameField'
+              thumbnailReference:
+                $ref: '#/components/schemas/SinglePatchDirectRelationReference'
     RevisionStatus:
       type: object
       properties:
@@ -584,6 +467,119 @@ components:
             type: string
           example:
           - ept-pointcloud:1
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
+    Model3DWithCursorResponse:
+      allOf:
+      - $ref: '#/components/schemas/Model3DList'
+      - $ref: '#/components/schemas/NextCursorData'
+    Model3DWithRevisionInfo:
+      allOf:
+      - $ref: '#/components/schemas/Model3D'
+      - type: object
+        properties:
+          lastRevisionInfo:
+            $ref: '#/components/schemas/RevisionStatus'
+    CreateModel3D:
+      type: object
+      required:
+      - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: The name of the model.
+          example: My Model
+        dataSetId:
+          $ref: '#/components/schemas/DataSetId'
+        metadata:
+          $ref: '#/components/schemas/Metadata3D'
+    Model3DWithRevisionInfoAndCursorResponse:
+      allOf:
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
+            items:
+              $ref: '#/components/schemas/Model3DWithRevisionInfo'
+      - $ref: '#/components/schemas/NextCursorData'
+    UpdateModel3DDmsOnlyBody:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 1
+          items:
+            $ref: '#/components/schemas/UpdateModel3DDmsOnly'
+    CogniteInstanceId:
+      description: The ID of an [instance in Cognite Data Models](https://docs.cognite.com/cdf/dm/dm_concepts/dm_spaces_instances#instance).
+      type: object
+      required:
+      - space
+      - externalId
+      properties:
+        space:
+          type: string
+          minLength: 1
+          maxLength: 43
+        externalId:
+          type: string
+          minLength: 1
+          maxLength: 255
+    DataIdentifier:
+      type: object
+      required:
+      - id
+      properties:
+        id:
+          $ref: '#/components/schemas/CogniteInternalId'
+    ObjectPatchSet:
+      title: set
+      type: object
+      required:
+      - set
+      properties:
+        set:
+          uniqueItems: true
+          type: object
+          description: Set the key-value pairs. All existing key-value pairs will be removed.
+          additionalProperties:
+            type: string
+          example:
+            key1: value1
+            key2: value2
     OneDataDmsIdentifier:
       type: object
       required:
@@ -597,78 +593,99 @@ components:
             $ref: '#/components/schemas/InstanceReference'
           maxItems: 1
           minItems: 1
-    UpdateModel3D:
-      allOf:
-      - $ref: '#/components/schemas/DataIdentifier'
-      - type: object
-        properties:
-          update:
-            type: object
-            properties:
-              name:
-                $ref: '#/components/schemas/SetModelNameField'
-              dataSetId:
-                $ref: '#/components/schemas/SinglePatchDataSetId'
-              metadata:
-                allOf:
-                - description: 'Custom, application specific metadata. String key -> String value. Limits: Maximum length of key is 32 bytes, value 512 bytes, up to 16 key-value pairs.'
-                - $ref: '#/components/schemas/ObjectPatch'
-    DirectRelationReference:
-      type: object
-      description: Reference to the node pointed to by the direct relation. The reference consists of a space and an external-id.
-      required:
-      - space
-      - externalId
-      properties:
-        space:
-          $ref: '#/components/schemas/SpaceSpecification'
-        externalId:
-          $ref: '#/components/schemas/NodeOrEdgeExternalId'
-    ObjectPatchAddRemove:
-      title: add/remove
-      type: object
-      properties:
-        add:
-          uniqueItems: true
-          type: object
-          description: Add the key-value pairs. Values for existing keys will be overwritten.
-          additionalProperties:
-            type: string
-          example:
-            key1: value1
-            key2: value2
-        remove:
-          uniqueItems: true
-          type: array
-          description: Remove the key-value pairs with the specified keys.
-          example:
-          - value1
-          - value2
-          items:
-            type: string
-    SetDirectRelationReference:
-      type: object
-      required:
-      - set
-      properties:
-        set:
-          $ref: '#/components/schemas/DirectRelationReference'
     NodeOrEdgeExternalId:
       type: string
       pattern: ^[^\\x00]{1,256}$
       minLength: 1
       maxLength: 256
-    NextCursor:
-      type: string
-      description: Cursor to get the next page of results (if available).
-    DataIdentifier:
+    Model3DList:
       type: object
       required:
-      - id
+      - items
       properties:
-        id:
-          $ref: '#/components/schemas/CogniteInternalId'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Model3D'
+    SetModelNameField:
+      type: object
+      properties:
+        set:
+          type: string
+          minLength: 1
+          maxLength: 255
+    SetDataSetId:
+      type: object
+      required:
+      - set
+      properties:
+        set:
+          $ref: '#/components/schemas/DataSetId'
+    Metadata3D:
+      type: object
+      description: 'Custom, application specific metadata. String key -> String value. Limits: Maximum length of key is 32 bytes, value 512 bytes, up to 16 key-value pairs.'
+      additionalProperties:
+        type: string
+    InstanceReference:
+      type: object
+      required:
+      - instanceId
+      properties:
+        instanceId:
+          $ref: '#/components/schemas/CogniteInstanceId'
+    SpaceSpecification:
+      type: string
+      pattern: ^[a-zA-Z][a-zA-Z0-9_-]{0,41}[a-zA-Z0-9]?$
+      minLength: 1
+      maxLength: 43
+    UpdateModel3DClassicBody:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items:
+            $ref: '#/components/schemas/UpdateModel3D'
+    CreateModel3DDmsOnly:
+      type: object
+      required:
+      - name
+      - space
+      - type
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: The name of the model.
+          example: My Model
+        space:
+          $ref: '#/components/schemas/SpaceSpecification'
+        thumbnailReference:
+          $ref: '#/components/schemas/DirectRelationReference'
+        type:
+          $ref: '#/components/schemas/ModelType'
   parameters:
+    ModelId:
+      name: modelId
+      in: path
+      description: Model ID.
+      required: true
+      schema:
+        type: integer
+        format: int64
+    Limit:
+      name: limit
+      description: Limits the number of results to be returned. The maximum results returned by the server is 1000 even if you specify a higher limit.
+      in: query
+      schema:
+        type: integer
+        default: 100
+        minimum: 1
+        maximum: 1000
     Cursor:
       name: cursor
       description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
@@ -689,23 +706,6 @@ components:
       schema:
         type: string
         example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
-    ModelId:
-      name: modelId
-      in: path
-      description: Model ID.
-      required: true
-      schema:
-        type: integer
-        format: int64
-    Limit:
-      name: limit
-      description: Limits the number of results to be returned. The maximum results returned by the server is 1000 even if you specify a higher limit.
-      in: query
-      schema:
-        type: integer
-        default: 100
-        minimum: 1
-        maximum: 1000
   responses:
     EmptyResponse:
       description: Empty response.

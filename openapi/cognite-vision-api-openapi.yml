@@ -126,6 +126,54 @@ paths:
         source: "extract_job = client.vision.get_extract_job(job_id=1)\nextract_job.wait_for_completion()\nfor item in extract_job.items:\n    predictions = item.predictions\n    # do something with the predictions\n"
 components:
   schemas:
+    DialGaugeDetectionParameters:
+      description: 'Parameters for dial gauge detection and reading. In beta. Available only when the `cdf-version: beta` header is provided.'
+      type: object
+      properties:
+        minLevel:
+          $ref: '#/components/schemas/MinLevel'
+        maxLevel:
+          $ref: '#/components/schemas/MaxLevel'
+        deadAngle:
+          $ref: '#/components/schemas/DeadAngle'
+        nonLinAngle:
+          $ref: '#/components/schemas/NonLinAngle'
+        threshold:
+          $ref: '#/components/schemas/ThresholdParameter'
+    JobStatus:
+      description: The status of the job.
+      type: string
+      enum:
+      - Queued
+      - Running
+      - Completed
+      - Failed
+    AssetTagDetection:
+      title: AssetTagDetection
+      description: Detect external ID or name of assets (from your CDF projects) in images. Usage of this feature requires `['assetsAcl:READ']` capability.
+      type: string
+      enum:
+      - AssetTagDetection
+    Annotations.PolyLine:
+      additionalProperties: false
+      description: A polygonal chain consisting of _n_ vertices
+      properties:
+        confidence:
+          default: null
+          description: The confidence score for the primitive. It should be between 0 and 1.
+          maximum: 1
+          minimum: 0
+          type: number
+        vertices:
+          items:
+            $ref: '#/components/schemas/Annotations.Point'
+          maxItems: 1000
+          minItems: 2
+          type: array
+      required:
+      - vertices
+      title: primitives.geometry2d.PolyLine
+      type: object
     Annotations.cogmono__annotation_types__images__AssetLink:
       additionalProperties: false
       description: Models a link to a CDF Asset referenced in an image
@@ -157,6 +205,314 @@ components:
       - textRegion
       title: images.AssetLink
       type: object
+    Annotations.AssetRef:
+      additionalProperties: false
+      description: A reference to an asset. Either the internal ID or the external ID must be provided (exactly one).
+      oneOf:
+      - required:
+        - id
+      - required:
+        - externalId
+      properties:
+        id:
+          default: null
+          description: The internal ID of the referenced resource
+          type: integer
+        externalId:
+          default: null
+          description: The external ID of the referenced resource
+          maxLength: 256
+          type: string
+      title: primitives.references.AssetRef
+      type: object
+    FileReference:
+      type: object
+      required:
+      - fileId
+      - fileExternalId
+      - fileInstanceId
+      description: An external-id or instance-id reference to the referenced file.
+      oneOf:
+      - type: object
+        required:
+        - fileId
+        properties:
+          fileId:
+            $ref: '#/components/schemas/VisionFileId'
+      - type: object
+        required:
+        - fileExternalId
+        properties:
+          fileExternalId:
+            $ref: '#/components/schemas/VisionFileExternalId'
+      - type: object
+        required:
+        - fileInstanceId
+        properties:
+          fileInstanceId:
+            $ref: '#/components/schemas/VisionInstanceId'
+    MinNumDigits:
+      type: integer
+      example: 2
+      description: Minimum number of digits on a digital gauge.
+    IndustrialObjectDetection:
+      title: IndustrialObjectDetection
+      description: 'Detect industrial objects such as gauges and valves in images. In beta. Available only when the `cdf-version: beta` header is provided.'
+      type: string
+      enum:
+      - IndustrialObjectDetection
+    ValveDetection:
+      title: ValveDetection
+      description: 'Detect and read state of a valve in an image. In beta. Available only when the `cdf-version: beta` header is provided.'
+      type: string
+      enum:
+      - ValveDetection
+    DialGaugeDetection:
+      title: DialGaugeDetection
+      description: 'Detect and read value of dial gauges in images. In beta. Available only when the `cdf-version: beta` header is provided.'
+      type: string
+      enum:
+      - DialGaugeDetection
+    Annotations.BoundingBox:
+      additionalProperties: false
+      description: A plain rectangle
+      properties:
+        confidence:
+          default: null
+          description: The confidence score for the primitive. It should be between 0 and 1.
+          maximum: 1
+          minimum: 0
+          type: number
+        xMin:
+          description: Minimum abscissa of the bounding box (left edge). Must be strictly less than x_max.
+          maximum: 1
+          minimum: 0
+          type: number
+        xMax:
+          description: Maximum abscissa of the bounding box (right edge). Must be strictly more than x_min.
+          maximum: 1
+          minimum: 0
+          type: number
+        yMin:
+          description: Minimum ordinate of the bounding box (bottom edge). Must be strictly less than y_max.
+          maximum: 1
+          minimum: 0
+          type: number
+        yMax:
+          description: Maximum ordinate of the bounding box (top edge). Must be strictly more than y_min.
+          maximum: 1
+          minimum: 0
+          type: number
+      required:
+      - xMin
+      - xMax
+      - yMin
+      - yMax
+      title: primitives.geometry2d.BoundingBox
+      type: object
+    DeadAngle:
+      type: number
+      example: 60
+      description: The angle between the start and end point on the bottom part of an analog gauge, measured in degrees.
+    Annotations.Point:
+      additionalProperties: false
+      description: Point in a 2D-Cartesian coordinate system with origin at the top-left corner of the page
+      properties:
+        confidence:
+          default: null
+          description: The confidence score for the primitive. It should be between 0 and 1.
+          maximum: 1
+          minimum: 0
+          type: number
+        x:
+          description: The abscissa of the point in a coordinate system with origin at the top-left corner of the page. Normalized in (0,1).
+          maximum: 1
+          minimum: 0
+          type: number
+        y:
+          description: The ordinate of the point in a coordinate system with origin at the top-left corner of the page. Normalized in (0,1).
+          maximum: 1
+          minimum: 0
+          type: number
+      required:
+      - x
+      - y
+      title: primitives.geometry2d.Point
+      type: object
+    Annotations.Polygon:
+      additionalProperties: false
+      description: 'A _closed_ polygon represented by _n_ vertices. In other words, we assume
+
+        that the first and last vertex are connected.'
+      properties:
+        confidence:
+          default: null
+          description: The confidence score for the primitive. It should be between 0 and 1.
+          maximum: 1
+          minimum: 0
+          type: number
+        vertices:
+          items:
+            $ref: '#/components/schemas/Annotations.Point'
+          maxItems: 1000
+          minItems: 3
+          type: array
+      required:
+      - vertices
+      title: primitives.geometry2d.Polygon
+      type: object
+    PeopleDetectionParameters:
+      description: Parameters for people detection.
+      type: object
+      properties:
+        threshold:
+          $ref: '#/components/schemas/ThresholdParameter'
+    MaxLevel:
+      type: number
+      example: 100
+      description: The max value of the gauge.
+    CommaPos:
+      type: integer
+      example: 3
+      description: Number of digits after comma in a digital gauge.
+    AssetTagDetectionParameters:
+      description: Parameters for asset tag detection.
+      type: object
+      properties:
+        threshold:
+          $ref: '#/components/schemas/ThresholdParameter'
+        partialMatch:
+          description: 'Allow partial (fuzzy) matching of detected external IDs in the file.
+
+            Will only match when it is possible to do so unambiguously.
+
+            '
+          type: boolean
+          default: false
+          example: true
+        assetSubtreeIds:
+          type: array
+          items:
+            type: integer
+          description: 'Search for external ID or name of assets that are in a subtree rooted at one of
+
+            the assetSubtreeIds (including the roots given).
+
+            '
+          example:
+          - 1
+          - 2
+    JobId:
+      description: Contextualization job ID.
+      type: integer
+      example: 123
+      format: int64
+    PersonalProtectiveEquipmentDetection:
+      title: PersonalProtectiveEquipmentDetection
+      description: 'Detect personal protective equipment, such as helmet, protective eyewear, and mask in images. In beta. Available only when the `cdf-version: beta` header is provided.'
+      type: string
+      enum:
+      - PersonalProtectiveEquipmentDetection
+    InstanceSpace:
+      type: string
+      pattern: ^[a-zA-Z][a-zA-Z0-9_-]{0,41}[a-zA-Z0-9]?$
+      minLength: 1
+      maxLength: 43
+    MaxNumDigits:
+      type: integer
+      example: 5
+      description: Maximum number of digits on a digital gauge.
+    VisionExtractItem:
+      type: object
+      required:
+      - fileId
+      - predictions
+      properties:
+        fileId:
+          $ref: '#/components/schemas/VisionFileId'
+        fileExternalId:
+          $ref: '#/components/schemas/VisionFileExternalId'
+        predictions:
+          $ref: '#/components/schemas/VisionExtractPredictions'
+    LevelGaugeDetectionParameters:
+      description: 'Parameters for level gauge detection and reading. In beta. Available only when the `cdf-version: beta` header is provided.'
+      type: object
+      properties:
+        minLevel:
+          $ref: '#/components/schemas/MinLevel'
+        maxLevel:
+          $ref: '#/components/schemas/MaxLevel'
+        threshold:
+          $ref: '#/components/schemas/ThresholdParameter'
+    Annotations.cogmono__annotation_types__primitives__geometry2d__Geometry:
+      additionalProperties: false
+      description: 'A geometry represented by exactly *one of* ` bounding_box`, `polygon` and
+
+        `polyline` which, respectively, represents a BoundingBox, Polygon and
+
+        PolyLine.'
+      properties:
+        boundingBox:
+          $ref: '#/components/schemas/Annotations.BoundingBox'
+          default: null
+        polygon:
+          $ref: '#/components/schemas/Annotations.Polygon'
+          default: null
+        polyline:
+          $ref: '#/components/schemas/Annotations.PolyLine'
+          default: null
+      title: primitives.geometry2d.Geometry
+      type: object
+    FeatureParameters:
+      description: Feature-specific parameters. New feature extractor parameters may appear.
+      type: object
+      properties:
+        textDetectionParameters:
+          $ref: '#/components/schemas/TextDetectionParameters'
+        assetTagDetectionParameters:
+          $ref: '#/components/schemas/AssetTagDetectionParameters'
+        peopleDetectionParameters:
+          $ref: '#/components/schemas/PeopleDetectionParameters'
+        industrialObjectDetectionParameters:
+          $ref: '#/components/schemas/IndustrialObjectDetectionParameters'
+        personalProtectiveEquipmentDetectionParameters:
+          $ref: '#/components/schemas/PersonalProtectiveEquipmentDetectionParameters'
+        dialGaugeDetectionParameters:
+          $ref: '#/components/schemas/DialGaugeDetectionParameters'
+        levelGaugeDetectionParameters:
+          $ref: '#/components/schemas/LevelGaugeDetectionParameters'
+        digitalGaugeDetectionParameters:
+          $ref: '#/components/schemas/DigitalGaugeDetectionParameters'
+        valveDetectionParameters:
+          $ref: '#/components/schemas/ValveDetectionParameters'
+      example:
+        textDetectionParameters:
+          threshold: 0.8
+        assetTagDetectionParameters:
+          threshold: 0.8
+          partialMatch: true
+          assetSubtreeIds:
+          - 1
+          - 2
+        peopleDetectionParameters:
+          threshold: 0.8
+    ThresholdParameter:
+      title: Threshold
+      description: 'The confidence threshold returns predictions as positive if their confidence score is the selected value or higher.
+
+        A higher confidence threshold increases precision but lowers recall, and vice versa.
+
+        '
+      type: number
+      example: 0.8
+      minimum: 0
+      maximum: 1
+    TextDetection:
+      title: TextDetection
+      description: Detect text in images.
+      type: string
+      enum:
+      - TextDetection
     Error:
       type: object
       required:
@@ -185,187 +541,12 @@ components:
           items:
             type: object
             additionalProperties: true
-    StatusSchema:
-      type: object
-      required:
-      - status
-      - createdTime
-      - startTime
-      - statusTime
-      properties:
-        status:
-          $ref: '#/components/schemas/JobStatus'
-        createdTime:
-          $ref: '#/components/schemas/EpochTimestamp'
-        startTime:
-          $ref: '#/components/schemas/EpochTimestamp'
-        statusTime:
-          $ref: '#/components/schemas/EpochTimestamp'
-        errorMessage:
-          type: string
-          description: If the job failed, some more information about the error cause.
-          example: null
-          default: null
-    Annotations.KeypointCollection:
-      additionalProperties: false
-      description: 'Models a collection of keypoints represented by a label, a dictionary of
-
-        keypoints (mapping from a (unique) label name to a keypoint), and
-
-        optionally a confidence value and an attributes dictionary.'
-      properties:
-        attributes:
-          additionalProperties:
-            discriminator:
-              mapping:
-                boolean: '#/components/schemas/Annotations.Boolean'
-                numerical: '#/components/schemas/Annotations.Numerical'
-              propertyName: type
-            oneOf:
-            - $ref: '#/components/schemas/Annotations.Boolean'
-            - $ref: '#/components/schemas/Annotations.Numerical'
-          default: null
-          description: Additional attributes data for a compound.
-          type: object
-        label:
-          description: The label describing what type of object it is
-          maxLength: 128
-          minLength: 1
-          type: string
-        confidence:
-          default: null
-          description: The confidence score for the primitive. It should be between 0 and 1.
-          maximum: 1
-          minimum: 0
-          type: number
-        keypoints:
-          additionalProperties:
-            $ref: '#/components/schemas/Annotations.Keypoint'
-          description: The detected keypoints
-          type: object
-      required:
-      - label
-      - keypoints
-      title: images.KeypointCollection
-      type: object
-    TextDetection:
-      title: TextDetection
-      description: Detect text in images.
-      type: string
-      enum:
-      - TextDetection
-    DialGaugeDetection:
-      title: DialGaugeDetection
-      description: 'Detect and read value of dial gauges in images. In beta. Available only when the `cdf-version: beta` header is provided.'
-      type: string
-      enum:
-      - DialGaugeDetection
-    PersonalProtectiveEquipmentDetection:
-      title: PersonalProtectiveEquipmentDetection
-      description: 'Detect personal protective equipment, such as helmet, protective eyewear, and mask in images. In beta. Available only when the `cdf-version: beta` header is provided.'
-      type: string
-      enum:
-      - PersonalProtectiveEquipmentDetection
-    Annotations.TextRegion:
-      additionalProperties: false
-      description: Models an extracted text region in an image
-      properties:
-        confidence:
-          default: null
-          description: The confidence score for the primitive. It should be between 0 and 1.
-          maximum: 1
-          minimum: 0
-          type: number
-        text:
-          description: The extracted text
-          maxLength: 128
-          minLength: 1
-          type: string
-        textRegion:
-          $ref: '#/components/schemas/Annotations.BoundingBox'
-          description: The location of the extracted text
-      required:
-      - text
-      - textRegion
-      title: images.TextRegion
-      type: object
-    VisionFileId:
-      type: integer
-      example: 1234
-      description: The ID of a file in CDF.
-      format: int64
     PeopleDetection:
       title: PeopleDetection
       description: Detect people in images.
       type: string
       enum:
       - PeopleDetection
-    LevelGaugeDetectionParameters:
-      description: 'Parameters for level gauge detection and reading. In beta. Available only when the `cdf-version: beta` header is provided.'
-      type: object
-      properties:
-        minLevel:
-          $ref: '#/components/schemas/MinLevel'
-        maxLevel:
-          $ref: '#/components/schemas/MaxLevel'
-        threshold:
-          $ref: '#/components/schemas/ThresholdParameter'
-    VisionFileExternalId:
-      type: string
-      example: '1234'
-      description: The external ID of a file in CDF.
-    FileReference:
-      type: object
-      required:
-      - fileId
-      - fileExternalId
-      - fileInstanceId
-      description: An external-id or instance-id reference to the referenced file.
-      oneOf:
-      - type: object
-        required:
-        - fileId
-        properties:
-          fileId:
-            $ref: '#/components/schemas/VisionFileId'
-      - type: object
-        required:
-        - fileExternalId
-        properties:
-          fileExternalId:
-            $ref: '#/components/schemas/VisionFileExternalId'
-      - type: object
-        required:
-        - fileInstanceId
-        properties:
-          fileInstanceId:
-            $ref: '#/components/schemas/VisionInstanceId'
-    ValveDetectionParameters:
-      description: 'Parameters for detecting and reading the state of a valve. In beta. Available only when the `cdf-version: beta` header is provided.'
-      type: object
-      properties:
-        threshold:
-          $ref: '#/components/schemas/ThresholdParameter'
-    Annotations.PolyLine:
-      additionalProperties: false
-      description: A polygonal chain consisting of _n_ vertices
-      properties:
-        confidence:
-          default: null
-          description: The confidence score for the primitive. It should be between 0 and 1.
-          maximum: 1
-          minimum: 0
-          type: number
-        vertices:
-          items:
-            $ref: '#/components/schemas/Annotations.Point'
-          maxItems: 1000
-          minItems: 2
-          type: array
-      required:
-      - vertices
-      title: primitives.geometry2d.PolyLine
-      type: object
     VisionExtractPredictions:
       title: Predictions
       description: Detected features in images. New fields may appear in case new feature extractors are add.
@@ -455,6 +636,103 @@ components:
             xMax: 0.9
             yMin: 0.5
             yMax: 0.9
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    StatusSchema:
+      type: object
+      required:
+      - status
+      - createdTime
+      - startTime
+      - statusTime
+      properties:
+        status:
+          $ref: '#/components/schemas/JobStatus'
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        startTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        statusTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        errorMessage:
+          type: string
+          description: If the job failed, some more information about the error cause.
+          example: null
+          default: null
+    Annotations.TextRegion:
+      additionalProperties: false
+      description: Models an extracted text region in an image
+      properties:
+        confidence:
+          default: null
+          description: The confidence score for the primitive. It should be between 0 and 1.
+          maximum: 1
+          minimum: 0
+          type: number
+        text:
+          description: The extracted text
+          maxLength: 128
+          minLength: 1
+          type: string
+        textRegion:
+          $ref: '#/components/schemas/Annotations.BoundingBox'
+          description: The location of the extracted text
+      required:
+      - text
+      - textRegion
+      title: images.TextRegion
+      type: object
+    VisionExtractFeature:
+      oneOf:
+      - $ref: '#/components/schemas/TextDetection'
+      - $ref: '#/components/schemas/AssetTagDetection'
+      - $ref: '#/components/schemas/PeopleDetection'
+      - $ref: '#/components/schemas/IndustrialObjectDetection'
+      - $ref: '#/components/schemas/PersonalProtectiveEquipmentDetection'
+      - $ref: '#/components/schemas/DialGaugeDetection'
+      - $ref: '#/components/schemas/LevelGaugeDetection'
+      - $ref: '#/components/schemas/DigitalGaugeDetection'
+      - $ref: '#/components/schemas/ValveDetection'
+    TextDetectionParameters:
+      description: Parameters for text detection
+      type: object
+      properties:
+        threshold:
+          $ref: '#/components/schemas/ThresholdParameter'
+    Annotations.Boolean:
+      additionalProperties: false
+      description: The boolean value of something
+      properties:
+        description:
+          default: null
+          description: The description of a primitive
+          maxLength: 500
+          type: string
+        type:
+          const: boolean
+          type: string
+        value:
+          description: The boolean value
+          type: boolean
+      required:
+      - type
+      - value
+      title: primitives.attributes.Boolean
+      type: object
+    NonLinAngle:
+      type: number
+      example: 60
+      description: If the gauge is nonlinear, the non-linear angle from the metadata is used to part the scale in two separate linear scales. The first scale goes from min to 0. The second from 0 to max. The needle angle determines which scale is used.
+    PersonalProtectiveEquipmentDetectionParameters:
+      description: 'Parameters for industrial personal protective equipment detection. In beta. Available only when the `cdf-version: beta` header is provided.'
+      type: object
+      properties:
+        threshold:
+          $ref: '#/components/schemas/ThresholdParameter'
     Annotations.Keypoint:
       additionalProperties: false
       description: 'A point attached with additional information such as a confidence value and
@@ -487,17 +765,99 @@ components:
       - point
       title: primitives.geometry2d.Keypoint
       type: object
-    AssetTagDetection:
-      title: AssetTagDetection
-      description: Detect external ID or name of assets (from your CDF projects) in images. Usage of this feature requires `['assetsAcl:READ']` capability.
-      type: string
-      enum:
-      - AssetTagDetection
+    VisionFileId:
+      type: integer
+      example: 1234
+      description: The ID of a file in CDF.
+      format: int64
+    DigitalGaugeDetectionParameters:
+      description: 'Parameters for digital gauge detection and reading. In beta. Available only when the `cdf-version: beta` header is provided.'
+      type: object
+      properties:
+        commaPos:
+          $ref: '#/components/schemas/CommaPos'
+        minNumDigits:
+          $ref: '#/components/schemas/MinNumDigits'
+        maxNumDigits:
+          $ref: '#/components/schemas/MaxNumDigits'
+        threshold:
+          $ref: '#/components/schemas/ThresholdParameter'
+    VisionAllOfFileId:
+      type: object
+      required:
+      - fileId
+      properties:
+        fileId:
+          $ref: '#/components/schemas/VisionFileId'
+        fileExternalId:
+          $ref: '#/components/schemas/VisionFileExternalId'
+        fileInstanceId:
+          $ref: '#/components/schemas/VisionInstanceId'
+    Annotations.KeypointCollection:
+      additionalProperties: false
+      description: 'Models a collection of keypoints represented by a label, a dictionary of
+
+        keypoints (mapping from a (unique) label name to a keypoint), and
+
+        optionally a confidence value and an attributes dictionary.'
+      properties:
+        attributes:
+          additionalProperties:
+            discriminator:
+              mapping:
+                boolean: '#/components/schemas/Annotations.Boolean'
+                numerical: '#/components/schemas/Annotations.Numerical'
+              propertyName: type
+            oneOf:
+            - $ref: '#/components/schemas/Annotations.Boolean'
+            - $ref: '#/components/schemas/Annotations.Numerical'
+          default: null
+          description: Additional attributes data for a compound.
+          type: object
+        label:
+          description: The label describing what type of object it is
+          maxLength: 128
+          minLength: 1
+          type: string
+        confidence:
+          default: null
+          description: The confidence score for the primitive. It should be between 0 and 1.
+          maximum: 1
+          minimum: 0
+          type: number
+        keypoints:
+          additionalProperties:
+            $ref: '#/components/schemas/Annotations.Keypoint'
+          description: The detected keypoints
+          type: object
+      required:
+      - label
+      - keypoints
+      title: images.KeypointCollection
+      type: object
     InstanceExternalId:
       type: string
       pattern: ^[a-zA-Z]([a-zA-Z0-9_]{0,253}[a-zA-Z0-9])?$
       minLength: 1
       maxLength: 255
+    FailedBatch:
+      description: List of the items and the corresponding error message(s) per failed batch.
+      type: object
+      properties:
+        errorMessage:
+          type: string
+          description: The error message(s) of the failed batch.
+        items:
+          type: array
+          description: List of the items in the failed batch.
+          items:
+            $ref: '#/components/schemas/VisionAllOfFileId'
+    IndustrialObjectDetectionParameters:
+      description: 'Parameters for industrial object detection. In beta. Available only when the `cdf-version: beta` header is provided.'
+      type: object
+      properties:
+        threshold:
+          $ref: '#/components/schemas/ThresholdParameter'
     VisionInstanceId:
       type: object
       required:
@@ -512,278 +872,6 @@ components:
           $ref: '#/components/schemas/InstanceSpace'
         externalId:
           $ref: '#/components/schemas/InstanceExternalId'
-    NonLinAngle:
-      type: number
-      example: 60
-      description: If the gauge is nonlinear, the non-linear angle from the metadata is used to part the scale in two separate linear scales. The first scale goes from min to 0. The second from 0 to max. The needle angle determines which scale is used.
-    JobStatus:
-      description: The status of the job.
-      type: string
-      enum:
-      - Queued
-      - Running
-      - Completed
-      - Failed
-    Annotations.cogmono__annotation_types__primitives__geometry2d__Geometry:
-      additionalProperties: false
-      description: 'A geometry represented by exactly *one of* ` bounding_box`, `polygon` and
-
-        `polyline` which, respectively, represents a BoundingBox, Polygon and
-
-        PolyLine.'
-      properties:
-        boundingBox:
-          $ref: '#/components/schemas/Annotations.BoundingBox'
-          default: null
-        polygon:
-          $ref: '#/components/schemas/Annotations.Polygon'
-          default: null
-        polyline:
-          $ref: '#/components/schemas/Annotations.PolyLine'
-          default: null
-      title: primitives.geometry2d.Geometry
-      type: object
-    IndustrialObjectDetectionParameters:
-      description: 'Parameters for industrial object detection. In beta. Available only when the `cdf-version: beta` header is provided.'
-      type: object
-      properties:
-        threshold:
-          $ref: '#/components/schemas/ThresholdParameter'
-    InstanceSpace:
-      type: string
-      pattern: ^[a-zA-Z][a-zA-Z0-9_-]{0,41}[a-zA-Z0-9]?$
-      minLength: 1
-      maxLength: 43
-    EpochTimestamp:
-      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-      type: integer
-      minimum: 0
-      format: int64
-      example: 1730204346000
-    AssetTagDetectionParameters:
-      description: Parameters for asset tag detection.
-      type: object
-      properties:
-        threshold:
-          $ref: '#/components/schemas/ThresholdParameter'
-        partialMatch:
-          description: 'Allow partial (fuzzy) matching of detected external IDs in the file.
-
-            Will only match when it is possible to do so unambiguously.
-
-            '
-          type: boolean
-          default: false
-          example: true
-        assetSubtreeIds:
-          type: array
-          items:
-            type: integer
-          description: 'Search for external ID or name of assets that are in a subtree rooted at one of
-
-            the assetSubtreeIds (including the roots given).
-
-            '
-          example:
-          - 1
-          - 2
-    DigitalGaugeDetection:
-      title: DigitalGaugeDetection
-      description: 'Detect and read value of digital gauges in images. In beta. Available only when the `cdf-version: beta` header is provided.'
-      type: string
-      enum:
-      - DigitalGaugeDetection
-    JobId:
-      description: Contextualization job ID.
-      type: integer
-      example: 123
-      format: int64
-    MaxNumDigits:
-      type: integer
-      example: 5
-      description: Maximum number of digits on a digital gauge.
-    Annotations.Numerical:
-      additionalProperties: false
-      description: The numerical value of something
-      properties:
-        description:
-          default: null
-          description: The description of a primitive
-          maxLength: 500
-          type: string
-        type:
-          const: numerical
-          type: string
-        value:
-          anyOf:
-          - type: integer
-          - type: number
-          description: The numerical value
-      required:
-      - type
-      - value
-      title: primitives.attributes.Numerical
-      type: object
-    DialGaugeDetectionParameters:
-      description: 'Parameters for dial gauge detection and reading. In beta. Available only when the `cdf-version: beta` header is provided.'
-      type: object
-      properties:
-        minLevel:
-          $ref: '#/components/schemas/MinLevel'
-        maxLevel:
-          $ref: '#/components/schemas/MaxLevel'
-        deadAngle:
-          $ref: '#/components/schemas/DeadAngle'
-        nonLinAngle:
-          $ref: '#/components/schemas/NonLinAngle'
-        threshold:
-          $ref: '#/components/schemas/ThresholdParameter'
-    LevelGaugeDetection:
-      title: LevelGaugeDetection
-      description: 'Detect and read value of level gauges in images. In beta. Available only when the `cdf-version: beta` header is provided.'
-      type: string
-      enum:
-      - LevelGaugeDetection
-    TextDetectionParameters:
-      description: Parameters for text detection
-      type: object
-      properties:
-        threshold:
-          $ref: '#/components/schemas/ThresholdParameter'
-    Annotations.BoundingBox:
-      additionalProperties: false
-      description: A plain rectangle
-      properties:
-        confidence:
-          default: null
-          description: The confidence score for the primitive. It should be between 0 and 1.
-          maximum: 1
-          minimum: 0
-          type: number
-        xMin:
-          description: Minimum abscissa of the bounding box (left edge). Must be strictly less than x_max.
-          maximum: 1
-          minimum: 0
-          type: number
-        xMax:
-          description: Maximum abscissa of the bounding box (right edge). Must be strictly more than x_min.
-          maximum: 1
-          minimum: 0
-          type: number
-        yMin:
-          description: Minimum ordinate of the bounding box (bottom edge). Must be strictly less than y_max.
-          maximum: 1
-          minimum: 0
-          type: number
-        yMax:
-          description: Maximum ordinate of the bounding box (top edge). Must be strictly more than y_min.
-          maximum: 1
-          minimum: 0
-          type: number
-      required:
-      - xMin
-      - xMax
-      - yMin
-      - yMax
-      title: primitives.geometry2d.BoundingBox
-      type: object
-    ValveDetection:
-      title: ValveDetection
-      description: 'Detect and read state of a valve in an image. In beta. Available only when the `cdf-version: beta` header is provided.'
-      type: string
-      enum:
-      - ValveDetection
-    IndustrialObjectDetection:
-      title: IndustrialObjectDetection
-      description: 'Detect industrial objects such as gauges and valves in images. In beta. Available only when the `cdf-version: beta` header is provided.'
-      type: string
-      enum:
-      - IndustrialObjectDetection
-    DigitalGaugeDetectionParameters:
-      description: 'Parameters for digital gauge detection and reading. In beta. Available only when the `cdf-version: beta` header is provided.'
-      type: object
-      properties:
-        commaPos:
-          $ref: '#/components/schemas/CommaPos'
-        minNumDigits:
-          $ref: '#/components/schemas/MinNumDigits'
-        maxNumDigits:
-          $ref: '#/components/schemas/MaxNumDigits'
-        threshold:
-          $ref: '#/components/schemas/ThresholdParameter'
-    DeadAngle:
-      type: number
-      example: 60
-      description: The angle between the start and end point on the bottom part of an analog gauge, measured in degrees.
-    PeopleDetectionParameters:
-      description: Parameters for people detection.
-      type: object
-      properties:
-        threshold:
-          $ref: '#/components/schemas/ThresholdParameter'
-    Annotations.Polygon:
-      additionalProperties: false
-      description: 'A _closed_ polygon represented by _n_ vertices. In other words, we assume
-
-        that the first and last vertex are connected.'
-      properties:
-        confidence:
-          default: null
-          description: The confidence score for the primitive. It should be between 0 and 1.
-          maximum: 1
-          minimum: 0
-          type: number
-        vertices:
-          items:
-            $ref: '#/components/schemas/Annotations.Point'
-          maxItems: 1000
-          minItems: 3
-          type: array
-      required:
-      - vertices
-      title: primitives.geometry2d.Polygon
-      type: object
-    PersonalProtectiveEquipmentDetectionParameters:
-      description: 'Parameters for industrial personal protective equipment detection. In beta. Available only when the `cdf-version: beta` header is provided.'
-      type: object
-      properties:
-        threshold:
-          $ref: '#/components/schemas/ThresholdParameter'
-    ThresholdParameter:
-      title: Threshold
-      description: 'The confidence threshold returns predictions as positive if their confidence score is the selected value or higher.
-
-        A higher confidence threshold increases precision but lowers recall, and vice versa.
-
-        '
-      type: number
-      example: 0.8
-      minimum: 0
-      maximum: 1
-    MinLevel:
-      type: number
-      example: 0
-      description: The min value of the gauge.
-    Annotations.AssetRef:
-      additionalProperties: false
-      description: A reference to an asset. Either the internal ID or the external ID must be provided (exactly one).
-      oneOf:
-      - required:
-        - id
-      - required:
-        - externalId
-      properties:
-        id:
-          default: null
-          description: The internal ID of the referenced resource
-          type: integer
-        externalId:
-          default: null
-          description: The external ID of the referenced resource
-          maxLength: 256
-          type: string
-      title: primitives.references.AssetRef
-      type: object
     Annotations.ObjectDetection:
       additionalProperties: false
       description: 'Models an image object detection represented by a label, a geometry, and
@@ -827,21 +915,9 @@ components:
       - label
       title: images.ObjectDetection
       type: object
-    FailedBatch:
-      description: List of the items and the corresponding error message(s) per failed batch.
-      type: object
-      properties:
-        errorMessage:
-          type: string
-          description: The error message(s) of the failed batch.
-        items:
-          type: array
-          description: List of the items in the failed batch.
-          items:
-            $ref: '#/components/schemas/VisionAllOfFileId'
-    Annotations.Boolean:
+    Annotations.Numerical:
       additionalProperties: false
-      description: The boolean value of something
+      description: The numerical value of something
       properties:
         description:
           default: null
@@ -849,146 +925,71 @@ components:
           maxLength: 500
           type: string
         type:
-          const: boolean
+          const: numerical
           type: string
         value:
-          description: The boolean value
-          type: boolean
+          anyOf:
+          - type: integer
+          - type: number
+          description: The numerical value
       required:
       - type
       - value
-      title: primitives.attributes.Boolean
+      title: primitives.attributes.Numerical
       type: object
-    FeatureParameters:
-      description: Feature-specific parameters. New feature extractor parameters may appear.
-      type: object
-      properties:
-        textDetectionParameters:
-          $ref: '#/components/schemas/TextDetectionParameters'
-        assetTagDetectionParameters:
-          $ref: '#/components/schemas/AssetTagDetectionParameters'
-        peopleDetectionParameters:
-          $ref: '#/components/schemas/PeopleDetectionParameters'
-        industrialObjectDetectionParameters:
-          $ref: '#/components/schemas/IndustrialObjectDetectionParameters'
-        personalProtectiveEquipmentDetectionParameters:
-          $ref: '#/components/schemas/PersonalProtectiveEquipmentDetectionParameters'
-        dialGaugeDetectionParameters:
-          $ref: '#/components/schemas/DialGaugeDetectionParameters'
-        levelGaugeDetectionParameters:
-          $ref: '#/components/schemas/LevelGaugeDetectionParameters'
-        digitalGaugeDetectionParameters:
-          $ref: '#/components/schemas/DigitalGaugeDetectionParameters'
-        valveDetectionParameters:
-          $ref: '#/components/schemas/ValveDetectionParameters'
-      example:
-        textDetectionParameters:
-          threshold: 0.8
-        assetTagDetectionParameters:
-          threshold: 0.8
-          partialMatch: true
-          assetSubtreeIds:
-          - 1
-          - 2
-        peopleDetectionParameters:
-          threshold: 0.8
-    CommaPos:
-      type: integer
-      example: 3
-      description: Number of digits after comma in a digital gauge.
-    MaxLevel:
+    DigitalGaugeDetection:
+      title: DigitalGaugeDetection
+      description: 'Detect and read value of digital gauges in images. In beta. Available only when the `cdf-version: beta` header is provided.'
+      type: string
+      enum:
+      - DigitalGaugeDetection
+    MinLevel:
       type: number
-      example: 100
-      description: The max value of the gauge.
-    VisionExtractItem:
+      example: 0
+      description: The min value of the gauge.
+    ValveDetectionParameters:
+      description: 'Parameters for detecting and reading the state of a valve. In beta. Available only when the `cdf-version: beta` header is provided.'
       type: object
-      required:
-      - fileId
-      - predictions
       properties:
-        fileId:
-          $ref: '#/components/schemas/VisionFileId'
-        fileExternalId:
-          $ref: '#/components/schemas/VisionFileExternalId'
-        predictions:
-          $ref: '#/components/schemas/VisionExtractPredictions'
-    VisionExtractFeature:
-      oneOf:
-      - $ref: '#/components/schemas/TextDetection'
-      - $ref: '#/components/schemas/AssetTagDetection'
-      - $ref: '#/components/schemas/PeopleDetection'
-      - $ref: '#/components/schemas/IndustrialObjectDetection'
-      - $ref: '#/components/schemas/PersonalProtectiveEquipmentDetection'
-      - $ref: '#/components/schemas/DialGaugeDetection'
-      - $ref: '#/components/schemas/LevelGaugeDetection'
-      - $ref: '#/components/schemas/DigitalGaugeDetection'
-      - $ref: '#/components/schemas/ValveDetection'
-    Annotations.Point:
-      additionalProperties: false
-      description: Point in a 2D-Cartesian coordinate system with origin at the top-left corner of the page
-      properties:
-        confidence:
-          default: null
-          description: The confidence score for the primitive. It should be between 0 and 1.
-          maximum: 1
-          minimum: 0
-          type: number
-        x:
-          description: The abscissa of the point in a coordinate system with origin at the top-left corner of the page. Normalized in (0,1).
-          maximum: 1
-          minimum: 0
-          type: number
-        y:
-          description: The ordinate of the point in a coordinate system with origin at the top-left corner of the page. Normalized in (0,1).
-          maximum: 1
-          minimum: 0
-          type: number
-      required:
-      - x
-      - y
-      title: primitives.geometry2d.Point
-      type: object
-    MinNumDigits:
-      type: integer
-      example: 2
-      description: Minimum number of digits on a digital gauge.
-    VisionAllOfFileId:
-      type: object
-      required:
-      - fileId
-      properties:
-        fileId:
-          $ref: '#/components/schemas/VisionFileId'
-        fileExternalId:
-          $ref: '#/components/schemas/VisionFileExternalId'
-        fileInstanceId:
-          $ref: '#/components/schemas/VisionInstanceId'
-  parameters:
-    cdfversionheader:
-      in: header
-      name: cdf-version
-      description: cdf version header. Use this to specify the requested CDF release.
-      schema:
-        type: string
-        example: alpha
-    jobId:
-      in: path
-      name: jobId
-      required: true
-      schema:
-        $ref: '#/components/schemas/JobId'
+        threshold:
+          $ref: '#/components/schemas/ThresholdParameter'
+    VisionFileExternalId:
+      type: string
+      example: '1234'
+      description: The external ID of a file in CDF.
+    LevelGaugeDetection:
+      title: LevelGaugeDetection
+      description: 'Detect and read value of level gauges in images. In beta. Available only when the `cdf-version: beta` header is provided.'
+      type: string
+      enum:
+      - LevelGaugeDetection
   responses:
-    ErrorResponse:
-      description: The response for a failed request.
+    VisionExtractGetResponse:
+      description: Success
       content:
         application/json:
           schema:
             type: object
-            required:
-            - error
-            properties:
-              error:
-                $ref: '#/components/schemas/Error'
+            allOf:
+            - $ref: '#/components/schemas/StatusSchema'
+            - type: object
+              required:
+              - jobId
+              - items
+              properties:
+                jobId:
+                  $ref: '#/components/schemas/JobId'
+                items:
+                  type: array
+                  description: List of file IDs and their corresponding predictions.
+                  items:
+                    $ref: '#/components/schemas/VisionExtractItem'
+                failedItems:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/FailedBatch'
+                parameters:
+                  $ref: '#/components/schemas/FeatureParameters'
     VisionExtractPostResponse:
       description: Success
       content:
@@ -1024,32 +1025,31 @@ components:
                   - PeopleDetection
                 parameters:
                   $ref: '#/components/schemas/FeatureParameters'
-    VisionExtractGetResponse:
-      description: Success
+    ErrorResponse:
+      description: The response for a failed request.
       content:
         application/json:
           schema:
             type: object
-            allOf:
-            - $ref: '#/components/schemas/StatusSchema'
-            - type: object
-              required:
-              - jobId
-              - items
-              properties:
-                jobId:
-                  $ref: '#/components/schemas/JobId'
-                items:
-                  type: array
-                  description: List of file IDs and their corresponding predictions.
-                  items:
-                    $ref: '#/components/schemas/VisionExtractItem'
-                failedItems:
-                  type: array
-                  items:
-                    $ref: '#/components/schemas/FailedBatch'
-                parameters:
-                  $ref: '#/components/schemas/FeatureParameters'
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+  parameters:
+    cdfversionheader:
+      in: header
+      name: cdf-version
+      description: cdf version header. Use this to specify the requested CDF release.
+      schema:
+        type: string
+        example: alpha
+    jobId:
+      in: path
+      name: jobId
+      required: true
+      schema:
+        $ref: '#/components/schemas/JobId'
   requestBodies:
     VisionExtractPostRequestSchema:
       description: A request for running an extract job.

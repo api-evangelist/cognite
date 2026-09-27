@@ -232,6 +232,171 @@ paths:
           '
 components:
   schemas:
+    Items_MappingUpdateItem_:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/MappingUpdateItem'
+          title: Items
+          type: array
+          minItems: 1
+          maxItems: 10
+      required:
+      - items
+      title: MappingUpdateList
+      type: object
+    Mapping:
+      additionalProperties: false
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        mapping:
+          $ref: '#/components/schemas/CustomMapping'
+        input:
+          $ref: '#/components/schemas/InputConfig'
+        published:
+          title: Published
+          type: boolean
+          description: Whether this mapping is published and should be available to be used in jobs.
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        lastUpdatedTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+      required:
+      - externalId
+      - mapping
+      - published
+      - lastUpdatedTime
+      - createdTime
+      - input
+      title: Mapping
+      type: object
+    XmlConfig:
+      additionalProperties: false
+      type: object
+      title: XML
+      description: 'Transform the input from an XML file to a JSON object.
+
+        '
+      properties:
+        type:
+          type: string
+          enum:
+          - xml
+          description: Input type
+          title: Type
+      required:
+      - type
+    UpdateItem_CustomMapping_:
+      additionalProperties: false
+      properties:
+        set:
+          $ref: '#/components/schemas/CustomMapping'
+      required:
+      - set
+      title: UpdateItem_CustomMapping
+      type: object
+      description: Set a new mapping value.
+    CustomMapping:
+      type: object
+      properties:
+        expression:
+          type: string
+          description: Custom transform expression written in the Cognite transformation language.
+          maxLength: 2000
+      required:
+      - expression
+    ItemsWithIgnoreUnknownIds_ExternalId_:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/ExternalIdWrapper'
+          title: Items
+          type: array
+          maxItems: 100
+          minItems: 1
+        ignoreUnknownIds:
+          type: boolean
+          title: IgnoreUnknownIds
+          description: Ignore IDs and external IDs that are not found
+      required:
+      - items
+      title: ItemsWithIgnoreUnknownIds_ExternalId
+      type: object
+    CreateProtoFile:
+      additionalProperties: false
+      description: Definition of a protobuf file used for loading input to the mapping.
+      properties:
+        fileName:
+          type: string
+          title: File Name
+          format: '[a-zA-Z0-9_-]+\.proto'
+          maxLength: 128
+          description: Name of protobuf file. Must contain only letters, numbers, underscores, and hyphens, and must end with '.proto'.
+        content:
+          type: string
+          title: Content
+          description: Protobuf file content. Must be a valid protobuf file.
+          maxLength: 10000
+      required:
+      - fileName
+      - content
+    ProtobufConfig:
+      additionalProperties: false
+      description: List of protobuf files used to define input to the mapping. This will be compiled to a collection of definitions which will be used to convert the input to JSON.
+      title: ProtoBuf
+      properties:
+        type:
+          type: string
+          enum:
+          - protobuf
+          description: Input type
+          title: Type
+        messageName:
+          type: string
+          description: Name of root message in the protobuf files.
+          maxLength: 128
+          title: Message Name
+        files:
+          type: array
+          maxItems: 20
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/ProtoFile'
+      required:
+      - messageName
+      - files
+      - type
+    Items_CreateMapping_:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/CreateMapping'
+          title: Items
+          type: array
+          minLength: 1
+          maxLength: 10
+      required:
+      - items
+      title: Items[CreateMapping]
+      type: object
+    Items_Mapping_:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/Mapping'
+          title: Items
+          type: array
+          maxItems: 100
+          minItems: 0
+      required:
+      - items
+      title: MappingList
+      type: object
     Error:
       type: object
       required:
@@ -260,20 +425,194 @@ components:
           items:
             type: object
             additionalProperties: true
-    Items_MappingUpdateItem_:
+    UpdateSetNull:
+      additionalProperties: false
+      properties:
+        setNull:
+          title: SetNull
+          type: boolean
+          description: Clear this value
+      required:
+      - setNull
+      title: UpdateSetNull
+      type: object
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    UpdateItem_InputConfig_:
+      additionalProperties: false
+      properties:
+        set:
+          $ref: '#/components/schemas/CreateInputConfig'
+      required:
+      - set
+      title: UpdateItem_InputConfig
+      type: object
+      description: Set a new mapping input.
+    UpdateMapping:
+      additionalProperties: false
+      properties:
+        mapping:
+          $ref: '#/components/schemas/UpdateItem_CustomMapping_'
+        input:
+          anyOf:
+          - $ref: '#/components/schemas/UpdateItem_InputConfig_'
+          - $ref: '#/components/schemas/UpdateSetNull'
+          description: Set or remove mapping input. When removed this defaults to json.
+        published:
+          additionalProperties: false
+          properties:
+            set:
+              title: Set
+              type: boolean
+          required:
+          - set
+          type: object
+          description: Publish or unpublish the mapping.
+      title: UpdateMapping
+      type: object
+    CsvConfig:
+      additionalProperties: false
+      type: object
+      title: CSV
+      description: 'Transform the input from a CSV (Comma Separated Values) file to a list of JSON objects. The input to the mapping will be a list on the form `[{\"header1\": \"value1\", ...}, ...]`.
+
+        '
+      properties:
+        type:
+          type: string
+          enum:
+          - csv
+          description: Input type
+          title: Type
+        delimiter:
+          type: string
+          description: A single ASCII character used as the separator in the CSV file. Defaults to `,`
+          maxLength: 1
+          minLength: 1
+          title: Delimiter
+        customKeys:
+          type: array
+          minItems: 1
+          maxItems: 20
+          description: List of headers. If this is not set, the headers will be retrieved from the CSV file.
+          items:
+            type: string
+            description: CSV file header value.
+            title: CSV_Header
+      required:
+      - type
+    CreateInputConfig:
+      type: object
+      description: Optionally set input mapping input type. This defaults to json if left out. Each input type is converted to JSON before being passed to the mapping expression.
+      discriminator:
+        mapping:
+          protobuf: '#/components/schemas/CreateProtobufConfig'
+          csv: '#/components/schemas/CsvConfig'
+          xml: '#/components/schemas/XmlConfig'
+          json: '#/components/schemas/JsonConfig'
+        propertyName: type
+      oneOf:
+      - $ref: '#/components/schemas/CreateProtobufConfig'
+      - $ref: '#/components/schemas/CsvConfig'
+      - $ref: '#/components/schemas/XmlConfig'
+      - $ref: '#/components/schemas/JsonConfig'
+    MappingUpdateItem:
+      additionalProperties: false
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        update:
+          $ref: '#/components/schemas/UpdateMapping'
+      required:
+      - externalId
+      - update
+      title: MappingUpdateItem
+      type: object
+    ItemsWithCursor_Mapping_:
       additionalProperties: false
       properties:
         items:
           items:
-            $ref: '#/components/schemas/MappingUpdateItem'
+            $ref: '#/components/schemas/Mapping'
           title: Items
           type: array
-          minItems: 1
-          maxItems: 10
+          maxItems: 100
+          minItems: 0
+        nextCursor:
+          type: string
+          title: Next cursor
+          description: Cursor for pagination
       required:
       - items
-      title: MappingUpdateList
+      title: MappingList
       type: object
+    JsonConfig:
+      additionalProperties: false
+      type: object
+      description: Treat the input as UTF-8 encoded JSON.
+      title: JSON
+      properties:
+        type:
+          type: string
+          enum:
+          - json
+          description: Input type
+          title: Type
+      required:
+      - type
+    ItemsWithIgnoreUnknownIdsAndForce_ExternalId_:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/ExternalIdWrapper'
+          title: Items
+          type: array
+          maxItems: 100
+          minItems: 1
+        ignoreUnknownIds:
+          type: boolean
+          title: IgnoreUnknownIds
+          description: Ignore IDs and external IDs that are not found.
+        force:
+          type: boolean
+          title: Force
+          description: Delete any jobs associated with each item.
+      required:
+      - items
+      title: ItemsWithIgnoreUnknownIdsAndForce_ExternalId
+      type: object
+    InputConfig:
+      type: object
+      description: Optionally set input mapping input type. This defaults to json if left out. Any input type is converted to JSON before being passed to the mapping expression.
+      discriminator:
+        mapping:
+          protobuf: '#/components/schemas/ProtobufConfig'
+          csv: '#/components/schemas/CsvConfig'
+          xml: '#/components/schemas/XmlConfig'
+          json: '#/components/schemas/JsonConfig'
+        propertyName: type
+      oneOf:
+      - $ref: '#/components/schemas/ProtobufConfig'
+      - $ref: '#/components/schemas/CsvConfig'
+      - $ref: '#/components/schemas/XmlConfig'
+      - $ref: '#/components/schemas/JsonConfig'
+    ProtoFile:
+      additionalProperties: false
+      description: Description of a protobuf file used for loading input to the mapping.
+      properties:
+        fileName:
+          type: string
+          title: File Name
+          format: '[a-zA-Z0-9_-]+\.proto'
+          maxLength: 128
+          description: Name of protobuf file. Must contain only letters, numbers, underscores, and hyphens, and must end with '.proto'.
+      required:
+      - fileName
     CreateProtobufConfig:
       additionalProperties: false
       description: List of protobuf files used to define input to the mapping. This will be compiled to a collection of definitions which will be used to convert the input to JSON.
@@ -301,24 +640,6 @@ components:
       - messageName
       - files
       - type
-    CreateProtoFile:
-      additionalProperties: false
-      description: Definition of a protobuf file used for loading input to the mapping.
-      properties:
-        fileName:
-          type: string
-          title: File Name
-          format: '[a-zA-Z0-9_-]+\.proto'
-          maxLength: 128
-          description: Name of protobuf file. Must contain only letters, numbers, underscores, and hyphens, and must end with '.proto'.
-        content:
-          type: string
-          title: Content
-          description: Protobuf file content. Must be a valid protobuf file.
-          maxLength: 10000
-      required:
-      - fileName
-      - content
     ExternalIdWrapper:
       additionalProperties: false
       properties:
@@ -328,50 +649,11 @@ components:
       - externalId
       title: ExternalIdWrapper
       type: object
-    XmlConfig:
-      additionalProperties: false
-      type: object
-      title: XML
-      description: 'Transform the input from an XML file to a JSON object.
-
-        '
-      properties:
-        type:
-          type: string
-          enum:
-          - xml
-          description: Input type
-          title: Type
-      required:
-      - type
-    UpdateMapping:
-      additionalProperties: false
-      properties:
-        mapping:
-          $ref: '#/components/schemas/UpdateItem_CustomMapping_'
-        input:
-          anyOf:
-          - $ref: '#/components/schemas/UpdateItem_InputConfig_'
-          - $ref: '#/components/schemas/UpdateSetNull'
-          description: Set or remove mapping input. When removed this defaults to json.
-        published:
-          additionalProperties: false
-          properties:
-            set:
-              title: Set
-              type: boolean
-          required:
-          - set
-          type: object
-          description: Publish or unpublish the mapping.
-      title: UpdateMapping
-      type: object
-    EpochTimestamp:
-      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-      type: integer
-      minimum: 0
-      format: int64
-      example: 1730204346000
+    CogniteExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
+      type: string
+      maxLength: 255
+      example: my.known.id
     CreateMapping:
       additionalProperties: false
       properties:
@@ -407,322 +689,16 @@ components:
           type: string
           description: Error message.
           example: 'Extra inputs are not permitted: type'
-    UpdateItem_CustomMapping_:
-      additionalProperties: false
-      properties:
-        set:
-          $ref: '#/components/schemas/CustomMapping'
-      required:
-      - set
-      title: UpdateItem_CustomMapping
-      type: object
-      description: Set a new mapping value.
-    CustomMapping:
-      type: object
-      properties:
-        expression:
-          type: string
-          description: Custom transform expression written in the Cognite transformation language.
-          maxLength: 2000
-      required:
-      - expression
-    InputConfig:
-      type: object
-      description: Optionally set input mapping input type. This defaults to json if left out. Any input type is converted to JSON before being passed to the mapping expression.
-      discriminator:
-        mapping:
-          protobuf: '#/components/schemas/ProtobufConfig'
-          csv: '#/components/schemas/CsvConfig'
-          xml: '#/components/schemas/XmlConfig'
-          json: '#/components/schemas/JsonConfig'
-        propertyName: type
-      oneOf:
-      - $ref: '#/components/schemas/ProtobufConfig'
-      - $ref: '#/components/schemas/CsvConfig'
-      - $ref: '#/components/schemas/XmlConfig'
-      - $ref: '#/components/schemas/JsonConfig'
-    ProtobufConfig:
-      additionalProperties: false
-      description: List of protobuf files used to define input to the mapping. This will be compiled to a collection of definitions which will be used to convert the input to JSON.
-      title: ProtoBuf
-      properties:
-        type:
-          type: string
-          enum:
-          - protobuf
-          description: Input type
-          title: Type
-        messageName:
-          type: string
-          description: Name of root message in the protobuf files.
-          maxLength: 128
-          title: Message Name
-        files:
-          type: array
-          maxItems: 20
-          minItems: 1
-          items:
-            $ref: '#/components/schemas/ProtoFile'
-      required:
-      - messageName
-      - files
-      - type
-    Items_Mapping_:
-      additionalProperties: false
-      properties:
-        items:
-          items:
-            $ref: '#/components/schemas/Mapping'
-          title: Items
-          type: array
-          maxItems: 100
-          minItems: 0
-      required:
-      - items
-      title: MappingList
-      type: object
-    MappingUpdateItem:
-      additionalProperties: false
-      properties:
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-        update:
-          $ref: '#/components/schemas/UpdateMapping'
-      required:
-      - externalId
-      - update
-      title: MappingUpdateItem
-      type: object
-    CogniteExternalId:
-      description: The external ID provided by the client. Must be unique for the resource type.
-      type: string
-      maxLength: 255
-      example: my.known.id
-    ItemsWithIgnoreUnknownIds_ExternalId_:
-      additionalProperties: false
-      properties:
-        items:
-          items:
-            $ref: '#/components/schemas/ExternalIdWrapper'
-          title: Items
-          type: array
-          maxItems: 100
-          minItems: 1
-        ignoreUnknownIds:
-          type: boolean
-          title: IgnoreUnknownIds
-          description: Ignore IDs and external IDs that are not found
-      required:
-      - items
-      title: ItemsWithIgnoreUnknownIds_ExternalId
-      type: object
-    CreateInputConfig:
-      type: object
-      description: Optionally set input mapping input type. This defaults to json if left out. Each input type is converted to JSON before being passed to the mapping expression.
-      discriminator:
-        mapping:
-          protobuf: '#/components/schemas/CreateProtobufConfig'
-          csv: '#/components/schemas/CsvConfig'
-          xml: '#/components/schemas/XmlConfig'
-          json: '#/components/schemas/JsonConfig'
-        propertyName: type
-      oneOf:
-      - $ref: '#/components/schemas/CreateProtobufConfig'
-      - $ref: '#/components/schemas/CsvConfig'
-      - $ref: '#/components/schemas/XmlConfig'
-      - $ref: '#/components/schemas/JsonConfig'
-    Mapping:
-      additionalProperties: false
-      properties:
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-        mapping:
-          $ref: '#/components/schemas/CustomMapping'
-        input:
-          $ref: '#/components/schemas/InputConfig'
-        published:
-          title: Published
-          type: boolean
-          description: Whether this mapping is published and should be available to be used in jobs.
-        createdTime:
-          $ref: '#/components/schemas/EpochTimestamp'
-        lastUpdatedTime:
-          $ref: '#/components/schemas/EpochTimestamp'
-      required:
-      - externalId
-      - mapping
-      - published
-      - lastUpdatedTime
-      - createdTime
-      - input
-      title: Mapping
-      type: object
-    UpdateSetNull:
-      additionalProperties: false
-      properties:
-        setNull:
-          title: SetNull
-          type: boolean
-          description: Clear this value
-      required:
-      - setNull
-      title: UpdateSetNull
-      type: object
-    UpdateItem_InputConfig_:
-      additionalProperties: false
-      properties:
-        set:
-          $ref: '#/components/schemas/CreateInputConfig'
-      required:
-      - set
-      title: UpdateItem_InputConfig
-      type: object
-      description: Set a new mapping input.
-    ProtoFile:
-      additionalProperties: false
-      description: Description of a protobuf file used for loading input to the mapping.
-      properties:
-        fileName:
-          type: string
-          title: File Name
-          format: '[a-zA-Z0-9_-]+\.proto'
-          maxLength: 128
-          description: Name of protobuf file. Must contain only letters, numbers, underscores, and hyphens, and must end with '.proto'.
-      required:
-      - fileName
-    ItemsWithCursor_Mapping_:
-      additionalProperties: false
-      properties:
-        items:
-          items:
-            $ref: '#/components/schemas/Mapping'
-          title: Items
-          type: array
-          maxItems: 100
-          minItems: 0
-        nextCursor:
-          type: string
-          title: Next cursor
-          description: Cursor for pagination
-      required:
-      - items
-      title: MappingList
-      type: object
-    JsonConfig:
-      additionalProperties: false
-      type: object
-      description: Treat the input as UTF-8 encoded JSON.
-      title: JSON
-      properties:
-        type:
-          type: string
-          enum:
-          - json
-          description: Input type
-          title: Type
-      required:
-      - type
-    CsvConfig:
-      additionalProperties: false
-      type: object
-      title: CSV
-      description: 'Transform the input from a CSV (Comma Separated Values) file to a list of JSON objects. The input to the mapping will be a list on the form `[{\"header1\": \"value1\", ...}, ...]`.
-
-        '
-      properties:
-        type:
-          type: string
-          enum:
-          - csv
-          description: Input type
-          title: Type
-        delimiter:
-          type: string
-          description: A single ASCII character used as the separator in the CSV file. Defaults to `,`
-          maxLength: 1
-          minLength: 1
-          title: Delimiter
-        customKeys:
-          type: array
-          minItems: 1
-          maxItems: 20
-          description: List of headers. If this is not set, the headers will be retrieved from the CSV file.
-          items:
-            type: string
-            description: CSV file header value.
-            title: CSV_Header
-      required:
-      - type
-    Items_CreateMapping_:
-      additionalProperties: false
-      properties:
-        items:
-          items:
-            $ref: '#/components/schemas/CreateMapping'
-          title: Items
-          type: array
-          minLength: 1
-          maxLength: 10
-      required:
-      - items
-      title: Items[CreateMapping]
-      type: object
-    ItemsWithIgnoreUnknownIdsAndForce_ExternalId_:
-      additionalProperties: false
-      properties:
-        items:
-          items:
-            $ref: '#/components/schemas/ExternalIdWrapper'
-          title: Items
-          type: array
-          maxItems: 100
-          minItems: 1
-        ignoreUnknownIds:
-          type: boolean
-          title: IgnoreUnknownIds
-          description: Ignore IDs and external IDs that are not found.
-        force:
-          type: boolean
-          title: Force
-          description: Delete any jobs associated with each item.
-      required:
-      - items
-      title: ItemsWithIgnoreUnknownIdsAndForce_ExternalId
-      type: object
-  responses:
-    ValidationError:
-      description: Validation Error
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - error
-            properties:
-              error:
-                $ref: '#/components/schemas/ValidationErrorContent'
-    EmptyResponse:
-      description: Empty response.
-      content:
-        application/json:
-          schema:
-            type: object
-    400ErrorResponse:
-      description: The response for a bad request.
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - error
-            properties:
-              error:
-                $ref: '#/components/schemas/Error'
-          example:
-            error:
-              code: 400
-              message: '`null` values aren''t allowed.'
   parameters:
+    100Limit:
+      name: limit
+      description: Limits the number of results to be returned. The maximum results returned by the server is 100 even if you specify a higher limit.
+      in: query
+      schema:
+        type: integer
+        default: 100
+        minimum: 1
+        maximum: 100
     Cursor:
       name: cursor
       description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
@@ -743,15 +719,39 @@ components:
       schema:
         type: string
         example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
-    100Limit:
-      name: limit
-      description: Limits the number of results to be returned. The maximum results returned by the server is 100 even if you specify a higher limit.
-      in: query
-      schema:
-        type: integer
-        default: 100
-        minimum: 1
-        maximum: 100
+  responses:
+    400ErrorResponse:
+      description: The response for a bad request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: 400
+              message: '`null` values aren''t allowed.'
+    ValidationError:
+      description: Validation Error
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/ValidationErrorContent'
+    EmptyResponse:
+      description: Empty response.
+      content:
+        application/json:
+          schema:
+            type: object
   securitySchemes:
     oidc-token:
       type: http

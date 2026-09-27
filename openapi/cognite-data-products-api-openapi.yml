@@ -391,151 +391,15 @@ paths:
       - dataProductsAcl:UPDATE
 components:
   schemas:
-    Error:
+    RemoveField:
+      title: remove
       type: object
       required:
-      - code
-      - message
-      description: Cognite API error.
+      - setNull
       properties:
-        code:
-          type: integer
-          description: HTTP status code.
-          format: int32
-          example: 401
-        message:
-          type: string
-          description: Error message.
-          example: Could not authenticate.
-        missing:
-          type: array
-          description: List of lookup objects that do not match any results.
-          items:
-            type: object
-            additionalProperties: true
-        duplicated:
-          type: array
-          description: List of objects that are not unique.
-          items:
-            type: object
-            additionalProperties: true
-    DataProductCreate:
-      type: object
-      required:
-      - externalId
-      - name
-      properties:
-        externalId:
-          $ref: '#/components/schemas/DataProductExternalId'
-        name:
-          type: string
-          description: Human-readable name of the data product.
-          minLength: 1
-          maxLength: 50
-        schemaSpace:
-          allOf:
-          - $ref: '#/components/schemas/Space'
-          - description: 'The schema space where the data product''s data modeling views will be located.
-
-              This space will be exclusively owned by this data product.
-
-              If this field is specified, and the space does not exist or is already owned by another data product, the creation of the data product will fail.
-
-              If this field is not specified, this data product will claim ownership of the space whose name is equal to the `externalId` of the data product. If such a space does not exist or is already owned by another data product, the creation of the data product will fail.
-
-              '
-        description:
-          type: string
-          description: A description of the data product.
-          maxLength: 200
-        isGoverned:
+        setNull:
           type: boolean
-          default: false
-          description: Indicates whether the data product follows governance policies and standards. Note that this property is currently only informational.
-        tags:
-          type: array
-          items:
-            type: string
-            minLength: 1
-            maxLength: 20
-          description: A list of distinct tags for categorization and filtering. If the list contains duplicates, only one occurrence will be kept. The order of tags is not guaranteed to be preserved.
-          minItems: 0
-          maxItems: 10
-          uniqueItems: true
-    DataProductVersionCreate:
-      type: object
-      description: 'A new version of a data product, with a collection of data modeling view references. Each item of the collection is immutable (it may not be modified or removed later), but items may be added later.
-
-        A data product can have up to 10 versions.
-
-        '
-      required:
-      - version
-      - views
-      properties:
-        version:
-          allOf:
-          - $ref: '#/components/schemas/DataProductSemanticVersion'
-          - $ref: '#/components/schemas/DataProductSemanticVersionExtendedDescription'
-        views:
-          type: array
-          minItems: 0
-          maxItems: 100
-          uniqueItems: true
-          description: A collection of references to views (with versions) that will be associated with this data product version. The views must either reside in the schema space of the associated data product, or in a system space (one that begins with `cdf_`). The referenced views must already exist at the time of creation of this data product version. Each item of the collection is immutable (it may not be modified or removed later), but items may be added later.
-          items:
-            type: object
-            required:
-            - space
-            - externalId
-            - version
-            properties:
-              space:
-                allOf:
-                - $ref: '#/components/schemas/Space'
-                - description: 'The space where the view is located. This must be the same space as the schema space of the data product, or a system space (starting with `cdf_`).
-
-                    '
-              externalId:
-                $ref: '#/components/schemas/ViewExternalId'
-              version:
-                type: string
-                description: The version of the view.
-        status:
-          allOf:
-          - $ref: '#/components/schemas/DataProductVersionStatus'
-          - default: draft
-        description:
-          type: string
-          description: A detailed description of this specific version of the data product. The text will be interpreted as markdown.
-          format: markdown
-          maxLength: 2000
-        terms:
-          type: object
-          description: Terms and conditions for using this data product version.
-          properties:
-            usage:
-              type: string
-              format: markdown
-              description: Permitted usage terms and conditions. The text will be interpreted as markdown.
-              maxLength: 2000
-            limitations:
-              type: string
-              format: markdown
-              description: Usage limitations and restrictions. The text will be interpreted as markdown.
-              maxLength: 500
-    DataProductVersionPatch:
-      type: object
-      description: Changes to apply to a data product version
-      properties:
-        status:
-          $ref: '#/components/schemas/SinglePatchDataProductVersionStatus'
-        description:
-          $ref: '#/components/schemas/SinglePatchString'
-        terms:
-          $ref: '#/components/schemas/DataProductVersionTermsPatch'
-        views:
-          $ref: '#/components/schemas/DataProductVersionViewsAdd'
+          example: true
     DataProductVersionCreateRequest:
       type: object
       required:
@@ -548,24 +412,6 @@ components:
           items:
             $ref: '#/components/schemas/DataProductVersionCreate'
           description: Array of data product versions to create.
-    ArrayPatchString:
-      type: object
-      oneOf:
-      - $ref: '#/components/schemas/ArrayPatchStringSet'
-      - $ref: '#/components/schemas/ArrayPatchStringAddOrRemove'
-      description: Change that will be applied to the array.
-    DataProductVersionUpdateRequest:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          minItems: 1
-          maxItems: 1
-          items:
-            $ref: '#/components/schemas/DataProductVersionChange'
-          description: List of data product versions (of this data product) to update.
     DataProductVersionViewsAdd:
       title: add
       type: object
@@ -596,7 +442,7 @@ components:
               version:
                 type: string
                 description: The version of the view.
-    DataProductCreateRequest:
+    DataProductUpdateRequest:
       type: object
       required:
       - items
@@ -606,97 +452,26 @@ components:
           minItems: 1
           maxItems: 1
           items:
-            $ref: '#/components/schemas/DataProductCreate'
-          description: Array of data products to create.
-    ArrayPatchStringSet:
-      title: set
+            $ref: '#/components/schemas/DataProductChange'
+          description: List of data products to update.
+    DataProductPatch:
       type: object
-      required:
-      - set
+      description: Changes to apply to a data product
       properties:
-        set:
-          uniqueItems: true
-          type: array
-          items:
-            type: string
-    Space:
-      type: string
-      pattern: ^[a-zA-Z][a-zA-Z0-9_-]{0,41}[a-zA-Z0-9]?$
-      minLength: 1
-      maxLength: 43
-    DataProductSemanticVersionExtendedDescription:
-      description: 'The semantic version of this data product version. Together, the data product external id (in the request path)
-
-        and the semantic version uniquely identifies this data product version. Note that even if a data product version
-
-        is deleted, its semantic version may never be reused within its owning data product.
-
-        We currently use a simplified version of what is described at [semver.org](https://semver.org/),
-
-        only allowing `major.minor.patch` with up to four digits in each.
-
-        '
-    SetStringField:
-      type: object
-      title: set
-      required:
-      - set
-      properties:
-        set:
-          type: string
-    EpochTimestamp:
-      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-      type: integer
-      minimum: 0
-      format: int64
-      example: 1730204346000
-    SinglePatchDataProductVersionStatus:
-      title: set
-      type: object
-      required:
-      - set
-      properties:
-        set:
-          $ref: '#/components/schemas/DataProductVersionStatus'
-      description: Set a new value for the data product version status. Note that this property is currently only informational.
-    DataProductVersionChange:
-      type: object
-      required:
-      - version
-      - update
-      properties:
-        version:
-          allOf:
-          - $ref: '#/components/schemas/DataProductSemanticVersion'
-          - description: The semantic version of the data product version to update.
-        update:
-          $ref: '#/components/schemas/DataProductVersionPatch'
-    SinglePatchString:
-      title: set
+        name:
+          $ref: '#/components/schemas/SetStringField'
+        description:
+          $ref: '#/components/schemas/SinglePatchString'
+        isGoverned:
+          $ref: '#/components/schemas/SinglePatchBoolean'
+        tags:
+          $ref: '#/components/schemas/ArrayPatchString'
+    ArrayPatchString:
       type: object
       oneOf:
-      - $ref: '#/components/schemas/SetStringField'
-      - $ref: '#/components/schemas/RemoveField'
-      description: Set a new value for the string, or remove the value.
-    ViewExternalId:
-      type: string
-      pattern: ^[a-zA-Z]([a-zA-Z0-9_]{0,253}[a-zA-Z0-9])?$
-      minLength: 1
-      maxLength: 255
-      description: The external ID of the view.
-    DataProductVersionTermsPatch:
-      title: modify
-      type: object
-      properties:
-        modify:
-          type: object
-          description: Modify terms fields
-          properties:
-            usage:
-              $ref: '#/components/schemas/SinglePatchString'
-            limitations:
-              $ref: '#/components/schemas/SinglePatchString'
-      description: Modify nested terms object fields.
+      - $ref: '#/components/schemas/ArrayPatchStringSet'
+      - $ref: '#/components/schemas/ArrayPatchStringAddOrRemove'
+      description: Change that will be applied to the array.
     ArrayPatchStringAddOrRemove:
       title: add/remove
       type: object
@@ -711,157 +486,6 @@ components:
           type: array
           items:
             type: string
-    DataProductExternalId:
-      type: string
-      description: Data product external identifier
-      pattern: ^[a-z]([a-z0-9_-]{0,98}[a-z0-9])?$
-      minLength: 1
-      maxLength: 100
-    DataProductUpdateRequest:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          minItems: 1
-          maxItems: 1
-          items:
-            $ref: '#/components/schemas/DataProductChange'
-          description: List of data products to update.
-    DataProductVersionStatus:
-      type: string
-      enum:
-      - draft
-      - published
-      - deprecated
-      description: The status of this data product version.
-    DataProductPatch:
-      type: object
-      description: Changes to apply to a data product
-      properties:
-        name:
-          $ref: '#/components/schemas/SetStringField'
-        description:
-          $ref: '#/components/schemas/SinglePatchString'
-        isGoverned:
-          $ref: '#/components/schemas/SinglePatchBoolean'
-        tags:
-          $ref: '#/components/schemas/ArrayPatchString'
-    DataProductSemanticVersion:
-      type: string
-      example: 1.2.34
-      pattern: ^(0|[1-9]\d{0,3})\.(0|[1-9]\d{0,3})\.(0|[1-9]\d{0,3})$
-      minLength: 5
-      maxLength: 14
-    DataProductSemanticVersionCompactDescription:
-      description: 'A semantic version number. We currently use a simplified version of what is described at [semver.org](https://semver.org/).
-
-        '
-    SinglePatchBoolean:
-      type: object
-      title: set
-      required:
-      - set
-      properties:
-        set:
-          type: boolean
-    DataProduct:
-      type: object
-      required:
-      - externalId
-      - name
-      - schemaSpace
-      - isGoverned
-      - domains
-      - tags
-      - createdTime
-      - lastUpdatedTime
-      properties:
-        externalId:
-          $ref: '#/components/schemas/DataProductExternalId'
-        name:
-          type: string
-          description: Human-readable name of the data product.
-          minLength: 1
-          maxLength: 50
-        schemaSpace:
-          allOf:
-          - $ref: '#/components/schemas/Space'
-          - readOnly: true
-            description: 'The schema space where the data product''s data modeling views are located. This space is exclusively owned by this data product.
-
-              '
-        description:
-          type: string
-          description: A description of the data product.
-          maxLength: 200
-        isGoverned:
-          type: boolean
-          description: Indicates whether the data product follows governance policies and standards. Note that this property is currently only informational.
-        tags:
-          type: array
-          items:
-            type: string
-            minLength: 1
-            maxLength: 20
-          description: A list of distinct tags for categorization and filtering.
-          minItems: 0
-          maxItems: 10
-          uniqueItems: true
-        domains:
-          type: array
-          readOnly: true
-          uniqueItems: true
-          items:
-            type: string
-            description: External ID of a data domain.
-          description: List of data domain external IDs that this data product is derived from. This field will be empty while the data domains feature is in development.
-        createdTime:
-          allOf:
-          - $ref: '#/components/schemas/EpochTimestamp'
-          readOnly: true
-        lastUpdatedTime:
-          allOf:
-          - $ref: '#/components/schemas/EpochTimestamp'
-          readOnly: true
-    RemoveField:
-      title: remove
-      type: object
-      required:
-      - setNull
-      properties:
-        setNull:
-          type: boolean
-          example: true
-    DataProductChange:
-      type: object
-      required:
-      - externalId
-      - update
-      properties:
-        externalId:
-          $ref: '#/components/schemas/DataProductExternalId'
-        update:
-          $ref: '#/components/schemas/DataProductPatch'
-    DataProductDeleteRequest:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          uniqueItems: true
-          maxItems: 1
-          minItems: 1
-          description: List of ID objects
-          items:
-            type: object
-            required:
-            - externalId
-            properties:
-              externalId:
-                $ref: '#/components/schemas/DataProductExternalId'
     DataProductVersion:
       type: object
       description: 'A version of a data product, with a collection of data modeling view references. Each item of the collection is immutable (it may not be modified or removed later), but items may be added later.
@@ -935,6 +559,223 @@ components:
           allOf:
           - $ref: '#/components/schemas/EpochTimestamp'
           readOnly: true
+    DataProductSemanticVersion:
+      type: string
+      example: 1.2.34
+      pattern: ^(0|[1-9]\d{0,3})\.(0|[1-9]\d{0,3})\.(0|[1-9]\d{0,3})$
+      minLength: 5
+      maxLength: 14
+    DataProductDeleteRequest:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          uniqueItems: true
+          maxItems: 1
+          minItems: 1
+          description: List of ID objects
+          items:
+            type: object
+            required:
+            - externalId
+            properties:
+              externalId:
+                $ref: '#/components/schemas/DataProductExternalId'
+    DataProductVersionTermsPatch:
+      title: modify
+      type: object
+      properties:
+        modify:
+          type: object
+          description: Modify terms fields
+          properties:
+            usage:
+              $ref: '#/components/schemas/SinglePatchString'
+            limitations:
+              $ref: '#/components/schemas/SinglePatchString'
+      description: Modify nested terms object fields.
+    DataProductExternalId:
+      type: string
+      description: Data product external identifier
+      pattern: ^[a-z]([a-z0-9_-]{0,98}[a-z0-9])?$
+      minLength: 1
+      maxLength: 100
+    DataProductCreateRequest:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 1
+          items:
+            $ref: '#/components/schemas/DataProductCreate'
+          description: Array of data products to create.
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    DataProductSemanticVersionExtendedDescription:
+      description: 'The semantic version of this data product version. Together, the data product external id (in the request path)
+
+        and the semantic version uniquely identifies this data product version. Note that even if a data product version
+
+        is deleted, its semantic version may never be reused within its owning data product.
+
+        We currently use a simplified version of what is described at [semver.org](https://semver.org/),
+
+        only allowing `major.minor.patch` with up to four digits in each.
+
+        '
+    DataProductVersionChange:
+      type: object
+      required:
+      - version
+      - update
+      properties:
+        version:
+          allOf:
+          - $ref: '#/components/schemas/DataProductSemanticVersion'
+          - description: The semantic version of the data product version to update.
+        update:
+          $ref: '#/components/schemas/DataProductVersionPatch'
+    SinglePatchBoolean:
+      type: object
+      title: set
+      required:
+      - set
+      properties:
+        set:
+          type: boolean
+    ArrayPatchStringSet:
+      title: set
+      type: object
+      required:
+      - set
+      properties:
+        set:
+          uniqueItems: true
+          type: array
+          items:
+            type: string
+    Space:
+      type: string
+      pattern: ^[a-zA-Z][a-zA-Z0-9_-]{0,41}[a-zA-Z0-9]?$
+      minLength: 1
+      maxLength: 43
+    DataProduct:
+      type: object
+      required:
+      - externalId
+      - name
+      - schemaSpace
+      - isGoverned
+      - domains
+      - tags
+      - createdTime
+      - lastUpdatedTime
+      properties:
+        externalId:
+          $ref: '#/components/schemas/DataProductExternalId'
+        name:
+          type: string
+          description: Human-readable name of the data product.
+          minLength: 1
+          maxLength: 50
+        schemaSpace:
+          allOf:
+          - $ref: '#/components/schemas/Space'
+          - readOnly: true
+            description: 'The schema space where the data product''s data modeling views are located. This space is exclusively owned by this data product.
+
+              '
+        description:
+          type: string
+          description: A description of the data product.
+          maxLength: 200
+        isGoverned:
+          type: boolean
+          description: Indicates whether the data product follows governance policies and standards. Note that this property is currently only informational.
+        tags:
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 20
+          description: A list of distinct tags for categorization and filtering.
+          minItems: 0
+          maxItems: 10
+          uniqueItems: true
+        domains:
+          type: array
+          readOnly: true
+          uniqueItems: true
+          items:
+            type: string
+            description: External ID of a data domain.
+          description: List of data domain external IDs that this data product is derived from. This field will be empty while the data domains feature is in development.
+        createdTime:
+          allOf:
+          - $ref: '#/components/schemas/EpochTimestamp'
+          readOnly: true
+        lastUpdatedTime:
+          allOf:
+          - $ref: '#/components/schemas/EpochTimestamp'
+          readOnly: true
+    DataProductVersionStatus:
+      type: string
+      enum:
+      - draft
+      - published
+      - deprecated
+      description: The status of this data product version.
+    ViewExternalId:
+      type: string
+      pattern: ^[a-zA-Z]([a-zA-Z0-9_]{0,253}[a-zA-Z0-9])?$
+      minLength: 1
+      maxLength: 255
+      description: The external ID of the view.
+    SetStringField:
+      type: object
+      title: set
+      required:
+      - set
+      properties:
+        set:
+          type: string
     DataProductVersionDeleteRequest:
       type: object
       required:
@@ -955,6 +796,192 @@ components:
                 allOf:
                 - $ref: '#/components/schemas/DataProductSemanticVersion'
                 - $ref: '#/components/schemas/DataProductSemanticVersionCompactDescription'
+    DataProductChange:
+      type: object
+      required:
+      - externalId
+      - update
+      properties:
+        externalId:
+          $ref: '#/components/schemas/DataProductExternalId'
+        update:
+          $ref: '#/components/schemas/DataProductPatch'
+    DataProductVersionPatch:
+      type: object
+      description: Changes to apply to a data product version
+      properties:
+        status:
+          $ref: '#/components/schemas/SinglePatchDataProductVersionStatus'
+        description:
+          $ref: '#/components/schemas/SinglePatchString'
+        terms:
+          $ref: '#/components/schemas/DataProductVersionTermsPatch'
+        views:
+          $ref: '#/components/schemas/DataProductVersionViewsAdd'
+    DataProductSemanticVersionCompactDescription:
+      description: 'A semantic version number. We currently use a simplified version of what is described at [semver.org](https://semver.org/).
+
+        '
+    DataProductVersionCreate:
+      type: object
+      description: 'A new version of a data product, with a collection of data modeling view references. Each item of the collection is immutable (it may not be modified or removed later), but items may be added later.
+
+        A data product can have up to 10 versions.
+
+        '
+      required:
+      - version
+      - views
+      properties:
+        version:
+          allOf:
+          - $ref: '#/components/schemas/DataProductSemanticVersion'
+          - $ref: '#/components/schemas/DataProductSemanticVersionExtendedDescription'
+        views:
+          type: array
+          minItems: 0
+          maxItems: 100
+          uniqueItems: true
+          description: A collection of references to views (with versions) that will be associated with this data product version. The views must either reside in the schema space of the associated data product, or in a system space (one that begins with `cdf_`). The referenced views must already exist at the time of creation of this data product version. Each item of the collection is immutable (it may not be modified or removed later), but items may be added later.
+          items:
+            type: object
+            required:
+            - space
+            - externalId
+            - version
+            properties:
+              space:
+                allOf:
+                - $ref: '#/components/schemas/Space'
+                - description: 'The space where the view is located. This must be the same space as the schema space of the data product, or a system space (starting with `cdf_`).
+
+                    '
+              externalId:
+                $ref: '#/components/schemas/ViewExternalId'
+              version:
+                type: string
+                description: The version of the view.
+        status:
+          allOf:
+          - $ref: '#/components/schemas/DataProductVersionStatus'
+          - default: draft
+        description:
+          type: string
+          description: A detailed description of this specific version of the data product. The text will be interpreted as markdown.
+          format: markdown
+          maxLength: 2000
+        terms:
+          type: object
+          description: Terms and conditions for using this data product version.
+          properties:
+            usage:
+              type: string
+              format: markdown
+              description: Permitted usage terms and conditions. The text will be interpreted as markdown.
+              maxLength: 2000
+            limitations:
+              type: string
+              format: markdown
+              description: Usage limitations and restrictions. The text will be interpreted as markdown.
+              maxLength: 500
+    SinglePatchDataProductVersionStatus:
+      title: set
+      type: object
+      required:
+      - set
+      properties:
+        set:
+          $ref: '#/components/schemas/DataProductVersionStatus'
+      description: Set a new value for the data product version status. Note that this property is currently only informational.
+    DataProductCreate:
+      type: object
+      required:
+      - externalId
+      - name
+      properties:
+        externalId:
+          $ref: '#/components/schemas/DataProductExternalId'
+        name:
+          type: string
+          description: Human-readable name of the data product.
+          minLength: 1
+          maxLength: 50
+        schemaSpace:
+          allOf:
+          - $ref: '#/components/schemas/Space'
+          - description: 'The schema space where the data product''s data modeling views will be located.
+
+              This space will be exclusively owned by this data product.
+
+              If this field is specified, and the space does not exist or is already owned by another data product, the creation of the data product will fail.
+
+              If this field is not specified, this data product will claim ownership of the space whose name is equal to the `externalId` of the data product. If such a space does not exist or is already owned by another data product, the creation of the data product will fail.
+
+              '
+        description:
+          type: string
+          description: A description of the data product.
+          maxLength: 200
+        isGoverned:
+          type: boolean
+          default: false
+          description: Indicates whether the data product follows governance policies and standards. Note that this property is currently only informational.
+        tags:
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 20
+          description: A list of distinct tags for categorization and filtering. If the list contains duplicates, only one occurrence will be kept. The order of tags is not guaranteed to be preserved.
+          minItems: 0
+          maxItems: 10
+          uniqueItems: true
+    SinglePatchString:
+      title: set
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/SetStringField'
+      - $ref: '#/components/schemas/RemoveField'
+      description: Set a new value for the string, or remove the value.
+    DataProductVersionUpdateRequest:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 1
+          items:
+            $ref: '#/components/schemas/DataProductVersionChange'
+          description: List of data product versions (of this data product) to update.
+  responses:
+    400ErrorResponse:
+      description: The response for a bad request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: 400
+              message: '`null` values aren''t allowed.'
+    ErrorResponse:
+      description: The response for a failed request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
   parameters:
     dataProductExternalId:
       name: externalId
@@ -985,33 +1012,6 @@ components:
       schema:
         type: string
         example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
-  responses:
-    ErrorResponse:
-      description: The response for a failed request.
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - error
-            properties:
-              error:
-                $ref: '#/components/schemas/Error'
-    400ErrorResponse:
-      description: The response for a bad request.
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - error
-            properties:
-              error:
-                $ref: '#/components/schemas/Error'
-          example:
-            error:
-              code: 400
-              message: '`null` values aren''t allowed.'
   securitySchemes:
     oidc-token:
       type: http
