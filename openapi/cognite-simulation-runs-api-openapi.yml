@@ -205,14 +205,45 @@ paths:
           description: Internal Server Error
 components:
   schemas:
-    SimulationValueType:
-      type: string
-      enum:
-      - STRING
-      - DOUBLE
-      - STRING_ARRAY
-      - DOUBLE_ARRAY
-      title: SimulationValueType
+    ListSimulationRunView:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/SimulationRunView'
+          type: array
+          title: Items
+      additionalProperties: false
+      type: object
+      required:
+      - items
+      title: ListSimulationRunView
+    SortBySimulationTime:
+      properties:
+        order:
+          anyOf:
+          - type: string
+            const: asc
+            enum:
+            - asc
+          - type: string
+            const: desc
+            enum:
+            - desc
+          title: Order
+          description: Sort order
+        property:
+          type: string
+          const: simulationTime
+          title: Property
+          description: Name of the property to sort by
+          enum:
+          - simulationTime
+      additionalProperties: false
+      type: object
+      required:
+      - order
+      - property
+      title: SortBySimulationTime
     SimulationValueUnit:
       properties:
         name:
@@ -240,145 +271,60 @@ components:
       required:
       - name
       title: SimulationValueUnit
-    RunIdRef:
+    ErrorBase:
       properties:
-        runId:
-          type: integer
-          title: RunId
-          description: Simulation run id
-          examples:
-          - 5559452808603919
-      additionalProperties: false
+        error:
+          $ref: '#/components/schemas/APIError'
       type: object
       required:
-      - runId
-      title: RunIdRef
-    SimulatorObjectRef:
-      properties: {}
-      additionalProperties: true
-      type: object
-      title: SimulatorObjectRef
-    SimulationRunCommandByRoutine:
+      - error
+      title: ErrorBase
+    SimulationValueBase:
       properties:
-        runTime:
-          title: RunTime
-          description: Run time in milliseconds. Reference timestamp used for data pre-processing and data sampling. If not provided, the creation time of the simulation run is used.
-          type: integer
-        queue:
-          title: Queue
-          description: Queue the simulation run when connector is down.
-          default: false
-          type: boolean
-        logSeverity:
-          description: Override the minimum severity level for the simulation run logs. If not provided, the minimum severity is read from the connector logger configuration.
-          $ref: '#/components/schemas/SimulatorLogSeverityLevel'
-        inputs:
-          title: Inputs
-          description: List of input overrides
-          items:
-            $ref: '#/components/schemas/SimulationInputOverride'
-          type: array
-          maxItems: 10000
-          minItems: 1
-        routineExternalId:
+        referenceId:
+          type: string
+          maxLength: 50
+          minLength: 1
+          title: ReferenceId
+          description: Reference id of the value
+        value:
+          anyOf:
+          - type: string
+            description: String value. Maximum length is 1024
+          - type: number
+            description: Double precision value
+          - items:
+              type: string
+            type: array
+            description: Array of strings. Minimum length is 1 and maximum length is 1000
+          - items:
+              type: number
+            type: array
+            description: Array of double precision values. Minimum length is 1 and maximum length is 1000
+          title: Value
+          description: Value used for simulation. Can be string, double, array of strings or array of doubles. Maximum length is 1024 for strings and 1000 for arrays.
+        valueType:
+          $ref: '#/components/schemas/SimulationValueType'
+          description: Type of the value
+        unit:
+          description: Unit of the value
+          $ref: '#/components/schemas/SimulationValueUnit'
+        simulatorObjectReference:
+          description: Where the value was written to, and for the outputs it is where the value was read from
+          $ref: '#/components/schemas/SimulatorObjectRef'
+        timeseriesExternalId:
+          title: TimeseriesExternalId
+          description: External id of the time series where the value was written to
           type: string
           maxLength: 255
           minLength: 1
-          title: RoutineExternalId
-          description: Routine external id
-          examples:
-          - calculation_1
       additionalProperties: false
       type: object
       required:
-      - routineExternalId
-      title: SimulationRunCommandByRoutine
-    ListSimulationRunView:
-      properties:
-        items:
-          items:
-            $ref: '#/components/schemas/SimulationRunView'
-          type: array
-          title: Items
-      additionalProperties: false
-      type: object
-      required:
-      - items
-      title: ListSimulationRunView
-    ListWithCursorSimulationRunView:
-      properties:
-        items:
-          items:
-            $ref: '#/components/schemas/SimulationRunView'
-          type: array
-          title: Items
-        nextCursor:
-          title: NextCursor
-          type: string
-      additionalProperties: false
-      type: object
-      required:
-      - items
-      title: ListWithCursorSimulationRunView
-    ListSimulationRunsQuery:
-      properties:
-        filter:
-          $ref: '#/components/schemas/ListSimulationRunsFilters'
-        limit:
-          type: integer
-          maximum: 1000
-          minimum: 1
-          title: Limit
-          default: 1000
-        cursor:
-          title: Cursor
-          description: Cursor for pagination
-          type: string
-        sort:
-          title: Sort
-          description: Only supports sorting by one property at a time
-          items:
-            anyOf:
-            - $ref: '#/components/schemas/SortByCreatedTime'
-            - $ref: '#/components/schemas/SortBySimulationTime'
-          type: array
-      additionalProperties: false
-      type: object
-      title: ListSimulationRunsQuery
-    ListSimulationRunDataItem:
-      properties:
-        items:
-          items:
-            $ref: '#/components/schemas/SimulationRunDataItem'
-          type: array
-          title: Items
-      additionalProperties: false
-      type: object
-      required:
-      - items
-      title: ListSimulationRunDataItem
-    SingleItemRunIdRef:
-      properties:
-        items:
-          items:
-            $ref: '#/components/schemas/RunIdRef'
-          type: array
-          title: Items
-          description: A list with a single item
-      additionalProperties: false
-      type: object
-      required:
-      - items
-      title: SingleItemRunIdRef
-    SimulationRunStatus:
-      type: string
-      enum:
-      - queued
-      - ready
-      - running
-      - success
-      - failure
-      title: SimulationRunStatus
+      - referenceId
+      - value
+      - valueType
+      title: SimulationValueBase
     SimulationInputOverride:
       properties:
         referenceId:
@@ -412,267 +358,13 @@ components:
       - referenceId
       - value
       title: SimulationInputOverride
-    APIError:
-      properties:
-        message:
-          type: string
-          title: Message
-        code:
-          type: integer
-          title: Code
-      type: object
-      required:
-      - message
-      - code
-      title: APIError
-    IdRef:
-      properties:
-        id:
-          type: integer
-          title: Id
-          description: ID
-          examples:
-          - 5559452808603919
-      additionalProperties: false
-      type: object
-      required:
-      - id
-      title: IdRef
-    ErrorBase:
-      properties:
-        error:
-          $ref: '#/components/schemas/APIError'
-      type: object
-      required:
-      - error
-      title: ErrorBase
-    SingleItemIdRef:
-      properties:
-        items:
-          items:
-            $ref: '#/components/schemas/IdRef'
-          type: array
-          title: Items
-          description: A list with a single item
-      additionalProperties: false
-      type: object
-      required:
-      - items
-      title: SingleItemIdRef
-    SimulationRunDataItem:
-      properties:
-        runId:
-          type: integer
-          title: RunId
-        inputs:
-          items:
-            $ref: '#/components/schemas/SimulationValue'
-          type: array
-          title: Inputs
-        outputs:
-          items:
-            $ref: '#/components/schemas/SimulationValueBase'
-          type: array
-          title: Outputs
-      additionalProperties: false
-      type: object
-      required:
-      - runId
-      - inputs
-      - outputs
-      title: SimulationRunDataItem
-    SimulationRunCommandByRoutineRevision:
-      properties:
-        runTime:
-          title: RunTime
-          description: Run time in milliseconds. Reference timestamp used for data pre-processing and data sampling. If not provided, the creation time of the simulation run is used.
-          type: integer
-        queue:
-          title: Queue
-          description: Queue the simulation run when connector is down.
-          default: false
-          type: boolean
-        logSeverity:
-          description: Override the minimum severity level for the simulation run logs. If not provided, the minimum severity is read from the connector logger configuration.
-          $ref: '#/components/schemas/SimulatorLogSeverityLevel'
-        inputs:
-          title: Inputs
-          description: List of input overrides
-          items:
-            $ref: '#/components/schemas/SimulationInputOverride'
-          type: array
-          maxItems: 10000
-          minItems: 1
-        routineRevisionExternalId:
-          type: string
-          maxLength: 255
-          minLength: 1
-          title: RoutineRevisionExternalId
-          description: Routine revision external id
-          examples:
-          - dwsim_shower_mixer_model_v1
-        modelRevisionExternalId:
-          type: string
-          maxLength: 255
-          minLength: 1
-          title: ModelRevisionExternalId
-          description: Model revision external id
-          examples:
-          - dwsim_shower_mixer_routine_v1
-      additionalProperties: false
-      type: object
-      required:
-      - routineRevisionExternalId
-      - modelRevisionExternalId
-      title: SimulationRunCommandByRoutineRevision
-    SortByCreatedTime:
-      properties:
-        order:
-          anyOf:
-          - type: string
-            const: asc
-            enum:
-            - asc
-          - type: string
-            const: desc
-            enum:
-            - desc
-          title: Order
-          description: Sort order
-        property:
-          type: string
-          const: createdTime
-          title: Property
-          description: Name of the property to sort by
-          enum:
-          - createdTime
-      additionalProperties: false
-      type: object
-      required:
-      - order
-      - property
-      title: SortByCreatedTime
-    SimulationValueUnitName:
-      properties:
-        name:
-          type: string
-          maxLength: 50
-          minLength: 1
-          title: Name
-          description: Name of the unit
-          examples:
-          - kg
-          - m
-          - Pa
-      additionalProperties: false
-      type: object
-      required:
-      - name
-      title: SimulationValueUnitName
-    ListSimulationRunsFilters:
-      properties:
-        status:
-          description: Filter by simulation run status
-          $ref: '#/components/schemas/SimulationRunStatus'
-        runType:
-          description: Filter by simulation run type
-          $ref: '#/components/schemas/SimulationRunType'
-        simulatorIntegrationExternalIds:
-          title: SimulatorIntegrationExternalIds
-          description: Filter by simulator integration external ids
-          examples:
-          - - PROSPER_connector
-            - DWSIM_connector
-          items:
-            type: string
-          type: array
-          maxItems: 100
-          minItems: 1
-        simulatorExternalIds:
-          title: SimulatorExternalIds
-          description: Filter by simulator external ids
-          examples:
-          - - PROSPER
-            - PetroSIM
-          items:
-            type: string
-          type: array
-          maxItems: 100
-          minItems: 1
-        modelExternalIds:
-          title: ModelExternalIds
-          description: Filter by simulator model external ids
-          examples:
-          - - PROSPER_model
-            - PetroSIM_model
-          items:
-            type: string
-          type: array
-          maxItems: 100
-          minItems: 1
-        routineExternalIds:
-          title: RoutineExternalIds
-          description: Filter by simulator routine external ids
-          examples:
-          - - PROSPER_routine
-            - PetroSIM_routine
-          items:
-            type: string
-          type: array
-          maxItems: 100
-          minItems: 1
-        routineRevisionExternalIds:
-          title: RoutineRevisionExternalIds
-          description: Filter by routine revision external ids
-          examples:
-          - - routineRevisionForModel
-          items:
-            type: string
-          type: array
-          maxItems: 100
-          minItems: 1
-        modelRevisionExternalIds:
-          title: ModelRevisionExternalIds
-          description: Filter by model revision external ids
-          examples:
-          - - wellModel
-          items:
-            type: string
-          type: array
-          maxItems: 100
-          minItems: 1
-        createdTime:
-          description: Filter by created time range
-          $ref: '#/components/schemas/EpochTimestampRange'
-        simulationTime:
-          description: Filter by simulation time range
-          $ref: '#/components/schemas/EpochTimestampRange'
-      additionalProperties: false
-      type: object
-      title: ListSimulationRunsFilters
-    SingleItemSimulationRunCommandByRoutineOrByRoutineRevision:
-      properties:
-        items:
-          items:
-            anyOf:
-            - $ref: '#/components/schemas/SimulationRunCommandByRoutine'
-            - $ref: '#/components/schemas/SimulationRunCommandByRoutineRevision'
-          type: array
-          title: Items
-          description: A list with a single item
-      additionalProperties: false
-      type: object
-      required:
-      - items
-      title: SingleItemSimulationRunCommandByRoutineOrByRoutineRevision
-    SimulatorLogSeverityLevel:
+    SimulationRunType:
       type: string
       enum:
-      - Debug
-      - Information
-      - Warning
-      - Error
-      title: SimulatorLogSeverityLevel
+      - external
+      - manual
+      - scheduled
+      title: SimulationRunType
     SimulationRunView:
       properties:
         dataSetId:
@@ -760,86 +452,97 @@ components:
       - createdTime
       - lastUpdatedTime
       title: SimulationRunView
-    SimulationValueBase:
+    SimulationValueUnitName:
       properties:
-        referenceId:
+        name:
           type: string
           maxLength: 50
           minLength: 1
-          title: ReferenceId
-          description: Reference id of the value
-        value:
-          anyOf:
-          - type: string
-            description: String value. Maximum length is 1024
-          - type: number
-            description: Double precision value
-          - items:
-              type: string
-            type: array
-            description: Array of strings. Minimum length is 1 and maximum length is 1000
-          - items:
-              type: number
-            type: array
-            description: Array of double precision values. Minimum length is 1 and maximum length is 1000
-          title: Value
-          description: Value used for simulation. Can be string, double, array of strings or array of doubles. Maximum length is 1024 for strings and 1000 for arrays.
-        valueType:
-          $ref: '#/components/schemas/SimulationValueType'
-          description: Type of the value
-        unit:
-          description: Unit of the value
-          $ref: '#/components/schemas/SimulationValueUnit'
-        simulatorObjectReference:
-          description: Where the value was written to, and for the outputs it is where the value was read from
-          $ref: '#/components/schemas/SimulatorObjectRef'
-        timeseriesExternalId:
-          title: TimeseriesExternalId
-          description: External id of the time series where the value was written to
-          type: string
-          maxLength: 255
-          minLength: 1
+          title: Name
+          description: Name of the unit
+          examples:
+          - kg
+          - m
+          - Pa
       additionalProperties: false
       type: object
       required:
-      - referenceId
-      - value
-      - valueType
-      title: SimulationValueBase
-    SimulationRunType:
+      - name
+      title: SimulationValueUnitName
+    ListSimulationRunsQuery:
+      properties:
+        filter:
+          $ref: '#/components/schemas/ListSimulationRunsFilters'
+        limit:
+          type: integer
+          maximum: 1000
+          minimum: 1
+          title: Limit
+          default: 1000
+        cursor:
+          title: Cursor
+          description: Cursor for pagination
+          type: string
+        sort:
+          title: Sort
+          description: Only supports sorting by one property at a time
+          items:
+            anyOf:
+            - $ref: '#/components/schemas/SortByCreatedTime'
+            - $ref: '#/components/schemas/SortBySimulationTime'
+          type: array
+      additionalProperties: false
+      type: object
+      title: ListSimulationRunsQuery
+    ListWithCursorSimulationRunView:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/SimulationRunView'
+          type: array
+          title: Items
+        nextCursor:
+          title: NextCursor
+          type: string
+      additionalProperties: false
+      type: object
+      required:
+      - items
+      title: ListWithCursorSimulationRunView
+    SimulatorObjectRef:
+      properties: {}
+      additionalProperties: true
+      type: object
+      title: SimulatorObjectRef
+    APIError:
+      properties:
+        message:
+          type: string
+          title: Message
+        code:
+          type: integer
+          title: Code
+      type: object
+      required:
+      - message
+      - code
+      title: APIError
+    SimulatorLogSeverityLevel:
       type: string
       enum:
-      - external
-      - manual
-      - scheduled
-      title: SimulationRunType
-    SortBySimulationTime:
-      properties:
-        order:
-          anyOf:
-          - type: string
-            const: asc
-            enum:
-            - asc
-          - type: string
-            const: desc
-            enum:
-            - desc
-          title: Order
-          description: Sort order
-        property:
-          type: string
-          const: simulationTime
-          title: Property
-          description: Name of the property to sort by
-          enum:
-          - simulationTime
-      additionalProperties: false
-      type: object
-      required:
-      - order
-      - property
-      title: SortBySimulationTime
+      - Debug
+      - Information
+      - Warning
+      - Error
+      title: SimulatorLogSeverityLevel
+    SimulationValueType:
+      type: string
+      enum:
+      - STRING
+      - DOUBLE
+      - STRING_ARRAY
+      - DOUBLE_ARRAY
+      title: SimulationValueType
     EpochTimestampRange:
       description: Range between two timestamps (inclusive).
       type: object
@@ -904,6 +607,303 @@ components:
       - value
       - valueType
       title: SimulationValue
+    SimulationRunCommandByRoutine:
+      properties:
+        runTime:
+          title: RunTime
+          description: Run time in milliseconds. Reference timestamp used for data pre-processing and data sampling. If not provided, the creation time of the simulation run is used.
+          type: integer
+        queue:
+          title: Queue
+          description: Queue the simulation run when connector is down.
+          default: false
+          type: boolean
+        logSeverity:
+          description: Override the minimum severity level for the simulation run logs. If not provided, the minimum severity is read from the connector logger configuration.
+          $ref: '#/components/schemas/SimulatorLogSeverityLevel'
+        inputs:
+          title: Inputs
+          description: List of input overrides
+          items:
+            $ref: '#/components/schemas/SimulationInputOverride'
+          type: array
+          maxItems: 10000
+          minItems: 1
+        routineExternalId:
+          type: string
+          maxLength: 255
+          minLength: 1
+          title: RoutineExternalId
+          description: Routine external id
+          examples:
+          - calculation_1
+      additionalProperties: false
+      type: object
+      required:
+      - routineExternalId
+      title: SimulationRunCommandByRoutine
+    SimulationRunDataItem:
+      properties:
+        runId:
+          type: integer
+          title: RunId
+        inputs:
+          items:
+            $ref: '#/components/schemas/SimulationValue'
+          type: array
+          title: Inputs
+        outputs:
+          items:
+            $ref: '#/components/schemas/SimulationValueBase'
+          type: array
+          title: Outputs
+      additionalProperties: false
+      type: object
+      required:
+      - runId
+      - inputs
+      - outputs
+      title: SimulationRunDataItem
+    SingleItemRunIdRef:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/RunIdRef'
+          type: array
+          title: Items
+          description: A list with a single item
+      additionalProperties: false
+      type: object
+      required:
+      - items
+      title: SingleItemRunIdRef
+    RunIdRef:
+      properties:
+        runId:
+          type: integer
+          title: RunId
+          description: Simulation run id
+          examples:
+          - 5559452808603919
+      additionalProperties: false
+      type: object
+      required:
+      - runId
+      title: RunIdRef
+    SimulationRunCommandByRoutineRevision:
+      properties:
+        runTime:
+          title: RunTime
+          description: Run time in milliseconds. Reference timestamp used for data pre-processing and data sampling. If not provided, the creation time of the simulation run is used.
+          type: integer
+        queue:
+          title: Queue
+          description: Queue the simulation run when connector is down.
+          default: false
+          type: boolean
+        logSeverity:
+          description: Override the minimum severity level for the simulation run logs. If not provided, the minimum severity is read from the connector logger configuration.
+          $ref: '#/components/schemas/SimulatorLogSeverityLevel'
+        inputs:
+          title: Inputs
+          description: List of input overrides
+          items:
+            $ref: '#/components/schemas/SimulationInputOverride'
+          type: array
+          maxItems: 10000
+          minItems: 1
+        routineRevisionExternalId:
+          type: string
+          maxLength: 255
+          minLength: 1
+          title: RoutineRevisionExternalId
+          description: Routine revision external id
+          examples:
+          - dwsim_shower_mixer_model_v1
+        modelRevisionExternalId:
+          type: string
+          maxLength: 255
+          minLength: 1
+          title: ModelRevisionExternalId
+          description: Model revision external id
+          examples:
+          - dwsim_shower_mixer_routine_v1
+      additionalProperties: false
+      type: object
+      required:
+      - routineRevisionExternalId
+      - modelRevisionExternalId
+      title: SimulationRunCommandByRoutineRevision
+    SingleItemSimulationRunCommandByRoutineOrByRoutineRevision:
+      properties:
+        items:
+          items:
+            anyOf:
+            - $ref: '#/components/schemas/SimulationRunCommandByRoutine'
+            - $ref: '#/components/schemas/SimulationRunCommandByRoutineRevision'
+          type: array
+          title: Items
+          description: A list with a single item
+      additionalProperties: false
+      type: object
+      required:
+      - items
+      title: SingleItemSimulationRunCommandByRoutineOrByRoutineRevision
+    ListSimulationRunDataItem:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/SimulationRunDataItem'
+          type: array
+          title: Items
+      additionalProperties: false
+      type: object
+      required:
+      - items
+      title: ListSimulationRunDataItem
+    SimulationRunStatus:
+      type: string
+      enum:
+      - queued
+      - ready
+      - running
+      - success
+      - failure
+      title: SimulationRunStatus
+    IdRef:
+      properties:
+        id:
+          type: integer
+          title: Id
+          description: ID
+          examples:
+          - 5559452808603919
+      additionalProperties: false
+      type: object
+      required:
+      - id
+      title: IdRef
+    SortByCreatedTime:
+      properties:
+        order:
+          anyOf:
+          - type: string
+            const: asc
+            enum:
+            - asc
+          - type: string
+            const: desc
+            enum:
+            - desc
+          title: Order
+          description: Sort order
+        property:
+          type: string
+          const: createdTime
+          title: Property
+          description: Name of the property to sort by
+          enum:
+          - createdTime
+      additionalProperties: false
+      type: object
+      required:
+      - order
+      - property
+      title: SortByCreatedTime
+    ListSimulationRunsFilters:
+      properties:
+        status:
+          description: Filter by simulation run status
+          $ref: '#/components/schemas/SimulationRunStatus'
+        runType:
+          description: Filter by simulation run type
+          $ref: '#/components/schemas/SimulationRunType'
+        simulatorIntegrationExternalIds:
+          title: SimulatorIntegrationExternalIds
+          description: Filter by simulator integration external ids
+          examples:
+          - - PROSPER_connector
+            - DWSIM_connector
+          items:
+            type: string
+          type: array
+          maxItems: 100
+          minItems: 1
+        simulatorExternalIds:
+          title: SimulatorExternalIds
+          description: Filter by simulator external ids
+          examples:
+          - - PROSPER
+            - PetroSIM
+          items:
+            type: string
+          type: array
+          maxItems: 100
+          minItems: 1
+        modelExternalIds:
+          title: ModelExternalIds
+          description: Filter by simulator model external ids
+          examples:
+          - - PROSPER_model
+            - PetroSIM_model
+          items:
+            type: string
+          type: array
+          maxItems: 100
+          minItems: 1
+        routineExternalIds:
+          title: RoutineExternalIds
+          description: Filter by simulator routine external ids
+          examples:
+          - - PROSPER_routine
+            - PetroSIM_routine
+          items:
+            type: string
+          type: array
+          maxItems: 100
+          minItems: 1
+        routineRevisionExternalIds:
+          title: RoutineRevisionExternalIds
+          description: Filter by routine revision external ids
+          examples:
+          - - routineRevisionForModel
+          items:
+            type: string
+          type: array
+          maxItems: 100
+          minItems: 1
+        modelRevisionExternalIds:
+          title: ModelRevisionExternalIds
+          description: Filter by model revision external ids
+          examples:
+          - - wellModel
+          items:
+            type: string
+          type: array
+          maxItems: 100
+          minItems: 1
+        createdTime:
+          description: Filter by created time range
+          $ref: '#/components/schemas/EpochTimestampRange'
+        simulationTime:
+          description: Filter by simulation time range
+          $ref: '#/components/schemas/EpochTimestampRange'
+      additionalProperties: false
+      type: object
+      title: ListSimulationRunsFilters
+    SingleItemIdRef:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/IdRef'
+          type: array
+          title: Items
+          description: A list with a single item
+      additionalProperties: false
+      type: object
+      required:
+      - items
+      title: SingleItemIdRef
   securitySchemes:
     oidc-token:
       type: http

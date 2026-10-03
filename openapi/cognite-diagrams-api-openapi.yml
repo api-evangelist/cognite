@@ -170,40 +170,34 @@ paths:
           $ref: '#/components/responses/ErrorResponse'
 components:
   schemas:
-    ExternalIdsRequest:
+    Error:
       type: object
       required:
-      - items
+      - code
+      - message
+      description: Cognite API error.
       properties:
-        items:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
           type: array
-          minItems: 1
-          maxItems: 100
+          description: List of lookup objects that do not match any results.
           items:
             type: object
-            required:
-            - externalId
-            properties:
-              externalId:
-                $ref: '#/components/schemas/CogniteExternalId'
-    DiagramFilters:
-      type: array
-      description: List of filters used to filter diagrams
-      minItems: 1
-      maxItems: 100
-      items:
-        $ref: '#/components/schemas/DiagramFilter'
-    DmsId:
-      description: A DMS Identifier using the space and externalId
-      type: object
-      required:
-      - space
-      - externalId
-      properties:
-        space:
-          type: string
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
     ExtendedDiagramDto:
       description: Diagram with all of its entities and connections joined
       type: object
@@ -249,104 +243,37 @@ components:
         status:
           description: Parsing status of a diagram
           $ref: '#/components/schemas/ParseStatus'
-    ConnectionDto:
-      description: Connection between two entities in a diagram. The connected entities can either be in the same or different diagrams.
-      type: object
-      required:
-      - createdTime
-      - diagramId
-      - endNodeId
-      - externalId
-      - isUserDetected
-      - lastUpdatedTime
-      - startNodeId
-      properties:
-        createdTime:
-          $ref: '#/components/schemas/EpochTimestamp'
-        diagramId:
-          description: The external ID of a diagram the connection belongs to
-          $ref: '#/components/schemas/CogniteExternalId'
-        endNodeId:
-          description: The external ID of a diagram entity with a connection to the other diagram entity
-          $ref: '#/components/schemas/CogniteExternalId'
-        externalId:
-          description: The external ID of the connection
-          $ref: '#/components/schemas/CogniteExternalId'
-        isUserDetected:
-          description: Checks whether the connection was detected by a user or not. Returns a boolean value.
-          type: boolean
-        lastUpdatedTime:
-          $ref: '#/components/schemas/EpochTimestamp'
-        startNodeId:
-          description: The external ID of a diagram entity with a connection to the other diagram entity
-          $ref: '#/components/schemas/CogniteExternalId'
-    Error:
-      type: object
-      required:
-      - code
-      - message
-      description: Cognite API error.
-      properties:
-        code:
-          type: integer
-          description: HTTP status code.
-          format: int32
-          example: 401
-        message:
-          type: string
-          description: Error message.
-          example: Could not authenticate.
-        missing:
-          type: array
-          description: List of lookup objects that do not match any results.
-          items:
-            type: object
-            additionalProperties: true
-        duplicated:
-          type: array
-          description: List of objects that are not unique.
-          items:
-            type: object
-            additionalProperties: true
     EpochTimestamp:
       description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
       type: integer
       minimum: 0
       format: int64
       example: 1730204346000
-    DiagramDto:
+    CogniteExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
+      type: string
+      maxLength: 255
+      example: my.known.id
+    DmsId:
+      description: A DMS Identifier using the space and externalId
       type: object
       required:
-      - createdTime
+      - space
       - externalId
-      - fileId
-      - lastUpdatedTime
-      - libraryId
-      - pageNumber
-      - status
       properties:
-        createdTime:
-          $ref: '#/components/schemas/EpochTimestamp'
-        externalId:
-          description: The external ID of the diagram
-          $ref: '#/components/schemas/CogniteExternalId'
-        fileId:
-          description: DMS identifier of a file the diagram is parsed from
-          $ref: '#/components/schemas/DmsId'
-        lastUpdatedTime:
-          $ref: '#/components/schemas/EpochTimestamp'
-        libraryId:
-          description: The external ID of a library the diagram is parsed with
-          $ref: '#/components/schemas/CogniteExternalId'
-        message:
-          description: Message containing errors or other information
+        space:
           type: string
-        pageNumber:
-          description: The page number of a file the diagram is parsed from
-          type: integer
-        status:
-          description: Parsing status of a diagram
-          $ref: '#/components/schemas/ParseStatus'
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+    ParseStatus:
+      description: Status of a parsing job
+      type: string
+      enum:
+      - Failed
+      - InProgress
+      - InQueue
+      - Pending
+      - Success
     EntityDto:
       type: object
       required:
@@ -388,6 +315,100 @@ components:
         symbolId:
           description: The external ID of the symbol this diagram entity is detected as
           $ref: '#/components/schemas/CogniteExternalId'
+    EntityWithPathsDto:
+      description: Diagram entity with its paths joined by pathIds
+      type: object
+      required:
+      - createdTime
+      - diagramId
+      - externalId
+      - isAssetVerified
+      - isUserDetected
+      - lastUpdatedTime
+      - paths
+      - symbolId
+      properties:
+        annotationId:
+          description: DMS identifier of a linked diagram annotation
+          $ref: '#/components/schemas/DmsId'
+        assetId:
+          description: DMS identifier of a mapped asset
+          $ref: '#/components/schemas/DmsId'
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        diagramId:
+          description: The external ID of a diagram the entity belongs to
+          $ref: '#/components/schemas/CogniteExternalId'
+        externalId:
+          description: The external ID of the diagram entity
+          $ref: '#/components/schemas/CogniteExternalId'
+        isAssetVerified:
+          description: Determines if a diagram entity has a verified asset mapping
+          type: boolean
+        isUserDetected:
+          description: Determines if a diagram entity was detected manually
+          type: boolean
+        lastUpdatedTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        paths:
+          type: array
+          items:
+            $ref: '#/components/schemas/Path'
+        symbolId:
+          description: The external ID of the symbol this diagram entity is detected as
+          $ref: '#/components/schemas/CogniteExternalId'
+    DiagramFilter:
+      type: object
+      description: List of properties used to filter diagrams
+      minItems: 1
+      maxItems: 100
+      properties:
+        fileId:
+          description: DMS identifier of a file the diagram is parsed from
+          type: array
+          items:
+            $ref: '#/components/schemas/DmsId'
+        libraryId:
+          description: The external ID of the library the diagram is parsed with
+          type: array
+          items:
+            $ref: '#/components/schemas/CogniteExternalId'
+        pageNumber:
+          description: The page number of a file the diagram is parsed from
+          type: array
+          items:
+            type: integer
+        status:
+          description: Parsing status of a diagram
+          type: array
+          items:
+            $ref: '#/components/schemas/ParseStatus'
+    DiagramFilters:
+      type: array
+      description: List of filters used to filter diagrams
+      minItems: 1
+      maxItems: 100
+      items:
+        $ref: '#/components/schemas/DiagramFilter'
+    ExternalIdsRequest:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            type: object
+            required:
+            - externalId
+            properties:
+              externalId:
+                $ref: '#/components/schemas/CogniteExternalId'
+    NextCursorV3:
+      description: The cursor value used to return (paginate to) the next page of results, when more data is available.
+      type: string
     Path:
       description: SVG path in a custom format
       type: object
@@ -403,15 +424,70 @@ components:
         styleId:
           description: The id of the style used for this path
           type: string
-    ParseStatus:
-      description: Status of a parsing job
-      type: string
-      enum:
-      - Failed
-      - InProgress
-      - InQueue
-      - Pending
-      - Success
+    ConnectionDto:
+      description: Connection between two entities in a diagram. The connected entities can either be in the same or different diagrams.
+      type: object
+      required:
+      - createdTime
+      - diagramId
+      - endNodeId
+      - externalId
+      - isUserDetected
+      - lastUpdatedTime
+      - startNodeId
+      properties:
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        diagramId:
+          description: The external ID of a diagram the connection belongs to
+          $ref: '#/components/schemas/CogniteExternalId'
+        endNodeId:
+          description: The external ID of a diagram entity with a connection to the other diagram entity
+          $ref: '#/components/schemas/CogniteExternalId'
+        externalId:
+          description: The external ID of the connection
+          $ref: '#/components/schemas/CogniteExternalId'
+        isUserDetected:
+          description: Checks whether the connection was detected by a user or not. Returns a boolean value.
+          type: boolean
+        lastUpdatedTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        startNodeId:
+          description: The external ID of a diagram entity with a connection to the other diagram entity
+          $ref: '#/components/schemas/CogniteExternalId'
+    DiagramDto:
+      type: object
+      required:
+      - createdTime
+      - externalId
+      - fileId
+      - lastUpdatedTime
+      - libraryId
+      - pageNumber
+      - status
+      properties:
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        externalId:
+          description: The external ID of the diagram
+          $ref: '#/components/schemas/CogniteExternalId'
+        fileId:
+          description: DMS identifier of a file the diagram is parsed from
+          $ref: '#/components/schemas/DmsId'
+        lastUpdatedTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        libraryId:
+          description: The external ID of a library the diagram is parsed with
+          $ref: '#/components/schemas/CogniteExternalId'
+        message:
+          description: Message containing errors or other information
+          type: string
+        pageNumber:
+          description: The page number of a file the diagram is parsed from
+          type: integer
+        status:
+          description: Parsing status of a diagram
+          $ref: '#/components/schemas/ParseStatus'
     ExtendedDiagramWithPathsDto:
       description: Diagram with its entities, connections, and SVG paths data
       type: object
@@ -468,113 +544,7 @@ components:
         width:
           description: Width attribute of the SVG diagram
           type: string
-    NextCursorV3:
-      description: The cursor value used to return (paginate to) the next page of results, when more data is available.
-      type: string
-    DiagramFilter:
-      type: object
-      description: List of properties used to filter diagrams
-      minItems: 1
-      maxItems: 100
-      properties:
-        fileId:
-          description: DMS identifier of a file the diagram is parsed from
-          type: array
-          items:
-            $ref: '#/components/schemas/DmsId'
-        libraryId:
-          description: The external ID of the library the diagram is parsed with
-          type: array
-          items:
-            $ref: '#/components/schemas/CogniteExternalId'
-        pageNumber:
-          description: The page number of a file the diagram is parsed from
-          type: array
-          items:
-            type: integer
-        status:
-          description: Parsing status of a diagram
-          type: array
-          items:
-            $ref: '#/components/schemas/ParseStatus'
-    CogniteExternalId:
-      description: The external ID provided by the client. Must be unique for the resource type.
-      type: string
-      maxLength: 255
-      example: my.known.id
-    EntityWithPathsDto:
-      description: Diagram entity with its paths joined by pathIds
-      type: object
-      required:
-      - createdTime
-      - diagramId
-      - externalId
-      - isAssetVerified
-      - isUserDetected
-      - lastUpdatedTime
-      - paths
-      - symbolId
-      properties:
-        annotationId:
-          description: DMS identifier of a linked diagram annotation
-          $ref: '#/components/schemas/DmsId'
-        assetId:
-          description: DMS identifier of a mapped asset
-          $ref: '#/components/schemas/DmsId'
-        createdTime:
-          $ref: '#/components/schemas/EpochTimestamp'
-        diagramId:
-          description: The external ID of a diagram the entity belongs to
-          $ref: '#/components/schemas/CogniteExternalId'
-        externalId:
-          description: The external ID of the diagram entity
-          $ref: '#/components/schemas/CogniteExternalId'
-        isAssetVerified:
-          description: Determines if a diagram entity has a verified asset mapping
-          type: boolean
-        isUserDetected:
-          description: Determines if a diagram entity was detected manually
-          type: boolean
-        lastUpdatedTime:
-          $ref: '#/components/schemas/EpochTimestamp'
-        paths:
-          type: array
-          items:
-            $ref: '#/components/schemas/Path'
-        symbolId:
-          description: The external ID of the symbol this diagram entity is detected as
-          $ref: '#/components/schemas/CogniteExternalId'
   responses:
-    DiagramsListResponse:
-      description: List of diagrams
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - items
-            properties:
-              items:
-                type: array
-                items:
-                  $ref: '#/components/schemas/DiagramDto'
-    ExtendedDiagramResponse:
-      description: A single diagram with its entities and connections
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ExtendedDiagramDto'
-    ErrorResponse:
-      description: The response for a failed request.
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - error
-            properties:
-              error:
-                $ref: '#/components/schemas/Error'
     DiagramsListWithCursorResponse:
       description: List of diagrams with next cursor
       content:
@@ -590,20 +560,43 @@ components:
                   $ref: '#/components/schemas/DiagramDto'
               nextCursor:
                 $ref: '#/components/schemas/NextCursorV3'
+    ExtendedDiagramResponse:
+      description: A single diagram with its entities and connections
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ExtendedDiagramDto'
     ExtendedDiagramWithPathsResponse:
       description: Diagram with its entities, connections, and SVG paths data
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ExtendedDiagramWithPathsDto'
+    ErrorResponse:
+      description: The response for a failed request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+    DiagramsListResponse:
+      description: List of diagrams
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            properties:
+              items:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DiagramDto'
   parameters:
-    pageNumber:
-      name: pageNumber
-      description: The file's page number
-      required: true
-      in: path
-      schema:
-        type: integer
     diagramIdPath:
       name: diagramId
       description: External ID of a diagram
@@ -611,9 +604,9 @@ components:
       in: path
       schema:
         $ref: '#/components/schemas/CogniteExternalId'
-    fileSpace:
-      name: fileSpace
-      description: A DMS space where the files reside
+    fileExternalId:
+      name: fileExternalId
+      description: Retrieve data related to a file
       required: true
       in: path
       schema:
@@ -638,13 +631,20 @@ components:
       schema:
         type: string
         example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
-    fileExternalId:
-      name: fileExternalId
-      description: Retrieve data related to a file
+    fileSpace:
+      name: fileSpace
+      description: A DMS space where the files reside
       required: true
       in: path
       schema:
         type: string
+    pageNumber:
+      name: pageNumber
+      description: The file's page number
+      required: true
+      in: path
+      schema:
+        type: integer
   securitySchemes:
     oidc-token:
       type: http

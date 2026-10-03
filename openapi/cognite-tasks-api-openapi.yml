@@ -114,146 +114,134 @@ paths:
           '
 components:
   schemas:
-    SimulatorTaskParameters:
-      title: Simulation Task Parameters
+    DynamicTaskParameters:
+      title: Dynamic Task Parameters
       type: object
-      description: Parameters for the Simulation run task type.
+      description: 'Dynamic tasks allow the dynamic creation of additional tasks during a workflow execution.
+
+
+        There are two things needed to execute a dynamic task.
+
+        - A list of task definitions (similar to the way tasks are defined in the workflow definition when creating a workflow version).
+
+        - A workflow task prior to the dynamic task that outputs the above list
+
+
+        Note: a dynamic task cannot start other dynamic tasks or subworkflows.
+
+        '
       properties:
-        simulation:
+        dynamic:
           type: object
+          description: Tasks should reference a list of task definitions, defined exactly like they are during version creation.
           properties:
-            routineExternalId:
-              description: The external id of the routine to be executed.
+            tasks:
+              $ref: '#/components/schemas/Reference'
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    TaskExecutionId:
+      type: string
+      description: UUIDv4 identifier for the execution of a workflow task.
+      minLength: 36
+      maxLength: 36
+    CogniteExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
+      type: string
+      maxLength: 255
+      example: my.known.id
+    ReasonForIncompletion:
+      type: string
+      description: Human-readable reason for terminal failure of a workflow task.
+    TransformationTaskParameters:
+      title: Transformation Task Parameters
+      type: object
+      properties:
+        transformation:
+          type: object
+          description: Parameters for the CDF Transformation task type.
+          properties:
+            externalId:
+              description: The external id of the Transformation in the project.
               oneOf:
               - $ref: '#/components/schemas/CogniteExternalId'
-            runTime:
-              anyOf:
-              - type: integer
-              - type: 'null'
-              title: RunTime
-              description: Run time in milliseconds. Reference timestamp used for data pre-processing and data sampling.
-            inputs:
-              type: array
-              maxItems: 200
-              minItems: 0
-              description: List of input overrides
-              items:
-                $ref: '#/components/schemas/SimulatorInput'
+              - $ref: '#/components/schemas/Reference'
+            concurrencyPolicy:
+              type: string
+              enum:
+              - fail
+              - waitForCurrent
+              - restartAfterCurrent
+              default: fail
+              description: 'Determines the behavior of the task if the Transformation is already running.
+
+                - fail: The task fails if another instance of the Transformation is currently running.
+
+                - waitForCurrent: The task will pause and wait for the already running Transformation to complete. Once completed, the task is completed. This mode is useful for preventing redundant Transformation runs.
+
+                - restartAfterCurrent: The task waits for the ongoing Transformation to finish. After completion, the task restarts the Transformation. This mode ensures that the most recent data can be used by following tasks.
+
+                '
+            useTransformationCredentials:
+              type: boolean
+              default: false
+              description: 'If set to `true`, the transformation will run using the client credentials configured on the transformation.
+
+                If set to `false`, the transformation will run using the client credentials used to trigger the workflow.
+
+                '
           required:
-          - routineExternalId
-    TaskExternalId:
-      type: string
-      description: Identifier for the task. Must be unique within the version. No trailing or leading whitespace and no null characters allowed. Task external IDs cannot be exactly 'workflow' or start with '__' (double underscore) as these are reserved.
-      maxLength: 255
-    TaskExecution:
-      title: Task Execution
+          - externalId
+    FunctionTaskOutput:
+      title: Function Task Output
       type: object
       properties:
-        id:
-          $ref: '#/components/schemas/TaskExecutionId'
-        externalId:
-          $ref: '#/components/schemas/TaskExternalId'
-        parentTaskExternalId:
+        callId:
+          type: integer
+          format: int64
+          description: The callId of the Cognite Function call instance.
+        functionId:
+          type: integer
+          format: int64
+          description: The functionId of the Cognite Function called.
+        response:
+          type: object
+          description: The response of the function call. Limited to 100KB in size.
+    SimulatorInput:
+      type: object
+      properties:
+        referenceId:
+          type: string
+          description: Reference id of the value to override
+        value:
           anyOf:
-          - $ref: '#/components/schemas/TaskExternalId'
+          - type: string
+            maxLength: 1024
+            minLength: 1
+          - type: number
+          - items:
+              type: string
+            type: array
+            maxItems: 200
+            minItems: 1
+          - items:
+              type: number
+            type: array
+            maxItems: 200
+            minItems: 1
+          title: Value
+          description: Override the value used for a simulation run
+        unit:
+          description: Override the unit of the value
+          anyOf:
+          - $ref: '#/components/schemas/SimulatorInputsUnit'
           - type: 'null'
-          description: The external ID of the parent task when this task is part of a dynamic task or subworkflow.
-        status:
-          type: string
-          enum:
-          - IN_PROGRESS
-          - CANCELED
-          - FAILED
-          - FAILED_WITH_TERMINAL_ERROR
-          - COMPLETED
-          - COMPLETED_WITH_ERRORS
-          - SCHEDULED
-          - TIMED_OUT
-          - SKIPPED
-        taskType:
-          $ref: '#/components/schemas/TaskType'
-        startTime:
-          $ref: '#/components/schemas/EpochTimestamp'
-        endTime:
-          $ref: '#/components/schemas/EpochTimestamp'
-        input:
-          description: The input to the task with the references present in the definition resolved.
-          oneOf:
-          - $ref: '#/components/schemas/FunctionTaskParameters'
-          - $ref: '#/components/schemas/TransformationTaskParameters'
-          - $ref: '#/components/schemas/CdfTaskParameters'
-          - $ref: '#/components/schemas/DynamicTaskParameters'
-          - $ref: '#/components/schemas/SimulatorInput'
-        output:
-          oneOf:
-          - $ref: '#/components/schemas/FunctionTaskOutput'
-          - $ref: '#/components/schemas/TransformationTaskOutput'
-          - $ref: '#/components/schemas/CdfTaskOutput'
-          - $ref: '#/components/schemas/DynamicTaskOutput'
-          - $ref: '#/components/schemas/SimulatorTaskOutput'
-        reasonForIncompletion:
-          $ref: '#/components/schemas/ReasonForIncompletion'
       required:
-      - id
-      - externalId
-      - status
-      - taskType
-      - input
-      - output
-    TaskDefinition:
-      title: Task Definition
-      type: object
-      properties:
-        externalId:
-          $ref: '#/components/schemas/TaskExternalId'
-        type:
-          $ref: '#/components/schemas/TaskType'
-        name:
-          type: string
-          maxLength: 255
-          description: Readable name meant for use in UIs
-        description:
-          type: string
-          maxLength: 500
-          description: Description of the intention of the task
-        parameters:
-          oneOf:
-          - $ref: '#/components/schemas/FunctionTaskParameters'
-          - $ref: '#/components/schemas/TransformationTaskParameters'
-          - $ref: '#/components/schemas/CdfTaskParameters'
-          - $ref: '#/components/schemas/DynamicTaskParameters'
-          - $ref: '#/components/schemas/SubworkflowTaskParameters'
-          - $ref: '#/components/schemas/SimulatorTaskParameters'
-        retries:
-          type: number
-          default: 3
-          minimum: 0
-          maximum: 10
-          description: Number of times to retry the task if it fails. If set to 0, the task will not be retried. The behavior for timeouts and retries is defined by the `onFailure` parameter, refer to it for more information.
-        timeout:
-          type: number
-          default: 3600
-          minimum: 100
-          maximum: 43200
-          description: Timeout in seconds. After this time, the task will be marked as `TIMED_OUT`. By default, the task won't be retried upon timeout. Use the `onFailure` parameter to change this behavior.
-        onFailure:
-          type: string
-          enum:
-          - abortWorkflow
-          - skipTask
-          default: abortWorkflow
-          description: "Defines the policy to handle failures and timeouts.\n- `skipTask`: For both failures and timeouts, it will retry until the retries are exhausted. After that, the Task is marked as COMPLETED_WITH_ERRORS and the subsequent tasks are executed.\n- `abortWorkflow`:\n  - In case of failures, retries will be performed until exhausted, after which the task is marked as FAILED and the Workflow is marked the same.\n  - In the event of a timeout, no retries are undertaken; the task is marked as TIMED_OUT and the Workflow is marked as FAILED.\n"
-        dependsOn:
-          type: array
-          items:
-            $ref: '#/components/schemas/TaskDepends'
-          minItems: 0
-          maxItems: 100
-          description: The tasks that must be completed before this task can be executed.
-      required:
-      - externalId
-      - type
-      - parameters
+      - referenceId
+      - value
     SubworkflowTaskParameters:
       title: Subworkflow Task Parameters
       type: object
@@ -292,14 +280,26 @@ components:
             required:
             - workflowExternalId
             - version
-    ReasonForIncompletion:
+    TaskDepends:
+      type: object
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+      required:
+      - externalId
+    TransformationTaskOutput:
+      title: Transformation Task Output
+      type: object
+      properties:
+        jobId:
+          type: integer
+          format: int64
+          description: Job ID of the Transformation called.
+    Reference:
       type: string
-      description: Human-readable reason for terminal failure of a workflow task.
-    TaskExecutionId:
-      type: string
-      description: UUIDv4 identifier for the execution of a workflow task.
-      minLength: 36
-      maxLength: 36
+      description: 'A Reference is an expression that allows dynamically injecting input to a task during execution. References can be used to reference the input of the Workflow, the output of a previous task in the Workflow, or the input of a previous task in the Workflow. Note that the injected value must be valid in the context of the property it is injected into.
+
+        Example Task reference: ${myTaskExternalId.output.someKey} Example Workflow input reference: ${workflow.input.myKey}'
     TaskType:
       type: string
       enum:
@@ -309,48 +309,6 @@ components:
       - dynamic
       - subworkflow
       - simulation
-    SimulatorInput:
-      type: object
-      properties:
-        referenceId:
-          type: string
-          description: Reference id of the value to override
-        value:
-          anyOf:
-          - type: string
-            maxLength: 1024
-            minLength: 1
-          - type: number
-          - items:
-              type: string
-            type: array
-            maxItems: 200
-            minItems: 1
-          - items:
-              type: number
-            type: array
-            maxItems: 200
-            minItems: 1
-          title: Value
-          description: Override the value used for a simulation run
-        unit:
-          description: Override the unit of the value
-          anyOf:
-          - $ref: '#/components/schemas/SimulatorInputsUnit'
-          - type: 'null'
-      required:
-      - referenceId
-      - value
-    DynamicTaskOutput:
-      title: Dynamic Task Output
-      type: object
-      properties:
-        dynamicTasks:
-          type: array
-          items:
-            $ref: '#/components/schemas/TaskDefinition'
-          minItems: 0
-          maxItems: 100
     CdfTaskParameters:
       title: CDF Task Parameters
       type: object
@@ -409,6 +367,87 @@ components:
           required:
           - resourcePath
           - method
+    TaskDefinition:
+      title: Task Definition
+      type: object
+      properties:
+        externalId:
+          $ref: '#/components/schemas/TaskExternalId'
+        type:
+          $ref: '#/components/schemas/TaskType'
+        name:
+          type: string
+          maxLength: 255
+          description: Readable name meant for use in UIs
+        description:
+          type: string
+          maxLength: 500
+          description: Description of the intention of the task
+        parameters:
+          oneOf:
+          - $ref: '#/components/schemas/FunctionTaskParameters'
+          - $ref: '#/components/schemas/TransformationTaskParameters'
+          - $ref: '#/components/schemas/CdfTaskParameters'
+          - $ref: '#/components/schemas/DynamicTaskParameters'
+          - $ref: '#/components/schemas/SubworkflowTaskParameters'
+          - $ref: '#/components/schemas/SimulatorTaskParameters'
+        retries:
+          type: number
+          default: 3
+          minimum: 0
+          maximum: 10
+          description: Number of times to retry the task if it fails. If set to 0, the task will not be retried. The behavior for timeouts and retries is defined by the `onFailure` parameter, refer to it for more information.
+        timeout:
+          type: number
+          default: 3600
+          minimum: 100
+          maximum: 43200
+          description: Timeout in seconds. After this time, the task will be marked as `TIMED_OUT`. By default, the task won't be retried upon timeout. Use the `onFailure` parameter to change this behavior.
+        onFailure:
+          type: string
+          enum:
+          - abortWorkflow
+          - skipTask
+          default: abortWorkflow
+          description: "Defines the policy to handle failures and timeouts.\n- `skipTask`: For both failures and timeouts, it will retry until the retries are exhausted. After that, the Task is marked as COMPLETED_WITH_ERRORS and the subsequent tasks are executed.\n- `abortWorkflow`:\n  - In case of failures, retries will be performed until exhausted, after which the task is marked as FAILED and the Workflow is marked the same.\n  - In the event of a timeout, no retries are undertaken; the task is marked as TIMED_OUT and the Workflow is marked as FAILED.\n"
+        dependsOn:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskDepends'
+          minItems: 0
+          maxItems: 100
+          description: The tasks that must be completed before this task can be executed.
+      required:
+      - externalId
+      - type
+      - parameters
+    SimulatorTaskParameters:
+      title: Simulation Task Parameters
+      type: object
+      description: Parameters for the Simulation run task type.
+      properties:
+        simulation:
+          type: object
+          properties:
+            routineExternalId:
+              description: The external id of the routine to be executed.
+              oneOf:
+              - $ref: '#/components/schemas/CogniteExternalId'
+            runTime:
+              anyOf:
+              - type: integer
+              - type: 'null'
+              title: RunTime
+              description: Run time in milliseconds. Reference timestamp used for data pre-processing and data sampling.
+            inputs:
+              type: array
+              maxItems: 200
+              minItems: 0
+              description: List of input overrides
+              items:
+                $ref: '#/components/schemas/SimulatorInput'
+          required:
+          - routineExternalId
     CdfTaskOutput:
       title: CDF Task Output
       type: object
@@ -421,89 +460,22 @@ components:
         statusCode:
           type: integer
           description: The HTTP status code of the response.
-    TransformationTaskParameters:
-      title: Transformation Task Parameters
+    SimulatorTaskOutput:
+      title: Simulator Task Output
+      description: Simulation run execution results.
       type: object
       properties:
-        transformation:
-          type: object
-          description: Parameters for the CDF Transformation task type.
-          properties:
-            externalId:
-              description: The external id of the Transformation in the project.
-              oneOf:
-              - $ref: '#/components/schemas/CogniteExternalId'
-              - $ref: '#/components/schemas/Reference'
-            concurrencyPolicy:
-              type: string
-              enum:
-              - fail
-              - waitForCurrent
-              - restartAfterCurrent
-              default: fail
-              description: 'Determines the behavior of the task if the Transformation is already running.
-
-                - fail: The task fails if another instance of the Transformation is currently running.
-
-                - waitForCurrent: The task will pause and wait for the already running Transformation to complete. Once completed, the task is completed. This mode is useful for preventing redundant Transformation runs.
-
-                - restartAfterCurrent: The task waits for the ongoing Transformation to finish. After completion, the task restarts the Transformation. This mode ensures that the most recent data can be used by following tasks.
-
-                '
-            useTransformationCredentials:
-              type: boolean
-              default: false
-              description: 'If set to `true`, the transformation will run using the client credentials configured on the transformation.
-
-                If set to `false`, the transformation will run using the client credentials used to trigger the workflow.
-
-                '
-          required:
-          - externalId
-    DynamicTaskParameters:
-      title: Dynamic Task Parameters
-      type: object
-      description: 'Dynamic tasks allow the dynamic creation of additional tasks during a workflow execution.
-
-
-        There are two things needed to execute a dynamic task.
-
-        - A list of task definitions (similar to the way tasks are defined in the workflow definition when creating a workflow version).
-
-        - A workflow task prior to the dynamic task that outputs the above list
-
-
-        Note: a dynamic task cannot start other dynamic tasks or subworkflows.
-
-        '
-      properties:
-        dynamic:
-          type: object
-          description: Tasks should reference a list of task definitions, defined exactly like they are during version creation.
-          properties:
-            tasks:
-              $ref: '#/components/schemas/Reference'
-    EpochTimestamp:
-      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-      type: integer
-      minimum: 0
-      format: int64
-      example: 1730204346000
-    FunctionTaskOutput:
-      title: Function Task Output
-      type: object
-      properties:
-        callId:
+        runId:
           type: integer
           format: int64
-          description: The callId of the Cognite Function call instance.
-        functionId:
+          description: The ID of the simulation run instance.
+        logId:
           type: integer
           format: int64
-          description: The functionId of the Cognite Function called.
-        response:
-          type: object
-          description: The response of the function call. Limited to 100KB in size.
+          description: The log ID of the simulation run.
+        statusMessage:
+          type: string
+          description: The status message of the simulation run instance.
     FunctionTaskParameters:
       title: Function Task Parameters
       type: object
@@ -532,53 +504,81 @@ components:
           type: boolean
           default: false
           description: "Defines if the execution of the task should be completed asynchronously.\n\n  - If `false`, the status of the task will be set to `COMPLETED` when the Cognite Function call completes successfully.\\\n  - If `true`, the task status will remain `IN_PROGRESS` even when the Cognite Function call completes successfully.\\\n  It will then wait for an external process to update the task status directly using the task update endpoint.\\\n  The task id required for the callback to update the task status is included in the input data of the Function with key \"cogniteOrchestrationTaskId\"."
-    Reference:
-      type: string
-      description: 'A Reference is an expression that allows dynamically injecting input to a task during execution. References can be used to reference the input of the Workflow, the output of a previous task in the Workflow, or the input of a previous task in the Workflow. Note that the injected value must be valid in the context of the property it is injected into.
-
-        Example Task reference: ${myTaskExternalId.output.someKey} Example Workflow input reference: ${workflow.input.myKey}'
-    TransformationTaskOutput:
-      title: Transformation Task Output
+    TaskExecution:
+      title: Task Execution
       type: object
       properties:
-        jobId:
-          type: integer
-          format: int64
-          description: Job ID of the Transformation called.
-    SimulatorTaskOutput:
-      title: Simulator Task Output
-      description: Simulation run execution results.
-      type: object
-      properties:
-        runId:
-          type: integer
-          format: int64
-          description: The ID of the simulation run instance.
-        logId:
-          type: integer
-          format: int64
-          description: The log ID of the simulation run.
-        statusMessage:
+        id:
+          $ref: '#/components/schemas/TaskExecutionId'
+        externalId:
+          $ref: '#/components/schemas/TaskExternalId'
+        parentTaskExternalId:
+          anyOf:
+          - $ref: '#/components/schemas/TaskExternalId'
+          - type: 'null'
+          description: The external ID of the parent task when this task is part of a dynamic task or subworkflow.
+        status:
           type: string
-          description: The status message of the simulation run instance.
-    CogniteExternalId:
-      description: The external ID provided by the client. Must be unique for the resource type.
-      type: string
-      maxLength: 255
-      example: my.known.id
+          enum:
+          - IN_PROGRESS
+          - CANCELED
+          - FAILED
+          - FAILED_WITH_TERMINAL_ERROR
+          - COMPLETED
+          - COMPLETED_WITH_ERRORS
+          - SCHEDULED
+          - TIMED_OUT
+          - SKIPPED
+        taskType:
+          $ref: '#/components/schemas/TaskType'
+        startTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        endTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        input:
+          description: The input to the task with the references present in the definition resolved.
+          oneOf:
+          - $ref: '#/components/schemas/FunctionTaskParameters'
+          - $ref: '#/components/schemas/TransformationTaskParameters'
+          - $ref: '#/components/schemas/CdfTaskParameters'
+          - $ref: '#/components/schemas/DynamicTaskParameters'
+          - $ref: '#/components/schemas/SimulatorInput'
+        output:
+          oneOf:
+          - $ref: '#/components/schemas/FunctionTaskOutput'
+          - $ref: '#/components/schemas/TransformationTaskOutput'
+          - $ref: '#/components/schemas/CdfTaskOutput'
+          - $ref: '#/components/schemas/DynamicTaskOutput'
+          - $ref: '#/components/schemas/SimulatorTaskOutput'
+        reasonForIncompletion:
+          $ref: '#/components/schemas/ReasonForIncompletion'
+      required:
+      - id
+      - externalId
+      - status
+      - taskType
+      - input
+      - output
     SimulatorInputsUnit:
       type: object
       properties:
         name:
           type: string
           description: Name of the unit.
-    TaskDepends:
+    TaskExternalId:
+      type: string
+      description: Identifier for the task. Must be unique within the version. No trailing or leading whitespace and no null characters allowed. Task external IDs cannot be exactly 'workflow' or start with '__' (double underscore) as these are reserved.
+      maxLength: 255
+    DynamicTaskOutput:
+      title: Dynamic Task Output
       type: object
       properties:
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-      required:
-      - externalId
+        dynamicTasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskDefinition'
+          minItems: 0
+          maxItems: 100
   securitySchemes:
     oidc-token:
       type: http

@@ -237,19 +237,6 @@ paths:
           '
 components:
   schemas:
-    Items_UserUpdate_:
-      additionalProperties: false
-      title: Items[UserUpdate]
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          items:
-            $ref: '#/components/schemas/UserUpdateItem'
-          title: Items
-          maxItems: 1
-          minItems: 1
     ItemsWithCursor_UserCreated_:
       type: object
       additionalProperties: false
@@ -263,7 +250,88 @@ components:
           maxItems: 1
       required:
       - items
-    ItemsWithCursor_User_:
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
+    FdwUser:
+      type: object
+      required:
+      - username
+      - createdTime
+      description: A user
+      properties:
+        username:
+          $ref: '#/components/schemas/Username'
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        lastUpdatedTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        sessionId:
+          type: integer
+          title: Session ID
+          minimum: 1
+          maximum: 9007199254740991
+          format: int64
+          description: ID of the session tied to this user.
+    Items_UserUpdate_:
+      additionalProperties: false
+      title: Items[UserUpdate]
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/UserUpdateItem'
+          title: Items
+          maxItems: 1
+          minItems: 1
+    Username:
+      type: string
+      title: Username
+      description: Username to authenticate the user on the DB.
+    ValidationErrorContent_:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 422
+        message:
+          type: string
+          description: Error message.
+          example: 'Extra inputs are not permitted: type'
+    ItemsWithoutCursor_User_:
       type: object
       additionalProperties: false
       properties:
@@ -272,18 +340,30 @@ components:
             $ref: '#/components/schemas/FdwUser'
           title: Items
           type: array
-          maxItems: 100
           minItems: 0
-        nextCursor:
-          type: string
-          title: Next cursor
-          description: Cursor for pagination
       required:
       - items
-    Username:
-      type: string
-      title: Username
-      description: Username to authenticate the user on the DB.
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    ItemsWithIgnoreUnknown_Username_:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/UsernameWrapper'
+          type: array
+          maxItems: 10
+          minItems: 1
+        ignoreUnknownIds:
+          type: boolean
+          description: Ignore usernames that are not found
     UserCreated:
       type: object
       required:
@@ -315,38 +395,21 @@ components:
           maximum: 9007199254740991
           format: int64
           description: ID of the session tied to this user.
-    SessionCredentials:
+    UpdateUser:
       additionalProperties: false
-      properties:
-        nonce:
-          title: Nonce
-          type: string
-          description: Session nonce for a recently created CDF Session.
-      required:
-      - nonce
-      title: SessionCredentials
       type: object
-      description: Credentials for authenticating towards CDF using a CDF session.
-    FdwUser:
-      type: object
-      required:
-      - username
-      - createdTime
-      description: A user
       properties:
-        username:
-          $ref: '#/components/schemas/Username'
-        createdTime:
-          $ref: '#/components/schemas/EpochTimestamp'
-        lastUpdatedTime:
-          $ref: '#/components/schemas/EpochTimestamp'
-        sessionId:
-          type: integer
-          title: Session ID
-          minimum: 1
-          maximum: 9007199254740991
-          format: int64
-          description: ID of the session tied to this user.
+        credentials:
+          $ref: '#/components/schemas/UpdateItem_SessionCredentials'
+    CreateUser:
+      type: object
+      title: Create User
+      additionalProperties: false
+      required:
+      - credentials
+      properties:
+        credentials:
+          $ref: '#/components/schemas/SessionCredentials'
     UsernameWrapper:
       type: object
       additionalProperties: false
@@ -355,93 +418,6 @@ components:
       properties:
         username:
           $ref: '#/components/schemas/Username'
-    ItemsWithIgnoreUnknown_Username_:
-      type: object
-      additionalProperties: false
-      required:
-      - items
-      properties:
-        items:
-          items:
-            $ref: '#/components/schemas/UsernameWrapper'
-          type: array
-          maxItems: 10
-          minItems: 1
-        ignoreUnknownIds:
-          type: boolean
-          description: Ignore usernames that are not found
-    UpdateItem_SessionCredentials:
-      additionalProperties: false
-      properties:
-        set:
-          $ref: '#/components/schemas/SessionCredentials'
-      required:
-      - set
-      title: UpdateItem_SessionCredentials
-      type: object
-      description: Set a new set of session credentials for writing to CDF.
-    Error:
-      type: object
-      required:
-      - code
-      - message
-      description: Cognite API error.
-      properties:
-        code:
-          type: integer
-          description: HTTP status code.
-          format: int32
-          example: 401
-        message:
-          type: string
-          description: Error message.
-          example: Could not authenticate.
-        missing:
-          type: array
-          description: List of lookup objects that do not match any results.
-          items:
-            type: object
-            additionalProperties: true
-        duplicated:
-          type: array
-          description: List of objects that are not unique.
-          items:
-            type: object
-            additionalProperties: true
-    EpochTimestamp:
-      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-      type: integer
-      minimum: 0
-      format: int64
-      example: 1730204346000
-    ValidationErrorContent_:
-      type: object
-      required:
-      - code
-      - message
-      description: Cognite API error.
-      properties:
-        code:
-          type: integer
-          description: HTTP status code.
-          format: int32
-          example: 422
-        message:
-          type: string
-          description: Error message.
-          example: 'Extra inputs are not permitted: type'
-    ItemsWithoutCursor_User_:
-      type: object
-      additionalProperties: false
-      properties:
-        items:
-          items:
-            $ref: '#/components/schemas/FdwUser'
-          title: Items
-          type: array
-          minItems: 0
-      required:
-      - items
     ItemsWithIgnoreUnknown_Username_1_:
       type: object
       additionalProperties: false
@@ -457,26 +433,23 @@ components:
         ignoreUnknownIds:
           type: boolean
           description: Ignore usernames that are not found
-    CreateUser:
-      type: object
-      title: Create User
-      additionalProperties: false
-      required:
-      - credentials
-      properties:
-        credentials:
-          $ref: '#/components/schemas/SessionCredentials'
-    UserUpdateItem:
+    ItemsWithCursor_User_:
       type: object
       additionalProperties: false
-      required:
-      - username
-      - update
       properties:
-        username:
-          $ref: '#/components/schemas/Username'
-        update:
-          $ref: '#/components/schemas/UpdateUser'
+        items:
+          items:
+            $ref: '#/components/schemas/FdwUser'
+          title: Items
+          type: array
+          maxItems: 100
+          minItems: 0
+        nextCursor:
+          type: string
+          title: Next cursor
+          description: Cursor for pagination
+      required:
+      - items
     FilterUsers:
       type: object
       additionalProperties: false
@@ -505,12 +478,83 @@ components:
           type: array
           minItems: 1
           maxItems: 1
-    UpdateUser:
+    SessionCredentials:
       additionalProperties: false
-      type: object
       properties:
-        credentials:
-          $ref: '#/components/schemas/UpdateItem_SessionCredentials'
+        nonce:
+          title: Nonce
+          type: string
+          description: Session nonce for a recently created CDF Session.
+      required:
+      - nonce
+      title: SessionCredentials
+      type: object
+      description: Credentials for authenticating towards CDF using a CDF session.
+    UserUpdateItem:
+      type: object
+      additionalProperties: false
+      required:
+      - username
+      - update
+      properties:
+        username:
+          $ref: '#/components/schemas/Username'
+        update:
+          $ref: '#/components/schemas/UpdateUser'
+    UpdateItem_SessionCredentials:
+      additionalProperties: false
+      properties:
+        set:
+          $ref: '#/components/schemas/SessionCredentials'
+      required:
+      - set
+      title: UpdateItem_SessionCredentials
+      type: object
+      description: Set a new set of session credentials for writing to CDF.
+  responses:
+    EmptyResponse:
+      description: Empty response.
+      content:
+        application/json:
+          schema:
+            type: object
+    ValidationError_:
+      description: Validation Error
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/ValidationErrorContent_'
+    ErrorResponse:
+      description: The response for a failed request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+    400ErrorResponse:
+      description: The response for a bad request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: 400
+              message: '`null` values aren''t allowed.'
   parameters:
     100Limit_:
       name: limit
@@ -541,50 +585,6 @@ components:
       schema:
         type: string
         example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
-  responses:
-    400ErrorResponse:
-      description: The response for a bad request.
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - error
-            properties:
-              error:
-                $ref: '#/components/schemas/Error'
-          example:
-            error:
-              code: 400
-              message: '`null` values aren''t allowed.'
-    EmptyResponse:
-      description: Empty response.
-      content:
-        application/json:
-          schema:
-            type: object
-    ErrorResponse:
-      description: The response for a failed request.
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - error
-            properties:
-              error:
-                $ref: '#/components/schemas/Error'
-    ValidationError_:
-      description: Validation Error
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - error
-            properties:
-              error:
-                $ref: '#/components/schemas/ValidationErrorContent_'
   securitySchemes:
     oidc-token:
       type: http

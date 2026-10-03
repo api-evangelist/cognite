@@ -85,16 +85,54 @@ paths:
           $ref: '#/components/responses/ErrorResponse'
 components:
   schemas:
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
+    Path:
+      description: SVG path in a custom format
+      type: object
+      required:
+      - id
+      - d
+      properties:
+        id:
+          type: string
+        d:
+          description: The d attribute of an SVG path
+          type: string
+        styleId:
+          description: The id of the style used for this path
+          type: string
     PathsDict:
       description: Map representation of paths
       type: object
       additionalProperties:
         $ref: '#/components/schemas/Path'
-    PathStylesDict:
-      description: Map linking styleIds to SVG path style properties
-      type: object
-      additionalProperties:
-        $ref: '#/components/schemas/PathStyle'
     SvgData:
       description: SVG data extracted for a file.
       type: object
@@ -159,69 +197,35 @@ components:
           type: string
         strokeWidth:
           type: string
-    Path:
-      description: SVG path in a custom format
+    PathStylesDict:
+      description: Map linking styleIds to SVG path style properties
       type: object
-      required:
-      - id
-      - d
-      properties:
-        id:
-          type: string
-        d:
-          description: The d attribute of an SVG path
-          type: string
-        styleId:
-          description: The id of the style used for this path
-          type: string
+      additionalProperties:
+        $ref: '#/components/schemas/PathStyle'
     CogniteExternalId:
       description: The external ID provided by the client. Must be unique for the resource type.
       type: string
       maxLength: 255
       example: my.known.id
-    Error:
-      type: object
-      required:
-      - code
-      - message
-      description: Cognite API error.
-      properties:
-        code:
-          type: integer
-          description: HTTP status code.
-          format: int32
-          example: 401
-        message:
-          type: string
-          description: Error message.
-          example: Could not authenticate.
-        missing:
-          type: array
-          description: List of lookup objects that do not match any results.
-          items:
+  responses:
+    GetSVGDataResponse:
+      description: The SVG data for a file
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SvgData'
+    ErrorResponse:
+      description: The response for a failed request.
+      content:
+        application/json:
+          schema:
             type: object
-            additionalProperties: true
-        duplicated:
-          type: array
-          description: List of objects that are not unique.
-          items:
-            type: object
-            additionalProperties: true
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
   parameters:
-    pageNumber:
-      name: pageNumber
-      description: The file's page number
-      required: true
-      in: path
-      schema:
-        type: integer
-    fileExternalId:
-      name: fileExternalId
-      description: Retrieve data related to a file
-      required: true
-      in: path
-      schema:
-        type: string
     diagramIdPath:
       name: diagramId
       description: External ID of a diagram
@@ -236,24 +240,20 @@ components:
       in: path
       schema:
         type: string
-  responses:
-    ErrorResponse:
-      description: The response for a failed request.
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - error
-            properties:
-              error:
-                $ref: '#/components/schemas/Error'
-    GetSVGDataResponse:
-      description: The SVG data for a file
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/SvgData'
+    fileExternalId:
+      name: fileExternalId
+      description: Retrieve data related to a file
+      required: true
+      in: path
+      schema:
+        type: string
+    pageNumber:
+      name: pageNumber
+      description: The file's page number
+      required: true
+      in: path
+      schema:
+        type: integer
   securitySchemes:
     oidc-token:
       type: http

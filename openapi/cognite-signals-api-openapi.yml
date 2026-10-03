@@ -353,31 +353,226 @@ paths:
           $ref: '#/components/responses/400ErrorResponse'
 components:
   schemas:
-    SubscriptionRead:
+    EmailSinkId:
+      type: object
+      required:
+      - externalId
+      - type
+      title: EmailSinkId
+      properties:
+        type:
+          enum:
+          - email
+          title: Type
+          type: string
+          description: Sink type.
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+    SubscriptionWrite:
       type: object
       required:
       - externalId
       - sink
       - filter
-      - createdTime
-      - lastUpdatedTime
-      title: SubscriptionRead
-      description: 'A subscription item which includes the sink and filters available for that subscription.
-
-        The filters here would be the metadata from the service the subscription points to.
-
-        '
+      description: Request to create a subscription.
+      title: SubscriptionWrite
       properties:
         externalId:
           $ref: '#/components/schemas/CogniteExternalId'
         sink:
-          $ref: '#/components/schemas/ConcreteSinkId'
+          $ref: '#/components/schemas/RefSinkId'
         filter:
           $ref: '#/components/schemas/SubscriptionFilter'
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
+    FilterHostedExtractorsSubscriptions:
+      allOf:
+      - $ref: '#/components/schemas/FilterSubscriptionsBase'
+      title: FilterHostedExtractorsSubscriptions
+      required:
+      - topic
+      properties:
+        topic:
+          type: string
+          enum:
+          - cognite_hosted_extractors
+          description: Topic name.
+        metadata:
+          type: object
+          description: Filter on signal metadata specific to hosted extractors.
+          properties: {}
+    SinkUpdateItem:
+      discriminator:
+        mapping:
+          email: '#/components/schemas/EmailSinkUpdateItem'
+          user: '#/components/schemas/UserSinkUpdateItem'
+          current_user: '#/components/schemas/CurrentUserSinkUpdateItem'
+        propertyName: type
+      oneOf:
+      - $ref: '#/components/schemas/EmailSinkUpdateItem'
+      - $ref: '#/components/schemas/UserSinkUpdateItem'
+      - $ref: '#/components/schemas/CurrentUserSinkUpdateItem'
+    TopicRead:
+      type: object
+      title: TopicRead
+      description: A topic supported by the signals service.
+      required:
+      - name
+      - isGlobal
+      - categories
+      properties:
+        name:
+          $ref: '#/components/schemas/SupportedTopics'
+        isGlobal:
+          type: boolean
+          description: Whether this topic is available globally across all projects.
+        categories:
+          type: array
+          title: Categories
+          description: 'The notification categories this topic can emit. Use these values when filtering subscriptions by category.
+
+            '
+          items:
+            type: string
+            minLength: 1
+    Items_SinkRead:
+      type: object
+      required:
+      - items
+      title: SinkReadList
+      properties:
+        items:
+          type: array
+          title: Items
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/SinkRead'
+    UserSink:
+      type: object
+      title: UserSinkWrite
+      description: Description of a user sink. The external ID of the sink matches a user in the user profiles API.
+      required:
+      - type
+      - externalId
+      - createdTime
+      - lastUpdatedTime
+      properties:
+        type:
+          enum:
+          - user
+          title: Type
+          type: string
+          description: Sink type.
+        emailAddress:
+          type: string
+          title: EmailAddress
+          description: The e-mail address to send signals to. Can be null if the user has no e-mail set.
+          minLength: 3
+          maxLength: 255
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
         createdTime:
           $ref: '#/components/schemas/EpochTimestamp'
         lastUpdatedTime:
           $ref: '#/components/schemas/EpochTimestamp'
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    CogniteExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
+      type: string
+      maxLength: 255
+      example: my.known.id
+    SignalSeverity:
+      type: string
+      description: The severity level of the signal.
+      enum:
+      - info
+      - warning
+      - error
+    Items_SignalRead_WithCursor:
+      type: object
+      title: Items_NotificationRead_WithCursor
+      description: List of signals.
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          title: Items
+          maxItems: 1000
+          items:
+            $ref: '#/components/schemas/SignalsNotificationRead'
+        nextCursor:
+          type: string
+          title: NextCursor
+          description: 'Cursor for retrieving the next page of results. Omitted if there are no more results.
+
+            '
+    IntegrationSignalMetadata:
+      type: object
+      title: IntegrationSignalMetadata
+      description: Metadata specific to integration signals.
+      properties:
+        extractorExternalId:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: External ID of the extractor the integration manages.
+        extractorVersion:
+          type: string
+          minLength: 1
+          maxLength: 32
+          description: Version of the extractor the integration manages.
+    SubscriptionFilterRequest:
+      type: object
+      title: SubscriptionFilterRequest
+      description: Request for filtering subscriptions.
+      properties:
+        filter:
+          oneOf:
+          - $ref: '#/components/schemas/FilterIntegrationsSubscriptions'
+          - $ref: '#/components/schemas/FilterWorkflowsSubscriptions'
+          - $ref: '#/components/schemas/FilterHostedExtractorsSubscriptions'
+        limit:
+          type: integer
+          description: Maximum number of subscriptions to return.
+          default: 100
+          minimum: 1
+          maximum: 100
+        cursor:
+          type: string
+          description: Cursor for pagination.
     SubscriptionFilterUpdate:
       type: object
       title: SubscriptionFilterUpdate
@@ -402,118 +597,15 @@ components:
           - info
           - warning
           - error
-    FilterHostedExtractorsSubscriptions:
-      allOf:
-      - $ref: '#/components/schemas/FilterSubscriptionsBase'
-      title: FilterHostedExtractorsSubscriptions
-      required:
-      - topic
-      properties:
-        topic:
-          type: string
-          enum:
-          - cognite_hosted_extractors
-          description: Topic name.
-        metadata:
-          type: object
-          description: Filter on signal metadata specific to hosted extractors.
-          properties: {}
-    Items_TopicRead:
-      type: object
-      title: Items_TopicRead
-      description: List of topics.
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          title: Items
-          items:
-            $ref: '#/components/schemas/TopicRead'
-    SignalSeverity:
-      type: string
-      description: The severity level of the signal.
-      enum:
-      - info
-      - warning
-      - error
-    Items_RetrieveSinks:
-      type: object
-      required:
-      - items
-      title: RetrieveSinksList
-      properties:
-        items:
-          type: array
-          title: Items
-          minItems: 1
-          maxItems: 100
-          items:
-            $ref: '#/components/schemas/RefSinkId'
-        ignoreUnknownIds:
-          type: boolean
-          title: IgnoreUnknownIds
-          description: 'Ignore external IDs that are not found
-
-            '
-          default: false
-    EmailSinkWrite:
-      type: object
-      title: EmailSinkWrite
-      description: Request to create an e-mail sink.
-      required:
-      - type
-      - externalId
-      - emailAddress
-      properties:
-        type:
-          enum:
-          - email
-          title: Type
-          type: string
-          description: Sink type.
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-        emailAddress:
-          type: string
-          title: EmailAddress
-          description: The e-mail address to send signals to.
-          minLength: 3
-          maxLength: 255
-    HostedExtractorFilterProperties:
-      type: object
-      title: HostedExtractorFilterProperties
-      description: Common properties for filtering hosted extractor signals.
-      properties:
-        sourceType:
-          type: string
-          description: Filter signals to only include those from hosted extractors with the specified source type.
-        sourceExternalId:
-          type: string
-          minLength: 1
-          maxLength: 255
-          description: Filter signals to only include those from hosted extractors with the specified source external ID.
-        destinationExternalId:
-          type: string
-          minLength: 1
-          maxLength: 255
-          description: Filter signals to only include those from hosted extractors with the specified destination external ID.
-    UpdateIntegrationsSubscriptionFilter:
-      type: object
-      title: UpdateIntegrationsSubscriptionFilter
-      allOf:
-      - $ref: '#/components/schemas/SubscriptionFilterUpdate'
-      properties:
-        extractorExternalId:
-          type: string
-          minLength: 1
-          maxLength: 255
-          description: Filter signals to only include those from integrations with the specified extractor external ID.
-        extractorVersion:
-          type: string
-          minLength: 1
-          maxLength: 32
-          description: Filter signals to only include those from integrations with the specified extractor version.
+    SinkWrite:
+      discriminator:
+        mapping:
+          email: '#/components/schemas/EmailSinkWrite'
+          user: '#/components/schemas/UserSinkWrite'
+        propertyName: type
+      oneOf:
+      - $ref: '#/components/schemas/EmailSinkWrite'
+      - $ref: '#/components/schemas/UserSinkWrite'
     UserSinkWrite:
       type: object
       title: UserSinkWrite
@@ -530,57 +622,10 @@ components:
           description: Sink type.
         externalId:
           $ref: '#/components/schemas/CogniteExternalId'
-    SupportedTopics:
-      type: string
-      enum:
-      - cognite_integrations
-      - cognite_workflows
-      - cognite_hosted_extractors
-      description: Topics supported by the service.
-    SubscriptionWrite:
+    CurrentUserSinkUpdateItem:
       type: object
-      required:
-      - externalId
-      - sink
-      - filter
-      description: Request to create a subscription.
-      title: SubscriptionWrite
-      properties:
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-        sink:
-          $ref: '#/components/schemas/RefSinkId'
-        filter:
-          $ref: '#/components/schemas/SubscriptionFilter'
-    Items_DeleteSubscriptions:
-      type: object
-      required:
-      - items
-      title: DeleteSubscriptionsList
-      properties:
-        items:
-          type: array
-          title: Items
-          minItems: 1
-          maxItems: 100
-          items:
-            type: object
-            required:
-            - externalId
-            properties:
-              externalId:
-                $ref: '#/components/schemas/CogniteExternalId'
-        ignoreUnknownIds:
-          type: boolean
-          title: IgnoreUnknownIds
-          description: 'Ignore external IDs that are not found
-
-            '
-          default: false
-    EmailSinkUpdateItem:
-      type: object
-      title: EmailSinkUpdateItem
-      description: Update an e-mail sink.
+      title: CurrentUserSinkUpdateItem
+      description: Update the sink for the user making the request.
       required:
       - externalId
       - update
@@ -588,61 +633,57 @@ components:
       properties:
         type:
           enum:
-          - email
+          - current_user
           title: Type
           type: string
           description: Sink type.
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
         update:
-          $ref: '#/components/schemas/EmailSinkUpdate'
-    IntegrationSignalMetadata:
-      type: object
-      title: IntegrationSignalMetadata
-      description: Metadata specific to integration signals.
-      properties:
-        extractorExternalId:
-          type: string
-          minLength: 1
-          maxLength: 255
-          description: External ID of the extractor the integration manages.
-        extractorVersion:
-          type: string
-          minLength: 1
-          maxLength: 32
-          description: Version of the extractor the integration manages.
-    Items_SinkRead_WithCursor:
-      type: object
+          $ref: '#/components/schemas/UserSinkUpdate'
+    FilterWorkflowsSubscriptions:
+      allOf:
+      - $ref: '#/components/schemas/FilterSubscriptionsBase'
+      title: FilterWorkflowsSubscriptions
       required:
-      - items
-      title: SinkReadList
+      - topic
       properties:
-        items:
-          type: array
-          title: Items
-          minItems: 1
-          maxItems: 100
-          items:
-            $ref: '#/components/schemas/SinkRead'
-        nextCursor:
+        topic:
           type: string
-          title: NextCursor
-          description: Cursor for retrieving the next page of results. Omitted if there are no more results.
-    UserSinkId:
-      type: object
-      required:
-      - externalId
-      - type
-      title: UserSinkId
-      properties:
-        type:
           enum:
-          - user
-          title: Type
-          type: string
-          description: Sink type.
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
+          - cognite_workflows
+          description: Topic name.
+        metadata:
+          type: object
+          description: Filter on signal metadata specific to workflows.
+          properties: {}
+    ConcreteSinkId:
+      description: ID of a sink.
+      discriminator:
+        mapping:
+          email: '#/components/schemas/EmailSinkId'
+          user: '#/components/schemas/UserSinkId'
+        propertyName: type
+      oneOf:
+      - $ref: '#/components/schemas/EmailSinkId'
+      - $ref: '#/components/schemas/UserSinkId'
+    SubscriptionFilter:
+      description: 'Filter used to select which signals will be received by a subscription. Omitted fields are ignored when filtering, allowing signals with any value in that field.
+
+        '
+      discriminator:
+        mapping:
+          cognite_integrations: '#/components/schemas/IntegrationsSubscriptionFilter'
+          cognite_workflows: '#/components/schemas/WorkflowsSubscriptionFilter'
+          cognite_hosted_extractors: '#/components/schemas/HostedExtractorsSubscriptionFilter'
+        propertyName: topic
+      oneOf:
+      - $ref: '#/components/schemas/IntegrationsSubscriptionFilter'
+      - $ref: '#/components/schemas/WorkflowsSubscriptionFilter'
+      - $ref: '#/components/schemas/HostedExtractorsSubscriptionFilter'
+    UserSinkUpdate:
+      type: object
+      title: UserSinkUpdate
+      description: Update request for a user sink.
+      properties: {}
     SignalsNotificationRead:
       type: object
       title: SignalRead
@@ -686,87 +727,41 @@ components:
           type: string
           title: Details
           description: Details of a signal.
-    SinkUpdateItem:
-      discriminator:
-        mapping:
-          email: '#/components/schemas/EmailSinkUpdateItem'
-          user: '#/components/schemas/UserSinkUpdateItem'
-          current_user: '#/components/schemas/CurrentUserSinkUpdateItem'
-        propertyName: type
-      oneOf:
-      - $ref: '#/components/schemas/EmailSinkUpdateItem'
-      - $ref: '#/components/schemas/UserSinkUpdateItem'
-      - $ref: '#/components/schemas/CurrentUserSinkUpdateItem'
-    CurrentUserSinkId:
+    WorkflowsSubscriptionFilter:
       type: object
-      required:
-      - externalId
-      - type
-      title: CurrentUserSinkId
-      properties:
-        type:
-          enum:
-          - current_user
-          title: Type
-          type: string
-          description: Sink type.
-    Items_SubscriptionWrite:
-      type: object
-      required:
-      - items
-      title: SubscriptionWriteList
-      properties:
-        items:
-          type: array
-          title: Items
-          minItems: 1
-          maxItems: 10
-          items:
-            $ref: '#/components/schemas/SubscriptionWrite'
-    UpdateWorkflowsSubscriptionFilter:
-      type: object
-      title: UpdateWorkflowsSubscriptionFilter
+      title: WorkflowsSubscriptionFilter
       allOf:
       - $ref: '#/components/schemas/SubscriptionFilterUpdate'
-      properties: {}
-    SubscriptionFilterRequest:
-      type: object
-      title: SubscriptionFilterRequest
-      description: Request for filtering subscriptions.
+      required:
+      - topic
       properties:
-        filter:
-          oneOf:
-          - $ref: '#/components/schemas/FilterIntegrationsSubscriptions'
-          - $ref: '#/components/schemas/FilterWorkflowsSubscriptions'
-          - $ref: '#/components/schemas/FilterHostedExtractorsSubscriptions'
-        limit:
-          type: integer
-          description: Maximum number of subscriptions to return.
-          default: 100
-          minimum: 1
-          maximum: 100
-        cursor:
+        topic:
           type: string
-          description: Cursor for pagination.
-    Items_SignalRead_WithCursor:
+          enum:
+          - cognite_workflows
+          description: Topic name.
+    SinkRead:
+      discriminator:
+        mapping:
+          email: '#/components/schemas/EmailSink'
+          user: '#/components/schemas/UserSink'
+        propertyName: type
+      oneOf:
+      - $ref: '#/components/schemas/EmailSink'
+      - $ref: '#/components/schemas/UserSink'
+    Items_SubscriptionRead:
       type: object
-      title: Items_NotificationRead_WithCursor
-      description: List of signals.
       required:
       - items
+      title: SubscriptionReadList
       properties:
         items:
           type: array
           title: Items
-          maxItems: 1000
+          minItems: 0
+          maxItems: 100
           items:
-            $ref: '#/components/schemas/SignalsNotificationRead'
-        nextCursor:
-          type: string
-          title: NextCursor
-          description: 'Cursor for retrieving the next page of results. Omitted if there are no more results.
-
-            '
+            $ref: '#/components/schemas/SubscriptionRead'
     FilterIsNull:
       type: object
       title: FilterIsNull
@@ -777,160 +772,18 @@ components:
         isNull:
           type: boolean
           description: Whether the filter is null.
-    EmailSinkUpdate:
+    Items_TopicRead:
       type: object
-      title: EmailSinkUpdate
-      description: Update request for an email sink.
-      properties:
-        emailAddress:
-          type: object
-          properties:
-            set:
-              type: string
-              title: EmailAddress
-              description: The e-mail address to send signals to.
-              minLength: 3
-              maxLength: 255
-          required:
-          - set
-          description: Set the e-mail address of the sink.
-    CurrentUserSinkUpdateItem:
-      type: object
-      title: CurrentUserSinkUpdateItem
-      description: Update the sink for the user making the request.
+      title: Items_TopicRead
+      description: List of topics.
       required:
-      - externalId
-      - update
-      - type
+      - items
       properties:
-        type:
-          enum:
-          - current_user
-          title: Type
-          type: string
-          description: Sink type.
-        update:
-          $ref: '#/components/schemas/UserSinkUpdate'
-    Error:
-      type: object
-      required:
-      - code
-      - message
-      description: Cognite API error.
-      properties:
-        code:
-          type: integer
-          description: HTTP status code.
-          format: int32
-          example: 401
-        message:
-          type: string
-          description: Error message.
-          example: Could not authenticate.
-        missing:
+        items:
           type: array
-          description: List of lookup objects that do not match any results.
+          title: Items
           items:
-            type: object
-            additionalProperties: true
-        duplicated:
-          type: array
-          description: List of objects that are not unique.
-          items:
-            type: object
-            additionalProperties: true
-    SubscriptionUpdateItem:
-      type: object
-      title: SubscriptionUpdateItem
-      description: Update an existing subscription.
-      required:
-      - externalId
-      - update
-      properties:
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-        update:
-          type: object
-          title: SubscriptionUpdate
-          properties:
-            filter:
-              type: object
-              title: SetSubscriptionFilter
-              description: Set a new subscription filter. The filter must match the topic of the existing subscription.
-              properties:
-                set:
-                  oneOf:
-                  - $ref: '#/components/schemas/UpdateIntegrationsSubscriptionFilter'
-                  - $ref: '#/components/schemas/UpdateWorkflowsSubscriptionFilter'
-                  - $ref: '#/components/schemas/UpdateHostedExtractorsSubscriptionFilter'
-    UserSinkUpdateItem:
-      type: object
-      title: UserSinkUpdateItem
-      description: Update a user sink.
-      required:
-      - externalId
-      - update
-      - type
-      properties:
-        type:
-          enum:
-          - user
-          title: Type
-          type: string
-          description: Sink type.
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-        update:
-          $ref: '#/components/schemas/UserSinkUpdate'
-    EpochTimestamp:
-      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-      type: integer
-      minimum: 0
-      format: int64
-      example: 1730204346000
-    HostedExtractorsSubscriptionFilter:
-      type: object
-      title: HostedExtractorsSubscriptionFilter
-      allOf:
-      - $ref: '#/components/schemas/SubscriptionFilterUpdate'
-      - $ref: '#/components/schemas/HostedExtractorFilterProperties'
-      required:
-      - topic
-      properties:
-        topic:
-          type: string
-          enum:
-          - cognite_hosted_extractors
-          description: Topic name.
-    FilterSubscriptionsBase:
-      type: object
-      title: FilterSubscriptionsBase
-      properties:
-        topic:
-          type: string
-          description: Topic name.
-        resource:
-          description: Retrieve subscriptions that would match the specified resource ID, or ones with a "null" resource filter.
-          oneOf:
-          - type: string
-            minLength: 1
-            maxLength: 512
-          - $ref: '#/components/schemas/FilterIsNull'
-        category:
-          description: Retrieve subscriptions that would match the specified category, or ones with a "null" category filter.
-          oneOf:
-          - type: string
-            minLength: 1
-            maxLength: 255
-          - $ref: '#/components/schemas/FilterIsNull'
-        severity:
-          description: Retrieve subscriptions that would match the specified severity, or ones with a "null" severity filter.
-          oneOf:
-          - $ref: '#/components/schemas/SignalSeverity'
-          - $ref: '#/components/schemas/FilterIsNull'
-        sink:
-          description: Retrieve subscriptions owned by a specific sink.
-          $ref: '#/components/schemas/RefSinkId'
+            $ref: '#/components/schemas/TopicRead'
     IntegrationsSubscriptionFilter:
       type: object
       title: IntegrationsSubscriptionFilter
@@ -954,51 +807,154 @@ components:
           minLength: 1
           maxLength: 32
           description: Filter signals to only include those from integrations with the specified extractor version.
-    SubscriptionFilter:
-      description: 'Filter used to select which signals will be received by a subscription. Omitted fields are ignored when filtering, allowing signals with any value in that field.
-
-        '
+    RefSinkId:
+      description: Reference to a sink. If the type is "user", the user must exist in the user profiles API.
       discriminator:
         mapping:
-          cognite_integrations: '#/components/schemas/IntegrationsSubscriptionFilter'
-          cognite_workflows: '#/components/schemas/WorkflowsSubscriptionFilter'
-          cognite_hosted_extractors: '#/components/schemas/HostedExtractorsSubscriptionFilter'
-        propertyName: topic
+          email: '#/components/schemas/EmailSinkId'
+          user: '#/components/schemas/UserSinkId'
+          current_user: '#/components/schemas/CurrentUserSinkId'
+        propertyName: type
       oneOf:
-      - $ref: '#/components/schemas/IntegrationsSubscriptionFilter'
-      - $ref: '#/components/schemas/WorkflowsSubscriptionFilter'
-      - $ref: '#/components/schemas/HostedExtractorsSubscriptionFilter'
-    Items_UpdateSubscriptions:
+      - $ref: '#/components/schemas/EmailSinkId'
+      - $ref: '#/components/schemas/UserSinkId'
+      - $ref: '#/components/schemas/CurrentUserSinkId'
+    CurrentUserSinkId:
+      type: object
+      required:
+      - externalId
+      - type
+      title: CurrentUserSinkId
+      properties:
+        type:
+          enum:
+          - current_user
+          title: Type
+          type: string
+          description: Sink type.
+    EmailSinkWrite:
+      type: object
+      title: EmailSinkWrite
+      description: Request to create an e-mail sink.
+      required:
+      - type
+      - externalId
+      - emailAddress
+      properties:
+        type:
+          enum:
+          - email
+          title: Type
+          type: string
+          description: Sink type.
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        emailAddress:
+          type: string
+          title: EmailAddress
+          description: The e-mail address to send signals to.
+          minLength: 3
+          maxLength: 255
+    UpdateWorkflowsSubscriptionFilter:
+      type: object
+      title: UpdateWorkflowsSubscriptionFilter
+      allOf:
+      - $ref: '#/components/schemas/SubscriptionFilterUpdate'
+      properties: {}
+    WorkflowSignalMetadata:
+      type: object
+      title: WorkflowSignalMetadata
+      description: Metadata specific to workflow signals.
+      properties: {}
+    HostedExtractorsSubscriptionFilter:
+      type: object
+      title: HostedExtractorsSubscriptionFilter
+      allOf:
+      - $ref: '#/components/schemas/SubscriptionFilterUpdate'
+      - $ref: '#/components/schemas/HostedExtractorFilterProperties'
+      required:
+      - topic
+      properties:
+        topic:
+          type: string
+          enum:
+          - cognite_hosted_extractors
+          description: Topic name.
+    UpdateIntegrationsSubscriptionFilter:
+      type: object
+      title: UpdateIntegrationsSubscriptionFilter
+      allOf:
+      - $ref: '#/components/schemas/SubscriptionFilterUpdate'
+      properties:
+        extractorExternalId:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Filter signals to only include those from integrations with the specified extractor external ID.
+        extractorVersion:
+          type: string
+          minLength: 1
+          maxLength: 32
+          description: Filter signals to only include those from integrations with the specified extractor version.
+    UserSinkId:
+      type: object
+      required:
+      - externalId
+      - type
+      title: UserSinkId
+      properties:
+        type:
+          enum:
+          - user
+          title: Type
+          type: string
+          description: Sink type.
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+    UpdateHostedExtractorsSubscriptionFilter:
+      type: object
+      title: UpdateHostedExtractorsSubscriptionFilter
+      allOf:
+      - $ref: '#/components/schemas/SubscriptionFilterUpdate'
+      - $ref: '#/components/schemas/HostedExtractorFilterProperties'
+    Items_SinkUpdate:
       type: object
       required:
       - items
-      title: UpdateSubscriptionsList
-      description: List of subscription updates.
+      title: SinkUpdateList
       properties:
         items:
           type: array
           title: Items
           minItems: 1
-          maxItems: 10
+          maxItems: 100
           items:
-            $ref: '#/components/schemas/SubscriptionUpdateItem'
-    Items_SubscriptionRead_WithCursor:
+            $ref: '#/components/schemas/SinkUpdateItem'
+    Items_DeleteSubscriptions:
       type: object
       required:
       - items
-      title: SubscriptionReadList
+      title: DeleteSubscriptionsList
       properties:
         items:
           type: array
           title: Items
-          minItems: 0
+          minItems: 1
           maxItems: 100
           items:
-            $ref: '#/components/schemas/SubscriptionRead'
-        nextCursor:
-          type: string
-          title: NextCursor
-          description: Cursor for retrieving the next page of results. Omitted if there are no more results.
+            type: object
+            required:
+            - externalId
+            properties:
+              externalId:
+                $ref: '#/components/schemas/CogniteExternalId'
+        ignoreUnknownIds:
+          type: boolean
+          title: IgnoreUnknownIds
+          description: 'Ignore external IDs that are not found
+
+            '
+          default: false
     FilterIntegrationsSubscriptions:
       allOf:
       - $ref: '#/components/schemas/FilterSubscriptionsBase'
@@ -1029,89 +985,7 @@ components:
                 minLength: 1
                 maxLength: 32
               - $ref: '#/components/schemas/FilterIsNull'
-    UpdateHostedExtractorsSubscriptionFilter:
-      type: object
-      title: UpdateHostedExtractorsSubscriptionFilter
-      allOf:
-      - $ref: '#/components/schemas/SubscriptionFilterUpdate'
-      - $ref: '#/components/schemas/HostedExtractorFilterProperties'
-    TopicRead:
-      type: object
-      title: TopicRead
-      description: A topic supported by the signals service.
-      required:
-      - name
-      - isGlobal
-      - categories
-      properties:
-        name:
-          $ref: '#/components/schemas/SupportedTopics'
-        isGlobal:
-          type: boolean
-          description: Whether this topic is available globally across all projects.
-        categories:
-          type: array
-          title: Categories
-          description: 'The notification categories this topic can emit. Use these values when filtering subscriptions by category.
-
-            '
-          items:
-            type: string
-            minLength: 1
-    SignalsFilter:
-      type: object
-      title: SignalsFilter
-      description: Filter for signals to list.
-      required:
-      - sink
-      properties:
-        sink:
-          $ref: '#/components/schemas/RefSinkId'
-        topic:
-          type: string
-          enum:
-          - cognite_workflows
-          - cognite_integrations
-          - cognite_hosted_extractors
-          description: Topic name
-        cursor:
-          type: string
-          description: Cursor for pagination. This cursor is temporary hence should not be saved.
-        limit:
-          type: integer
-          description: Maximum number of subscriptions to return.
-          default: 100
-          minimum: 1
-          maximum: 100
-    ConcreteSinkId:
-      description: ID of a sink.
-      discriminator:
-        mapping:
-          email: '#/components/schemas/EmailSinkId'
-          user: '#/components/schemas/UserSinkId'
-        propertyName: type
-      oneOf:
-      - $ref: '#/components/schemas/EmailSinkId'
-      - $ref: '#/components/schemas/UserSinkId'
-    Items_SubscriptionRead:
-      type: object
-      required:
-      - items
-      title: SubscriptionReadList
-      properties:
-        items:
-          type: array
-          title: Items
-          minItems: 0
-          maxItems: 100
-          items:
-            $ref: '#/components/schemas/SubscriptionRead'
-    WorkflowSignalMetadata:
-      type: object
-      title: WorkflowSignalMetadata
-      description: Metadata specific to workflow signals.
-      properties: {}
-    Items_SinkRead:
+    Items_SinkRead_WithCursor:
       type: object
       required:
       - items
@@ -1124,20 +998,167 @@ components:
           maxItems: 100
           items:
             $ref: '#/components/schemas/SinkRead'
-    SinkWrite:
-      discriminator:
-        mapping:
-          email: '#/components/schemas/EmailSinkWrite'
-          user: '#/components/schemas/UserSinkWrite'
-        propertyName: type
-      oneOf:
-      - $ref: '#/components/schemas/EmailSinkWrite'
-      - $ref: '#/components/schemas/UserSinkWrite'
-    UserSinkUpdate:
+        nextCursor:
+          type: string
+          title: NextCursor
+          description: Cursor for retrieving the next page of results. Omitted if there are no more results.
+    Items_SinkWrite:
       type: object
-      title: UserSinkUpdate
-      description: Update request for a user sink.
-      properties: {}
+      required:
+      - items
+      title: SinkWriteList
+      properties:
+        items:
+          type: array
+          title: Items
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/SinkWrite'
+    SubscriptionRead:
+      type: object
+      required:
+      - externalId
+      - sink
+      - filter
+      - createdTime
+      - lastUpdatedTime
+      title: SubscriptionRead
+      description: 'A subscription item which includes the sink and filters available for that subscription.
+
+        The filters here would be the metadata from the service the subscription points to.
+
+        '
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        sink:
+          $ref: '#/components/schemas/ConcreteSinkId'
+        filter:
+          $ref: '#/components/schemas/SubscriptionFilter'
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        lastUpdatedTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+    HostedExtractorsSignalMetadata:
+      type: object
+      title: HostedExtractorsSignalMetadata
+      description: Metadata specific to hosted extractor signals.
+      properties:
+        sourceType:
+          type: string
+          description: Source type of the hosted extractor.
+        sourceExternalId:
+          type: string
+          description: Source external ID of the hosted extractor.
+        destinationExternalId:
+          type: string
+          description: Destination external ID of the hosted extractor.
+    EmailSinkUpdateItem:
+      type: object
+      title: EmailSinkUpdateItem
+      description: Update an e-mail sink.
+      required:
+      - externalId
+      - update
+      - type
+      properties:
+        type:
+          enum:
+          - email
+          title: Type
+          type: string
+          description: Sink type.
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        update:
+          $ref: '#/components/schemas/EmailSinkUpdate'
+    EmailSinkUpdate:
+      type: object
+      title: EmailSinkUpdate
+      description: Update request for an email sink.
+      properties:
+        emailAddress:
+          type: object
+          properties:
+            set:
+              type: string
+              title: EmailAddress
+              description: The e-mail address to send signals to.
+              minLength: 3
+              maxLength: 255
+          required:
+          - set
+          description: Set the e-mail address of the sink.
+    SubscriptionUpdateItem:
+      type: object
+      title: SubscriptionUpdateItem
+      description: Update an existing subscription.
+      required:
+      - externalId
+      - update
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        update:
+          type: object
+          title: SubscriptionUpdate
+          properties:
+            filter:
+              type: object
+              title: SetSubscriptionFilter
+              description: Set a new subscription filter. The filter must match the topic of the existing subscription.
+              properties:
+                set:
+                  oneOf:
+                  - $ref: '#/components/schemas/UpdateIntegrationsSubscriptionFilter'
+                  - $ref: '#/components/schemas/UpdateWorkflowsSubscriptionFilter'
+                  - $ref: '#/components/schemas/UpdateHostedExtractorsSubscriptionFilter'
+    HostedExtractorFilterProperties:
+      type: object
+      title: HostedExtractorFilterProperties
+      description: Common properties for filtering hosted extractor signals.
+      properties:
+        sourceType:
+          type: string
+          description: Filter signals to only include those from hosted extractors with the specified source type.
+        sourceExternalId:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Filter signals to only include those from hosted extractors with the specified source external ID.
+        destinationExternalId:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Filter signals to only include those from hosted extractors with the specified destination external ID.
+    Items_DeleteSinks:
+      type: object
+      required:
+      - items
+      title: DeleteSinksList
+      properties:
+        items:
+          type: array
+          title: Items
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/ConcreteSinkId'
+        ignoreUnknownIds:
+          type: boolean
+          title: IgnoreUnknownIds
+          description: 'Ignore external IDs that are not found
+
+            '
+          default: false
+    SupportedTopics:
+      type: string
+      enum:
+      - cognite_integrations
+      - cognite_workflows
+      - cognite_hosted_extractors
+      description: Topics supported by the service.
     EmailSink:
       type: object
       title: EmailSinkWrite
@@ -1167,11 +1188,79 @@ components:
           $ref: '#/components/schemas/EpochTimestamp'
         lastUpdatedTime:
           $ref: '#/components/schemas/EpochTimestamp'
-    Items_DeleteSinks:
+    SignalsFilter:
+      type: object
+      title: SignalsFilter
+      description: Filter for signals to list.
+      required:
+      - sink
+      properties:
+        sink:
+          $ref: '#/components/schemas/RefSinkId'
+        topic:
+          type: string
+          enum:
+          - cognite_workflows
+          - cognite_integrations
+          - cognite_hosted_extractors
+          description: Topic name
+        cursor:
+          type: string
+          description: Cursor for pagination. This cursor is temporary hence should not be saved.
+        limit:
+          type: integer
+          description: Maximum number of subscriptions to return.
+          default: 100
+          minimum: 1
+          maximum: 100
+    Items_UpdateSubscriptions:
       type: object
       required:
       - items
-      title: DeleteSinksList
+      title: UpdateSubscriptionsList
+      description: List of subscription updates.
+      properties:
+        items:
+          type: array
+          title: Items
+          minItems: 1
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/SubscriptionUpdateItem'
+    FilterSubscriptionsBase:
+      type: object
+      title: FilterSubscriptionsBase
+      properties:
+        topic:
+          type: string
+          description: Topic name.
+        resource:
+          description: Retrieve subscriptions that would match the specified resource ID, or ones with a "null" resource filter.
+          oneOf:
+          - type: string
+            minLength: 1
+            maxLength: 512
+          - $ref: '#/components/schemas/FilterIsNull'
+        category:
+          description: Retrieve subscriptions that would match the specified category, or ones with a "null" category filter.
+          oneOf:
+          - type: string
+            minLength: 1
+            maxLength: 255
+          - $ref: '#/components/schemas/FilterIsNull'
+        severity:
+          description: Retrieve subscriptions that would match the specified severity, or ones with a "null" severity filter.
+          oneOf:
+          - $ref: '#/components/schemas/SignalSeverity'
+          - $ref: '#/components/schemas/FilterIsNull'
+        sink:
+          description: Retrieve subscriptions owned by a specific sink.
+          $ref: '#/components/schemas/RefSinkId'
+    Items_RetrieveSinks:
+      type: object
+      required:
+      - items
+      title: RetrieveSinksList
       properties:
         items:
           type: array
@@ -1179,7 +1268,7 @@ components:
           minItems: 1
           maxItems: 100
           items:
-            $ref: '#/components/schemas/ConcreteSinkId'
+            $ref: '#/components/schemas/RefSinkId'
         ignoreUnknownIds:
           type: boolean
           title: IgnoreUnknownIds
@@ -1187,50 +1276,14 @@ components:
 
             '
           default: false
-    WorkflowsSubscriptionFilter:
+    UserSinkUpdateItem:
       type: object
-      title: WorkflowsSubscriptionFilter
-      allOf:
-      - $ref: '#/components/schemas/SubscriptionFilterUpdate'
+      title: UserSinkUpdateItem
+      description: Update a user sink.
       required:
-      - topic
-      properties:
-        topic:
-          type: string
-          enum:
-          - cognite_workflows
-          description: Topic name.
-    Items_SinkWrite:
-      type: object
-      required:
-      - items
-      title: SinkWriteList
-      properties:
-        items:
-          type: array
-          title: Items
-          minItems: 1
-          maxItems: 100
-          items:
-            $ref: '#/components/schemas/SinkWrite'
-    SinkRead:
-      discriminator:
-        mapping:
-          email: '#/components/schemas/EmailSink'
-          user: '#/components/schemas/UserSink'
-        propertyName: type
-      oneOf:
-      - $ref: '#/components/schemas/EmailSink'
-      - $ref: '#/components/schemas/UserSink'
-    UserSink:
-      type: object
-      title: UserSinkWrite
-      description: Description of a user sink. The external ID of the sink matches a user in the user profiles API.
-      required:
-      - type
       - externalId
-      - createdTime
-      - lastUpdatedTime
+      - update
+      - type
       properties:
         type:
           enum:
@@ -1238,109 +1291,41 @@ components:
           title: Type
           type: string
           description: Sink type.
-        emailAddress:
-          type: string
-          title: EmailAddress
-          description: The e-mail address to send signals to. Can be null if the user has no e-mail set.
-          minLength: 3
-          maxLength: 255
         externalId:
           $ref: '#/components/schemas/CogniteExternalId'
-        createdTime:
-          $ref: '#/components/schemas/EpochTimestamp'
-        lastUpdatedTime:
-          $ref: '#/components/schemas/EpochTimestamp'
-    RefSinkId:
-      description: Reference to a sink. If the type is "user", the user must exist in the user profiles API.
-      discriminator:
-        mapping:
-          email: '#/components/schemas/EmailSinkId'
-          user: '#/components/schemas/UserSinkId'
-          current_user: '#/components/schemas/CurrentUserSinkId'
-        propertyName: type
-      oneOf:
-      - $ref: '#/components/schemas/EmailSinkId'
-      - $ref: '#/components/schemas/UserSinkId'
-      - $ref: '#/components/schemas/CurrentUserSinkId'
-    CogniteExternalId:
-      description: The external ID provided by the client. Must be unique for the resource type.
-      type: string
-      maxLength: 255
-      example: my.known.id
-    EmailSinkId:
-      type: object
-      required:
-      - externalId
-      - type
-      title: EmailSinkId
-      properties:
-        type:
-          enum:
-          - email
-          title: Type
-          type: string
-          description: Sink type.
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-    FilterWorkflowsSubscriptions:
-      allOf:
-      - $ref: '#/components/schemas/FilterSubscriptionsBase'
-      title: FilterWorkflowsSubscriptions
-      required:
-      - topic
-      properties:
-        topic:
-          type: string
-          enum:
-          - cognite_workflows
-          description: Topic name.
-        metadata:
-          type: object
-          description: Filter on signal metadata specific to workflows.
-          properties: {}
-    Items_SinkUpdate:
+        update:
+          $ref: '#/components/schemas/UserSinkUpdate'
+    Items_SubscriptionWrite:
       type: object
       required:
       - items
-      title: SinkUpdateList
+      title: SubscriptionWriteList
       properties:
         items:
           type: array
           title: Items
           minItems: 1
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/SubscriptionWrite'
+    Items_SubscriptionRead_WithCursor:
+      type: object
+      required:
+      - items
+      title: SubscriptionReadList
+      properties:
+        items:
+          type: array
+          title: Items
+          minItems: 0
           maxItems: 100
           items:
-            $ref: '#/components/schemas/SinkUpdateItem'
-    HostedExtractorsSignalMetadata:
-      type: object
-      title: HostedExtractorsSignalMetadata
-      description: Metadata specific to hosted extractor signals.
-      properties:
-        sourceType:
+            $ref: '#/components/schemas/SubscriptionRead'
+        nextCursor:
           type: string
-          description: Source type of the hosted extractor.
-        sourceExternalId:
-          type: string
-          description: Source external ID of the hosted extractor.
-        destinationExternalId:
-          type: string
-          description: Destination external ID of the hosted extractor.
+          title: NextCursor
+          description: Cursor for retrieving the next page of results. Omitted if there are no more results.
   responses:
-    400ErrorResponse:
-      description: The response for a bad request.
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - error
-            properties:
-              error:
-                $ref: '#/components/schemas/Error'
-          example:
-            error:
-              code: 400
-              message: '`null` values aren''t allowed.'
     EmptyResponse:
       description: Empty response.
       content:
@@ -1358,6 +1343,21 @@ components:
             properties:
               error:
                 $ref: '#/components/schemas/Error'
+    400ErrorResponse:
+      description: The response for a bad request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: 400
+              message: '`null` values aren''t allowed.'
   parameters:
     Limit:
       name: limit

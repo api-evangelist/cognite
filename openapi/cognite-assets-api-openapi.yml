@@ -598,37 +598,240 @@ paths:
         source: "List<Item> byInternalIds = List.of(Item.newBuilder().setId(10).build()); \nList<Item> deletedAssets = client.assets().delete(byInternalIds); \n\nList<Item> byExternalIds = List.of(Item.newBuilder().setExternalId(\"10\").build()); \nList<Item> deletedAssets = client.assets().delete(byExternalIds); \n\n"
 components:
   schemas:
-    CogniteExternalIdPrefix:
-      description: Filter by this (case-sensitive) prefix for the external ID.
+    SinglePatchAssetSource:
+      title: Source
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/SetAssetSource'
+      - $ref: '#/components/schemas/RemoveField'
+      description: Set a new value for the source, or remove the value.
+    AssetCardinalityValuesAggregate:
+      allOf:
+      - type: object
+        title: ApproximateCardinalityForValues
+        description: Request values approximate cardinality aggregate on a specific property.
+        required:
+        - aggregate
+        properties:
+          aggregate:
+            description: 'Type of aggregation to apply.
+
+              `cardinalityValues`: Get approximate number of unique values for the specified property.
+
+              '
+            type: string
+            enum:
+            - cardinalityValues
+          aggregateFilter:
+            $ref: '#/components/schemas/AssetAggregateFilter'
+      - $ref: '#/components/schemas/AssetAdvancedFilter'
+      - $ref: '#/components/schemas/AssetFilter'
+      - $ref: '#/components/schemas/AssetAggregateProperties'
+    AssetName:
+      type: string
+      description: The name of the asset.
+      minLength: 1
+      maxLength: 140
+    Label:
+      type: object
+      title: Label
+      required:
+      - externalId
+      description: A label assigned to a resource.
+      properties:
+        externalId:
+          description: An external ID to a predefined label definition.
+          allOf:
+          - $ref: '#/components/schemas/CogniteExternalId'
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    CogniteExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
       type: string
       maxLength: 255
-      example: my.known.prefix
-    PrefixFilter:
-      type: object
-      title: prefix
+      example: my.known.id
+    GeoLocation:
+      description: Geographic metadata.
       required:
-      - prefix
+      - type
+      - geometry
+      type: object
       properties:
-        prefix:
+        type:
+          type: string
+          enum:
+          - Feature
+          description: One of the GeoJSON types. Currently only the 'Feature' type is supported.
+        geometry:
+          $ref: '#/components/schemas/GeoLocationGeometry'
+        properties:
+          type: object
+          description: Additional properties in a String key -> Object value format.
+    SinglePatchRequiredInternalId:
+      type: object
+      properties:
+        set:
+          $ref: '#/components/schemas/CogniteInternalId'
+      description: Change the ID of the object.
+      required:
+      - set
+    LabelsSet:
+      type: object
+      properties:
+        set:
+          type: array
+          description: A list of the labels to replace (set) to a resource.
+          minItems: 0
+          maxItems: 10
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/Label'
+    AssetQuery:
+      type: string
+      description: Whitespace-separated terms to search for in assets. Does a best-effort fuzzy search in relevant fields (currently name and description) for variations of any of the search terms, and orders results by relevance. Uses a different search algorithm than the name and description parameters, and will generally give much better results. Matching and ordering is not guaranteed to be stable over time, and the fields being searched may be extended.
+      minLength: 1
+      maxLength: 140
+    LabelContainsAnyFilter:
+      type: object
+      required:
+      - containsAny
+      properties:
+        containsAny:
+          description: The resource item contains at least one of the listed labels.
+          type: array
+          minItems: 1
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/Label'
+    DataWithCursorAsset:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Asset'
+        nextCursor:
+          type: string
+          description: The cursor to get the next page of results (if available).
+      description: A list of objects along with possible cursors to get the next or previous page of results.
+    AssetAggregateRequest:
+      description: Aggregation request of assets. Filters behave the same way as for the `filter` endpoint. Default aggregation is `count`.
+      oneOf:
+      - $ref: '#/components/schemas/AssetCountAggregate'
+      - $ref: '#/components/schemas/AssetWithPropertyCountAggregate'
+      - $ref: '#/components/schemas/AssetCardinalityValuesAggregate'
+      - $ref: '#/components/schemas/AssetCardinalityPropertiesAggregate'
+      - $ref: '#/components/schemas/AssetUniqueValuesAggregate'
+      - $ref: '#/components/schemas/AssetUniquePropertiesAggregate'
+      - $ref: '#/components/schemas/AssetMetadataKeysAggregate'
+      - $ref: '#/components/schemas/AssetMetadataValuesAggregate'
+    AssetUniqueValuesAggregate:
+      allOf:
+      - type: object
+        title: UniqueValues
+        description: 'Request unique value buckets aggregate on a specific Asset property.
+
+          Each bucket is defined by the `values` array and has the number of the `values` occurrences.'
+        required:
+        - aggregate
+        properties:
+          aggregate:
+            description: 'Type of aggregation to apply.
+
+              `uniqueValues`: Get unique values (up to max 1000) in the specified property ordered by the frequency.
+
+              Note: When aggregate on the `["metadata"]` property, a value may occur multiple times in one Asset for different metadata keys.
+
+              Each occurrence is counted.
+
+              '
+            type: string
+            enum:
+            - uniqueValues
+          aggregateFilter:
+            $ref: '#/components/schemas/AssetAggregateFilter'
+      - $ref: '#/components/schemas/AssetAdvancedFilter'
+      - $ref: '#/components/schemas/AssetFilter'
+      - $ref: '#/components/schemas/AssetAggregateProperties'
+    AssetChangeById:
+      allOf:
+      - $ref: '#/components/schemas/AssetPatch'
+      - type: object
+        required:
+        - id
+        properties:
+          id:
+            $ref: '#/components/schemas/CogniteInternalId'
+    Value:
+      description: Value you wish to find in the provided property.
+      oneOf:
+      - type: string
+      - type: number
+      - type: integer
+      - type: boolean
+    AggregateInFilter:
+      type: object
+      title: in
+      required:
+      - in
+      properties:
+        in:
           required:
-          - property
-          - value
-          description: 'Matches items that contain a specific prefix in the provided property.
+          - values
+          description: 'Matches items where the given property is **exactly** equal to one of the given values. This filter can only be applied to single-valued properties.
 
             '
           type: object
           properties:
-            property:
-              $ref: '#/components/schemas/FilterProperty'
-            value:
-              $ref: '#/components/schemas/StringValue'
-    SinglePatchGeoLocation:
-      title: set
-      type: object
-      oneOf:
-      - $ref: '#/components/schemas/SetGeoLocation'
-      - $ref: '#/components/schemas/RemoveField'
-      description: Set a new value for the geoLocation, or remove the value.
+            values:
+              $ref: '#/components/schemas/Values'
+    AssetUniquePropertiesAggregate:
+      allOf:
+      - type: object
+        title: UniqueProperties
+        description: Request unique non-null property buckets aggregate.
+        required:
+        - aggregate
+        properties:
+          aggregate:
+            description: 'Type of aggregation to apply.
+
+              `uniqueProperties`: Get unique properties (up to max 1000) in the specified document path (default path is ["metadata"] - metadata keys only).
+
+              Ordered by frequency.
+
+              '
+            type: string
+            enum:
+            - uniqueProperties
+          aggregateFilter:
+            $ref: '#/components/schemas/AssetAggregateFilter'
+      - $ref: '#/components/schemas/AssetAdvancedFilter'
+      - $ref: '#/components/schemas/AssetFilter'
+      - properties:
+          path:
+            description: 'The scope in every document to aggregate properties.
+
+              The only value allowed now is ["metadata"].
+
+              It means to aggregate only metadata properties (aka keys).
+
+              '
+            type: array
+            minItems: 1
+            maxItems: 1
+            items:
+              type: string
+              enum:
+              - metadata
+            default:
+            - metadata
     AssetMetadataValuesAggregate:
       deprecated: true
       allOf:
@@ -651,59 +854,31 @@ components:
       - $ref: '#/components/schemas/AssetAdvancedFilter'
       - $ref: '#/components/schemas/AssetFilter'
       - $ref: '#/components/schemas/AssetAggregateKeys'
-    DataSetExternalId:
+    ResourceDescription:
+      type: string
+      description: The description of the resource type.
+      maxLength: 500
+    RangeValue:
+      title: rangeBound
+      description: Value you wish to find in the provided property using a range clause.
+      oneOf:
+      - type: string
+        title: string
+      - type: number
+        title: number
+      - type: integer
+        title: integer
+    AssetLimit:
       type: object
-      title: DataSetExternalId
-      required:
-      - externalId
       properties:
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-    CountAggregateResult:
-      description: Common aggregate structure to represent aggregate result which have one count for filter resultset (Documents Count, Property Cardinality, etc).
-      title: CountResult
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          minItems: 1
-          maxItems: 1
-          items:
-            type: object
-            required:
-            - count
-            properties:
-              count:
-                type: integer
-                description: Number of items in this aggregation group.
-                format: int64
-      example:
-        items:
-        - count: 10
-    429Error:
-      type: object
-      required:
-      - code
-      - message
-      description: Cognite API throttling.
-      properties:
-        code:
+        limit:
+          description: Limits the number of results to return.
           type: integer
-          description: 429 HTTP status code.
           format: int32
-          example: 429
-        message:
-          type: string
-          description: "The error message specifies which kind of throttling happened:\n  - Too many concurrent requests for a single project or an identity.\n  - Too high rate of requests for a single project or an identity.\n\nSee more [here](https://docs.cognite.com/dev/concepts/request_throttling/ \"requests throttling\")."
-          example: Project exceeded maximum number='50' of concurrent requests. Please try again later.
-    AssetQuery:
-      type: string
-      description: Whitespace-separated terms to search for in assets. Does a best-effort fuzzy search in relevant fields (currently name and description) for variations of any of the search terms, and orders results by relevance. Uses a different search algorithm than the name and description parameters, and will generally give much better results. Matching and ordering is not guaranteed to be stable over time, and the fields being searched may be extended.
-      minLength: 1
-      maxLength: 140
-    DataExternalAsset:
+          minimum: 1
+          maximum: 1000
+          default: 100
+    DataAsset:
       type: object
       required:
       - items
@@ -711,100 +886,7 @@ components:
         items:
           type: array
           items:
-            $ref: '#/components/schemas/DataExternalAssetItem'
-          minItems: 1
-          maxItems: 1000
-    AssetSearchFilter:
-      description: Search request with filter capabilities.
-      example:
-        filter:
-          parentIds:
-          - 1293812938
-          - 293823982938
-        search:
-          name: flow
-          description: upstream
-      allOf:
-      - $ref: '#/components/schemas/AssetFilter'
-      - $ref: '#/components/schemas/AssetLimit'
-      - $ref: '#/components/schemas/AssetSearch'
-    AssetAggregateBoolFilter:
-      description: 'A query that matches items matching boolean combinations of other queries.
-
-        It''s built using one or more boolean clauses of the following types: `and`, `or`, or `not`.
-
-        '
-      title: AggregateBoolFilter
-      type: object
-      oneOf:
-      - type: object
-        title: and
-        required:
-        - and
-        properties:
-          and:
-            description: All of the sub-clauses in the query must appear in matching items.
-            type: array
-            minItems: 1
-            items:
-              $ref: '#/components/schemas/AssetAggregateFilter'
-      - type: object
-        title: or
-        required:
-        - or
-        properties:
-          or:
-            description: At least one of the sub-clauses in the query must appear in matching items.
-            type: array
-            minItems: 1
-            items:
-              $ref: '#/components/schemas/AssetAggregateFilter'
-      - type: object
-        title: not
-        required:
-        - not
-        properties:
-          not:
-            title: Filter DSL
-            description: Sub-clauses in the query must not appear in matching items.
-            type: object
-            allOf:
-            - $ref: '#/components/schemas/AssetAggregateFilter'
-    AggregatedProperties:
-      type: object
-      properties:
-        aggregatedProperties:
-          description: Set of aggregated properties to include
-          type: array
-          items:
-            $ref: '#/components/schemas/AggregatedProperty'
-    AssetMetadata:
-      type: object
-      description: 'Custom, application specific metadata. String key -> String value. Limits: Maximum length of key is 128 bytes, value 10240 bytes, up to 256 key-value pairs, of total size at most 10240.'
-      additionalProperties:
-        type: string
-        maxLength: 10240
-      x-maxKeyLength: 128
-      x-maxTotalSize: 10240
-      maxProperties: 256
-    AssetName:
-      type: string
-      description: The name of the asset.
-      minLength: 1
-      maxLength: 140
-    AssetLeafFilter:
-      description: Leaf filter.
-      title: LeafFilter
-      type: object
-      oneOf:
-      - $ref: '#/components/schemas/EqualsFilter'
-      - $ref: '#/components/schemas/InFilter'
-      - $ref: '#/components/schemas/GenericRangeFilter'
-      - $ref: '#/components/schemas/PrefixFilter'
-      - $ref: '#/components/schemas/ExistsFilter'
-      - $ref: '#/components/schemas/ContainsAnyFilter'
-      - $ref: '#/components/schemas/ContainsAllFilter'
-      - $ref: '#/components/schemas/SearchFilter'
+            $ref: '#/components/schemas/Asset'
     AssetFilter:
       type: object
       properties:
@@ -866,61 +948,17 @@ components:
               $ref: '#/components/schemas/LabelFilter'
             geoLocation:
               $ref: '#/components/schemas/GeoLocationFilter'
-    AggregateResult:
-      type: object
-      oneOf:
-      - $ref: '#/components/schemas/CountAggregateResult'
-      - $ref: '#/components/schemas/ValuesAggregateResult'
-    SinglePatchRequiredParentExternalId:
-      type: object
-      properties:
-        set:
-          $ref: '#/components/schemas/AssetParentExternalId'
-      description: Change the external ID of the object.
-      required:
-      - set
-    MultiPoint:
+    DataExternalAsset:
       type: object
       required:
-      - type
-      - coordinates
+      - items
       properties:
-        type:
-          type: string
-          enum:
-          - MultiPoint
-        coordinates:
-          $ref: '#/components/schemas/MultiPointCoordinates'
-    AssetAggregateRequest:
-      description: Aggregation request of assets. Filters behave the same way as for the `filter` endpoint. Default aggregation is `count`.
-      oneOf:
-      - $ref: '#/components/schemas/AssetCountAggregate'
-      - $ref: '#/components/schemas/AssetWithPropertyCountAggregate'
-      - $ref: '#/components/schemas/AssetCardinalityValuesAggregate'
-      - $ref: '#/components/schemas/AssetCardinalityPropertiesAggregate'
-      - $ref: '#/components/schemas/AssetUniqueValuesAggregate'
-      - $ref: '#/components/schemas/AssetUniquePropertiesAggregate'
-      - $ref: '#/components/schemas/AssetMetadataKeysAggregate'
-      - $ref: '#/components/schemas/AssetMetadataValuesAggregate'
-    AggregateProperty:
-      description: "Property you want to aggregate.\nUse a list of strings to specify nested properties.\nThe same way the properties are represented in aggregate responses.\n\n<u>Example:</u>\n\nYou have the object\n```\n{\n  \"metadata\": {\n    \"id\": \"b53\"\n  },\n  \"source\": \"a23\"\n}\n```\n\nTo address \"id\" metadata key use `[\"metadata\", \"id\"]` property.\\\nYou can also aggregate the value(s) for the standalone property `source` with `[\"source\"]`.\n"
-      type: array
-      minItems: 1
-      maxItems: 2
-      items:
-        type: string
-      example:
-      - metadata
-      - key1
-    AssetChangeById:
-      allOf:
-      - $ref: '#/components/schemas/AssetPatch'
-      - type: object
-        required:
-        - id
-        properties:
-          id:
-            $ref: '#/components/schemas/CogniteInternalId'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DataExternalAssetItem'
+          minItems: 1
+          maxItems: 1000
     MultiPolygon:
       type: object
       required:
@@ -933,758 +971,6 @@ components:
           - MultiPolygon
         coordinates:
           $ref: '#/components/schemas/MultiPolygonCoordinates'
-    MultiPolygonCoordinates:
-      description: 'List of multiple polygons.
-
-
-        Each polygon is defined as a list of one or more linear rings representing a shape.
-
-
-        A linear ring is the boundary of a surface or the boundary of a hole in a surface. It is defined as a list consisting of 4 or more Points, where the first and last Point is equivalent.
-
-
-        Each Point is defined as an array of 2 numbers, representing coordinates of a point in 2D space.
-
-
-        Example: `[[[[30, 20], [45, 40], [10, 40], [30, 20]]], [[[15, 5], [40, 10], [10, 20], [5, 10], [15, 5]]]]`
-
-        '
-      type: array
-      items:
-        $ref: '#/components/schemas/PolygonCoordinates'
-    MultiLineStringCoordinates:
-      description: 'List of lines where each line (LineString) is defined as a list of two or more points.
-
-        Each point is defined as a pair of two numbers in an array, representing coordinates of a point in 2D space.
-
-
-        Example: `[[[30, 10], [10, 30]], [[35, 10], [10, 30], [40, 40]]]`
-
-        '
-      type: array
-      items:
-        $ref: '#/components/schemas/LineStringCoordinates'
-    DataWithCursorAsset:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/Asset'
-        nextCursor:
-          type: string
-          description: The cursor to get the next page of results (if available).
-      description: A list of objects along with possible cursors to get the next or previous page of results.
-    DataAsset:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/Asset'
-    FilterProperty:
-      description: "Property you want to filter. Use a list of strings to specify nested properties.\n\n<u>Example:</u>\n\nYou have the object\n```\n{\n  \"room\": {\n    \"id\": \"b53\"\n  },\n  \"roomId\": \"a23\"\n}\n```\n\nUse `[\"room\", \"id\"]` to return the value in the nested `id` property, which is a part of the `room` object.\n\nYou can also read the value(s) in the standalone property `roomId` with `[\"roomId\"]`.\n"
-      type: array
-      minItems: 1
-      maxItems: 3
-      items:
-        type: string
-    AssetSource:
-      type: string
-      maxLength: 128
-      description: The source of the asset.
-    ContainsAnyFilter:
-      type: object
-      title: containsAny
-      required:
-      - containsAny
-      properties:
-        containsAny:
-          required:
-          - property
-          - values
-          description: 'Matches items where the property contains one or more of the given values.
-
-            This filter can only be applied to multivalued properties.
-
-            '
-          type: object
-          properties:
-            property:
-              $ref: '#/components/schemas/FilterProperty'
-            values:
-              $ref: '#/components/schemas/Values'
-    CogniteExternalId:
-      description: The external ID provided by the client. Must be unique for the resource type.
-      type: string
-      maxLength: 255
-      example: my.known.id
-    LabelsAddRemove:
-      type: object
-      properties:
-        add:
-          type: array
-          description: A list of the labels to add to a resource.
-          minItems: 0
-          maxItems: 10
-          uniqueItems: true
-          items:
-            $ref: '#/components/schemas/Label'
-        remove:
-          type: array
-          description: A list of the labels to remove from a resource.
-          minItems: 0
-          maxItems: 10
-          uniqueItems: true
-          items:
-            $ref: '#/components/schemas/Label'
-    EpochTimestampRange:
-      description: Range between two timestamps (inclusive).
-      type: object
-      properties:
-        max:
-          description: Maximum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-          type: integer
-          minimum: 0
-          format: int64
-        min:
-          description: Minimum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-          type: integer
-          minimum: 0
-          format: int64
-    Cursor:
-      type: object
-      properties:
-        cursor:
-          type: string
-          example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
-      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
-
-        property, it means that there may be more results, and you should pass that value as the
-
-        `cursor` parameter in the next request.
-
-
-        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
-
-        decoded. Its internal structure is not a part of the public API, and may change without
-
-        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
-
-        '
-    ContainsAllFilter:
-      type: object
-      title: containsAll
-      required:
-      - containsAll
-      properties:
-        containsAll:
-          required:
-          - property
-          - values
-          description: 'Matches items where the property contains all the given values.
-
-            This filter can only be applied to multivalued properties.
-
-            '
-          type: object
-          properties:
-            property:
-              $ref: '#/components/schemas/FilterProperty'
-            values:
-              $ref: '#/components/schemas/Values'
-    ObjectPatchSetAsset:
-      title: set
-      type: object
-      required:
-      - set
-      properties:
-        set:
-          uniqueItems: true
-          type: object
-          description: Set the key-value pairs. All existing key-value pairs will be removed.
-          additionalProperties:
-            type: string
-            maxLength: 10240
-          x-maxKeyLength: 128
-          x-maxTotalSize: 10240
-          maxProperties: 256
-          example:
-            key1: value1
-            key2: value2
-    EqualsFilter:
-      type: object
-      title: equals
-      required:
-      - equals
-      properties:
-        equals:
-          required:
-          - property
-          - value
-          description: 'Matches items where the given property is **exactly** equal to the given value.
-
-            '
-          type: object
-          properties:
-            property:
-              $ref: '#/components/schemas/FilterProperty'
-            value:
-              $ref: '#/components/schemas/Value'
-    AssetAdvancedFilter:
-      type: object
-      properties:
-        advancedFilter:
-          type: object
-          description: "A filter DSL (Domain Specific Language) to define advanced filter queries.\n\nSee more information about filtering DSL [here](https://docs.cognite.com/dev/concepts/resource_filtering_dsl/ \"filtering DSL\").\n\nSupported properties:\n\n  | Property                        | Type                                    |\n  |---------------------------------|-----------------------------------------|\n  | `[\"labels\"]`                    | array of [string]                       |\n  | `[\"createdTime\"]`               | number                                  |\n  | `[\"dataSetId\"]`                 | number                                  |\n  | `[\"id\"]`                        | number                                  |\n  | `[\"lastUpdatedTime\"]`           | number                                  |\n  | `[\"parentId\"]`                  | number                                  |\n  | `[\"rootId\"]`                    | number                                  |\n  | `[\"description\"]`               | string                                  |\n  | `[\"externalId\"]`                | string                                  |\n  | `[\"metadata\"]`                  | string                                  |\n  | `[\"metadata\", \"someCustomKey\"]` | string                                  |\n  | `[\"name\"]`                      | string                                  |\n  | `[\"source\"]`                    | string                                  |\n\n  Note: Filtering on the `[\"metadata\"]` property has the following logic:\n  If a value of any metadata keys in an asset matches the filter, the asset matches the filter."
-          oneOf:
-          - $ref: '#/components/schemas/AssetBoolFilter'
-          - $ref: '#/components/schemas/AssetLeafFilter'
-          example:
-            or:
-            - not:
-                and:
-                - equals:
-                    property:
-                    - metadata
-                    - asset_type
-                    value: gas pump
-                - in:
-                    property:
-                    - source
-                    values:
-                    - blueprint
-                    - inventory
-                - range:
-                    property:
-                    - dataSetId
-                    gte: 1
-                    lt: 10
-            - and:
-              - containsAny:
-                  property:
-                  - labels
-                  values:
-                  - pump
-                  - cooler
-              - equals:
-                  property:
-                  - parentId
-                  value: 95867294876
-            - search:
-                property:
-                - description
-                value: My favorite pump
-    AggregateInFilter:
-      type: object
-      title: in
-      required:
-      - in
-      properties:
-        in:
-          required:
-          - values
-          description: 'Matches items where the given property is **exactly** equal to one of the given values. This filter can only be applied to single-valued properties.
-
-            '
-          type: object
-          properties:
-            values:
-              $ref: '#/components/schemas/Values'
-    AggregateRangeFilter:
-      type: object
-      title: range
-      required:
-      - range
-      properties:
-        range:
-          description: 'Matches items that contain terms within the provided range.
-
-            It''s not allowed to specify both inclusive and exclusive bounds (such as `gte`, `gt`) together.
-
-            `gte`: Greater than or equal to.
-
-            `gt`: Greater than.
-
-            `lte`: Less than or equal to.
-
-            `lt`: Less than.
-
-            '
-          type: object
-          properties:
-            gte:
-              $ref: '#/components/schemas/RangeValue'
-            gt:
-              $ref: '#/components/schemas/RangeValue'
-            lte:
-              $ref: '#/components/schemas/RangeValue'
-            lt:
-              $ref: '#/components/schemas/RangeValue'
-    AssetExternalId:
-      type: object
-      required:
-      - externalId
-      properties:
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-    AssetAggregateLeafFilter:
-      description: Aggregate leaf filter.
-      title: AggregateLeafFilter
-      type: object
-      oneOf:
-      - $ref: '#/components/schemas/AggregateInFilter'
-      - $ref: '#/components/schemas/AggregatePrefixFilter'
-      - $ref: '#/components/schemas/AggregateRangeFilter'
-    ResourceDescription:
-      type: string
-      description: The description of the resource type.
-      maxLength: 500
-    IgnoreUnknownIdsField:
-      type: object
-      properties:
-        ignoreUnknownIds:
-          description: Ignore IDs and external IDs that are not found
-          type: boolean
-          default: false
-    SinglePatchRequiredInternalId:
-      type: object
-      properties:
-        set:
-          $ref: '#/components/schemas/CogniteInternalId'
-      description: Change the ID of the object.
-      required:
-      - set
-    AggregateResultItem:
-      description: Aggregated metrics of the asset.
-      type: object
-      properties:
-        childCount:
-          type: integer
-          description: Number of direct descendants for the asset.
-          format: int32
-          minimum: 0
-        depth:
-          type: integer
-          description: Asset path depth (number of levels below root node).
-          format: int32
-          minimum: 0
-        path:
-          description: IDs of assets on the path to the asset.
-          type: array
-          items:
-            $ref: '#/components/schemas/AssetIdentifier'
-    InFilter:
-      type: object
-      title: in
-      required:
-      - in
-      properties:
-        in:
-          required:
-          - property
-          - values
-          description: 'Matches items where the given property is **exactly** equal to one of the given values. This filter can only be applied to single-valued properties.
-
-            '
-          type: object
-          properties:
-            property:
-              $ref: '#/components/schemas/FilterProperty'
-            values:
-              $ref: '#/components/schemas/Values'
-    Label:
-      type: object
-      title: Label
-      required:
-      - externalId
-      description: A label assigned to a resource.
-      properties:
-        externalId:
-          description: An external ID to a predefined label definition.
-          allOf:
-          - $ref: '#/components/schemas/CogniteExternalId'
-    LabelsPatch:
-      description: 'Updates the resource''s assigned labels.
-
-
-        Labels can be added, removed or replaced (set). Adding an already attached label is an idempotent operation. Removing a label with no matching externalId is silently ignored.'
-      oneOf:
-      - $ref: '#/components/schemas/LabelsAddRemove'
-      - $ref: '#/components/schemas/LabelsSet'
-    EpochTimestamp:
-      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-      type: integer
-      minimum: 0
-      format: int64
-      example: 1730204346000
-    GenericRangeFilter:
-      type: object
-      title: range
-      required:
-      - range
-      properties:
-        range:
-          required:
-          - property
-          description: 'Matches items that contain terms within the provided range.
-
-            It is not allowed to specify both inclusive and exclusive bounds (such as `gte`, `gt`) together.
-
-            `gte`: Greater than or equal to.
-
-            `gt`: Greater than.
-
-            `lte`: Less than or equal to.
-
-            `lt`: Less than.
-
-            '
-          type: object
-          properties:
-            property:
-              $ref: '#/components/schemas/FilterProperty'
-            gte:
-              $ref: '#/components/schemas/RangeValue'
-            gt:
-              $ref: '#/components/schemas/RangeValue'
-            lte:
-              $ref: '#/components/schemas/RangeValue'
-            lt:
-              $ref: '#/components/schemas/RangeValue'
-    AssetIdentifier:
-      type: object
-      required:
-      - id
-      properties:
-        id:
-          $ref: '#/components/schemas/CogniteInternalId'
-    PartitionObjectLimited10:
-      type: object
-      properties:
-        partition:
-          $ref: '#/components/schemas/PartitionLimited10'
-    AssetInternalId:
-      type: object
-      required:
-      - id
-      properties:
-        id:
-          $ref: '#/components/schemas/CogniteInternalId'
-    Values:
-      description: One or more values you wish to find in the provided property.
-      type: array
-      minItems: 1
-      maxItems: 5000
-      items:
-        $ref: '#/components/schemas/Value'
-    AssetLimit:
-      type: object
-      properties:
-        limit:
-          description: Limits the number of results to return.
-          type: integer
-          format: int32
-          minimum: 1
-          maximum: 1000
-          default: 100
-    GeoLocation:
-      description: Geographic metadata.
-      required:
-      - type
-      - geometry
-      type: object
-      properties:
-        type:
-          type: string
-          enum:
-          - Feature
-          description: One of the GeoJSON types. Currently only the 'Feature' type is supported.
-        geometry:
-          $ref: '#/components/schemas/GeoLocationGeometry'
-        properties:
-          type: object
-          description: Additional properties in a String key -> Object value format.
-    AssetAggregateProperties:
-      type: object
-      required:
-      - properties
-      properties:
-        properties:
-          type: array
-          description: The property name(s) to apply the aggregation on. Currently limited to one property per request.
-          minItems: 1
-          maxItems: 1
-          items:
-            type: object
-            required:
-            - property
-            properties:
-              property:
-                type: array
-                description: "It's an array of strings to allow specifying nested properties.\n  Supported properties:\\\n  | Property                        | Type                         |\n  |---------------------------------|------------------------------|\n  | `[\"dataSetId\"]`                 | number                       |\n  | `[\"description\"]`               | string                       |\n  | `[\"labels\"]`                    | array of [string]            |\n  | `[\"name\"]`                      | string                       |\n  | `[\"parentId\"]`                  | number                       |\n  | `[\"rootId\"]`                    | number                       |\n  | `[\"source\"]`                    | string                       |\n  | `[\"metadata\"]`                  | string                       |\n  | `[\"metadata\", <key>]`           | string                       |"
-                minItems: 1
-                maxItems: 2
-                items:
-                  type: string
-                  minLength: 1
-                  maxLength: 128
-                example:
-                - parentId
-              filter:
-                $ref: '#/components/schemas/AssetAggregateFilter'
-    SinglePatchRequiredName:
-      title: AssetName
-      type: object
-      properties:
-        set:
-          $ref: '#/components/schemas/AssetName'
-      description: Set a new value for the asset name.
-      required:
-      - set
-    SetDescription:
-      type: object
-      title: set
-      required:
-      - set
-      properties:
-        set:
-          $ref: '#/components/schemas/ResourceDescription'
-    LabelContainsAllFilter:
-      type: object
-      required:
-      - containsAll
-      properties:
-        containsAll:
-          description: The resource item contains at least all the listed labels.
-          type: array
-          minItems: 1
-          maxItems: 10
-          items:
-            $ref: '#/components/schemas/Label'
-    AssetDataIds:
-      type: object
-      allOf:
-      - type: object
-        required:
-        - items
-        properties:
-          items:
-            type: array
-            items:
-              $ref: '#/components/schemas/AssetIdEither'
-            maxItems: 1000
-            minItems: 1
-      - $ref: '#/components/schemas/IgnoreUnknownIdsField'
-      - $ref: '#/components/schemas/AggregatedProperties'
-    RangeValue:
-      title: rangeBound
-      description: Value you wish to find in the provided property using a range clause.
-      oneOf:
-      - type: string
-        title: string
-      - type: number
-        title: number
-      - type: integer
-        title: integer
-    JsonArrayInt64:
-      type: string
-      format: jsonArray(int64)
-      example: '[1238712837, 238712361376, 23786237623]'
-    Polygon:
-      type: object
-      required:
-      - type
-      - coordinates
-      properties:
-        type:
-          type: string
-          enum:
-          - Polygon
-        coordinates:
-          $ref: '#/components/schemas/PolygonCoordinates'
-    PointCoordinates:
-      description: 'Coordinates of a point in 2D space, described as an array of 2 numbers.
-
-
-        Example: `[4.306640625, 60.205710352530346]`
-
-        '
-      type: array
-      minItems: 2
-      maxItems: 2
-      items:
-        type: number
-    MultiPointCoordinates:
-      description: 'List of Points. Each Point is defined as an array of 2 numbers, representing coordinates of a point in 2D space.
-
-
-        Example: `[[35, 10], [45, 45]]`
-
-        '
-      type: array
-      items:
-        $ref: '#/components/schemas/PointCoordinates'
-    AssetWithPropertyCountAggregate:
-      allOf:
-      - type: object
-        title: AssetWithPropertyCount
-        description: 'Request aggregate to count the number of Assets with the specific property (property is not null)
-
-          and matching the filters.'
-        properties:
-          aggregate:
-            description: 'Type of aggregation to apply.
-
-              `count`: Get an approximate number of Assets with the specific property (property is not null) and matching the filters.
-
-              '
-            type: string
-            enum:
-            - count
-      - $ref: '#/components/schemas/AssetAdvancedFilter'
-      - $ref: '#/components/schemas/AssetFilter'
-      - $ref: '#/components/schemas/AssetAggregateProperties'
-    StringValue:
-      title: String
-      description: A unique string value in the field.
-      type: object
-      required:
-      - value
-      properties:
-        value:
-          type: string
-    AssetDescription:
-      type: string
-      description: The description of the asset.
-      maxLength: 500
-    SetGeoLocation:
-      title: set
-      type: object
-      required:
-      - set
-      properties:
-        set:
-          $ref: '#/components/schemas/GeoLocation'
-    CogniteInternalId:
-      description: A server-generated ID for the object.
-      type: integer
-      minimum: 1
-      maximum: 9007199254740991
-      format: int64
-    SinglePatchAssetSource:
-      title: Source
-      type: object
-      oneOf:
-      - $ref: '#/components/schemas/SetAssetSource'
-      - $ref: '#/components/schemas/RemoveField'
-      description: Set a new value for the source, or remove the value.
-    Point:
-      type: object
-      required:
-      - type
-      - coordinates
-      properties:
-        type:
-          type: string
-          enum:
-          - Point
-        coordinates:
-          $ref: '#/components/schemas/PointCoordinates'
-    LineStringCoordinates:
-      description: 'Coordinates of a line described by a list of two or more points.
-
-        Each point is defined as a pair of two numbers in an array, representing coordinates of a point in 2D space.
-
-
-        Example: `[[30, 10], [10, 30], [40, 40]]`
-
-        '
-      type: array
-      minItems: 2
-      items:
-        $ref: '#/components/schemas/PointCoordinates'
-    DataSetInternalId:
-      type: object
-      title: DataSetInternalId
-      required:
-      - id
-      properties:
-        id:
-          $ref: '#/components/schemas/CogniteInternalId'
-    JsonArrayString:
-      type: string
-      format: jsonArray(string)
-    GeoLocationGeometry:
-      type: object
-      required:
-      - type
-      description: Represents the points, curves and surfaces in the coordinate space.
-      oneOf:
-      - $ref: '#/components/schemas/Point'
-      - $ref: '#/components/schemas/LineString'
-      - $ref: '#/components/schemas/Polygon'
-      - $ref: '#/components/schemas/MultiPoint'
-      - $ref: '#/components/schemas/MultiLineString'
-      - $ref: '#/components/schemas/MultiPolygon'
-      discriminator:
-        propertyName: type
-    DataAssetChange:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/AssetChange'
-          minItems: 1
-          maxItems: 1000
-    AssetAggregateKeys:
-      type: object
-      properties:
-        keys:
-          description: 'For `metadataValues`, `aggregateType` sets the metadata key(s) to apply the aggregation on. Currently supports exactly one key per request.
-
-            '
-          type: array
-          maxItems: 1
-          items:
-            type: string
-    LabelFilter:
-      description: Return only the resource matching the specified label constraints.
-      oneOf:
-      - $ref: '#/components/schemas/LabelContainsAnyFilter'
-      - $ref: '#/components/schemas/LabelContainsAllFilter'
-    AssetMetadataKeysAggregate:
-      deprecated: true
-      allOf:
-      - type: object
-        title: MetadataKeys
-        description: Get unique values (up to max 1000) of metadata keys ordered by frequency.
-        required:
-        - aggregate
-        properties:
-          aggregate:
-            description: 'Type of aggregation to apply.
-
-              `metadataKeys`: Get unique values of metadata keys ordered by frequency.
-
-              '
-            type: string
-            enum:
-            - metadataKeys
-      - $ref: '#/components/schemas/AssetAdvancedFilter'
-      - $ref: '#/components/schemas/AssetFilter'
-    AssetParentExternalId:
-      description: The external ID of the parent. This will be resolved to an internal ID and stored as `parentId`.
-      type: string
-      maxLength: 255
-      example: my.known.id
     AssetBoolFilter:
       description: 'A query that matches items matching boolean combinations of other queries.
 
@@ -1725,177 +1011,175 @@ components:
             type: object
             allOf:
             - $ref: '#/components/schemas/AssetAdvancedFilter'
-    PartitionLimited10:
-      description: 'Splits the data set into `N` partitions.
-
-        The attribute is specified as a "M/N" string, where `M` is a natural number in the interval of `[1, N]`.
-
-        You need to follow the cursors within each partition in order to receive all the data.
-
-
-        The maximum number of allowed partitions (`N`) is 10.
-
-
-        Cognite rejects requests if you specify more than 10 partitions.
-
-        When Cognite enforces this behavior, the requests result in a 400 Bad Request status.
-
-        '
-      type: string
-      example: 1/3
-    AssetSortProperty:
-      type: object
-      required:
-      - property
-      properties:
-        property:
-          type: array
-          description: "Property to sort on.\nSorting can be done on the following properties:\n  | Property                        |\n  |---------------------------------|\n  | `[\"createdTime\"]`               |\n  | `[\"dataSetId\"]`                 |\n  | `[\"description\"]`               |\n  | `[\"externalId\"]`                |\n  | `[\"lastUpdatedTime\"]`           |\n  | `[\"metadata\", \"someCustomKey\"]` |\n  | `[\"name\"]`                      |\n  | `[\"source\"]`                    |\n  | `[\"_score_\"]`                   |"
-          minItems: 1
-          maxItems: 2
-          items:
-            type: string
-        order:
-          type: string
-          description: The `order` attribute is optional and defaults to `desc` for `_score_` and `asc` for all other properties.
-          enum:
-          - asc
-          - desc
-        nulls:
-          type: string
-          description: 'The `nulls` attribute is optional and defaults to `auto`.
-
-            `auto` is translated to `last` for the `asc` order and to `first` for the `desc` order by the service.'
-          enum:
-          - first
-          - last
-          - auto
-          default: auto
-    ObjectPatchAddRemoveAsset:
-      title: add/remove
-      type: object
-      properties:
-        add:
-          uniqueItems: true
-          type: object
-          description: Add the key-value pairs. Values for existing keys will be overwritten.
-          additionalProperties:
-            type: string
-            maxLength: 10240
-          x-maxKeyLength: 128
-          x-maxTotalSize: 10240
-          maxProperties: 256
-          example:
-            key1: value1
-            key2: value2
-        remove:
-          uniqueItems: true
-          type: array
-          description: Remove the key-value pairs with the specified keys.
-          example:
-          - value1
-          - value2
-          items:
-            type: string
-    PolygonCoordinates:
-      description: 'List of one or more linear rings representing a shape.
-
-
-        A linear ring is the boundary of a surface or the boundary of a hole in a surface. It is defined as a list consisting of 4 or more Points, where the first and last Point is equivalent.
-
-
-        Each Point is defined as an array of 2 numbers, representing coordinates of a point in 2D space.
-
-
-        Example: `[[[35, 10], [45, 45], [15, 40], [10, 20], [35, 10]], [[20, 30], [35, 35], [30, 20], [20, 30]]]`
-
-        '
-      type: array
-      minItems: 2
-      items:
-        $ref: '#/components/schemas/LineStringCoordinates'
-    AggregateStringValues:
-      title: Strings
-      type: object
-      required:
-      - count
-      - values
-      properties:
-        count:
-          description: Number of items in this aggregation bucket.
-          type: integer
-          format: int64
-        values:
-          description: An array of unique string values in the property.
-          type: array
-          minItems: 1
-          maxItems: 1
-          items:
-            type: string
-        value:
-          deprecated: true
-          description: A unique string value in the field.
-          type: string
-    AssetIdEither:
-      oneOf:
-      - $ref: '#/components/schemas/AssetInternalId'
-      - $ref: '#/components/schemas/AssetExternalId'
-    DataSetIdEither:
-      oneOf:
-      - $ref: '#/components/schemas/DataSetInternalId'
-      - $ref: '#/components/schemas/DataSetExternalId'
     ObjectPatchAsset:
       type: object
       description: 'Custom, application specific metadata. String key -> String value. Limits of updated asset: Maximum length of key is 128 bytes, value 10240 bytes, up to 256 key-value pairs, of total size at most 10240.'
       oneOf:
       - $ref: '#/components/schemas/ObjectPatchSetAsset'
       - $ref: '#/components/schemas/ObjectPatchAddRemoveAsset'
-    SinglePatchResourceDescription:
-      title: set
+    Cursor:
+      type: object
+      properties:
+        cursor:
+          type: string
+          example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
+
+        property, it means that there may be more results, and you should pass that value as the
+
+        `cursor` parameter in the next request.
+
+
+        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
+
+        decoded. Its internal structure is not a part of the public API, and may change without
+
+        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
+
+        '
+    AssetLeafFilter:
+      description: Leaf filter.
+      title: LeafFilter
       type: object
       oneOf:
-      - $ref: '#/components/schemas/SetDescription'
-      - $ref: '#/components/schemas/RemoveField'
-    AssetCardinalityPropertiesAggregate:
+      - $ref: '#/components/schemas/EqualsFilter'
+      - $ref: '#/components/schemas/InFilter'
+      - $ref: '#/components/schemas/GenericRangeFilter'
+      - $ref: '#/components/schemas/PrefixFilter'
+      - $ref: '#/components/schemas/ExistsFilter'
+      - $ref: '#/components/schemas/ContainsAnyFilter'
+      - $ref: '#/components/schemas/ContainsAllFilter'
+      - $ref: '#/components/schemas/SearchFilter'
+    SinglePatchRequiredName:
+      title: AssetName
+      type: object
+      properties:
+        set:
+          $ref: '#/components/schemas/AssetName'
+      description: Set a new value for the asset name.
+      required:
+      - set
+    InFilter:
+      type: object
+      title: in
+      required:
+      - in
+      properties:
+        in:
+          required:
+          - property
+          - values
+          description: 'Matches items where the given property is **exactly** equal to one of the given values. This filter can only be applied to single-valued properties.
+
+            '
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/FilterProperty'
+            values:
+              $ref: '#/components/schemas/Values'
+    AggregateRangeFilter:
+      type: object
+      title: range
+      required:
+      - range
+      properties:
+        range:
+          description: 'Matches items that contain terms within the provided range.
+
+            It''s not allowed to specify both inclusive and exclusive bounds (such as `gte`, `gt`) together.
+
+            `gte`: Greater than or equal to.
+
+            `gt`: Greater than.
+
+            `lte`: Less than or equal to.
+
+            `lt`: Less than.
+
+            '
+          type: object
+          properties:
+            gte:
+              $ref: '#/components/schemas/RangeValue'
+            gt:
+              $ref: '#/components/schemas/RangeValue'
+            lte:
+              $ref: '#/components/schemas/RangeValue'
+            lt:
+              $ref: '#/components/schemas/RangeValue'
+    LabelsAddRemove:
+      type: object
+      properties:
+        add:
+          type: array
+          description: A list of the labels to add to a resource.
+          minItems: 0
+          maxItems: 10
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/Label'
+        remove:
+          type: array
+          description: A list of the labels to remove from a resource.
+          minItems: 0
+          maxItems: 10
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/Label'
+    AggregateProperty:
+      description: "Property you want to aggregate.\nUse a list of strings to specify nested properties.\nThe same way the properties are represented in aggregate responses.\n\n<u>Example:</u>\n\nYou have the object\n```\n{\n  \"metadata\": {\n    \"id\": \"b53\"\n  },\n  \"source\": \"a23\"\n}\n```\n\nTo address \"id\" metadata key use `[\"metadata\", \"id\"]` property.\\\nYou can also aggregate the value(s) for the standalone property `source` with `[\"source\"]`.\n"
+      type: array
+      minItems: 1
+      maxItems: 2
+      items:
+        type: string
+      example:
+      - metadata
+      - key1
+    AssetListScope:
       allOf:
-      - type: object
-        title: ApproximateCardinalityForProperties
-        description: Request resource properties approximate cardinality aggregate.
-        required:
-        - aggregate
-        properties:
-          aggregate:
-            description: 'Type of aggregation to apply.
-
-              `cardinalityProperties`: Get approximate number of unique properties.
-
-              '
-            type: string
-            enum:
-            - cardinalityProperties
-          aggregateFilter:
-            $ref: '#/components/schemas/AssetAggregateFilter'
-      - $ref: '#/components/schemas/AssetAdvancedFilter'
       - $ref: '#/components/schemas/AssetFilter'
-      - properties:
-          path:
-            description: 'The scope in every document to aggregate properties.
+      - $ref: '#/components/schemas/AssetAdvancedFilter'
+      - $ref: '#/components/schemas/AssetLimit'
+      - $ref: '#/components/schemas/AssetSort'
+      - $ref: '#/components/schemas/Cursor'
+      - $ref: '#/components/schemas/AggregatedProperties'
+      - $ref: '#/components/schemas/PartitionObjectLimited10'
+    GeoLocationGeometry:
+      type: object
+      required:
+      - type
+      description: Represents the points, curves and surfaces in the coordinate space.
+      oneOf:
+      - $ref: '#/components/schemas/Point'
+      - $ref: '#/components/schemas/LineString'
+      - $ref: '#/components/schemas/Polygon'
+      - $ref: '#/components/schemas/MultiPoint'
+      - $ref: '#/components/schemas/MultiLineString'
+      - $ref: '#/components/schemas/MultiPolygon'
+      discriminator:
+        propertyName: type
+    PrefixFilter:
+      type: object
+      title: prefix
+      required:
+      - prefix
+      properties:
+        prefix:
+          required:
+          - property
+          - value
+          description: 'Matches items that contain a specific prefix in the provided property.
 
-              The only value allowed now is ["metadata"].
-
-              It means to aggregate only metadata properties (aka keys).
-
-              '
-            type: array
-            minItems: 1
-            maxItems: 1
-            items:
-              type: string
-              enum:
-              - metadata
-            default:
-            - metadata
-    LineString:
+            '
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/FilterProperty'
+            value:
+              $ref: '#/components/schemas/StringValue'
+    Polygon:
       type: object
       required:
       - type
@@ -1904,9 +1188,9 @@ components:
         type:
           type: string
           enum:
-          - LineString
+          - Polygon
         coordinates:
-          $ref: '#/components/schemas/LineStringCoordinates'
+          $ref: '#/components/schemas/PolygonCoordinates'
     Asset:
       allOf:
       - type: object
@@ -1935,187 +1219,252 @@ components:
             - $ref: '#/components/schemas/CogniteExternalId'
       - $ref: '#/components/schemas/ExternalAsset'
       - $ref: '#/components/schemas/AssetInternalId'
-    DeleteRequest:
+    AssetSortProperty:
       type: object
+      required:
+      - property
+      properties:
+        property:
+          type: array
+          description: "Property to sort on.\nSorting can be done on the following properties:\n  | Property                        |\n  |---------------------------------|\n  | `[\"createdTime\"]`               |\n  | `[\"dataSetId\"]`                 |\n  | `[\"description\"]`               |\n  | `[\"externalId\"]`                |\n  | `[\"lastUpdatedTime\"]`           |\n  | `[\"metadata\", \"someCustomKey\"]` |\n  | `[\"name\"]`                      |\n  | `[\"source\"]`                    |\n  | `[\"_score_\"]`                   |"
+          minItems: 1
+          maxItems: 2
+          items:
+            type: string
+        order:
+          type: string
+          description: The `order` attribute is optional and defaults to `desc` for `_score_` and `asc` for all other properties.
+          enum:
+          - asc
+          - desc
+        nulls:
+          type: string
+          description: 'The `nulls` attribute is optional and defaults to `auto`.
+
+            `auto` is translated to `last` for the `asc` order and to `first` for the `desc` order by the service.'
+          enum:
+          - first
+          - last
+          - auto
+          default: auto
+    LabelFilter:
+      description: Return only the resource matching the specified label constraints.
+      oneOf:
+      - $ref: '#/components/schemas/LabelContainsAnyFilter'
+      - $ref: '#/components/schemas/LabelContainsAllFilter'
+    PartitionLimited10:
+      description: 'Splits the data set into `N` partitions.
+
+        The attribute is specified as a "M/N" string, where `M` is a natural number in the interval of `[1, N]`.
+
+        You need to follow the cursors within each partition in order to receive all the data.
+
+
+        The maximum number of allowed partitions (`N`) is 10.
+
+
+        Cognite rejects requests if you specify more than 10 partitions.
+
+        When Cognite enforces this behavior, the requests result in a 400 Bad Request status.
+
+        '
+      type: string
+      example: 1/3
+    AssetWithPropertyCountAggregate:
       allOf:
       - type: object
-        required:
-        - items
-        properties:
-          items:
-            type: array
-            items:
-              $ref: '#/components/schemas/AssetIdEither'
-            maxItems: 1000
-            minItems: 1
-          recursive:
-            description: Recursively delete all asset subtrees under the specified IDs.
-            type: boolean
-            default: false
-      - $ref: '#/components/schemas/IgnoreUnknownIdsField'
-    ExistsFilter:
-      type: object
-      title: exists
-      required:
-      - exists
-      properties:
-        exists:
-          required:
-          - property
-          description: 'Will match items that have a value in the specified property.
+        title: AssetWithPropertyCount
+        description: 'Request aggregate to count the number of Assets with the specific property (property is not null)
 
-            '
-          type: object
-          properties:
-            property:
-              $ref: '#/components/schemas/FilterProperty'
-    LabelContainsAnyFilter:
+          and matching the filters.'
+        properties:
+          aggregate:
+            description: 'Type of aggregation to apply.
+
+              `count`: Get an approximate number of Assets with the specific property (property is not null) and matching the filters.
+
+              '
+            type: string
+            enum:
+            - count
+      - $ref: '#/components/schemas/AssetAdvancedFilter'
+      - $ref: '#/components/schemas/AssetFilter'
+      - $ref: '#/components/schemas/AssetAggregateProperties'
+    AggregatedProperties:
+      type: object
+      properties:
+        aggregatedProperties:
+          description: Set of aggregated properties to include
+          type: array
+          items:
+            $ref: '#/components/schemas/AggregatedProperty'
+    SetDescription:
+      type: object
+      title: set
+      required:
+      - set
+      properties:
+        set:
+          $ref: '#/components/schemas/ResourceDescription'
+    CountAggregateResult:
+      description: Common aggregate structure to represent aggregate result which have one count for filter resultset (Documents Count, Property Cardinality, etc).
+      title: CountResult
       type: object
       required:
-      - containsAny
+      - items
       properties:
-        containsAny:
-          description: The resource item contains at least one of the listed labels.
+        items:
           type: array
           minItems: 1
-          maxItems: 10
+          maxItems: 1
           items:
-            $ref: '#/components/schemas/Label'
-    AggregatedProperty:
-      type: string
-      enum:
-      - childCount
-      - path
-      - depth
-    AssetChangeByExternalId:
-      allOf:
-      - $ref: '#/components/schemas/AssetPatch'
-      - type: object
-        required:
-        - externalId
-        properties:
-          externalId:
-            $ref: '#/components/schemas/CogniteExternalId'
-    AssetUniqueValuesAggregate:
-      allOf:
-      - type: object
-        title: UniqueValues
-        description: 'Request unique value buckets aggregate on a specific Asset property.
-
-          Each bucket is defined by the `values` array and has the number of the `values` occurrences.'
-        required:
-        - aggregate
-        properties:
-          aggregate:
-            description: 'Type of aggregation to apply.
-
-              `uniqueValues`: Get unique values (up to max 1000) in the specified property ordered by the frequency.
-
-              Note: When aggregate on the `["metadata"]` property, a value may occur multiple times in one Asset for different metadata keys.
-
-              Each occurrence is counted.
-
-              '
-            type: string
-            enum:
-            - uniqueValues
-          aggregateFilter:
-            $ref: '#/components/schemas/AssetAggregateFilter'
-      - $ref: '#/components/schemas/AssetAdvancedFilter'
-      - $ref: '#/components/schemas/AssetFilter'
-      - $ref: '#/components/schemas/AssetAggregateProperties'
-    AssetCardinalityValuesAggregate:
-      allOf:
-      - type: object
-        title: ApproximateCardinalityForValues
-        description: Request values approximate cardinality aggregate on a specific property.
-        required:
-        - aggregate
-        properties:
-          aggregate:
-            description: 'Type of aggregation to apply.
-
-              `cardinalityValues`: Get approximate number of unique values for the specified property.
-
-              '
-            type: string
-            enum:
-            - cardinalityValues
-          aggregateFilter:
-            $ref: '#/components/schemas/AssetAggregateFilter'
-      - $ref: '#/components/schemas/AssetAdvancedFilter'
-      - $ref: '#/components/schemas/AssetFilter'
-      - $ref: '#/components/schemas/AssetAggregateProperties'
-    AssetUniquePropertiesAggregate:
-      allOf:
-      - type: object
-        title: UniqueProperties
-        description: Request unique non-null property buckets aggregate.
-        required:
-        - aggregate
-        properties:
-          aggregate:
-            description: 'Type of aggregation to apply.
-
-              `uniqueProperties`: Get unique properties (up to max 1000) in the specified document path (default path is ["metadata"] - metadata keys only).
-
-              Ordered by frequency.
-
-              '
-            type: string
-            enum:
-            - uniqueProperties
-          aggregateFilter:
-            $ref: '#/components/schemas/AssetAggregateFilter'
-      - $ref: '#/components/schemas/AssetAdvancedFilter'
-      - $ref: '#/components/schemas/AssetFilter'
-      - properties:
-          path:
-            description: 'The scope in every document to aggregate properties.
-
-              The only value allowed now is ["metadata"].
-
-              It means to aggregate only metadata properties (aka keys).
-
-              '
-            type: array
-            minItems: 1
-            maxItems: 1
-            items:
-              type: string
-              enum:
-              - metadata
-            default:
-            - metadata
-    AssetPatch:
+            type: object
+            required:
+            - count
+            properties:
+              count:
+                type: integer
+                description: Number of items in this aggregation group.
+                format: int64
+      example:
+        items:
+        - count: 10
+    ObjectPatchSetAsset:
+      title: set
       type: object
-      description: Changes applied to asset
       required:
-      - update
+      - set
       properties:
-        update:
+        set:
+          uniqueItems: true
           type: object
-          properties:
-            externalId:
-              $ref: '#/components/schemas/SinglePatchExternalId'
-            name:
-              $ref: '#/components/schemas/SinglePatchRequiredName'
-            description:
-              $ref: '#/components/schemas/SinglePatchResourceDescription'
-            dataSetId:
-              $ref: '#/components/schemas/SinglePatchLong'
-            metadata:
-              $ref: '#/components/schemas/ObjectPatchAsset'
-            source:
-              $ref: '#/components/schemas/SinglePatchAssetSource'
-            parentId:
-              $ref: '#/components/schemas/SinglePatchRequiredInternalId'
-            parentExternalId:
-              $ref: '#/components/schemas/SinglePatchRequiredParentExternalId'
-            labels:
-              $ref: '#/components/schemas/LabelsPatch'
-            geoLocation:
-              $ref: '#/components/schemas/SinglePatchGeoLocation'
+          description: Set the key-value pairs. All existing key-value pairs will be removed.
+          additionalProperties:
+            type: string
+            maxLength: 10240
+          x-maxKeyLength: 128
+          x-maxTotalSize: 10240
+          maxProperties: 256
+          example:
+            key1: value1
+            key2: value2
+    PartitionObjectLimited10:
+      type: object
+      properties:
+        partition:
+          $ref: '#/components/schemas/PartitionLimited10'
+    MultiPolygonCoordinates:
+      description: 'List of multiple polygons.
+
+
+        Each polygon is defined as a list of one or more linear rings representing a shape.
+
+
+        A linear ring is the boundary of a surface or the boundary of a hole in a surface. It is defined as a list consisting of 4 or more Points, where the first and last Point is equivalent.
+
+
+        Each Point is defined as an array of 2 numbers, representing coordinates of a point in 2D space.
+
+
+        Example: `[[[[30, 20], [45, 40], [10, 40], [30, 20]]], [[[15, 5], [40, 10], [10, 20], [5, 10], [15, 5]]]]`
+
+        '
+      type: array
+      items:
+        $ref: '#/components/schemas/PolygonCoordinates'
+    AssetAggregateFilter:
+      type: object
+      description: 'A filter DSL (Domain Specific Language) to define aggregate filter queries.
+
+
+        See more information about filtering DSL [here](https://docs.cognite.com/dev/concepts/resource_filtering_dsl/ "filtering DSL").
+
+        '
+      oneOf:
+      - $ref: '#/components/schemas/AssetAggregateBoolFilter'
+      - $ref: '#/components/schemas/AssetAggregateLeafFilter'
+      example:
+        or:
+        - not:
+            and:
+            - equals:
+                value: 10
+            - in:
+                values:
+                - 11
+                - 12
+            - range:
+                gte: 13
+                lt: 15
+        - and:
+          - equals:
+              value: 42
+    AssetAggregateLeafFilter:
+      description: Aggregate leaf filter.
+      title: AggregateLeafFilter
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/AggregateInFilter'
+      - $ref: '#/components/schemas/AggregatePrefixFilter'
+      - $ref: '#/components/schemas/AggregateRangeFilter'
+    429Error:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API throttling.
+      properties:
+        code:
+          type: integer
+          description: 429 HTTP status code.
+          format: int32
+          example: 429
+        message:
+          type: string
+          description: "The error message specifies which kind of throttling happened:\n  - Too many concurrent requests for a single project or an identity.\n  - Too high rate of requests for a single project or an identity.\n\nSee more [here](https://docs.cognite.com/dev/concepts/request_throttling/ \"requests throttling\")."
+          example: Project exceeded maximum number='50' of concurrent requests. Please try again later.
+    ObjectPatchAddRemoveAsset:
+      title: add/remove
+      type: object
+      properties:
+        add:
+          uniqueItems: true
+          type: object
+          description: Add the key-value pairs. Values for existing keys will be overwritten.
+          additionalProperties:
+            type: string
+            maxLength: 10240
+          x-maxKeyLength: 128
+          x-maxTotalSize: 10240
+          maxProperties: 256
+          example:
+            key1: value1
+            key2: value2
+        remove:
+          uniqueItems: true
+          type: array
+          description: Remove the key-value pairs with the specified keys.
+          example:
+          - value1
+          - value2
+          items:
+            type: string
+    AssetDescription:
+      type: string
+      description: The description of the asset.
+      maxLength: 500
+    MultiLineStringCoordinates:
+      description: 'List of lines where each line (LineString) is defined as a list of two or more points.
+
+        Each point is defined as a pair of two numbers in an array, representing coordinates of a point in 2D space.
+
+
+        Example: `[[[30, 10], [10, 30]], [[35, 10], [10, 30], [40, 40]]]`
+
+        '
+      type: array
+      items:
+        $ref: '#/components/schemas/LineStringCoordinates'
     RemoveField:
       title: remove
       type: object
@@ -2125,59 +1474,45 @@ components:
         setNull:
           type: boolean
           example: true
-    AssetSearch:
+    ValuesAggregateResult:
+      description: Common aggregate structure to represent aggregate result which have count buckets for filter resultset (Unique Property Values, Not Null Document Properties, etc).
+      title: BucketsResult
       type: object
-      properties:
-        search:
-          type: object
-          title: Search
-          description: Fulltext search for assets. Primarily meant for for human-centric use-cases, not for programs. The query parameter uses a different search algorithm than the deprecated name and description parameters, and will generally give much better results.
-          properties:
-            name:
-              $ref: '#/components/schemas/AssetName'
-            description:
-              $ref: '#/components/schemas/AssetDescription'
-            query:
-              $ref: '#/components/schemas/AssetQuery'
-    AggregatePrefixFilter:
-      type: object
-      title: prefix
       required:
-      - prefix
+      - items
       properties:
-        prefix:
-          required:
-          - value
-          description: 'Matches aggregate values that contain a specific prefix.
-
-            '
-          type: object
-          properties:
-            value:
-              $ref: '#/components/schemas/StringValue'
-    LabelList:
-      type: array
-      description: A list of the labels associated with this resource item.
-      minItems: 0
-      maxItems: 10
-      uniqueItems: true
-      items:
-        $ref: '#/components/schemas/Label'
-    SetAssetSource:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items:
+            type: object
+            oneOf:
+            - $ref: '#/components/schemas/AggregateStringValues'
+            - $ref: '#/components/schemas/AggregateIntegerValues'
+            - $ref: '#/components/schemas/AggregatePropertyValues'
+      example:
+        items:
+        - count: 5
+          values:
+          - value_1
+        - count: 10
+          values:
+          - value_2
+    AssetIdentifier:
       type: object
-      title: set
       required:
-      - set
+      - id
       properties:
-        set:
-          $ref: '#/components/schemas/AssetSource'
-    SinglePatchExternalId:
+        id:
+          $ref: '#/components/schemas/CogniteInternalId'
+    SinglePatchGeoLocation:
       title: set
       type: object
       oneOf:
-      - $ref: '#/components/schemas/SetExternalId'
+      - $ref: '#/components/schemas/SetGeoLocation'
       - $ref: '#/components/schemas/RemoveField'
-      description: Set a new value for the externalId, or remove the value. Must be unique for the resource type.
+      description: Set a new value for the geoLocation, or remove the value.
     AggregateIntegerValues:
       title: Integers
       type: object
@@ -2202,18 +1537,6 @@ components:
           description: A unique integer value in the field.
           type: integer
           format: int64
-    AssetChange:
-      oneOf:
-      - $ref: '#/components/schemas/AssetChangeById'
-      - $ref: '#/components/schemas/AssetChangeByExternalId'
-    SetExternalId:
-      type: object
-      title: set
-      required:
-      - set
-      properties:
-        set:
-          $ref: '#/components/schemas/CogniteExternalId'
     AssetCountAggregate:
       allOf:
       - type: object
@@ -2231,6 +1554,278 @@ components:
             - count
       - $ref: '#/components/schemas/AssetAdvancedFilter'
       - $ref: '#/components/schemas/AssetFilter'
+    LineString:
+      type: object
+      required:
+      - type
+      - coordinates
+      properties:
+        type:
+          type: string
+          enum:
+          - LineString
+        coordinates:
+          $ref: '#/components/schemas/LineStringCoordinates'
+    AggregatePropertyValues:
+      title: Properties
+      description: 'A single bucket to represent `uniqueProperties` aggregate result.
+
+        '
+      type: object
+      required:
+      - count
+      - values
+      properties:
+        count:
+          description: Number of items in this aggregation bucket.
+          type: integer
+          format: int64
+        values:
+          description: 'An array of unique properties for UniqueProperties aggregate.
+
+            '
+          type: array
+          minItems: 1
+          maxItems: 1
+          items:
+            type: object
+            required:
+            - property
+            properties:
+              property:
+                $ref: '#/components/schemas/AggregateProperty'
+            example:
+              property:
+              - metadata
+              - key1
+        value:
+          deprecated: true
+          description: 'A unique property for UniqueProperties aggregate.
+
+            '
+          type: object
+          required:
+          - property
+          properties:
+            property:
+              $ref: '#/components/schemas/AggregateProperty'
+    Point:
+      type: object
+      required:
+      - type
+      - coordinates
+      properties:
+        type:
+          type: string
+          enum:
+          - Point
+        coordinates:
+          $ref: '#/components/schemas/PointCoordinates'
+    SinglePatchResourceDescription:
+      title: set
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/SetDescription'
+      - $ref: '#/components/schemas/RemoveField'
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
+    SinglePatchRequiredParentExternalId:
+      type: object
+      properties:
+        set:
+          $ref: '#/components/schemas/AssetParentExternalId'
+      description: Change the external ID of the object.
+      required:
+      - set
+    ExistsFilter:
+      type: object
+      title: exists
+      required:
+      - exists
+      properties:
+        exists:
+          required:
+          - property
+          description: 'Will match items that have a value in the specified property.
+
+            '
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/FilterProperty'
+    MultiLineString:
+      type: object
+      required:
+      - type
+      - coordinates
+      properties:
+        type:
+          type: string
+          enum:
+          - MultiLineString
+        coordinates:
+          $ref: '#/components/schemas/MultiLineStringCoordinates'
+    AssetDataIds:
+      type: object
+      allOf:
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
+            items:
+              $ref: '#/components/schemas/AssetIdEither'
+            maxItems: 1000
+            minItems: 1
+      - $ref: '#/components/schemas/IgnoreUnknownIdsField'
+      - $ref: '#/components/schemas/AggregatedProperties'
+    SetExternalId:
+      type: object
+      title: set
+      required:
+      - set
+      properties:
+        set:
+          $ref: '#/components/schemas/CogniteExternalId'
+    MultiPoint:
+      type: object
+      required:
+      - type
+      - coordinates
+      properties:
+        type:
+          type: string
+          enum:
+          - MultiPoint
+        coordinates:
+          $ref: '#/components/schemas/MultiPointCoordinates'
+    DataSetInternalId:
+      type: object
+      title: DataSetInternalId
+      required:
+      - id
+      properties:
+        id:
+          $ref: '#/components/schemas/CogniteInternalId'
+    AssetAggregateProperties:
+      type: object
+      required:
+      - properties
+      properties:
+        properties:
+          type: array
+          description: The property name(s) to apply the aggregation on. Currently limited to one property per request.
+          minItems: 1
+          maxItems: 1
+          items:
+            type: object
+            required:
+            - property
+            properties:
+              property:
+                type: array
+                description: "It's an array of strings to allow specifying nested properties.\n  Supported properties:\\\n  | Property                        | Type                         |\n  |---------------------------------|------------------------------|\n  | `[\"dataSetId\"]`                 | number                       |\n  | `[\"description\"]`               | string                       |\n  | `[\"labels\"]`                    | array of [string]            |\n  | `[\"name\"]`                      | string                       |\n  | `[\"parentId\"]`                  | number                       |\n  | `[\"rootId\"]`                    | number                       |\n  | `[\"source\"]`                    | string                       |\n  | `[\"metadata\"]`                  | string                       |\n  | `[\"metadata\", <key>]`           | string                       |"
+                minItems: 1
+                maxItems: 2
+                items:
+                  type: string
+                  minLength: 1
+                  maxLength: 128
+                example:
+                - parentId
+              filter:
+                $ref: '#/components/schemas/AssetAggregateFilter'
+    AssetSource:
+      type: string
+      maxLength: 128
+      description: The source of the asset.
+    EpochTimestampRange:
+      description: Range between two timestamps (inclusive).
+      type: object
+      properties:
+        max:
+          description: Maximum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+          type: integer
+          minimum: 0
+          format: int64
+        min:
+          description: Minimum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+          type: integer
+          minimum: 0
+          format: int64
+    ContainsAllFilter:
+      type: object
+      title: containsAll
+      required:
+      - containsAll
+      properties:
+        containsAll:
+          required:
+          - property
+          - values
+          description: 'Matches items where the property contains all the given values.
+
+            This filter can only be applied to multivalued properties.
+
+            '
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/FilterProperty'
+            values:
+              $ref: '#/components/schemas/Values'
+    GeoLocationFilter:
+      description: Only include files matching the specified geographic relation.
+      type: object
+      required:
+      - relation
+      - shape
+      properties:
+        relation:
+          type: string
+          enum:
+          - INTERSECTS
+          - DISJOINT
+          - WITHIN
+          description: One of the supported queries.
+        shape:
+          type: object
+          description: Represents the points, curves and surfaces in the coordinate space.
+          oneOf:
+          - $ref: '#/components/schemas/Point'
+          - $ref: '#/components/schemas/LineString'
+          - $ref: '#/components/schemas/Polygon'
+          - $ref: '#/components/schemas/MultiLineString'
+          - $ref: '#/components/schemas/MultiPolygon'
+          discriminator:
+            propertyName: type
     ExternalAsset:
       type: object
       required:
@@ -2277,43 +1872,114 @@ components:
         geoLocation:
           $ref: '#/components/schemas/GeoLocation'
       description: A representation of a physical asset, for example a factory or a piece of equipment.
-    ValuesAggregateResult:
-      description: Common aggregate structure to represent aggregate result which have count buckets for filter resultset (Unique Property Values, Not Null Document Properties, etc).
-      title: BucketsResult
+    DataAssetChange:
       type: object
       required:
       - items
       properties:
         items:
           type: array
+          items:
+            $ref: '#/components/schemas/AssetChange'
           minItems: 1
           maxItems: 1000
+    LabelsPatch:
+      description: 'Updates the resource''s assigned labels.
+
+
+        Labels can be added, removed or replaced (set). Adding an already attached label is an idempotent operation. Removing a label with no matching externalId is silently ignored.'
+      oneOf:
+      - $ref: '#/components/schemas/LabelsAddRemove'
+      - $ref: '#/components/schemas/LabelsSet'
+    CogniteExternalIdPrefix:
+      description: Filter by this (case-sensitive) prefix for the external ID.
+      type: string
+      maxLength: 255
+      example: my.known.prefix
+    SinglePatchExternalId:
+      title: set
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/SetExternalId'
+      - $ref: '#/components/schemas/RemoveField'
+      description: Set a new value for the externalId, or remove the value. Must be unique for the resource type.
+    AggregateResultItem:
+      description: Aggregated metrics of the asset.
+      type: object
+      properties:
+        childCount:
+          type: integer
+          description: Number of direct descendants for the asset.
+          format: int32
+          minimum: 0
+        depth:
+          type: integer
+          description: Asset path depth (number of levels below root node).
+          format: int32
+          minimum: 0
+        path:
+          description: IDs of assets on the path to the asset.
+          type: array
           items:
-            type: object
-            oneOf:
-            - $ref: '#/components/schemas/AggregateStringValues'
-            - $ref: '#/components/schemas/AggregateIntegerValues'
-            - $ref: '#/components/schemas/AggregatePropertyValues'
-      example:
-        items:
-        - count: 5
-          values:
-          - value_1
-        - count: 10
-          values:
-          - value_2
-    MultiLineString:
+            $ref: '#/components/schemas/AssetIdentifier'
+    AssetMetadataKeysAggregate:
+      deprecated: true
+      allOf:
+      - type: object
+        title: MetadataKeys
+        description: Get unique values (up to max 1000) of metadata keys ordered by frequency.
+        required:
+        - aggregate
+        properties:
+          aggregate:
+            description: 'Type of aggregation to apply.
+
+              `metadataKeys`: Get unique values of metadata keys ordered by frequency.
+
+              '
+            type: string
+            enum:
+            - metadataKeys
+      - $ref: '#/components/schemas/AssetAdvancedFilter'
+      - $ref: '#/components/schemas/AssetFilter'
+    SetLongField:
       type: object
       required:
-      - type
-      - coordinates
+      - set
       properties:
-        type:
+        set:
+          type: integer
+          format: int64
+    SetGeoLocation:
+      title: set
+      type: object
+      required:
+      - set
+      properties:
+        set:
+          $ref: '#/components/schemas/GeoLocation'
+    AggregateStringValues:
+      title: Strings
+      type: object
+      required:
+      - count
+      - values
+      properties:
+        count:
+          description: Number of items in this aggregation bucket.
+          type: integer
+          format: int64
+        values:
+          description: An array of unique string values in the property.
+          type: array
+          minItems: 1
+          maxItems: 1
+          items:
+            type: string
+        value:
+          deprecated: true
+          description: A unique string value in the field.
           type: string
-          enum:
-          - MultiLineString
-        coordinates:
-          $ref: '#/components/schemas/MultiLineStringCoordinates'
     SearchFilter:
       type: object
       title: search
@@ -2333,84 +1999,155 @@ components:
               $ref: '#/components/schemas/FilterProperty'
             value:
               $ref: '#/components/schemas/Value'
-    Error:
+    AssetAggregateKeys:
       type: object
-      required:
-      - code
-      - message
-      description: Cognite API error.
       properties:
-        code:
-          type: integer
-          description: HTTP status code.
-          format: int32
-          example: 401
-        message:
-          type: string
-          description: Error message.
-          example: Could not authenticate.
-        missing:
-          type: array
-          description: List of lookup objects that do not match any results.
-          items:
-            type: object
-            additionalProperties: true
-        duplicated:
-          type: array
-          description: List of objects that are not unique.
-          items:
-            type: object
-            additionalProperties: true
-    AggregatePropertyValues:
-      title: Properties
-      description: 'A single bucket to represent `uniqueProperties` aggregate result.
-
-        '
-      type: object
-      required:
-      - count
-      - values
-      properties:
-        count:
-          description: Number of items in this aggregation bucket.
-          type: integer
-          format: int64
-        values:
-          description: 'An array of unique properties for UniqueProperties aggregate.
+        keys:
+          description: 'For `metadataValues`, `aggregateType` sets the metadata key(s) to apply the aggregation on. Currently supports exactly one key per request.
 
             '
           type: array
-          minItems: 1
           maxItems: 1
           items:
-            type: object
-            required:
-            - property
-            properties:
-              property:
-                $ref: '#/components/schemas/AggregateProperty'
-            example:
-              property:
-              - metadata
-              - key1
-        value:
-          deprecated: true
-          description: 'A unique property for UniqueProperties aggregate.
+            type: string
+    ContainsAnyFilter:
+      type: object
+      title: containsAny
+      required:
+      - containsAny
+      properties:
+        containsAny:
+          required:
+          - property
+          - values
+          description: 'Matches items where the property contains one or more of the given values.
+
+            This filter can only be applied to multivalued properties.
 
             '
           type: object
-          required:
-          - property
           properties:
             property:
-              $ref: '#/components/schemas/AggregateProperty'
-    DataExternalAssetItem:
-      allOf:
-      - $ref: '#/components/schemas/ExternalAsset'
+              $ref: '#/components/schemas/FilterProperty'
+            values:
+              $ref: '#/components/schemas/Values'
+    JsonArrayString:
+      type: string
+      format: jsonArray(string)
+    AssetAggregateBoolFilter:
+      description: 'A query that matches items matching boolean combinations of other queries.
+
+        It''s built using one or more boolean clauses of the following types: `and`, `or`, or `not`.
+
+        '
+      title: AggregateBoolFilter
+      type: object
+      oneOf:
       - type: object
+        title: and
+        required:
+        - and
         properties:
-          parentExternalId:
-            $ref: '#/components/schemas/AssetParentExternalId'
+          and:
+            description: All of the sub-clauses in the query must appear in matching items.
+            type: array
+            minItems: 1
+            items:
+              $ref: '#/components/schemas/AssetAggregateFilter'
+      - type: object
+        title: or
+        required:
+        - or
+        properties:
+          or:
+            description: At least one of the sub-clauses in the query must appear in matching items.
+            type: array
+            minItems: 1
+            items:
+              $ref: '#/components/schemas/AssetAggregateFilter'
+      - type: object
+        title: not
+        required:
+        - not
+        properties:
+          not:
+            title: Filter DSL
+            description: Sub-clauses in the query must not appear in matching items.
+            type: object
+            allOf:
+            - $ref: '#/components/schemas/AssetAggregateFilter'
+    JsonArrayInt64:
+      type: string
+      format: jsonArray(int64)
+      example: '[1238712837, 238712361376, 23786237623]'
+    LabelContainsAllFilter:
+      type: object
+      required:
+      - containsAll
+      properties:
+        containsAll:
+          description: The resource item contains at least all the listed labels.
+          type: array
+          minItems: 1
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/Label'
+    LabelList:
+      type: array
+      description: A list of the labels associated with this resource item.
+      minItems: 0
+      maxItems: 10
+      uniqueItems: true
+      items:
+        $ref: '#/components/schemas/Label'
+    AssetChange:
+      oneOf:
+      - $ref: '#/components/schemas/AssetChangeById'
+      - $ref: '#/components/schemas/AssetChangeByExternalId'
+    StringValue:
+      title: String
+      description: A unique string value in the field.
+      type: object
+      required:
+      - value
+      properties:
+        value:
+          type: string
+    DeleteRequest:
+      type: object
+      allOf:
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
+            items:
+              $ref: '#/components/schemas/AssetIdEither'
+            maxItems: 1000
+            minItems: 1
+          recursive:
+            description: Recursively delete all asset subtrees under the specified IDs.
+            type: boolean
+            default: false
+      - $ref: '#/components/schemas/IgnoreUnknownIdsField'
+    AssetMetadata:
+      type: object
+      description: 'Custom, application specific metadata. String key -> String value. Limits: Maximum length of key is 128 bytes, value 10240 bytes, up to 256 key-value pairs, of total size at most 10240.'
+      additionalProperties:
+        type: string
+        maxLength: 10240
+      x-maxKeyLength: 128
+      x-maxTotalSize: 10240
+      maxProperties: 256
+    SetAssetSource:
+      type: object
+      title: set
+      required:
+      - set
+      properties:
+        set:
+          $ref: '#/components/schemas/AssetSource'
     AssetSort:
       type: object
       properties:
@@ -2431,40 +2168,6 @@ components:
             - metadata
             - customMetadataKey
             nulls: first
-    Value:
-      description: Value you wish to find in the provided property.
-      oneOf:
-      - type: string
-      - type: number
-      - type: integer
-      - type: boolean
-    AssetAggregateFilter:
-      type: object
-      description: 'A filter DSL (Domain Specific Language) to define aggregate filter queries.
-
-
-        See more information about filtering DSL [here](https://docs.cognite.com/dev/concepts/resource_filtering_dsl/ "filtering DSL").
-
-        '
-      oneOf:
-      - $ref: '#/components/schemas/AssetAggregateBoolFilter'
-      - $ref: '#/components/schemas/AssetAggregateLeafFilter'
-      example:
-        or:
-        - not:
-            and:
-            - equals:
-                value: 10
-            - in:
-                values:
-                - 11
-                - 12
-            - range:
-                gte: 13
-                lt: 15
-        - and:
-          - equals:
-              value: 42
     SinglePatchLong:
       title: set
       type: object
@@ -2472,75 +2175,422 @@ components:
       - $ref: '#/components/schemas/SetLongField'
       - $ref: '#/components/schemas/RemoveField'
       description: Set a new value for the long, or remove the value.
-    GeoLocationFilter:
-      description: Only include files matching the specified geographic relation.
+    CogniteInternalId:
+      description: A server-generated ID for the object.
+      type: integer
+      minimum: 1
+      maximum: 9007199254740991
+      format: int64
+    AssetParentExternalId:
+      description: The external ID of the parent. This will be resolved to an internal ID and stored as `parentId`.
+      type: string
+      maxLength: 255
+      example: my.known.id
+    AssetCardinalityPropertiesAggregate:
+      allOf:
+      - type: object
+        title: ApproximateCardinalityForProperties
+        description: Request resource properties approximate cardinality aggregate.
+        required:
+        - aggregate
+        properties:
+          aggregate:
+            description: 'Type of aggregation to apply.
+
+              `cardinalityProperties`: Get approximate number of unique properties.
+
+              '
+            type: string
+            enum:
+            - cardinalityProperties
+          aggregateFilter:
+            $ref: '#/components/schemas/AssetAggregateFilter'
+      - $ref: '#/components/schemas/AssetAdvancedFilter'
+      - $ref: '#/components/schemas/AssetFilter'
+      - properties:
+          path:
+            description: 'The scope in every document to aggregate properties.
+
+              The only value allowed now is ["metadata"].
+
+              It means to aggregate only metadata properties (aka keys).
+
+              '
+            type: array
+            minItems: 1
+            maxItems: 1
+            items:
+              type: string
+              enum:
+              - metadata
+            default:
+            - metadata
+    LineStringCoordinates:
+      description: 'Coordinates of a line described by a list of two or more points.
+
+        Each point is defined as a pair of two numbers in an array, representing coordinates of a point in 2D space.
+
+
+        Example: `[[30, 10], [10, 30], [40, 40]]`
+
+        '
+      type: array
+      minItems: 2
+      items:
+        $ref: '#/components/schemas/PointCoordinates'
+    AggregatedProperty:
+      type: string
+      enum:
+      - childCount
+      - path
+      - depth
+    IgnoreUnknownIdsField:
+      type: object
+      properties:
+        ignoreUnknownIds:
+          description: Ignore IDs and external IDs that are not found
+          type: boolean
+          default: false
+    AggregateResult:
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/CountAggregateResult'
+      - $ref: '#/components/schemas/ValuesAggregateResult'
+    AssetExternalId:
       type: object
       required:
-      - relation
-      - shape
+      - externalId
       properties:
-        relation:
-          type: string
-          enum:
-          - INTERSECTS
-          - DISJOINT
-          - WITHIN
-          description: One of the supported queries.
-        shape:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+    AssetAdvancedFilter:
+      type: object
+      properties:
+        advancedFilter:
           type: object
-          description: Represents the points, curves and surfaces in the coordinate space.
+          description: "A filter DSL (Domain Specific Language) to define advanced filter queries.\n\nSee more information about filtering DSL [here](https://docs.cognite.com/dev/concepts/resource_filtering_dsl/ \"filtering DSL\").\n\nSupported properties:\n\n  | Property                        | Type                                    |\n  |---------------------------------|-----------------------------------------|\n  | `[\"labels\"]`                    | array of [string]                       |\n  | `[\"createdTime\"]`               | number                                  |\n  | `[\"dataSetId\"]`                 | number                                  |\n  | `[\"id\"]`                        | number                                  |\n  | `[\"lastUpdatedTime\"]`           | number                                  |\n  | `[\"parentId\"]`                  | number                                  |\n  | `[\"rootId\"]`                    | number                                  |\n  | `[\"description\"]`               | string                                  |\n  | `[\"externalId\"]`                | string                                  |\n  | `[\"metadata\"]`                  | string                                  |\n  | `[\"metadata\", \"someCustomKey\"]` | string                                  |\n  | `[\"name\"]`                      | string                                  |\n  | `[\"source\"]`                    | string                                  |\n\n  Note: Filtering on the `[\"metadata\"]` property has the following logic:\n  If a value of any metadata keys in an asset matches the filter, the asset matches the filter."
           oneOf:
-          - $ref: '#/components/schemas/Point'
-          - $ref: '#/components/schemas/LineString'
-          - $ref: '#/components/schemas/Polygon'
-          - $ref: '#/components/schemas/MultiLineString'
-          - $ref: '#/components/schemas/MultiPolygon'
-          discriminator:
-            propertyName: type
-    SetLongField:
+          - $ref: '#/components/schemas/AssetBoolFilter'
+          - $ref: '#/components/schemas/AssetLeafFilter'
+          example:
+            or:
+            - not:
+                and:
+                - equals:
+                    property:
+                    - metadata
+                    - asset_type
+                    value: gas pump
+                - in:
+                    property:
+                    - source
+                    values:
+                    - blueprint
+                    - inventory
+                - range:
+                    property:
+                    - dataSetId
+                    gte: 1
+                    lt: 10
+            - and:
+              - containsAny:
+                  property:
+                  - labels
+                  values:
+                  - pump
+                  - cooler
+              - equals:
+                  property:
+                  - parentId
+                  value: 95867294876
+            - search:
+                property:
+                - description
+                value: My favorite pump
+    DataSetIdEither:
+      oneOf:
+      - $ref: '#/components/schemas/DataSetInternalId'
+      - $ref: '#/components/schemas/DataSetExternalId'
+    FilterProperty:
+      description: "Property you want to filter. Use a list of strings to specify nested properties.\n\n<u>Example:</u>\n\nYou have the object\n```\n{\n  \"room\": {\n    \"id\": \"b53\"\n  },\n  \"roomId\": \"a23\"\n}\n```\n\nUse `[\"room\", \"id\"]` to return the value in the nested `id` property, which is a part of the `room` object.\n\nYou can also read the value(s) in the standalone property `roomId` with `[\"roomId\"]`.\n"
+      type: array
+      minItems: 1
+      maxItems: 3
+      items:
+        type: string
+    AssetChangeByExternalId:
+      allOf:
+      - $ref: '#/components/schemas/AssetPatch'
+      - type: object
+        required:
+        - externalId
+        properties:
+          externalId:
+            $ref: '#/components/schemas/CogniteExternalId'
+    AssetInternalId:
       type: object
       required:
-      - set
+      - id
       properties:
-        set:
-          type: integer
-          format: int64
-    AssetListScope:
+        id:
+          $ref: '#/components/schemas/CogniteInternalId'
+    AssetIdEither:
+      oneOf:
+      - $ref: '#/components/schemas/AssetInternalId'
+      - $ref: '#/components/schemas/AssetExternalId'
+    AssetSearch:
+      type: object
+      properties:
+        search:
+          type: object
+          title: Search
+          description: Fulltext search for assets. Primarily meant for for human-centric use-cases, not for programs. The query parameter uses a different search algorithm than the deprecated name and description parameters, and will generally give much better results.
+          properties:
+            name:
+              $ref: '#/components/schemas/AssetName'
+            description:
+              $ref: '#/components/schemas/AssetDescription'
+            query:
+              $ref: '#/components/schemas/AssetQuery'
+    AssetPatch:
+      type: object
+      description: Changes applied to asset
+      required:
+      - update
+      properties:
+        update:
+          type: object
+          properties:
+            externalId:
+              $ref: '#/components/schemas/SinglePatchExternalId'
+            name:
+              $ref: '#/components/schemas/SinglePatchRequiredName'
+            description:
+              $ref: '#/components/schemas/SinglePatchResourceDescription'
+            dataSetId:
+              $ref: '#/components/schemas/SinglePatchLong'
+            metadata:
+              $ref: '#/components/schemas/ObjectPatchAsset'
+            source:
+              $ref: '#/components/schemas/SinglePatchAssetSource'
+            parentId:
+              $ref: '#/components/schemas/SinglePatchRequiredInternalId'
+            parentExternalId:
+              $ref: '#/components/schemas/SinglePatchRequiredParentExternalId'
+            labels:
+              $ref: '#/components/schemas/LabelsPatch'
+            geoLocation:
+              $ref: '#/components/schemas/SinglePatchGeoLocation'
+    AggregatePrefixFilter:
+      type: object
+      title: prefix
+      required:
+      - prefix
+      properties:
+        prefix:
+          required:
+          - value
+          description: 'Matches aggregate values that contain a specific prefix.
+
+            '
+          type: object
+          properties:
+            value:
+              $ref: '#/components/schemas/StringValue'
+    AssetSearchFilter:
+      description: Search request with filter capabilities.
+      example:
+        filter:
+          parentIds:
+          - 1293812938
+          - 293823982938
+        search:
+          name: flow
+          description: upstream
       allOf:
       - $ref: '#/components/schemas/AssetFilter'
-      - $ref: '#/components/schemas/AssetAdvancedFilter'
       - $ref: '#/components/schemas/AssetLimit'
-      - $ref: '#/components/schemas/AssetSort'
-      - $ref: '#/components/schemas/Cursor'
-      - $ref: '#/components/schemas/AggregatedProperties'
-      - $ref: '#/components/schemas/PartitionObjectLimited10'
-    LabelsSet:
+      - $ref: '#/components/schemas/AssetSearch'
+    Values:
+      description: One or more values you wish to find in the provided property.
+      type: array
+      minItems: 1
+      maxItems: 5000
+      items:
+        $ref: '#/components/schemas/Value'
+    GenericRangeFilter:
       type: object
+      title: range
+      required:
+      - range
       properties:
-        set:
-          type: array
-          description: A list of the labels to replace (set) to a resource.
-          minItems: 0
-          maxItems: 10
-          uniqueItems: true
-          items:
-            $ref: '#/components/schemas/Label'
+        range:
+          required:
+          - property
+          description: 'Matches items that contain terms within the provided range.
+
+            It is not allowed to specify both inclusive and exclusive bounds (such as `gte`, `gt`) together.
+
+            `gte`: Greater than or equal to.
+
+            `gt`: Greater than.
+
+            `lte`: Less than or equal to.
+
+            `lt`: Less than.
+
+            '
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/FilterProperty'
+            gte:
+              $ref: '#/components/schemas/RangeValue'
+            gt:
+              $ref: '#/components/schemas/RangeValue'
+            lte:
+              $ref: '#/components/schemas/RangeValue'
+            lt:
+              $ref: '#/components/schemas/RangeValue'
+    MultiPointCoordinates:
+      description: 'List of Points. Each Point is defined as an array of 2 numbers, representing coordinates of a point in 2D space.
+
+
+        Example: `[[35, 10], [45, 45]]`
+
+        '
+      type: array
+      items:
+        $ref: '#/components/schemas/PointCoordinates'
+    DataSetExternalId:
+      type: object
+      title: DataSetExternalId
+      required:
+      - externalId
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+    EqualsFilter:
+      type: object
+      title: equals
+      required:
+      - equals
+      properties:
+        equals:
+          required:
+          - property
+          - value
+          description: 'Matches items where the given property is **exactly** equal to the given value.
+
+            '
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/FilterProperty'
+            value:
+              $ref: '#/components/schemas/Value'
+    PointCoordinates:
+      description: 'Coordinates of a point in 2D space, described as an array of 2 numbers.
+
+
+        Example: `[4.306640625, 60.205710352530346]`
+
+        '
+      type: array
+      minItems: 2
+      maxItems: 2
+      items:
+        type: number
+    DataExternalAssetItem:
+      allOf:
+      - $ref: '#/components/schemas/ExternalAsset'
+      - type: object
+        properties:
+          parentExternalId:
+            $ref: '#/components/schemas/AssetParentExternalId'
+    PolygonCoordinates:
+      description: 'List of one or more linear rings representing a shape.
+
+
+        A linear ring is the boundary of a surface or the boundary of a hole in a surface. It is defined as a list consisting of 4 or more Points, where the first and last Point is equivalent.
+
+
+        Each Point is defined as an array of 2 numbers, representing coordinates of a point in 2D space.
+
+
+        Example: `[[[35, 10], [45, 45], [15, 40], [10, 20], [35, 10]], [[20, 30], [35, 35], [30, 20], [20, 30]]]`
+
+        '
+      type: array
+      minItems: 2
+      items:
+        $ref: '#/components/schemas/LineStringCoordinates'
+  parameters:
+    partitionLimited10:
+      in: query
+      name: partition
+      required: false
+      description: 'Splits the data set into `N` partitions.
+
+        The attribute is specified as a "M/N" string, where `M` is a natural number in the interval of `[1, N]`.
+
+        You need to follow the cursors within each partition in order to receive all the data.
+
+
+        The maximum number of allowed partitions (`N`) is 10.
+
+
+        Cognite rejects requests if you specify more than 10 partitions.
+
+        When Cognite enforces this behavior, the requests result in a 400 Bad Request status.
+
+        '
+      schema:
+        type: string
+        example: 1/3
+    IncludeMetadata:
+      name: includeMetadata
+      in: query
+      description: Whether the metadata field should be returned or not.
+      schema:
+        type: boolean
+        default: true
+    Cursor:
+      name: cursor
+      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
+
+        property, it means that there may be more results, and you should pass that value as the
+
+        `cursor` parameter in the next request.
+
+
+        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
+
+        decoded. Its internal structure is not a part of the public API, and may change without
+
+        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
+
+        '
+      in: query
+      schema:
+        type: string
+        example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+    CogniteInternalId:
+      in: path
+      name: id
+      required: true
+      schema:
+        $ref: '#/components/schemas/CogniteInternalId'
+    Limit:
+      name: limit
+      description: Limits the number of results to be returned. The maximum results returned by the server is 1000 even if you specify a higher limit.
+      in: query
+      schema:
+        type: integer
+        default: 100
+        minimum: 1
+        maximum: 1000
   responses:
-    400ErrorResponse:
-      description: The response for a bad request.
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - error
-            properties:
-              error:
-                $ref: '#/components/schemas/Error'
-          example:
-            error:
-              code: 400
-              message: '`null` values aren''t allowed.'
     AssetDataResponse:
       description: Response with list of assets.
       content:
@@ -2574,6 +2624,21 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/DataWithCursorAsset'
+    400ErrorResponse:
+      description: The response for a bad request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: 400
+              message: '`null` values aren''t allowed.'
     EmptyResponse:
       description: Empty response.
       content:
@@ -2586,71 +2651,6 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/AggregateResult'
-  parameters:
-    Cursor:
-      name: cursor
-      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
-
-        property, it means that there may be more results, and you should pass that value as the
-
-        `cursor` parameter in the next request.
-
-
-        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
-
-        decoded. Its internal structure is not a part of the public API, and may change without
-
-        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
-
-        '
-      in: query
-      schema:
-        type: string
-        example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
-    IncludeMetadata:
-      name: includeMetadata
-      in: query
-      description: Whether the metadata field should be returned or not.
-      schema:
-        type: boolean
-        default: true
-    CogniteInternalId:
-      in: path
-      name: id
-      required: true
-      schema:
-        $ref: '#/components/schemas/CogniteInternalId'
-    partitionLimited10:
-      in: query
-      name: partition
-      required: false
-      description: 'Splits the data set into `N` partitions.
-
-        The attribute is specified as a "M/N" string, where `M` is a natural number in the interval of `[1, N]`.
-
-        You need to follow the cursors within each partition in order to receive all the data.
-
-
-        The maximum number of allowed partitions (`N`) is 10.
-
-
-        Cognite rejects requests if you specify more than 10 partitions.
-
-        When Cognite enforces this behavior, the requests result in a 400 Bad Request status.
-
-        '
-      schema:
-        type: string
-        example: 1/3
-    Limit:
-      name: limit
-      description: Limits the number of results to be returned. The maximum results returned by the server is 1000 even if you specify a higher limit.
-      in: query
-      schema:
-        type: integer
-        default: 100
-        minimum: 1
-        maximum: 1000
   securitySchemes:
     oidc-token:
       type: http

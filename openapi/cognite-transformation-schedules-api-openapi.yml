@@ -782,29 +782,32 @@ components:
             oneOf:
             - $ref: '#/components/schemas/ScheduleParametersWithExternalId'
             - $ref: '#/components/schemas/ScheduleParametersWithId'
-    ScheduleParametersWithExternalId:
+    CronValue:
+      type: string
+      example: 0 0 * * *
+      description: Cron expression describes when the job should run.
+    UpdateItemWithId_ScheduleUpdate:
       required:
-      - interval
-      - externalId
+      - update
+      - id
       type: object
       properties:
-        interval:
-          $ref: '#/components/schemas/CronValue'
-        isPaused:
-          type: boolean
-          description: If true, the transformation is not scheduled.
-        externalId:
-          type: string
-          description: External ID of the scheduled transformation
-    Items_UpdateItem_ScheduleUpdate:
+        update:
+          $ref: '#/components/schemas/ScheduleUpdate'
+        id:
+          type: integer
+          description: A server-generated ID for the object.
+          format: int32
+    ItemsWithCursor_Schedule:
       type: object
       properties:
         items:
           type: array
           items:
-            oneOf:
-            - $ref: '#/components/schemas/UpdateItemWithExternalId_ScheduleUpdate'
-            - $ref: '#/components/schemas/UpdateItemWithId_ScheduleUpdate'
+            $ref: '#/components/schemas/Schedule'
+        nextCursor:
+          type: string
+          description: Cursor to get the next page of results (if available).
     ScheduleParametersWithId:
       required:
       - interval
@@ -820,16 +823,29 @@ components:
           type: integer
           description: ID of the scheduled transformation
           format: int32
-    ItemsWithCursor_Schedule:
+    Items_UpdateItem_ScheduleUpdate:
       type: object
       properties:
         items:
           type: array
           items:
-            $ref: '#/components/schemas/Schedule'
-        nextCursor:
-          type: string
-          description: Cursor to get the next page of results (if available).
+            oneOf:
+            - $ref: '#/components/schemas/UpdateItemWithExternalId_ScheduleUpdate'
+            - $ref: '#/components/schemas/UpdateItemWithId_ScheduleUpdate'
+    ScheduleUpdate:
+      type: object
+      properties:
+        interval:
+          type: object
+          required:
+          - set
+          properties:
+            set:
+              $ref: '#/components/schemas/CronValue'
+        isPaused:
+          allOf:
+          - $ref: '#/components/schemas/SetBooleanField'
+          description: If true, the transformation is not scheduled.
     Items_Schedule:
       type: object
       properties:
@@ -837,18 +853,33 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Schedule'
-    UpdateItemWithId_ScheduleUpdate:
+    ScheduleParametersWithExternalId:
       required:
-      - update
-      - id
+      - interval
+      - externalId
       type: object
       properties:
-        update:
-          $ref: '#/components/schemas/ScheduleUpdate'
-        id:
-          type: integer
-          description: A server-generated ID for the object.
-          format: int32
+        interval:
+          $ref: '#/components/schemas/CronValue'
+        isPaused:
+          type: boolean
+          description: If true, the transformation is not scheduled.
+        externalId:
+          type: string
+          description: External ID of the scheduled transformation
+    SetBooleanField:
+      type: object
+      title: set
+      required:
+      - set
+      properties:
+        set:
+          type: boolean
+    CogniteExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
+      type: string
+      maxLength: 255
+      example: my.known.id
     TransformationCogniteExternalId:
       required:
       - externalId
@@ -856,11 +887,20 @@ components:
       properties:
         externalId:
           $ref: '#/components/schemas/CogniteExternalId'
-    CogniteExternalId:
-      description: The external ID provided by the client. Must be unique for the resource type.
-      type: string
-      maxLength: 255
-      example: my.known.id
+    ItemsWithIgnoreUnknownIds_CogniteId:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/TransformationCogniteExternalId'
+            - $ref: '#/components/schemas/TransformationCogniteInternalId'
+          maxItems: 1000
+        ignoreUnknownIds:
+          type: boolean
+          description: Ignore IDs and external IDs that are not found. Defaults to false.
+      description: All provided IDs and external IDs must be unique.
     Schedule:
       required:
       - id
@@ -892,46 +932,6 @@ components:
           type: boolean
           description: If true, the transformation is not scheduled.
       description: Details for the schedule if the transformation is scheduled
-    CronValue:
-      type: string
-      example: 0 0 * * *
-      description: Cron expression describes when the job should run.
-    ScheduleUpdate:
-      type: object
-      properties:
-        interval:
-          type: object
-          required:
-          - set
-          properties:
-            set:
-              $ref: '#/components/schemas/CronValue'
-        isPaused:
-          allOf:
-          - $ref: '#/components/schemas/SetBooleanField'
-          description: If true, the transformation is not scheduled.
-    SetBooleanField:
-      type: object
-      title: set
-      required:
-      - set
-      properties:
-        set:
-          type: boolean
-    ItemsWithIgnoreUnknownIds_CogniteId:
-      type: object
-      properties:
-        items:
-          type: array
-          items:
-            oneOf:
-            - $ref: '#/components/schemas/TransformationCogniteExternalId'
-            - $ref: '#/components/schemas/TransformationCogniteInternalId'
-          maxItems: 1000
-        ignoreUnknownIds:
-          type: boolean
-          description: Ignore IDs and external IDs that are not found. Defaults to false.
-      description: All provided IDs and external IDs must be unique.
     TransformationCogniteInternalId:
       required:
       - id

@@ -168,19 +168,29 @@ paths:
           '
 components:
   schemas:
-    ReferencedPropertyValueV3:
-      title: property reference
-      description: A property reference value
+    DirectNodeRelation:
       type: object
+      description: Direct node relation
       required:
-      - property
+      - type
       properties:
-        property:
-          type: array
-          items:
-            type: string
-          minItems: 2
-          maxItems: 4
+        type:
+          type: string
+          enum:
+          - direct
+        container:
+          description: The (optional) required type for the node the direct relation points to. If specified, the node must exist before the direct relation is referenced and of the specified type. If no container specification is used, the node will be auto created with the built-in ```node``` container type, and it does not explicitly have to be created before the node that references it. For records, the container type constraint is not enforced and targets are not auto-created. Only the target space existence is validated.
+          allOf:
+          - $ref: '#/components/schemas/ContainerReference'
+        list:
+          description: 'Specifies that the data type is a list of values. The ordering of values is preserved.
+
+            '
+          type: boolean
+          default: false
+        maxListSize:
+          type: integer
+          description: Specifies the maximum number of values in the list
     DataModelsBoolFilter:
       title: BoolFilter
       description: 'Build a new query by combining other queries, using boolean operators. We support the `and`, `or`, and
@@ -223,21 +233,140 @@ components:
             type: object
             allOf:
             - $ref: '#/components/schemas/FilterDefinition'
-    HasExistingDataFilterV3:
+    Error:
       type: object
-      title: hasData
       required:
-      - hasData
+      - code
+      - message
+      description: Cognite API error.
       properties:
-        hasData:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
           type: array
-          description: Matches instances that have data in the referenced views or containers.
+          description: List of lookup objects that do not match any results.
           items:
-            $ref: '#/components/schemas/SourceReference'
-    ConnectionDefinition:
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
+    MatchAllFilter:
+      type: object
+      title: matchAll
+      required:
+      - matchAll
+      properties:
+        matchAll:
+          description: All the listed items must match the clause.
+          type: object
+          maxProperties: 0
+    InFilterV3:
+      type: object
+      title: in
+      required:
+      - in
+      properties:
+        in:
+          required:
+          - property
+          - values
+          description: Matches items where the property **exactly** matches one of the given values.
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/DMSFilterProperty'
+            values:
+              $ref: '#/components/schemas/FilterValueList'
+    ListOfVersionReferences:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            type: object
+            required:
+            - space
+            - externalId
+            - version
+            properties:
+              externalId:
+                description: External id for the requested item
+                allOf:
+                - $ref: '#/components/schemas/DMSExternalId'
+              space:
+                description: Space id for the requested item
+                allOf:
+                - $ref: '#/components/schemas/SpaceSpecification'
+              version:
+                description: Version of the requested item
+                allOf:
+                - $ref: '#/components/schemas/DMSVersion'
+    ViewCreateDefinitionProperty:
+      description: 'A reference to a container property or a connection describing edges that are expected to
+
+        exist (ConnectionDefinition).
+
+
+        If the referenced container property is a direct relation, a view of the node can be specified. The view is
+
+        a hint to the consumer on what type of data is expected to be of interest in the context of this view.
+
+
+        A connection describes the edges that are likely to exist to aid in discovery and documentation of the view.
+
+        A listed edge is not required. i.e. It does not have to exist when included in this list. The target nodes of
+
+        this connection will match the view specified in the source property. A connection has a max distance of one hop
+
+        in the underlying graph.
+
+        '
+      oneOf:
+      - $ref: '#/components/schemas/CreateViewProperty'
+      - $ref: '#/components/schemas/ConnectionDefinition'
+    ConnectionDefinitionRead:
       oneOf:
       - $ref: '#/components/schemas/EdgeConnection'
-      - $ref: '#/components/schemas/ReverseDirectRelationConnection'
+      - $ref: '#/components/schemas/ReverseDirectRelationConnectionRead'
+    DMSFilterProperty:
+      title: property
+      description: "A reference to either a DMS base property or a container property.\nFor nodes the DMS base properties are `instanceType`, `version`,\n`space`, `externalId`, `type`, `createdTime`, `lastUpdatedTime`,\nand `deletedTime`. For edges the DMS base properties\nare all of the node base properties with the addition of\n`startNode` and `endNode`.\n\nReferences to DMS base properties are on the form\n`[\"identifier\"]`, `[\"node\", \"identifier\"]` or `[\"edge\", \"identifier\"]` where\n`identifier` is a DMS base property.\n\nContainer properties can be referenced either through a view\n or through the container where it is defined.\n- To reference a property through the container where it\n    is defined the format is\n    `[\"space\", \"externalId\", \"identifier\"]` where `space`,\n    `externalId` is the space and\n    externalId of the container and `identifier` is one of the\n    property identifiers defined in the container.\n- To reference a property through one of the views mapping it the format\n  is `[\"space\", \"externalId/version\", \"identifier\"]`\n  where `space`, `externalId`, `version` is the space, externalId,\n  and version of the view respectively, and `identifier` is one of the\n  property identifiers defined in the view.\n"
+      type: array
+      minItems: 1
+      items:
+        type: string
+    EqualsFilterV3:
+      type: object
+      title: equals
+      required:
+      - equals
+      properties:
+        equals:
+          required:
+          - property
+          - value
+          description: Matches items that contain the exact value in the provided property.
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/DMSFilterProperty'
+            value:
+              $ref: '#/components/schemas/FilterValue'
     CorePropertyDefinition:
       allOf:
       - $ref: '#/components/schemas/CorePropertyCreateDefinition'
@@ -304,16 +433,199 @@ components:
 
                   '
                 $ref: '#/components/schemas/ConstraintOrIndexState'
-    MatchAllFilter:
+    OverlapsFilterV3:
       type: object
-      title: matchAll
+      title: overlaps
       required:
-      - matchAll
+      - overlaps
       properties:
-        matchAll:
-          description: All the listed items must match the clause.
+        overlaps:
           type: object
-          maxProperties: 0
+          description: 'Matches items where the range made up of the two properties overlap with the provided range.
+
+            Not available for search queries.'
+          required:
+          - startProperty
+          - endProperty
+          properties:
+            startProperty:
+              $ref: '#/components/schemas/DMSFilterProperty'
+            endProperty:
+              $ref: '#/components/schemas/DMSFilterProperty'
+            gte:
+              $ref: '#/components/schemas/FilterValueRange'
+            gt:
+              $ref: '#/components/schemas/FilterValueRange'
+            lte:
+              $ref: '#/components/schemas/FilterValueRange'
+            lt:
+              $ref: '#/components/schemas/FilterValueRange'
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    CreateViewProperty:
+      type: object
+      required:
+      - container
+      - containerPropertyIdentifier
+      properties:
+        name:
+          type: string
+          description: Readable property name.
+          maxLength: 255
+        description:
+          type: string
+          description: Description of the content and suggested use for this property.
+          maxLength: 1024
+        container:
+          $ref: '#/components/schemas/ContainerReference'
+        containerPropertyIdentifier:
+          description: The unique identifier for the property (Unique within the referenced container).
+          allOf:
+          - $ref: '#/components/schemas/PropertyIdentifierV3'
+        source:
+          description: Indicates on what type a referenced direct relation is expected to be (although not required). Only applicable for direct relation properties.
+          allOf:
+          - $ref: '#/components/schemas/ViewReference'
+    UpsertConflict:
+      type: object
+      required:
+      - error
+      properties:
+        error:
+          type: object
+          description: Details about the error caused by the upsert/update.
+          required:
+          - code
+          - message
+          properties:
+            code:
+              type: integer
+              description: The HTTP status code returned
+              format: int32
+              example: 409
+            message:
+              type: string
+              description: The error message returned from the service.
+            isAutoRetryable:
+              type: boolean
+              description: Whether or not the error is auto-retryable. If present and true, the client can automatically retry the request after some delay.
+    FilterValue:
+      oneOf:
+      - $ref: '#/components/schemas/RawPropertyValueV3'
+      - $ref: '#/components/schemas/ReferencedPropertyValueV3'
+    ContainsAnyFilterV3:
+      type: object
+      title: containsAny
+      required:
+      - containsAny
+      properties:
+        containsAny:
+          required:
+          - property
+          - values
+          description: Matches items where the property contains one or more of the given values. Only apply this filter to multivalued properties.
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/DMSFilterProperty'
+            values:
+              $ref: '#/components/schemas/FilterValueList'
+    CorePropertyCreateDefinition:
+      type: object
+      properties:
+        immutable:
+          type: boolean
+          description: Should updates to this property be rejected after the initial population? Per-property immutability is not applicable for records. For records, immutability is a stream-level concept only.
+          default: false
+        nullable:
+          type: boolean
+          description: Does this property need to be set to a value, or not?
+          default: true
+        autoIncrement:
+          type: boolean
+          description: When set to ```true```, the API will increment the property based on its highest current value (max value).  You can only use this functionality to increment properties of type `int32` or `int64`. If the property has a different data type, the API will return an error. Auto-increment is not supported for records. The value will not be auto-generated, so omitting a non-nullable auto-increment property during record ingestion will fail validation.
+          default: false
+        defaultValue:
+          oneOf:
+          - type: string
+          - type: number
+          - type: boolean
+          - type: object
+          description: "Default value to use when you do not specify a value for the property.  The default value must be of the same type as what you defined for the property itself. \n\n\nWe do not currently support using default values for array/list types. "
+        description:
+          type: string
+          description: Description of the content and suggested use for this property.
+          maxLength: 1024
+        name:
+          type: string
+          description: Readable property name.
+          maxLength: 255
+    ViewReference:
+      type: object
+      description: Reference to a view
+      required:
+      - type
+      - space
+      - externalId
+      - version
+      properties:
+        type:
+          type: string
+          enum:
+          - view
+        space:
+          description: Id of the space that the view belongs to
+          allOf:
+          - $ref: '#/components/schemas/SpaceSpecification'
+        externalId:
+          description: External-id of the view
+          allOf:
+          - $ref: '#/components/schemas/DMSExternalId'
+        version:
+          description: Version of the view
+          allOf:
+          - $ref: '#/components/schemas/DMSVersion'
+    ContainerReference:
+      type: object
+      description: Reference to an existing container
+      required:
+      - type
+      - space
+      - externalId
+      properties:
+        type:
+          type: string
+          enum:
+          - container
+        space:
+          description: Id of the space hosting (containing) the container
+          allOf:
+          - $ref: '#/components/schemas/SpaceSpecification'
+        externalId:
+          description: External-id of the container
+          allOf:
+          - $ref: '#/components/schemas/DMSExternalId'
+    DataModelsLeafFilter:
+      description: Leaf filter
+      title: LeafFilter
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/EqualsFilterV3'
+      - $ref: '#/components/schemas/InFilterV3'
+      - $ref: '#/components/schemas/RangeFilterV3'
+      - $ref: '#/components/schemas/PrefixFilterV3'
+      - $ref: '#/components/schemas/DMSExistsFilter'
+      - $ref: '#/components/schemas/ContainsAnyFilterV3'
+      - $ref: '#/components/schemas/ContainsAllFilterV3'
+      - $ref: '#/components/schemas/MatchAllFilter'
+      - $ref: '#/components/schemas/DataModelsNestedFilter'
+      - $ref: '#/components/schemas/OverlapsFilterV3'
+      - $ref: '#/components/schemas/HasExistingDataFilterV3'
+      - $ref: '#/components/schemas/InstanceReferenceFilterV3'
     CDFExternalIdReference:
       type: object
       description: 'An external-id reference to an existing CDF resource type item, such as a time series.
@@ -351,284 +663,6 @@ components:
         maxListSize:
           type: integer
           description: Specifies the maximum number of values in the list
-    InFilterV3:
-      type: object
-      title: in
-      required:
-      - in
-      properties:
-        in:
-          required:
-          - property
-          - values
-          description: Matches items where the property **exactly** matches one of the given values.
-          type: object
-          properties:
-            property:
-              $ref: '#/components/schemas/DMSFilterProperty'
-            values:
-              $ref: '#/components/schemas/FilterValueList'
-    ContainerReference:
-      type: object
-      description: Reference to an existing container
-      required:
-      - type
-      - space
-      - externalId
-      properties:
-        type:
-          type: string
-          enum:
-          - container
-        space:
-          description: Id of the space hosting (containing) the container
-          allOf:
-          - $ref: '#/components/schemas/SpaceSpecification'
-        externalId:
-          description: External-id of the container
-          allOf:
-          - $ref: '#/components/schemas/DMSExternalId'
-    DMSExistsFilter:
-      type: object
-      title: exists
-      required:
-      - exists
-      properties:
-        exists:
-          required:
-          - property
-          description: 'Will match items that have a value in the specified property.
-
-            '
-          type: object
-          properties:
-            property:
-              $ref: '#/components/schemas/DMSFilterProperty'
-    RawPropertyValueListV3:
-      description: A list of values
-      type: array
-      items:
-        description: A value describing the type of the defined property
-        oneOf:
-        - type: string
-        - type: number
-        - type: boolean
-        - type: object
-    ViewDefinition:
-      allOf:
-      - type: object
-        required:
-        - externalId
-        properties:
-          externalId:
-            description: External id uniquely identifying this view
-            allOf:
-            - $ref: '#/components/schemas/DMSExternalId'
-      - $ref: '#/components/schemas/ViewCommon'
-      - type: object
-        required:
-        - createdTime
-        - lastUpdatedTime
-        - writable
-        - queryable
-        - properties
-        - usedFor
-        - isGlobal
-        - mappedContainers
-        properties:
-          createdTime:
-            $ref: '#/components/schemas/EpochTimestamp'
-          lastUpdatedTime:
-            $ref: '#/components/schemas/EpochTimestamp'
-          writable:
-            type: boolean
-            description: Does the view support write operations, i.e. is it ```writable```?  You can write to a view if the view maps all non-nullable properties.
-          queryable:
-            type: boolean
-            description: Does the view support queries, i.e. is it queryable? You can query a view if it either has a filter or at least one property mapped to a container.
-          usedFor:
-            $ref: '#/components/schemas/UsedFor'
-          isGlobal:
-            type: boolean
-            description: Is this a global view.
-          properties:
-            type: object
-            description: List of properties and connections included in this view.  The view identifier has to have a length of between 1 and 255 characters.  It must also match the pattern ```^[a-zA-Z0-9][a-zA-Z0-9_-]{0,253}[a-zA-Z0-9]?$```.
-            additionalProperties:
-              x-additionalPropertiesName: view-property-identifier
-              allOf:
-              - $ref: '#/components/schemas/ViewDefinitionProperty'
-          mappedContainers:
-            type: array
-            description: List of containers with properties mapped by this view.
-            items:
-              $ref: '#/components/schemas/ContainerReference'
-    ReverseDirectRelationConnectionRead:
-      allOf:
-      - $ref: '#/components/schemas/ReverseDirectRelationConnection'
-      - type: object
-        required:
-        - targetsList
-        properties:
-          targetsList:
-            description: Whether or not this reverse direct relation targets a _list_ of direct relations.
-            type: boolean
-    PrimitiveProperty:
-      type: object
-      description: 'Primitive types for the property.
-
-
-        We expect dates to be in the ISO-8601 format, while timestamps are expected to be an epoch value with
-
-        millisecond precision. JSON values have to be valid JSON fragments. The maximum allowed size for a JSON
-
-        object is 40960 bytes. For list of json values, the size of the entire list must be within this limit.
-
-        The maximum allowed length of a key is 128, while the maximum allowed size of a value is 10240 bytes
-
-        and you can have up to 256 key-value pairs.
-
-        '
-      required:
-      - type
-      properties:
-        type:
-          type: string
-          enum:
-          - boolean
-          - float32
-          - float64
-          - int32
-          - int64
-          - timestamp
-          - date
-          - json
-        unit:
-          type: object
-          description: 'The unit of the data stored in this property, can only be assign to type float32 or float64.
-
-            ExternalId needs to match with a unit in the Cognite unit catalog.
-
-            '
-          required:
-          - externalId
-          example: 'externalId: temperature:deg_c, sourceUnit: Celsius
-
-            '
-          properties:
-            externalId:
-              $ref: '#/components/schemas/NodeOrEdgeExternalId'
-            sourceUnit:
-              type: string
-        list:
-          description: 'Specifies that the data type is a list of values. The ordering of values is preserved.
-
-            '
-          type: boolean
-          default: false
-        maxListSize:
-          type: integer
-          description: Specifies the maximum number of values in the list
-    ContainsAnyFilterV3:
-      type: object
-      title: containsAny
-      required:
-      - containsAny
-      properties:
-        containsAny:
-          required:
-          - property
-          - values
-          description: Matches items where the property contains one or more of the given values. Only apply this filter to multivalued properties.
-          type: object
-          properties:
-            property:
-              $ref: '#/components/schemas/DMSFilterProperty'
-            values:
-              $ref: '#/components/schemas/FilterValueList'
-    FilterValue:
-      oneOf:
-      - $ref: '#/components/schemas/RawPropertyValueV3'
-      - $ref: '#/components/schemas/ReferencedPropertyValueV3'
-    ViewCreateDefinition:
-      allOf:
-      - type: object
-        required:
-        - externalId
-        properties:
-          externalId:
-            description: External id uniquely identifying this view. The values ```Query```, ```Mutation```, ```Subscription```, ```String```, ```Int32```, ```Int64```, ```Int```, ```Float32```, ```Float64```, ```Float```, ```Timestamp```, ```JSONObject```, ```Date```, ```Numeric```, ```Boolean```, ```PageInfo```, ```File```, ```Sequence``` and ```TimeSeries``` are reserved.
-            allOf:
-            - $ref: '#/components/schemas/DMSExternalId'
-      - $ref: '#/components/schemas/ViewCommon'
-      - type: object
-        properties:
-          properties:
-            type: object
-            description: 'View with included properties and expected edges, indexed by a unique space-local identifier. The view identifier has to have a length of between 1 and 255 characters.  It must also match the pattern ```^[a-zA-Z0-9][a-zA-Z0-9_-]{0,253}[a-zA-Z0-9]?$```, and it cannot be any of the following reserved identifiers: ```space```, ```externalId```, ```createdTime```, ```lastUpdatedTime```, ```deletedTime```, ```edge_id```, ```node_id```, ```project_id```, ```property_group```, ```seq```, ```tg_table_name```, and ```extensions```. The maximum number of properties depends on the project subscription and is by default 100.'
-            additionalProperties:
-              x-additionalPropertiesName: property-identifier
-              allOf:
-              - $ref: '#/components/schemas/ViewCreateDefinitionProperty'
-    EnumValueProperties:
-      type: object
-      description: Metadata of the enum value.
-      properties:
-        name:
-          type: string
-          description: Name of the enum value.
-          maxLength: 255
-        description:
-          type: string
-          description: Description of the enum value.
-          maxLength: 1024
-    EqualsFilterV3:
-      type: object
-      title: equals
-      required:
-      - equals
-      properties:
-        equals:
-          required:
-          - property
-          - value
-          description: Matches items that contain the exact value in the provided property.
-          type: object
-          properties:
-            property:
-              $ref: '#/components/schemas/DMSFilterProperty'
-            value:
-              $ref: '#/components/schemas/FilterValue'
-    DirectRelationReference:
-      type: object
-      description: Reference to the node pointed to by the direct relation. The reference consists of a space and an external-id.
-      required:
-      - space
-      - externalId
-      properties:
-        space:
-          $ref: '#/components/schemas/SpaceSpecification'
-        externalId:
-          $ref: '#/components/schemas/NodeOrEdgeExternalId'
-    PrefixFilterV3:
-      type: object
-      title: prefix
-      required:
-      - prefix
-      properties:
-        prefix:
-          required:
-          - property
-          - value
-          description: Matches items that have the prefix in the identified property. This filter is only supported for single value text properties.
-          type: object
-          properties:
-            property:
-              $ref: '#/components/schemas/DMSFilterProperty'
-            value:
-              oneOf:
-              - type: string
-              - $ref: '#/components/schemas/ParameterizedPropertyValueV3'
     TextProperty:
       type: object
       description: Text type
@@ -1440,67 +1474,6 @@ components:
           - zu
           - zu-ZA
           default: ucs_basic
-    EdgeConnection:
-      type: object
-      required:
-      - type
-      - source
-      description: Describes the edge(s) that are likely to exist to aid in discovery and documentation of the view. A listed edge is not required. i.e. It does not have to exist when included in this list. A connection has a max distance of one hop.
-      properties:
-        connectionType:
-          type: string
-          description: The type of connection, either a single or multi edge connections are expected to exist.
-          enum:
-          - single_edge_connection
-          - multi_edge_connection
-          default: multi_edge_connection
-        name:
-          type: string
-          description: Readable property name.
-          maxLength: 255
-        description:
-          type: string
-          description: Description of the content and suggested use for this property.
-          maxLength: 1024
-        type:
-          $ref: '#/components/schemas/DirectRelationReference'
-        source:
-          description: The target node(s) of this connection can be read through the view specified in 'source'.
-          allOf:
-          - $ref: '#/components/schemas/ViewReference'
-        edgeSource:
-          description: The edge(s) of this connection can be read through the view specified in 'edgeSource'.
-          allOf:
-          - $ref: '#/components/schemas/ViewReference'
-        direction:
-          type: string
-          enum:
-          - outwards
-          - inwards
-          default: outwards
-    ViewPropertyDefinition:
-      description: Property definition
-      allOf:
-      - $ref: '#/components/schemas/ViewCorePropertyDefinition'
-      - type: object
-        required:
-        - container
-        - containerPropertyIdentifier
-        properties:
-          name:
-            type: string
-            description: Readable property name.
-            maxLength: 255
-          description:
-            type: string
-            description: Description of the content and suggested use for this property.
-            maxLength: 1024
-          container:
-            $ref: '#/components/schemas/ContainerReference'
-          containerPropertyIdentifier:
-            description: The unique identifier for the mapped property in the referenced container.
-            allOf:
-            - $ref: '#/components/schemas/DMSExternalId'
     RawPropertyValueV3:
       title: raw value
       description: A value matching the data type of the defined property
@@ -1566,209 +1539,187 @@ components:
         maxItems: 1000
         items:
           type: object
-    ViewCreateDefinitionProperty:
-      description: 'A reference to a container property or a connection describing edges that are expected to
+    DMSExistsFilter:
+      type: object
+      title: exists
+      required:
+      - exists
+      properties:
+        exists:
+          required:
+          - property
+          description: 'Will match items that have a value in the specified property.
 
-        exist (ConnectionDefinition).
-
-
-        If the referenced container property is a direct relation, a view of the node can be specified. The view is
-
-        a hint to the consumer on what type of data is expected to be of interest in the context of this view.
-
-
-        A connection describes the edges that are likely to exist to aid in discovery and documentation of the view.
-
-        A listed edge is not required. i.e. It does not have to exist when included in this list. The target nodes of
-
-        this connection will match the view specified in the source property. A connection has a max distance of one hop
-
-        in the underlying graph.
-
-        '
-      oneOf:
-      - $ref: '#/components/schemas/CreateViewProperty'
-      - $ref: '#/components/schemas/ConnectionDefinition'
+            '
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/DMSFilterProperty'
+    EnumValueProperties:
+      type: object
+      description: Metadata of the enum value.
+      properties:
+        name:
+          type: string
+          description: Name of the enum value.
+          maxLength: 255
+        description:
+          type: string
+          description: Description of the enum value.
+          maxLength: 1024
+    UsedFor:
+      type: string
+      description: Should this operation apply to nodes, edges, records, or both nodes and edges. **NB!** Currently ```all``` applies to nodes and edges, but not records.
+      enum:
+      - node
+      - edge
+      - record
+      - all
+      default: node
     DMSExternalId:
       type: string
       pattern: ^[a-zA-Z]([a-zA-Z0-9_]{0,253}[a-zA-Z0-9])?$
       minLength: 1
       maxLength: 255
-    ContainsAllFilterV3:
-      type: object
-      title: containsAll
-      required:
-      - containsAll
-      properties:
-        containsAll:
-          required:
-          - property
-          - values
-          description: Matches items where the property contains all the given values. Only apply this filter to multivalued properties.
-          type: object
-          properties:
-            property:
-              $ref: '#/components/schemas/DMSFilterProperty'
-            values:
-              $ref: '#/components/schemas/FilterValueList'
-    DMSFilterProperty:
-      title: property
-      description: "A reference to either a DMS base property or a container property.\nFor nodes the DMS base properties are `instanceType`, `version`,\n`space`, `externalId`, `type`, `createdTime`, `lastUpdatedTime`,\nand `deletedTime`. For edges the DMS base properties\nare all of the node base properties with the addition of\n`startNode` and `endNode`.\n\nReferences to DMS base properties are on the form\n`[\"identifier\"]`, `[\"node\", \"identifier\"]` or `[\"edge\", \"identifier\"]` where\n`identifier` is a DMS base property.\n\nContainer properties can be referenced either through a view\n or through the container where it is defined.\n- To reference a property through the container where it\n    is defined the format is\n    `[\"space\", \"externalId\", \"identifier\"]` where `space`,\n    `externalId` is the space and\n    externalId of the container and `identifier` is one of the\n    property identifiers defined in the container.\n- To reference a property through one of the views mapping it the format\n  is `[\"space\", \"externalId/version\", \"identifier\"]`\n  where `space`, `externalId`, `version` is the space, externalId,\n  and version of the view respectively, and `identifier` is one of the\n  property identifiers defined in the view.\n"
+    RangeValue:
+      title: rangeBound
+      description: Value you wish to find in the provided property using a range clause.
+      oneOf:
+      - type: string
+        title: string
+      - type: number
+        title: number
+      - type: integer
+        title: integer
+    ViewPropertyDefinition:
+      description: Property definition
+      allOf:
+      - $ref: '#/components/schemas/ViewCorePropertyDefinition'
+      - type: object
+        required:
+        - container
+        - containerPropertyIdentifier
+        properties:
+          name:
+            type: string
+            description: Readable property name.
+            maxLength: 255
+          description:
+            type: string
+            description: Description of the content and suggested use for this property.
+            maxLength: 1024
+          container:
+            $ref: '#/components/schemas/ContainerReference'
+          containerPropertyIdentifier:
+            description: The unique identifier for the mapped property in the referenced container.
+            allOf:
+            - $ref: '#/components/schemas/DMSExternalId'
+    RawPropertyValueListV3:
+      description: A list of values
       type: array
-      minItems: 1
       items:
-        type: string
-    ConstraintOrIndexState:
-      type: string
-      enum:
-      - current
-      - pending
-      - failed
-    DataModelsLeafFilter:
-      description: Leaf filter
-      title: LeafFilter
-      type: object
-      oneOf:
-      - $ref: '#/components/schemas/EqualsFilterV3'
-      - $ref: '#/components/schemas/InFilterV3'
-      - $ref: '#/components/schemas/RangeFilterV3'
-      - $ref: '#/components/schemas/PrefixFilterV3'
-      - $ref: '#/components/schemas/DMSExistsFilter'
-      - $ref: '#/components/schemas/ContainsAnyFilterV3'
-      - $ref: '#/components/schemas/ContainsAllFilterV3'
-      - $ref: '#/components/schemas/MatchAllFilter'
-      - $ref: '#/components/schemas/DataModelsNestedFilter'
-      - $ref: '#/components/schemas/OverlapsFilterV3'
-      - $ref: '#/components/schemas/HasExistingDataFilterV3'
-      - $ref: '#/components/schemas/InstanceReferenceFilterV3'
-    Error:
-      type: object
-      required:
-      - code
-      - message
-      description: Cognite API error.
-      properties:
-        code:
-          type: integer
-          description: HTTP status code.
-          format: int32
-          example: 401
-        message:
-          type: string
-          description: Error message.
-          example: Could not authenticate.
-        missing:
-          type: array
-          description: List of lookup objects that do not match any results.
-          items:
-            type: object
-            additionalProperties: true
-        duplicated:
-          type: array
-          description: List of objects that are not unique.
-          items:
-            type: object
-            additionalProperties: true
-    EpochTimestamp:
-      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-      type: integer
-      minimum: 0
-      format: int64
-      example: 1730204346000
-    UpsertConflict:
-      type: object
-      required:
-      - error
-      properties:
-        error:
-          type: object
-          description: Details about the error caused by the upsert/update.
-          required:
-          - code
-          - message
+        description: A value describing the type of the defined property
+        oneOf:
+        - type: string
+        - type: number
+        - type: boolean
+        - type: object
+    ViewDefinition:
+      allOf:
+      - type: object
+        required:
+        - externalId
+        properties:
+          externalId:
+            description: External id uniquely identifying this view
+            allOf:
+            - $ref: '#/components/schemas/DMSExternalId'
+      - $ref: '#/components/schemas/ViewCommon'
+      - type: object
+        required:
+        - createdTime
+        - lastUpdatedTime
+        - writable
+        - queryable
+        - properties
+        - usedFor
+        - isGlobal
+        - mappedContainers
+        properties:
+          createdTime:
+            $ref: '#/components/schemas/EpochTimestamp'
+          lastUpdatedTime:
+            $ref: '#/components/schemas/EpochTimestamp'
+          writable:
+            type: boolean
+            description: Does the view support write operations, i.e. is it ```writable```?  You can write to a view if the view maps all non-nullable properties.
+          queryable:
+            type: boolean
+            description: Does the view support queries, i.e. is it queryable? You can query a view if it either has a filter or at least one property mapped to a container.
+          usedFor:
+            $ref: '#/components/schemas/UsedFor'
+          isGlobal:
+            type: boolean
+            description: Is this a global view.
           properties:
-            code:
-              type: integer
-              description: The HTTP status code returned
-              format: int32
-              example: 409
-            message:
+            type: object
+            description: List of properties and connections included in this view.  The view identifier has to have a length of between 1 and 255 characters.  It must also match the pattern ```^[a-zA-Z0-9][a-zA-Z0-9_-]{0,253}[a-zA-Z0-9]?$```.
+            additionalProperties:
+              x-additionalPropertiesName: view-property-identifier
+              allOf:
+              - $ref: '#/components/schemas/ViewDefinitionProperty'
+          mappedContainers:
+            type: array
+            description: List of containers with properties mapped by this view.
+            items:
+              $ref: '#/components/schemas/ContainerReference'
+    PrimitiveProperty:
+      type: object
+      description: 'Primitive types for the property.
+
+
+        We expect dates to be in the ISO-8601 format, while timestamps are expected to be an epoch value with
+
+        millisecond precision. JSON values have to be valid JSON fragments. The maximum allowed size for a JSON
+
+        object is 40960 bytes. For list of json values, the size of the entire list must be within this limit.
+
+        The maximum allowed length of a key is 128, while the maximum allowed size of a value is 10240 bytes
+
+        and you can have up to 256 key-value pairs.
+
+        '
+      required:
+      - type
+      properties:
+        type:
+          type: string
+          enum:
+          - boolean
+          - float32
+          - float64
+          - int32
+          - int64
+          - timestamp
+          - date
+          - json
+        unit:
+          type: object
+          description: 'The unit of the data stored in this property, can only be assign to type float32 or float64.
+
+            ExternalId needs to match with a unit in the Cognite unit catalog.
+
+            '
+          required:
+          - externalId
+          example: 'externalId: temperature:deg_c, sourceUnit: Celsius
+
+            '
+          properties:
+            externalId:
+              $ref: '#/components/schemas/NodeOrEdgeExternalId'
+            sourceUnit:
               type: string
-              description: The error message returned from the service.
-            isAutoRetryable:
-              type: boolean
-              description: Whether or not the error is auto-retryable. If present and true, the client can automatically retry the request after some delay.
-    FilterValueList:
-      oneOf:
-      - $ref: '#/components/schemas/RawPropertyValueListV3'
-      - $ref: '#/components/schemas/ReferencedPropertyValueV3'
-    ConnectionDefinitionRead:
-      oneOf:
-      - $ref: '#/components/schemas/EdgeConnection'
-      - $ref: '#/components/schemas/ReverseDirectRelationConnectionRead'
-    CreateViewProperty:
-      type: object
-      required:
-      - container
-      - containerPropertyIdentifier
-      properties:
-        name:
-          type: string
-          description: Readable property name.
-          maxLength: 255
-        description:
-          type: string
-          description: Description of the content and suggested use for this property.
-          maxLength: 1024
-        container:
-          $ref: '#/components/schemas/ContainerReference'
-        containerPropertyIdentifier:
-          description: The unique identifier for the property (Unique within the referenced container).
-          allOf:
-          - $ref: '#/components/schemas/PropertyIdentifierV3'
-        source:
-          description: Indicates on what type a referenced direct relation is expected to be (although not required). Only applicable for direct relation properties.
-          allOf:
-          - $ref: '#/components/schemas/ViewReference'
-    ViewReference:
-      type: object
-      description: Reference to a view
-      required:
-      - type
-      - space
-      - externalId
-      - version
-      properties:
-        type:
-          type: string
-          enum:
-          - view
-        space:
-          description: Id of the space that the view belongs to
-          allOf:
-          - $ref: '#/components/schemas/SpaceSpecification'
-        externalId:
-          description: External-id of the view
-          allOf:
-          - $ref: '#/components/schemas/DMSExternalId'
-        version:
-          description: Version of the view
-          allOf:
-          - $ref: '#/components/schemas/DMSVersion'
-    DirectNodeRelation:
-      type: object
-      description: Direct node relation
-      required:
-      - type
-      properties:
-        type:
-          type: string
-          enum:
-          - direct
-        container:
-          description: The (optional) required type for the node the direct relation points to. If specified, the node must exist before the direct relation is referenced and of the specified type. If no container specification is used, the node will be auto created with the built-in ```node``` container type, and it does not explicitly have to be created before the node that references it. For records, the container type constraint is not enforced and targets are not auto-created. Only the target space existence is validated.
-          allOf:
-          - $ref: '#/components/schemas/ContainerReference'
         list:
           description: 'Specifies that the data type is a list of values. The ordering of values is preserved.
 
@@ -1778,6 +1729,144 @@ components:
         maxListSize:
           type: integer
           description: Specifies the maximum number of values in the list
+    SpaceSpecification:
+      type: string
+      pattern: ^[a-zA-Z][a-zA-Z0-9_-]{0,41}[a-zA-Z0-9]?$
+      minLength: 1
+      maxLength: 43
+    DataModelsNestedFilter:
+      type: object
+      title: nested
+      required:
+      - nested
+      properties:
+        nested:
+          required:
+          - scope
+          - filter
+          description: "Use `nested` to apply the properties of the direct relation as the filter.  `scope` specifies the direct\nrelation property you want use as the filtering property.\n\nExample:\n```\n  {\n    \"nested\": {\n      \"scope\": [\"some\", \"direct_relation\", \"property\"],\n      \"filter\": {\n        \"equals\": {\n          \"property\": [\"node\", \"name\"],\n          \"value\": \"ACME\"\n        }\n      }\n    }\n  }\n```\n"
+          type: object
+          properties:
+            scope:
+              type: array
+              minItems: 1
+              maxItems: 3
+              items:
+                type: string
+            filter:
+              $ref: '#/components/schemas/FilterDefinition'
+    ReverseDirectRelationConnectionRead:
+      allOf:
+      - $ref: '#/components/schemas/ReverseDirectRelationConnection'
+      - type: object
+        required:
+        - targetsList
+        properties:
+          targetsList:
+            description: Whether or not this reverse direct relation targets a _list_ of direct relations.
+            type: boolean
+    ViewCorePropertyDefinition:
+      allOf:
+      - $ref: '#/components/schemas/CorePropertyDefinition'
+      - type: object
+        required:
+        - type
+        properties:
+          type:
+            description: "The type of data you can store in this property. Most properties can also hold a list of values, for example, a list of integers or a list of timestamps. The supported storage types are:\n\n\n* text (allows user control of collation),\n * boolean,\n * 32-bit, and 64-bit float,\n * 32-bit, and 64-bit integer,\n * timestamp,\n * date,\n * JSON fragment,\n * direct relation to an existing node,\n * time series external-id reference,\n * file external-id reference,\n * sequence external-id reference,\n * enum.\n\n\nThe JSON fragments have to be valid JSON objects. If JSON arrays are to be stored, these must be wrapped in a JSON object. JSON values (such as string, number, boolean) should use their respective primitive form instead. The maximum allowed size for a JSON object is 40960 bytes. For lists of json values, the size of the entire list must be within this limit. The maximum allowed length of a key is 128, while the maximum allowed size of a value is 10240 bytes and you can have up to 256 key-value pairs. The  byte sizes are computed by representing the data as a UTF-8 encoded JSON string.\nDirect relations use a space external-id, the external-id for an existing node, and the external-id for the data container. E.g. ```s-spaceExternalId.uniqueNodeExternalId.containerExternalId```. The ```view``` property on direct relation can optionally be set, and if it is set then this is a hint to the client on what kind of data is expected to exist.\nTimestamps must be a string in the format 'YYYY-MM-DDTHH:MM:SS[.millis][Z|time zone]' with optional milliseconds having precision of 1-3 decimal digits and optional timezone with format Â±HH:MM, Â±HHMM, Â±HH or Z, where Z represents UTC, Year must be between 0001 and 9999.\nDates must be a date string in the format 'YYYY-MM-DD'. Year must be between 1 and 9999. "
+            oneOf:
+            - $ref: '#/components/schemas/TextProperty'
+            - $ref: '#/components/schemas/PrimitiveProperty'
+            - $ref: '#/components/schemas/CDFExternalIdReference'
+            - $ref: '#/components/schemas/ViewDirectNodeRelation'
+            - $ref: '#/components/schemas/EnumProperty'
+    PropertyIdentifierV3:
+      type: string
+      pattern: ^[a-zA-Z]([a-zA-Z0-9_]{0,253}[a-zA-Z0-9])?$
+      minLength: 1
+      maxLength: 255
+    DMSVersion:
+      type: string
+      pattern: ^[a-zA-Z0-9]([.a-zA-Z0-9_-]{0,41}[a-zA-Z0-9])?$
+      minLength: 1
+      maxLength: 43
+    RangeFilterV3:
+      type: object
+      title: range
+      required:
+      - range
+      properties:
+        range:
+          required:
+          - property
+          description: "Matches items that contain terms within the provided range.\n\nThe range must include both an upper and a lower bound. It is not permitted to specify both inclusive\nand exclusive bounds together.  E.g. `gte` and `gt`.\n\n  `gte`: Greater than or equal to.\n  `gt`: Greater than.\n  `lte`: Less than or equal to.\n  `lt`: Less than.\n"
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/DMSFilterProperty'
+            gte:
+              $ref: '#/components/schemas/FilterValueRange'
+            gt:
+              $ref: '#/components/schemas/FilterValueRange'
+            lte:
+              $ref: '#/components/schemas/FilterValueRange'
+            lt:
+              $ref: '#/components/schemas/FilterValueRange'
+    ViewCreateDefinition:
+      allOf:
+      - type: object
+        required:
+        - externalId
+        properties:
+          externalId:
+            description: External id uniquely identifying this view. The values ```Query```, ```Mutation```, ```Subscription```, ```String```, ```Int32```, ```Int64```, ```Int```, ```Float32```, ```Float64```, ```Float```, ```Timestamp```, ```JSONObject```, ```Date```, ```Numeric```, ```Boolean```, ```PageInfo```, ```File```, ```Sequence``` and ```TimeSeries``` are reserved.
+            allOf:
+            - $ref: '#/components/schemas/DMSExternalId'
+      - $ref: '#/components/schemas/ViewCommon'
+      - type: object
+        properties:
+          properties:
+            type: object
+            description: 'View with included properties and expected edges, indexed by a unique space-local identifier. The view identifier has to have a length of between 1 and 255 characters.  It must also match the pattern ```^[a-zA-Z0-9][a-zA-Z0-9_-]{0,253}[a-zA-Z0-9]?$```, and it cannot be any of the following reserved identifiers: ```space```, ```externalId```, ```createdTime```, ```lastUpdatedTime```, ```deletedTime```, ```edge_id```, ```node_id```, ```project_id```, ```property_group```, ```seq```, ```tg_table_name```, and ```extensions```. The maximum number of properties depends on the project subscription and is by default 100.'
+            additionalProperties:
+              x-additionalPropertiesName: property-identifier
+              allOf:
+              - $ref: '#/components/schemas/ViewCreateDefinitionProperty'
+    ReferencedPropertyValueV3:
+      title: property reference
+      description: A property reference value
+      type: object
+      required:
+      - property
+      properties:
+        property:
+          type: array
+          items:
+            type: string
+          minItems: 2
+          maxItems: 4
+    InstanceReferenceFilterV3:
+      type: object
+      title: instanceReferences
+      required:
+      - instanceReferences
+      properties:
+        instanceReferences:
+          type: array
+          description: Matches instances with any of the specified space/externalId pairs.
+          items:
+            type: object
+            required:
+            - space
+            - externalId
+            properties:
+              space:
+                $ref: '#/components/schemas/SpaceSpecification'
+              externalId:
+                $ref: '#/components/schemas/NodeOrEdgeExternalId'
+    NextCursorV3:
+      description: The cursor value used to return (paginate to) the next page of results, when more data is available.
+      type: string
     ViewCommon:
       type: object
       required:
@@ -1809,6 +1898,31 @@ components:
       oneOf:
       - $ref: '#/components/schemas/RangeValue'
       - $ref: '#/components/schemas/ReferencedPropertyValueV3'
+    FilterDefinition:
+      type: object
+      description: A filter Domain Specific Language (DSL) used to create advanced filter queries.
+      oneOf:
+      - $ref: '#/components/schemas/DataModelsBoolFilter'
+      - $ref: '#/components/schemas/DataModelsLeafFilter'
+      example:
+        and:
+        - in:
+            property:
+            - tag
+            values:
+            - 10011
+            - 10011
+        - range:
+            property:
+            - weight
+            gte: 0
+    SourceReference:
+      description: Reference to a view, or a container
+      oneOf:
+      - $ref: '#/components/schemas/ViewReference'
+      - $ref: '#/components/schemas/ContainerReference'
+      discriminator:
+        propertyName: type
     EnumProperty:
       type: object
       description: 'An enum type property.
@@ -1852,42 +1966,63 @@ components:
           unknown:
             name: Unknown
             description: Used if the client does not recognize the returned value.
-    UsedFor:
-      type: string
-      description: Should this operation apply to nodes, edges, records, or both nodes and edges. **NB!** Currently ```all``` applies to nodes and edges, but not records.
-      enum:
-      - node
-      - edge
-      - record
-      - all
-      default: node
-    ViewDefinitionProperty:
-      oneOf:
-      - $ref: '#/components/schemas/ViewPropertyDefinition'
-      - $ref: '#/components/schemas/ConnectionDefinitionRead'
-    FilterDefinition:
+    PrefixFilterV3:
       type: object
-      description: A filter Domain Specific Language (DSL) used to create advanced filter queries.
-      oneOf:
-      - $ref: '#/components/schemas/DataModelsBoolFilter'
-      - $ref: '#/components/schemas/DataModelsLeafFilter'
-      example:
-        and:
-        - in:
+      title: prefix
+      required:
+      - prefix
+      properties:
+        prefix:
+          required:
+          - property
+          - value
+          description: Matches items that have the prefix in the identified property. This filter is only supported for single value text properties.
+          type: object
+          properties:
             property:
-            - tag
-            values:
-            - 10011
-            - 10011
-        - range:
-            property:
-            - weight
-            gte: 0
-    SpaceSpecification:
-      type: string
-      pattern: ^[a-zA-Z][a-zA-Z0-9_-]{0,41}[a-zA-Z0-9]?$
-      minLength: 1
-      maxLength: 43
+              $ref: '#/components/schemas/DMSFilterProperty'
+            value:
+              oneOf:
+              - type: string
+              - $ref: '#/components/schemas/ParameterizedPropertyValueV3'
+    EdgeConnection:
+      type: object
+      required:
+      - type
+      - source
+      description: Describes the edge(s) that are likely to exist to aid in discovery and documentation of the view. A listed edge is not required. i.e. It does not have to exist when included in this list. A connection has a max distance of one hop.
+      properties:
+        connectionType:
+          type: string
+          description: The type of connection, either a single or multi edge connections are expected to exist.
+          enum:
+          - single_edge_connection
+          - multi_edge_connection
+          default: multi_edge_connection
+        name:
+          type: string
+          description: Readable property name.
+          maxLength: 255
+        description:
+          type: string
+          description: Description of the content and suggested use for this property.
+          maxLength: 1024
+        type:
+          $ref: '#/components/schemas/DirectRelationReference'
+        source:
+          description: The target node(s) of this connection can be read through the view specified in 'source'.
+          allOf:
+          - $ref: '#/components/schemas/ViewReference'
+        edgeSource:
+          description: The edge(s) of this connection can be read through the view specified in 'edgeSource'.
+          allOf:
+          - $ref: '#/components/schemas/ViewReference'
+        direction:
+          type: string
+          enum:
+          - outwards
+          - inwards
+          default: outwards
     ReverseDirectRelationConnection:
       type: object
       required:
@@ -1918,28 +2053,10 @@ components:
           description: The view or container of the node containing the direct relation property.
           allOf:
           - $ref: '#/components/schemas/ThroughReference'
-    NextCursorV3:
-      description: The cursor value used to return (paginate to) the next page of results, when more data is available.
-      type: string
-    ThroughReference:
-      type: object
-      title: direct reference
-      description: Traverse from another table expression using a direct relation. Only applicable when `from` is specified. The view or container property to use when we traverse direct relations. Has to reference a direct relation property.
-      required:
-      - source
-      - identifier
-      properties:
-        source:
-          $ref: '#/components/schemas/SourceReference'
-        identifier:
-          $ref: '#/components/schemas/PropertyIdentifierV3'
-    SourceReference:
-      description: Reference to a view, or a container
+    ViewDefinitionProperty:
       oneOf:
-      - $ref: '#/components/schemas/ViewReference'
-      - $ref: '#/components/schemas/ContainerReference'
-      discriminator:
-        propertyName: type
+      - $ref: '#/components/schemas/ViewPropertyDefinition'
+      - $ref: '#/components/schemas/ConnectionDefinitionRead'
     ParameterizedPropertyValueV3:
       title: parameter
       description: A parameterized value
@@ -1949,45 +2066,33 @@ components:
       properties:
         parameter:
           type: string
-    OverlapsFilterV3:
+    NodeOrEdgeExternalId:
+      type: string
+      pattern: ^[^\\x00]{1,256}$
+      minLength: 1
+      maxLength: 256
+    HasExistingDataFilterV3:
       type: object
-      title: overlaps
+      title: hasData
       required:
-      - overlaps
+      - hasData
       properties:
-        overlaps:
-          type: object
-          description: 'Matches items where the range made up of the two properties overlap with the provided range.
-
-            Not available for search queries.'
-          required:
-          - startProperty
-          - endProperty
-          properties:
-            startProperty:
-              $ref: '#/components/schemas/DMSFilterProperty'
-            endProperty:
-              $ref: '#/components/schemas/DMSFilterProperty'
-            gte:
-              $ref: '#/components/schemas/FilterValueRange'
-            gt:
-              $ref: '#/components/schemas/FilterValueRange'
-            lte:
-              $ref: '#/components/schemas/FilterValueRange'
-            lt:
-              $ref: '#/components/schemas/FilterValueRange'
-    ViewCreateCollection:
-      type: object
-      required:
-      - items
-      properties:
-        items:
+        hasData:
           type: array
-          description: List of views to create/update
-          minItems: 1
-          maxItems: 100
+          description: Matches instances that have data in the referenced views or containers.
           items:
-            $ref: '#/components/schemas/ViewCreateDefinition'
+            $ref: '#/components/schemas/SourceReference'
+    DirectRelationReference:
+      type: object
+      description: Reference to the node pointed to by the direct relation. The reference consists of a space and an external-id.
+      required:
+      - space
+      - externalId
+      properties:
+        space:
+          $ref: '#/components/schemas/SpaceSpecification'
+        externalId:
+          $ref: '#/components/schemas/NodeOrEdgeExternalId'
     ViewDirectNodeRelation:
       description: Direct node relation. Can include a hint to specify the view that this direct relation points to. This hint is optional.
       allOf:
@@ -1998,166 +2103,6 @@ components:
             description: The hint showing the view what the direct relation points to.
             allOf:
             - $ref: '#/components/schemas/ViewReference'
-    RangeFilterV3:
-      type: object
-      title: range
-      required:
-      - range
-      properties:
-        range:
-          required:
-          - property
-          description: "Matches items that contain terms within the provided range.\n\nThe range must include both an upper and a lower bound. It is not permitted to specify both inclusive\nand exclusive bounds together.  E.g. `gte` and `gt`.\n\n  `gte`: Greater than or equal to.\n  `gt`: Greater than.\n  `lte`: Less than or equal to.\n  `lt`: Less than.\n"
-          type: object
-          properties:
-            property:
-              $ref: '#/components/schemas/DMSFilterProperty'
-            gte:
-              $ref: '#/components/schemas/FilterValueRange'
-            gt:
-              $ref: '#/components/schemas/FilterValueRange'
-            lte:
-              $ref: '#/components/schemas/FilterValueRange'
-            lt:
-              $ref: '#/components/schemas/FilterValueRange'
-    CorePropertyCreateDefinition:
-      type: object
-      properties:
-        immutable:
-          type: boolean
-          description: Should updates to this property be rejected after the initial population? Per-property immutability is not applicable for records. For records, immutability is a stream-level concept only.
-          default: false
-        nullable:
-          type: boolean
-          description: Does this property need to be set to a value, or not?
-          default: true
-        autoIncrement:
-          type: boolean
-          description: When set to ```true```, the API will increment the property based on its highest current value (max value).  You can only use this functionality to increment properties of type `int32` or `int64`. If the property has a different data type, the API will return an error. Auto-increment is not supported for records. The value will not be auto-generated, so omitting a non-nullable auto-increment property during record ingestion will fail validation.
-          default: false
-        defaultValue:
-          oneOf:
-          - type: string
-          - type: number
-          - type: boolean
-          - type: object
-          description: "Default value to use when you do not specify a value for the property.  The default value must be of the same type as what you defined for the property itself. \n\n\nWe do not currently support using default values for array/list types. "
-        description:
-          type: string
-          description: Description of the content and suggested use for this property.
-          maxLength: 1024
-        name:
-          type: string
-          description: Readable property name.
-          maxLength: 255
-    PropertyIdentifierV3:
-      type: string
-      pattern: ^[a-zA-Z]([a-zA-Z0-9_]{0,253}[a-zA-Z0-9])?$
-      minLength: 1
-      maxLength: 255
-    RangeValue:
-      title: rangeBound
-      description: Value you wish to find in the provided property using a range clause.
-      oneOf:
-      - type: string
-        title: string
-      - type: number
-        title: number
-      - type: integer
-        title: integer
-    DataModelsNestedFilter:
-      type: object
-      title: nested
-      required:
-      - nested
-      properties:
-        nested:
-          required:
-          - scope
-          - filter
-          description: "Use `nested` to apply the properties of the direct relation as the filter.  `scope` specifies the direct\nrelation property you want use as the filtering property.\n\nExample:\n```\n  {\n    \"nested\": {\n      \"scope\": [\"some\", \"direct_relation\", \"property\"],\n      \"filter\": {\n        \"equals\": {\n          \"property\": [\"node\", \"name\"],\n          \"value\": \"ACME\"\n        }\n      }\n    }\n  }\n```\n"
-          type: object
-          properties:
-            scope:
-              type: array
-              minItems: 1
-              maxItems: 3
-              items:
-                type: string
-            filter:
-              $ref: '#/components/schemas/FilterDefinition'
-    NodeOrEdgeExternalId:
-      type: string
-      pattern: ^[^\\x00]{1,256}$
-      minLength: 1
-      maxLength: 256
-    InstanceReferenceFilterV3:
-      type: object
-      title: instanceReferences
-      required:
-      - instanceReferences
-      properties:
-        instanceReferences:
-          type: array
-          description: Matches instances with any of the specified space/externalId pairs.
-          items:
-            type: object
-            required:
-            - space
-            - externalId
-            properties:
-              space:
-                $ref: '#/components/schemas/SpaceSpecification'
-              externalId:
-                $ref: '#/components/schemas/NodeOrEdgeExternalId'
-    DMSVersion:
-      type: string
-      pattern: ^[a-zA-Z0-9]([.a-zA-Z0-9_-]{0,41}[a-zA-Z0-9])?$
-      minLength: 1
-      maxLength: 43
-    ListOfVersionReferences:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          minItems: 1
-          maxItems: 100
-          items:
-            type: object
-            required:
-            - space
-            - externalId
-            - version
-            properties:
-              externalId:
-                description: External id for the requested item
-                allOf:
-                - $ref: '#/components/schemas/DMSExternalId'
-              space:
-                description: Space id for the requested item
-                allOf:
-                - $ref: '#/components/schemas/SpaceSpecification'
-              version:
-                description: Version of the requested item
-                allOf:
-                - $ref: '#/components/schemas/DMSVersion'
-    ViewCorePropertyDefinition:
-      allOf:
-      - $ref: '#/components/schemas/CorePropertyDefinition'
-      - type: object
-        required:
-        - type
-        properties:
-          type:
-            description: "The type of data you can store in this property. Most properties can also hold a list of values, for example, a list of integers or a list of timestamps. The supported storage types are:\n\n\n* text (allows user control of collation),\n * boolean,\n * 32-bit, and 64-bit float,\n * 32-bit, and 64-bit integer,\n * timestamp,\n * date,\n * JSON fragment,\n * direct relation to an existing node,\n * time series external-id reference,\n * file external-id reference,\n * sequence external-id reference,\n * enum.\n\n\nThe JSON fragments have to be valid JSON objects. If JSON arrays are to be stored, these must be wrapped in a JSON object. JSON values (such as string, number, boolean) should use their respective primitive form instead. The maximum allowed size for a JSON object is 40960 bytes. For lists of json values, the size of the entire list must be within this limit. The maximum allowed length of a key is 128, while the maximum allowed size of a value is 10240 bytes and you can have up to 256 key-value pairs. The  byte sizes are computed by representing the data as a UTF-8 encoded JSON string.\nDirect relations use a space external-id, the external-id for an existing node, and the external-id for the data container. E.g. ```s-spaceExternalId.uniqueNodeExternalId.containerExternalId```. The ```view``` property on direct relation can optionally be set, and if it is set then this is a hint to the client on what kind of data is expected to exist.\nTimestamps must be a string in the format 'YYYY-MM-DDTHH:MM:SS[.millis][Z|time zone]' with optional milliseconds having precision of 1-3 decimal digits and optional timezone with format Â±HH:MM, Â±HHMM, Â±HH or Z, where Z represents UTC, Year must be between 0001 and 9999.\nDates must be a date string in the format 'YYYY-MM-DD'. Year must be between 1 and 9999. "
-            oneOf:
-            - $ref: '#/components/schemas/TextProperty'
-            - $ref: '#/components/schemas/PrimitiveProperty'
-            - $ref: '#/components/schemas/CDFExternalIdReference'
-            - $ref: '#/components/schemas/ViewDirectNodeRelation'
-            - $ref: '#/components/schemas/EnumProperty'
     ListOfAllVersionsReferences:
       type: object
       required:
@@ -2181,14 +2126,76 @@ components:
                 description: Space id for the requested item
                 allOf:
                 - $ref: '#/components/schemas/SpaceSpecification'
+    ConstraintOrIndexState:
+      type: string
+      enum:
+      - current
+      - pending
+      - failed
+    ViewCreateCollection:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          description: List of views to create/update
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/ViewCreateDefinition'
+    ConnectionDefinition:
+      oneOf:
+      - $ref: '#/components/schemas/EdgeConnection'
+      - $ref: '#/components/schemas/ReverseDirectRelationConnection'
+    ContainsAllFilterV3:
+      type: object
+      title: containsAll
+      required:
+      - containsAll
+      properties:
+        containsAll:
+          required:
+          - property
+          - values
+          description: Matches items where the property contains all the given values. Only apply this filter to multivalued properties.
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/DMSFilterProperty'
+            values:
+              $ref: '#/components/schemas/FilterValueList'
+    ThroughReference:
+      type: object
+      title: direct reference
+      description: Traverse from another table expression using a direct relation. Only applicable when `from` is specified. The view or container property to use when we traverse direct relations. Has to reference a direct relation property.
+      required:
+      - source
+      - identifier
+      properties:
+        source:
+          $ref: '#/components/schemas/SourceReference'
+        identifier:
+          $ref: '#/components/schemas/PropertyIdentifierV3'
+    FilterValueList:
+      oneOf:
+      - $ref: '#/components/schemas/RawPropertyValueListV3'
+      - $ref: '#/components/schemas/ReferencedPropertyValueV3'
   parameters:
-    IncludeGlobal:
-      name: includeGlobal
+    AllVersions:
+      name: allVersions
       in: query
-      description: If the global items of the entity should be returned. Defaults to false which excludes global items.
+      description: If all versions of the entity should be returned. Defaults to false which returns the latest version, attributed to the newest 'createdTime' field
       schema:
         type: boolean
         default: false
+    IncludeInheritedProperties:
+      name: includeInheritedProperties
+      description: Include properties inherited from views this view implements.
+      in: query
+      schema:
+        type: boolean
+        default: true
     Space:
       in: query
       name: space
@@ -2199,29 +2206,6 @@ components:
         minLength: 1
         maxLength: 43
         example: timeseries
-    ReducedLimit:
-      name: limit
-      description: Limit the number of results returned. The largest result-set returned by the server will be 1000 items, even if you specify a higher limit.
-      in: query
-      schema:
-        type: integer
-        default: 10
-        minimum: 1
-        maximum: 1000
-    IncludeInheritedProperties:
-      name: includeInheritedProperties
-      description: Include properties inherited from views this view implements.
-      in: query
-      schema:
-        type: boolean
-        default: true
-    AllVersions:
-      name: allVersions
-      in: query
-      description: If all versions of the entity should be returned. Defaults to false which returns the latest version, attributed to the newest 'createdTime' field
-      schema:
-        type: boolean
-        default: false
     Cursor:
       name: cursor
       description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
@@ -2242,21 +2226,23 @@ components:
       schema:
         type: string
         example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+    IncludeGlobal:
+      name: includeGlobal
+      in: query
+      description: If the global items of the entity should be returned. Defaults to false which excludes global items.
+      schema:
+        type: boolean
+        default: false
+    ReducedLimit:
+      name: limit
+      description: Limit the number of results returned. The largest result-set returned by the server will be 1000 items, even if you specify a higher limit.
+      in: query
+      schema:
+        type: integer
+        default: 10
+        minimum: 1
+        maximum: 1000
   responses:
-    ViewCollectionResponse:
-      description: List of views
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - items
-            properties:
-              items:
-                type: array
-                description: List of views
-                items:
-                  $ref: '#/components/schemas/ViewDefinition'
     ErrorResponse:
       description: The response for a failed request.
       content:
@@ -2284,6 +2270,20 @@ components:
                   $ref: '#/components/schemas/ViewDefinition'
               nextCursor:
                 $ref: '#/components/schemas/NextCursorV3'
+    ViewCollectionResponse:
+      description: List of views
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            properties:
+              items:
+                type: array
+                description: List of views
+                items:
+                  $ref: '#/components/schemas/ViewDefinition'
     VersionReferencesCollectionResponse:
       description: Items affected by the request
       content:

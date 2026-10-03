@@ -521,93 +521,38 @@ paths:
         source: "List<SequenceBody> deleteRowsInput = listSequencesRowsResults; \nList<SequenceBody> deleteRowsResults = client.sequences().rows().delete(deleteRowsInput);"
 components:
   schemas:
-    CogniteExternalIdPrefix:
-      description: Filter by this (case-sensitive) prefix for the external ID.
-      type: string
-      maxLength: 255
-      example: my.known.prefix
-    SequencesEqualsFilter:
+    SequencesSort:
       type: object
-      title: equals
-      required:
-      - equals
       properties:
-        equals:
-          required:
-          - property
-          - value
-          description: 'Matches items where the given property is **exactly** equal to the given value.
+        sort:
+          description: 'Sort by array of selected properties.
 
             '
-          type: object
-          properties:
-            property:
-              $ref: '#/components/schemas/SequencesFilterProperty'
-            value:
-              $ref: '#/components/schemas/SequencesValue'
-    DataSetExternalId:
-      type: object
-      title: DataSetExternalId
-      required:
-      - externalId
-      properties:
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-    SequenceGetData:
-      type: object
-      required:
-      - id
-      - columns
-      - rows
-      description: Data from a sequence.
-      properties:
-        id:
-          $ref: '#/components/schemas/CogniteInternalId'
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-        columns:
           type: array
-          description: Column information in the order given by data.
+          minItems: 1
+          maxItems: 2
           items:
-            $ref: '#/components/schemas/BasicGetSequenceColumnInfo'
-        rows:
-          type: array
-          description: List of row information.
-          items:
-            $ref: '#/components/schemas/SequenceRowDTO'
-      example:
-        id: 1112
-        externalId: DL/DRILL412/20190103/T3
-        columns:
-        - externalId: Depth
-        - externalId: DepthSource
-        - externalId: PowerSetting
-        rows:
-        - rowNumber: 1
-          values:
-          - 23331.3
-          - s2
-          - 61
-    SinglePatchRequiredString:
-      title: set
+            $ref: '#/components/schemas/SequencesSortItem'
+    SequencesCardinalityValuesAggregateResponse:
       type: object
-      properties:
-        set:
-          type: string
-      description: Set a new value for the string.
+      title: CardinalityValues
       required:
-      - set
-    SequencesLeafAggregateFilter:
-      description: 'Leaf filter.
-
-        '
-      title: Leaf filter
-      type: object
-      oneOf:
-      - $ref: '#/components/schemas/SequencesInAggregateFilter'
-      - $ref: '#/components/schemas/SequencesRangeAggregateFilter'
-      - $ref: '#/components/schemas/SequencesPrefixAggregateFilter'
-    DataGetSequence:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 1
+          items:
+            type: object
+            required:
+            - count
+            properties:
+              count:
+                type: integer
+                format: int64
+                description: The approximate number of unique values for the given property among the sequences that match the given filters.
+    SequenceWithCursorResponse:
       type: object
       required:
       - items
@@ -616,52 +561,20 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/GetSequenceDTO'
-    SequenceGetDataWithCursor:
-      allOf:
-      - $ref: '#/components/schemas/SequenceGetData'
-      - properties:
-          nextCursor:
-            type: string
-            description: Cursor to get the next page of results (if available).
-    SequencesUpdateByExternalId:
-      title: Select by ExternalId
-      allOf:
-      - $ref: '#/components/schemas/SequenceChangeDTO'
-      - type: object
-        required:
-        - externalId
-        properties:
-          externalId:
-            $ref: '#/components/schemas/CogniteExternalId'
-    SequencesSearchFilter:
+        nextCursor:
+          type: string
+          description: The cursor to get the next page of results (if available). Learn more about [pagination](https://docs.cognite.com/dev/concepts/pagination).
+    SequencesPrefixFilter:
       type: object
-      title: search
+      title: prefix
       required:
-      - search
+      - prefix
       properties:
-        search:
+        prefix:
           required:
           - property
           - value
-          description: 'Matches items where the provided string property contains the given value according to a fuzzy search.
-
-            The value may exist anywhere in the string, even as a part of a word or with some grammatical
-
-            variations (e.g., searching for "run" will also find "ran").
-
-
-            The supported properties are `name` and `description`. It''s also possible to set `property`
-
-            to `["query"]`, in which case both `name` and `description` will be searched.
-
-
-            When the `search` filter is being used, and it''s not nested inside a `not` filter (directly or indirectly),
-
-            and no `sort` is specified, the results will be ranked according to how good the match is.
-
-            When the `query` ''property'' is specified, matches in `name` will rank higher than matches in `description`.
-
-            The `search` filter may be used at most twice within the same `advancedFilter` expression.
+          description: 'Matches items where the provided property begins with the given text.
 
             '
           type: object
@@ -670,28 +583,11 @@ components:
               $ref: '#/components/schemas/SequencesFilterProperty'
             value:
               $ref: '#/components/schemas/SequencesStringValue'
-    SequencesInAggregateFilter:
-      type: object
-      title: in
-      required:
-      - in
-      properties:
-        in:
-          required:
-          - values
-          description: 'Matches intermediate aggregation results where the property key or the property value is _exactly_
-
-            equal to one of the given values. When the `aggregate` operation is `uniqueProperties` or
-
-            `cardinalityProperties`, property _keys_ will be targeted; when it is `uniqueValues` or
-
-            `cardinalityValues`, property _values_ will be targeted.
-
-            '
-          type: object
-          properties:
-            values:
-              $ref: '#/components/schemas/SequencesInAggregateValues'
+    CogniteExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
+      type: string
+      maxLength: 255
+      example: my.known.id
     SequencesBoolAggregateFilter:
       description: 'A query that matches items matching boolean combinations of other queries.
 
@@ -754,32 +650,373 @@ components:
             type: object
             allOf:
             - $ref: '#/components/schemas/SequencesAggregateFilter'
-    SequencesUniqueValuesAggregateResponse:
+    Partition:
+      description: 'Splits the data set into `N` partitions.
+
+        The attribute is specified as a "M/N" string, where `M` is a natural number in the interval of `[1, N]`.
+
+        You need to follow the cursors within each partition in order to receive all the data.
+
+
+        To prevent unexpected problems and maximize read throughput, you should at most use 10 (N <= 10) partitions.
+
+
+        When using more than 10 partitions, CDF may reduce the number of partitions silently.
+
+        For example, CDF may reduce the number of partitions to `K = 10` so if you specify an `X/N` `partition` value where `X = 8` and `N = 20` - i.e. `"partition": "8/20"`- then
+
+        CDF will change `N` to `N = K = 10` and process the request.
+
+        But if you  specify the `X/N` `partition` value where `X = 11` (`X > K`) and `N = 20` - i.e. `"partition": "11/20"`- then
+
+        CDF will reply with an empty result list and no cursor in the response.\
+
+
+        In future releases of the resource APIs, Cognite may reject requests if you specify more than 10 partitions.
+
+        When Cognite enforces this behavior, the requests will result in a 400 Bad Request status.
+
+        '
+      type: string
+      example: 1/10
+    SequenceFilter:
       type: object
-      title: UniqueValues
+      properties:
+        name:
+          type: string
+          description: Returns only sequences with this name.
+        externalIdPrefix:
+          $ref: '#/components/schemas/CogniteExternalIdPrefix'
+        metadata:
+          description: Filters the sequences by metadata fields and values. Format is {'key1':'value1','key2':'value2'}.
+          example:
+            key1: value1
+            key2: value2
+          type: object
+        assetIds:
+          type: array
+          description: Returns only sequences linked to one of the specified assets.
+          example:
+          - 363848954441724
+          - 793045462540095
+          - 1261042166839739
+          items:
+            $ref: '#/components/schemas/CogniteInternalId'
+          minItems: 1
+          maxItems: 100
+          uniqueItems: true
+        rootAssetIds:
+          type: array
+          description: Only includes sequences that have a related asset in a tree rooted at any of these root `assetIds`.
+          example:
+          - 363848954441724
+          - 793045462540095
+          - 1261042166839739
+          items:
+            $ref: '#/components/schemas/CogniteInternalId'
+          minItems: 1
+          maxItems: 100
+          uniqueItems: true
+        assetSubtreeIds:
+          type: array
+          description: Only includes sequences that have a related asset in a subtree rooted at any of these `assetIds` (including the roots given). If the total size of the given subtrees exceeds 100,000 assets, an error will be returned.
+          example:
+          - id: 1234567890
+          - externalId: externalId123
+          items:
+            $ref: '#/components/schemas/AssetIdEither'
+          minItems: 1
+          maxItems: 100
+          uniqueItems: true
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestampRange'
+        lastUpdatedTime:
+          $ref: '#/components/schemas/EpochTimestampRange'
+        dataSetIds:
+          type: array
+          maxItems: 100
+          uniqueItems: true
+          description: Only includes sequences that belong to these datasets.
+          items:
+            $ref: '#/components/schemas/DataSetIdEither'
+    SetStringField:
+      type: object
+      title: set
+      required:
+      - set
+      properties:
+        set:
+          type: string
+    SequencesAggregatePath:
+      type: object
+      required:
+      - path
+      properties:
+        path:
+          description: The scope within which properties should be aggregated. The only value that is currently allowed is `['metadata']`, which will aggregate metadata keys.
+          type: array
+          minItems: 1
+          maxItems: 1
+          items:
+            type: string
+            enum:
+            - metadata
+    GetSequenceDTO:
+      type: object
+      required:
+      - id
+      - columns
+      - createdTime
+      - lastUpdatedTime
+      description: Information about the sequence stored in the database.
+      properties:
+        id:
+          type: integer
+          description: Unique Cognite-provided identifier for the sequence.
+          example: 1
+          format: int64
+          readOnly: true
+        name:
+          type: string
+          example: Any relevant name
+          description: Name of the sequence.
+        description:
+          type: string
+          example: Optional description
+          description: Description of the sequence.
+        assetId:
+          type: integer
+          example: 1221123111
+          description: Optional asset this sequence is associated with.
+          format: int64
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        metadata:
+          type: object
+          example:
+            extracted-by: cognite
+          description: Custom, application specific metadata. String key -> String value. Maximum length of key is 128 bytes, up to 256 key-value pairs, up to a total size of 10000 bytes across all keys and values.
+          additionalProperties:
+            type: string
+        columns:
+          type: array
+          description: List of column definitions.
+          items:
+            $ref: '#/components/schemas/GetSequenceColumnDTO'
+        createdTime:
+          type: integer
+          example: 100000000000
+          description: Time when this sequence was created in CDF in milliseconds since Jan 1, 1970.
+          format: int64
+          readOnly: true
+        lastUpdatedTime:
+          type: integer
+          example: 100000000000
+          description: The last time this sequence was updated in CDF, in milliseconds since Jan 1, 1970.
+          format: int64
+          readOnly: true
+        dataSetId:
+          type: integer
+          format: int64
+          description: Data set this sequence belongs to.
+          example: 2718281828459
+    DataSequencePostData:
+      type: object
       required:
       - items
       properties:
         items:
           type: array
           items:
-            type: object
-            required:
-            - property
-            - count
-            properties:
-              values:
-                type: array
-                minItems: 1
-                maxItems: 1
-                description: The single element in this array is a value that is taken on by the given property in one or more of the sequences that match the given filters. Note that even if the original value was a number or a boolean, the value will be represented as a string in this array.
-                items:
-                  type: string
-                  maxLength: 255
-              count:
-                type: integer
-                format: int64
-                description: The number of sequences that match the given filters and have the corresponding value for the given property.
+            $ref: '#/components/schemas/SequencePostData'
+          minItems: 1
+          maxItems: 1000
+      example:
+        items:
+        - externalId: DL/DRILL412/20190103/T3
+          columns:
+          - Depth
+          - DepthSource
+          - PowerSetting
+          rows:
+          - rowNumber: 1
+            values:
+            - 23331.3
+            - s2
+            - 61
+    SequencesRangeAggregateFilter:
+      type: object
+      title: range
+      required:
+      - range
+      properties:
+        range:
+          description: "Matches intermediate aggregation results where the property key or the property value is within the\nprovided range. When the `aggregate` operation is `uniqueProperties` or `cardinalityProperties`,\nproperty _keys_ will be targeted; when it is `uniqueValues` or `cardinalityValues`, property \n_values_ will be targeted.\n\nAt least one of the following bounds must be specified:\n- `gte`: Greater than or equal to.\n- `gt`: Greater than.\n- `lte`: Less than or equal to.\n- `lt`: Less than.\n\nIt is not valid to specify both inclusive and exclusive bounds \"on the same side\" together:\nat most one of `lte` and `lt` may be specified, and at most one of `gte` and `gt`.\n\nIn the case of `aggregate` being `uniqueProperties` or `cardinalityProperties`,\n`gte`/`gt`/`lte`/`lt` must be set to a string. In the case of `aggregate` being `uniqueValues` or\n`cardinalityValues`, this filter may only be applied to string properties or number properties,\nwith `gte`/`gt`/`lte`/`lt` containing values of the corresponding type.\n"
+          type: object
+          properties:
+            gte:
+              $ref: '#/components/schemas/SequencesRangeAggregateValue'
+            gt:
+              $ref: '#/components/schemas/SequencesRangeAggregateValue'
+            lte:
+              $ref: '#/components/schemas/SequencesRangeAggregateValue'
+            lt:
+              $ref: '#/components/schemas/SequencesRangeAggregateValue'
+    SequencesExistsFilter:
+      type: object
+      title: exists
+      required:
+      - exists
+      properties:
+        exists:
+          required:
+          - property
+          description: 'Matches items that have a value for the specified property.
+
+            '
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/SequencesFilterProperty'
+    SequencesStringValue:
+      title: String
+      description: 'A value that you wish to find in the provided property.
+
+        '
+      type: string
+      maxLength: 256
+    SequencesEqualsFilter:
+      type: object
+      title: equals
+      required:
+      - equals
+      properties:
+        equals:
+          required:
+          - property
+          - value
+          description: 'Matches items where the given property is **exactly** equal to the given value.
+
+            '
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/SequencesFilterProperty'
+            value:
+              $ref: '#/components/schemas/SequencesValue'
+    SequenceLatestDataRequestDTO:
+      type: object
+      description: A request for the last row.
+      properties:
+        columns:
+          type: array
+          description: 'Columns to include. Specified as a list of the `externalId` of each column to include.
+
+            If this filter isn''t set, all available columns will be returned.
+
+            '
+          items:
+            type: string
+          minItems: 1
+          maxItems: 400
+        before:
+          type: integer
+          description: Get rows up to, but not including, this row number.
+          minimum: 1
+          format: int64
+    SequenceChangeDTO:
+      required:
+      - update
+      properties:
+        update:
+          type: object
+          description: A description of changes that should be done to the sequence.
+          properties:
+            name:
+              $ref: '#/components/schemas/SinglePatchString'
+            description:
+              $ref: '#/components/schemas/SinglePatchString'
+            assetId:
+              $ref: '#/components/schemas/SinglePatchLong'
+            externalId:
+              $ref: '#/components/schemas/SinglePatchString'
+            metadata:
+              $ref: '#/components/schemas/ObjectPatch'
+            dataSetId:
+              $ref: '#/components/schemas/SinglePatchLong'
+            columns:
+              $ref: '#/components/schemas/SequenceColumnChangeDTO'
+    Cursor:
+      type: object
+      properties:
+        cursor:
+          type: string
+          example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
+
+        property, it means that there may be more results, and you should pass that value as the
+
+        `cursor` parameter in the next request.
+
+
+        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
+
+        decoded. Its internal structure is not a part of the public API, and may change without
+
+        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
+
+        '
+    SequencesUniqueValuesAggregate:
+      title: UniqueValues
+      allOf:
+      - type: object
+        required:
+        - aggregate
+        properties:
+          aggregate:
+            description: 'The `uniqueValues` aggregation gets, from the sequences that match the filter(s),
+
+              the set of unique values (up to max 1000) that are taken on by the given property. For each such
+
+              value, the aggregation result will also specify the frequency - that is, the number of sequences
+
+              that match the filter(s) and have that property value. The results are ordered by frequency in
+
+              descending order.
+
+              '
+            type: string
+            enum:
+            - uniqueValues
+      - $ref: '#/components/schemas/SequencesAggregateProperties'
+    SequencesInAggregateValues:
+      description: 'The property keys or property values (depending on the `aggregate` operation) on which you want to
+
+        filter the intermediate aggregate results.
+
+        '
+      type: array
+      minItems: 1
+      maxItems: 100
+      items:
+        $ref: '#/components/schemas/SequencesInAggregateValue'
+    SequencesCardinalityValuesAggregate:
+      title: CardinalityValues
+      allOf:
+      - type: object
+        required:
+        - aggregate
+        properties:
+          aggregate:
+            description: 'The `cardinalityValues` aggregation gets, from the sequences that match the filter(s),
+
+              the approximate number of unique values that are taken on by the given property.
+
+              '
+            type: string
+            enum:
+            - cardinalityValues
+      - $ref: '#/components/schemas/SequencesAggregateProperties'
     SequenceDataRequest:
       type: object
       description: Parameters describing a query for datapoints.
@@ -850,29 +1087,43 @@ components:
               property:
               - description
               value: Temperature in Celsius
-    DataSequenceChange:
+    SequencesAdvancedAggregateDTO:
       type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/SequencesUpdate'
-          minItems: 1
-          maxItems: 1000
-    SequenceSearch:
-      type: object
-      properties:
-        name:
-          description: Prefix and fuzzy search on name.
-          type: string
-        description:
-          description: Prefix and fuzzy search on description.
-          type: string
-        query:
-          description: Searches on name and description using wildcard search on each of the words (separated by spaces). Retrieves results where at least one word must match. For example, '*some other*'.
-          type: string
+      allOf:
+      - properties:
+          advancedFilter:
+            $ref: '#/components/schemas/SequencesFilterLanguage'
+          aggregateFilter:
+            $ref: '#/components/schemas/SequencesAggregateFilter'
+          filter:
+            $ref: '#/components/schemas/SequenceFilter'
+      - oneOf:
+        - $ref: '#/components/schemas/SequencesCountAggregate'
+        - $ref: '#/components/schemas/SequencesCardinalityValuesAggregate'
+        - $ref: '#/components/schemas/SequencesCardinalityPropertiesAggregate'
+        - $ref: '#/components/schemas/SequencesUniqueValuesAggregate'
+        - $ref: '#/components/schemas/SequencesUniquePropertiesAggregate'
+    SequencesCardinalityPropertiesAggregate:
+      title: CardinalityProperties
+      allOf:
+      - type: object
+        required:
+        - aggregate
+        properties:
+          aggregate:
+            description: 'The `cardinalityProperties` aggregation gets, from the sequences that match the filter(s),
+
+              the approximate number of unique properties whose property path begins with the given `path`.
+
+              Currently, the only supported value for `path` is `["metadata"]`, which means that this aggregation
+
+              will get the approximate size of the set of unique metadata keys.
+
+              '
+            type: string
+            enum:
+            - cardinalityProperties
+      - $ref: '#/components/schemas/SequencesAggregatePath'
     SequencesUniquePropertiesAggregate:
       title: UniqueProperties
       allOf:
@@ -898,47 +1149,473 @@ components:
             enum:
             - uniqueProperties
       - $ref: '#/components/schemas/SequencesAggregatePath'
-    SequenceDataRequestDTO:
+    SequencesLeafFilter:
+      description: 'Leaf filter.
+
+        '
+      title: Leaf filter
       type: object
-      description: A request for datapoints stored.
+      oneOf:
+      - $ref: '#/components/schemas/SequencesEqualsFilter'
+      - $ref: '#/components/schemas/SequencesInFilter'
+      - $ref: '#/components/schemas/SequencesRangeFilter'
+      - $ref: '#/components/schemas/SequencesPrefixFilter'
+      - $ref: '#/components/schemas/SequencesExistsFilter'
+      - $ref: '#/components/schemas/SequencesContainsAnyFilter'
+      - $ref: '#/components/schemas/SequencesContainsAllFilter'
+      - $ref: '#/components/schemas/SequencesSearchFilter'
+    SequencesRangeValue:
+      description: An upper or lower bound in a `range` filter.
+      oneOf:
+      - type: string
+        maxLength: 256
+      - type: number
+      - type: integer
+    SequencesAdvancedListDTO:
+      allOf:
+      - type: object
+        properties:
+          filter:
+            $ref: '#/components/schemas/SequenceFilter'
+          advancedFilter:
+            $ref: '#/components/schemas/SequencesFilterLanguage'
+          limit:
+            description: Returns up to this many results per page.
+            maximum: 1000
+            minimum: 1
+            type: integer
+            format: int32
+            default: 100
+      - $ref: '#/components/schemas/Cursor'
+      - $ref: '#/components/schemas/PartitionObject'
+      - $ref: '#/components/schemas/SequencesSort'
+    DataSetId:
+      description: The dataSet Id for the item.
+      type: integer
+      minimum: 1
+      maximum: 9007199254740991
+      format: int64
+    SequenceGetData:
+      type: object
+      required:
+      - id
+      - columns
+      - rows
+      description: Data from a sequence.
       properties:
-        start:
-          type: integer
-          description: Lowest row number included.
-          default: 0
-          format: int64
-        end:
-          type: integer
-          description: Get rows up to, but excluding, this row number. Default - No limit.
-          example: 1
-          format: int64
-        limit:
-          type: integer
-          description: Maximum number of rows returned in one request. API might return less even if there's more data, but it will provide a cursor for continuation. If there's more data beyond this limit, a cursor will be returned to simplify further fetching of data.
-          minimum: 1
-          maximum: 10000
-          default: 100
-          example: 1
-          format: int32
-        cursor:
-          type: string
-          description: Cursor for pagination returned from a previous request. Apart from this cursor, the rest of the request object is the same as for the original request.
+        id:
+          $ref: '#/components/schemas/CogniteInternalId'
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
         columns:
           type: array
-          description: 'Columns to include. Specified as a list of the `externalId` of each column to include.
+          description: Column information in the order given by data.
+          items:
+            $ref: '#/components/schemas/BasicGetSequenceColumnInfo'
+        rows:
+          type: array
+          description: List of row information.
+          items:
+            $ref: '#/components/schemas/SequenceRowDTO'
+      example:
+        id: 1112
+        externalId: DL/DRILL412/20190103/T3
+        columns:
+        - externalId: Depth
+        - externalId: DepthSource
+        - externalId: PowerSetting
+        rows:
+        - rowNumber: 1
+          values:
+          - 23331.3
+          - s2
+          - 61
+    SequenceLatestDataRequest:
+      type: object
+      description: Parameters describing a query for the last row in a sequence.
+      oneOf:
+      - required:
+        - id
+        title: Select by Id
+        allOf:
+        - $ref: '#/components/schemas/SequenceLatestDataRequestDTO'
+        - properties:
+            id:
+              $ref: '#/components/schemas/CogniteInternalId'
+      - required:
+        - externalId
+        title: Select by ExternalId
+        allOf:
+        - $ref: '#/components/schemas/SequenceLatestDataRequestDTO'
+        - properties:
+            externalId:
+              $ref: '#/components/schemas/CogniteExternalId'
+    SequencesCountAggregateResponse:
+      type: object
+      title: Count
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 1
+          items:
+            type: object
+            required:
+            - count
+            properties:
+              count:
+                type: integer
+                format: int64
+                description: The number of sequences that match the given filters.
+    SequenceItemDTO:
+      oneOf:
+      - type: number
+        description: JSON element of type corresponding to the column type. May include NULL.
+        example: 10000.123
+      - type: string
+        description: JSON element of type corresponding to the column type. May include NULL.
+        example: 'ON'
+    SequenceDataDeleteRequestDTO:
+      type: object
+      required:
+      - rows
+      description: Rows to delete from a sequence.
+      properties:
+        rows:
+          type: array
+          items:
+            type: integer
+            example: 1
+            format: int64
+          minItems: 1
+          maxItems: 10000
+    SequencesPrefixAggregateFilter:
+      type: object
+      title: prefix
+      required:
+      - prefix
+      properties:
+        prefix:
+          required:
+          - value
+          description: 'Matches intermediate aggregation results where the property key or the property value begins with
 
-            If this filter isn''t set, all available columns will be returned.
+            the given text. When the `aggregate` operation is `uniqueProperties` or `cardinalityProperties`,
+
+            property _keys_ will be targeted; when it is `uniqueValues` or `cardinalityValues`, property
+
+            _values_ will be targeted.
 
             '
+          type: object
+          properties:
+            value:
+              $ref: '#/components/schemas/SequencesPrefixAggregateValue'
+    SequencesSearchFilter:
+      type: object
+      title: search
+      required:
+      - search
+      properties:
+        search:
+          required:
+          - property
+          - value
+          description: 'Matches items where the provided string property contains the given value according to a fuzzy search.
+
+            The value may exist anywhere in the string, even as a part of a word or with some grammatical
+
+            variations (e.g., searching for "run" will also find "ran").
+
+
+            The supported properties are `name` and `description`. It''s also possible to set `property`
+
+            to `["query"]`, in which case both `name` and `description` will be searched.
+
+
+            When the `search` filter is being used, and it''s not nested inside a `not` filter (directly or indirectly),
+
+            and no `sort` is specified, the results will be ranked according to how good the match is.
+
+            When the `query` ''property'' is specified, matches in `name` will rank higher than matches in `description`.
+
+            The `search` filter may be used at most twice within the same `advancedFilter` expression.
+
+            '
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/SequencesFilterProperty'
+            value:
+              $ref: '#/components/schemas/SequencesStringValue'
+    SequencesRangeAggregateValue:
+      description: 'An upper or lower bound for a property key or property value (depending on which `aggregate` was
+
+        specified at the top level of the aggregation request).
+
+        '
+      oneOf:
+      - type: string
+        maxLength: 256
+      - type: number
+      - type: integer
+    DataGetSequence:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/GetSequenceDTO'
+    SequencesLeafAggregateFilter:
+      description: 'Leaf filter.
+
+        '
+      title: Leaf filter
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/SequencesInAggregateFilter'
+      - $ref: '#/components/schemas/SequencesRangeAggregateFilter'
+      - $ref: '#/components/schemas/SequencesPrefixAggregateFilter'
+    SequencesContainsAnyFilter:
+      type: object
+      title: containsAny
+      required:
+      - containsAny
+      properties:
+        containsAny:
+          required:
+          - property
+          - values
+          description: 'Matches items where the property contains one or more of the given values.
+
+            This filter can only be applied to multivalued properties.
+
+            '
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/SequencesFilterProperty'
+            values:
+              $ref: '#/components/schemas/SequencesValues'
+    SequencesContainsAllFilter:
+      type: object
+      title: containsAll
+      required:
+      - containsAll
+      properties:
+        containsAll:
+          required:
+          - property
+          - values
+          description: 'Matches items where the property contains all the given values.
+
+            This filter can only be applied to multivalued properties.
+
+            '
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/SequencesFilterProperty'
+            values:
+              $ref: '#/components/schemas/SequencesValues'
+    SequencesSortItem:
+      type: object
+      required:
+      - property
+      properties:
+        property:
+          type: array
+          description: "Property to sort on.\nSorting can be done on the following properties:\n  | Property                          |\n  |-----------------------------------|\n  | `['assetId']`                     |\n  | `['createdTime']`                 |\n  | `['dataSetId']`                   |\n  | `['description']`                 |\n  | `['externalId']`                  |\n  | `['lastUpdatedTime']`             |\n  | `['metadata', '<someCustomKey>']` |\n  | `['name']`                        |\n  | `['_score_']`                     |"
+          minItems: 1
+          maxItems: 2
           items:
             type: string
-          minItems: 1
-          maxItems: 400
-    CogniteExternalId:
-      description: The external ID provided by the client. Must be unique for the resource type.
-      type: string
-      maxLength: 255
-      example: my.known.id
+            maxLength: 128
+        order:
+          type: string
+          description: 'The `order` attribute is optional and defaults to `desc` for `_score_` and `asc` for all
+
+            other properties.'
+          enum:
+          - asc
+          - desc
+        nulls:
+          type: string
+          description: 'The `nulls` attribute is optional and defaults to `auto`. `auto` is translated to `last`
+
+            for the `asc` order and to `first` for the `desc` order.'
+          enum:
+          - first
+          - last
+          - auto
+          default: auto
+    SequencesValues:
+      description: 'One or more values that you wish to find in the provided properties.
+
+        '
+      type: array
+      minItems: 1
+      maxItems: 100
+      items:
+        $ref: '#/components/schemas/SequencesValue'
+    RemoveField:
+      title: remove
+      type: object
+      required:
+      - setNull
+      properties:
+        setNull:
+          type: boolean
+          example: true
+    SequencesInAggregateFilter:
+      type: object
+      title: in
+      required:
+      - in
+      properties:
+        in:
+          required:
+          - values
+          description: 'Matches intermediate aggregation results where the property key or the property value is _exactly_
+
+            equal to one of the given values. When the `aggregate` operation is `uniqueProperties` or
+
+            `cardinalityProperties`, property _keys_ will be targeted; when it is `uniqueValues` or
+
+            `cardinalityValues`, property _values_ will be targeted.
+
+            '
+          type: object
+          properties:
+            values:
+              $ref: '#/components/schemas/SequencesInAggregateValues'
+    SequencesInFilter:
+      type: object
+      title: in
+      required:
+      - in
+      properties:
+        in:
+          required:
+          - property
+          - values
+          description: 'Matches items where the given property is **exactly** equal to one of the given values.
+
+            This filter can only be applied to single-valued properties.
+
+            '
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/SequencesFilterProperty'
+            values:
+              $ref: '#/components/schemas/SequencesValues'
+    SequencesSearchDTO:
+      type: object
+      properties:
+        filter:
+          $ref: '#/components/schemas/SequenceFilter'
+        search:
+          $ref: '#/components/schemas/SequenceSearch'
+        limit:
+          description: Returns up to this many results.
+          maximum: 1000
+          minimum: 1
+          type: integer
+          format: int32
+          default: 100
+    SequenceColumnChangeDTO:
+      description: "Add, remove, or modify sequence columns. After the update, the number of numeric columns and\ndeleted columns should be â\x89¤ 400; the number of string columns and deleted columns should\nbe â\x89¤ 200; and the number of numeric columns, string columns, and deleted columns should\nbe â\x89¤ 400.\n"
+      properties:
+        modify:
+          type: array
+          description: List of single column updates.
+          items:
+            description: Modify a single sequence column by column externalId
+            required:
+            - externalId
+            - update
+            properties:
+              externalId:
+                $ref: '#/components/schemas/CogniteExternalId'
+              update:
+                type: object
+                description: Modifications to apply to a single column.
+                properties:
+                  description:
+                    $ref: '#/components/schemas/SinglePatchString'
+                  externalId:
+                    $ref: '#/components/schemas/SinglePatchRequiredString'
+                  name:
+                    $ref: '#/components/schemas/SinglePatchString'
+                  metadata:
+                    $ref: '#/components/schemas/ObjectPatch'
+        add:
+          type: array
+          description: List of column definitions to add.
+          items:
+            $ref: '#/components/schemas/PostSequenceColumnDTO'
+        remove:
+          type: array
+          description: List of columns to remove.
+          items:
+            type: object
+            required:
+            - externalId
+            properties:
+              externalId:
+                $ref: '#/components/schemas/CogniteExternalId'
+    SequencesUpdateByExternalId:
+      title: Select by ExternalId
+      allOf:
+      - $ref: '#/components/schemas/SequenceChangeDTO'
+      - type: object
+        required:
+        - externalId
+        properties:
+          externalId:
+            $ref: '#/components/schemas/CogniteExternalId'
+    SinglePatchRequiredString:
+      title: set
+      type: object
+      properties:
+        set:
+          type: string
+      description: Set a new value for the string.
+      required:
+      - set
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
     SequencesAggregateProperties:
       type: object
       required:
@@ -993,6 +1670,74 @@ components:
                   type: string
                   minLength: 1
                   maxLength: 128
+    SequencesValue:
+      description: 'A value that you wish to find in the provided property.
+
+        '
+      oneOf:
+      - type: string
+        maxLength: 256
+      - type: number
+      - type: integer
+      - type: boolean
+    SequencesAggregateFilter:
+      type: object
+      description: 'A filter DSL (Domain Specific Language) to define aggregate filters.
+
+        '
+      oneOf:
+      - $ref: '#/components/schemas/SequencesBoolAggregateFilter'
+      - $ref: '#/components/schemas/SequencesLeafAggregateFilter'
+    SequencesCountAggregate:
+      type: object
+      title: Count
+      properties:
+        aggregate:
+          description: 'The `count` aggregation gets the number of sequences that match the filter(s). This is the
+
+            default aggregation, which will also be applied if `aggregate` is not specified.
+
+            '
+          type: string
+          enum:
+          - count
+    SinglePatchString:
+      title: set
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/SetStringField'
+      - $ref: '#/components/schemas/RemoveField'
+      description: Set a new value for the string, or remove the value.
+    DataSetInternalId:
+      type: object
+      title: DataSetInternalId
+      required:
+      - id
+      properties:
+        id:
+          $ref: '#/components/schemas/CogniteInternalId'
+    ObjectPatchAddRemove:
+      title: add/remove
+      type: object
+      properties:
+        add:
+          uniqueItems: true
+          type: object
+          description: Add the key-value pairs. Values for existing keys will be overwritten.
+          additionalProperties:
+            type: string
+          example:
+            key1: value1
+            key2: value2
+        remove:
+          uniqueItems: true
+          type: array
+          description: Remove the key-value pairs with the specified keys.
+          example:
+          - value1
+          - value2
+          items:
+            type: string
     EpochTimestampRange:
       description: Range between two timestamps (inclusive).
       type: object
@@ -1007,7 +1752,12 @@ components:
           type: integer
           minimum: 0
           format: int64
-    DataPostSequence:
+    CogniteExternalIdPrefix:
+      description: Filter by this (case-sensitive) prefix for the external ID.
+      type: string
+      maxLength: 255
+      example: my.known.prefix
+    DataSequenceDataDeleteRequest:
       type: object
       required:
       - items
@@ -1015,45 +1765,34 @@ components:
         items:
           type: array
           items:
-            $ref: '#/components/schemas/PostSequenceDTO'
+            $ref: '#/components/schemas/SequenceDeleteDataRequest'
           minItems: 1
           maxItems: 1000
-    SequenceWithCursorResponse:
+    SequenceDataRequestDTO:
       type: object
-      required:
-      - items
+      description: A request for datapoints stored.
       properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/GetSequenceDTO'
-        nextCursor:
-          type: string
-          description: The cursor to get the next page of results (if available). Learn more about [pagination](https://docs.cognite.com/dev/concepts/pagination).
-    Cursor:
-      type: object
-      properties:
+        start:
+          type: integer
+          description: Lowest row number included.
+          default: 0
+          format: int64
+        end:
+          type: integer
+          description: Get rows up to, but excluding, this row number. Default - No limit.
+          example: 1
+          format: int64
+        limit:
+          type: integer
+          description: Maximum number of rows returned in one request. API might return less even if there's more data, but it will provide a cursor for continuation. If there's more data beyond this limit, a cursor will be returned to simplify further fetching of data.
+          minimum: 1
+          maximum: 10000
+          default: 100
+          example: 1
+          format: int32
         cursor:
           type: string
-          example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
-      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
-
-        property, it means that there may be more results, and you should pass that value as the
-
-        `cursor` parameter in the next request.
-
-
-        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
-
-        decoded. Its internal structure is not a part of the public API, and may change without
-
-        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
-
-        '
-    SequenceLatestDataRequestDTO:
-      type: object
-      description: A request for the last row.
-      properties:
+          description: Cursor for pagination returned from a previous request. Apart from this cursor, the rest of the request object is the same as for the original request.
         columns:
           type: array
           description: 'Columns to include. Specified as a list of the `externalId` of each column to include.
@@ -1065,78 +1804,6 @@ components:
             type: string
           minItems: 1
           maxItems: 400
-        before:
-          type: integer
-          description: Get rows up to, but not including, this row number.
-          minimum: 1
-          format: int64
-    SequencesAdvancedListDTO:
-      allOf:
-      - type: object
-        properties:
-          filter:
-            $ref: '#/components/schemas/SequenceFilter'
-          advancedFilter:
-            $ref: '#/components/schemas/SequencesFilterLanguage'
-          limit:
-            description: Returns up to this many results per page.
-            maximum: 1000
-            minimum: 1
-            type: integer
-            format: int32
-            default: 100
-      - $ref: '#/components/schemas/Cursor'
-      - $ref: '#/components/schemas/PartitionObject'
-      - $ref: '#/components/schemas/SequencesSort'
-    DataSetId:
-      description: The dataSet Id for the item.
-      type: integer
-      minimum: 1
-      maximum: 9007199254740991
-      format: int64
-    AssetExternalId:
-      type: object
-      required:
-      - externalId
-      properties:
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-    IgnoreUnknownIdsField:
-      type: object
-      properties:
-        ignoreUnknownIds:
-          description: Ignore IDs and external IDs that are not found
-          type: boolean
-          default: false
-    SequencesValues:
-      description: 'One or more values that you wish to find in the provided properties.
-
-        '
-      type: array
-      minItems: 1
-      maxItems: 100
-      items:
-        $ref: '#/components/schemas/SequencesValue'
-    SequenceDeleteDataRequest:
-      type: object
-      description: Parameters describing datapoints to be deleted.
-      oneOf:
-      - required:
-        - id
-        title: Select by Id
-        allOf:
-        - $ref: '#/components/schemas/SequenceDataDeleteRequestDTO'
-        - properties:
-            id:
-              $ref: '#/components/schemas/CogniteInternalId'
-      - required:
-        - externalId
-        title: Select by ExternalId
-        allOf:
-        - $ref: '#/components/schemas/SequenceDataDeleteRequestDTO'
-        - properties:
-            externalId:
-              $ref: '#/components/schemas/CogniteExternalId'
     SequencesUniquePropertiesAggregateResponse:
       type: object
       title: UniqueProperties
@@ -1170,31 +1837,68 @@ components:
                 type: integer
                 format: int64
                 description: The number of sequences that match the given filters and have the corresponding property.
-    SequencesUpdateById:
-      title: Select by Id
+    SequenceGetDataWithCursor:
       allOf:
-      - $ref: '#/components/schemas/SequenceChangeDTO'
-      - type: object
-        required:
-        - id
-        properties:
-          id:
-            $ref: '#/components/schemas/CogniteInternalId'
-    AssetInternalId:
-      type: object
+      - $ref: '#/components/schemas/SequenceGetData'
+      - properties:
+          nextCursor:
+            type: string
+            description: Cursor to get the next page of results (if available).
+    PostSequenceDTO:
       required:
-      - id
+      - columns
+      type: object
+      description: Describes a new sequence.
       properties:
-        id:
-          $ref: '#/components/schemas/CogniteInternalId'
-    SequenceItemDTO:
-      oneOf:
-      - type: number
-        description: JSON element of type corresponding to the column type. May include NULL.
-        example: 10000.123
-      - type: string
-        description: JSON element of type corresponding to the column type. May include NULL.
-        example: 'ON'
+        name:
+          type: string
+          example: Any relevant name
+          description: Name of the sequence.
+          maxLength: 255
+        description:
+          type: string
+          example: Optional description
+          description: Description of the sequence.
+          maxLength: 1000
+        assetId:
+          type: integer
+          example: 1221123111
+          description: Optional asset this sequence is associated with.
+          format: int64
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        metadata:
+          type: object
+          example:
+            extracted-by: cognite
+          description: 'Custom, application specific metadata. String key -> String value. Maximum length of key is 128 bytes, up to 256 key-value pairs, up to a total size of 10000 bytes across all keys and values.
+
+            '
+          additionalProperties:
+            type: string
+        columns:
+          type: array
+          description: List of column definitions. Maximum number of numeric columns is 400. Maximum number of string columns is 200. Maximum total number of columns is 400.
+          items:
+            $ref: '#/components/schemas/PostSequenceColumnDTO'
+          minItems: 1
+          maxItems: 400
+        dataSetId:
+          $ref: '#/components/schemas/DataSetId'
+    BasicGetSequenceColumnInfo:
+      type: object
+      description: Column information returned on data requests.
+      properties:
+        externalId:
+          type: string
+          example: DPS1
+          description: User provided column identifier (unique for a given sequence).
+        name:
+          type: string
+          example: Depth sensor 1
+          description: Human readable name of the column.
+        valueType:
+          $ref: '#/components/schemas/SequenceValueTypeEnum'
     PostSequenceColumnDTO:
       type: object
       description: Describes a new column.
@@ -1227,78 +1931,203 @@ components:
             '
           additionalProperties:
             type: string
-    GetSequenceDTO:
+    SetLongField:
       type: object
       required:
-      - id
-      - columns
-      - createdTime
-      - lastUpdatedTime
-      description: Information about the sequence stored in the database.
+      - set
       properties:
-        id:
+        set:
           type: integer
-          description: Unique Cognite-provided identifier for the sequence.
+          format: int64
+    SequenceDeleteDataRequest:
+      type: object
+      description: Parameters describing datapoints to be deleted.
+      oneOf:
+      - required:
+        - id
+        title: Select by Id
+        allOf:
+        - $ref: '#/components/schemas/SequenceDataDeleteRequestDTO'
+        - properties:
+            id:
+              $ref: '#/components/schemas/CogniteInternalId'
+      - required:
+        - externalId
+        title: Select by ExternalId
+        allOf:
+        - $ref: '#/components/schemas/SequenceDataDeleteRequestDTO'
+        - properties:
+            externalId:
+              $ref: '#/components/schemas/CogniteExternalId'
+    SequenceValueTypeEnum:
+      type: string
+      description: What type the datapoints in a column will have. DOUBLE is restricted to the range [-1E100, 1E100]
+      default: DOUBLE
+      enum:
+      - STRING
+      - DOUBLE
+      - LONG
+    SequencesPrefixAggregateValue:
+      title: String
+      description: 'A string value that represents either a property key or a property value, depending on the
+
+        `aggregate` operation.
+
+        '
+      type: string
+      maxLength: 256
+    SequencesCardinalityPropertiesAggregateResponse:
+      type: object
+      title: CardinalityProperties
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 1
+          items:
+            type: object
+            required:
+            - count
+            properties:
+              count:
+                type: integer
+                format: int64
+                description: The approximate number of unique properties that begin with the given property path among the sequences that match the given filters.
+    SequenceRowDTO:
+      type: object
+      description: A single row of datapoints.
+      required:
+      - rowNumber
+      - values
+      properties:
+        rowNumber:
+          type: integer
+          description: The row number for this row.
           example: 1
+          minimum: 0
           format: int64
-          readOnly: true
-        name:
-          type: string
-          example: Any relevant name
-          description: Name of the sequence.
-        description:
-          type: string
-          example: Optional description
-          description: Description of the sequence.
-        assetId:
-          type: integer
-          example: 1221123111
-          description: Optional asset this sequence is associated with.
-          format: int64
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-        metadata:
+        values:
+          type: array
+          description: List of values in the order defined in the columns field. Number of items must match. Null is accepted for missing values. String values must be no longer than 256 characters.
+          items:
+            $ref: '#/components/schemas/SequenceItemDTO'
+          minItems: 1
+          maxItems: 400
+    DataPostSequence:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PostSequenceDTO'
+          minItems: 1
+          maxItems: 1000
+    SequencesFilterProperty:
+      description: "The property on which you want to filter. May be either:\n- A single-element list that contains the name of one of the predefined top-level\n  properties, in which case the filter will be applied to that top-level property.\n- A single-element list that contains `'metadata'`, in which case the filter will be applied\n  to _all_ metadata properties.\n- A two-element list where the first element is `'metadata'` and the second one is any\n  string, in which case the filter will be applied to metadata properties with that name.\n"
+      type: array
+      minItems: 1
+      maxItems: 2
+      items:
+        type: string
+        minLength: 1
+        maxLength: 256
+    ObjectPatchSet:
+      title: set
+      type: object
+      required:
+      - set
+      properties:
+        set:
+          uniqueItems: true
           type: object
-          example:
-            extracted-by: cognite
-          description: Custom, application specific metadata. String key -> String value. Maximum length of key is 128 bytes, up to 256 key-value pairs, up to a total size of 10000 bytes across all keys and values.
+          description: Set the key-value pairs. All existing key-value pairs will be removed.
           additionalProperties:
             type: string
-        columns:
-          type: array
-          description: List of column definitions.
-          items:
-            $ref: '#/components/schemas/GetSequenceColumnDTO'
-        createdTime:
-          type: integer
-          example: 100000000000
-          description: Time when this sequence was created in CDF in milliseconds since Jan 1, 1970.
-          format: int64
-          readOnly: true
-        lastUpdatedTime:
-          type: integer
-          example: 100000000000
-          description: The last time this sequence was updated in CDF, in milliseconds since Jan 1, 1970.
-          format: int64
-          readOnly: true
-        dataSetId:
-          type: integer
-          format: int64
-          description: Data set this sequence belongs to.
-          example: 2718281828459
-    SequencesCountAggregate:
+          example:
+            key1: value1
+            key2: value2
+    DataSequenceChange:
       type: object
-      title: Count
+      required:
+      - items
       properties:
-        aggregate:
-          description: 'The `count` aggregation gets the number of sequences that match the filter(s). This is the
-
-            default aggregation, which will also be applied if `aggregate` is not specified.
-
-            '
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SequencesUpdate'
+          minItems: 1
+          maxItems: 1000
+    SequencePostData:
+      type: object
+      oneOf:
+      - required:
+        - id
+        title: Select by Id
+        allOf:
+        - $ref: '#/components/schemas/SequenceDataInsertion'
+        - properties:
+            id:
+              $ref: '#/components/schemas/CogniteInternalId'
+      - required:
+        - externalId
+        title: Select by ExternalId
+        allOf:
+        - $ref: '#/components/schemas/SequenceDataInsertion'
+        - properties:
+            externalId:
+              $ref: '#/components/schemas/CogniteExternalId'
+      example:
+        externalId: DL/DRILL412/20190103/T3
+        columns:
+        - Depth
+        - DepthSource
+        - PowerSetting
+        rows:
+        - rowNumber: 1
+          values:
+          - 23331.3
+          - s2
+          - 61
+    SequenceSearch:
+      type: object
+      properties:
+        name:
+          description: Prefix and fuzzy search on name.
           type: string
-          enum:
-          - count
+        description:
+          description: Prefix and fuzzy search on description.
+          type: string
+        query:
+          description: Searches on name and description using wildcard search on each of the words (separated by spaces). Retrieves results where at least one word must match. For example, '*some other*'.
+          type: string
+    SinglePatchLong:
+      title: set
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/SetLongField'
+      - $ref: '#/components/schemas/RemoveField'
+      description: Set a new value for the long, or remove the value.
+    CogniteInternalId:
+      description: A server-generated ID for the object.
+      type: integer
+      minimum: 1
+      maximum: 9007199254740991
+      format: int64
+    SequencesUpdate:
+      oneOf:
+      - $ref: '#/components/schemas/SequencesUpdateById'
+      - $ref: '#/components/schemas/SequencesUpdateByExternalId'
+    IgnoreUnknownIdsField:
+      type: object
+      properties:
+        ignoreUnknownIds:
+          description: Ignore IDs and external IDs that are not found
+          type: boolean
+          default: false
     SequencesBoolFilter:
       description: 'A query that matches items matching boolean combinations of other queries.
 
@@ -1347,178 +2176,32 @@ components:
             type: object
             allOf:
             - $ref: '#/components/schemas/SequencesFilterLanguage'
-    ObjectPatchSet:
-      title: set
+    SequencesUniqueValuesAggregateResponse:
       type: object
-      required:
-      - set
-      properties:
-        set:
-          uniqueItems: true
-          type: object
-          description: Set the key-value pairs. All existing key-value pairs will be removed.
-          additionalProperties:
-            type: string
-          example:
-            key1: value1
-            key2: value2
-    SequencesAdvancedAggregateDTO:
-      type: object
-      allOf:
-      - properties:
-          advancedFilter:
-            $ref: '#/components/schemas/SequencesFilterLanguage'
-          aggregateFilter:
-            $ref: '#/components/schemas/SequencesAggregateFilter'
-          filter:
-            $ref: '#/components/schemas/SequenceFilter'
-      - oneOf:
-        - $ref: '#/components/schemas/SequencesCountAggregate'
-        - $ref: '#/components/schemas/SequencesCardinalityValuesAggregate'
-        - $ref: '#/components/schemas/SequencesCardinalityPropertiesAggregate'
-        - $ref: '#/components/schemas/SequencesUniqueValuesAggregate'
-        - $ref: '#/components/schemas/SequencesUniquePropertiesAggregate'
-    SequenceLatestDataRequest:
-      type: object
-      description: Parameters describing a query for the last row in a sequence.
-      oneOf:
-      - required:
-        - id
-        title: Select by Id
-        allOf:
-        - $ref: '#/components/schemas/SequenceLatestDataRequestDTO'
-        - properties:
-            id:
-              $ref: '#/components/schemas/CogniteInternalId'
-      - required:
-        - externalId
-        title: Select by ExternalId
-        allOf:
-        - $ref: '#/components/schemas/SequenceLatestDataRequestDTO'
-        - properties:
-            externalId:
-              $ref: '#/components/schemas/CogniteExternalId'
-    SinglePatchString:
-      title: set
-      type: object
-      oneOf:
-      - $ref: '#/components/schemas/SetStringField'
-      - $ref: '#/components/schemas/RemoveField'
-      description: Set a new value for the string, or remove the value.
-    SequencesExistsFilter:
-      type: object
-      title: exists
-      required:
-      - exists
-      properties:
-        exists:
-          required:
-          - property
-          description: 'Matches items that have a value for the specified property.
-
-            '
-          type: object
-          properties:
-            property:
-              $ref: '#/components/schemas/SequencesFilterProperty'
-    SequencesCardinalityPropertiesAggregate:
-      title: CardinalityProperties
-      allOf:
-      - type: object
-        required:
-        - aggregate
-        properties:
-          aggregate:
-            description: 'The `cardinalityProperties` aggregation gets, from the sequences that match the filter(s),
-
-              the approximate number of unique properties whose property path begins with the given `path`.
-
-              Currently, the only supported value for `path` is `["metadata"]`, which means that this aggregation
-
-              will get the approximate size of the set of unique metadata keys.
-
-              '
-            type: string
-            enum:
-            - cardinalityProperties
-      - $ref: '#/components/schemas/SequencesAggregatePath'
-    PartitionObject:
-      type: object
-      properties:
-        partition:
-          $ref: '#/components/schemas/Partition'
-    CogniteInternalId:
-      description: A server-generated ID for the object.
-      type: integer
-      minimum: 1
-      maximum: 9007199254740991
-      format: int64
-    ObjectPatch:
-      type: object
-      description: Custom, application specific metadata. String key -> String value.
-      oneOf:
-      - $ref: '#/components/schemas/ObjectPatchSet'
-      - $ref: '#/components/schemas/ObjectPatchAddRemove'
-    DataSetInternalId:
-      type: object
-      title: DataSetInternalId
-      required:
-      - id
-      properties:
-        id:
-          $ref: '#/components/schemas/CogniteInternalId'
-    SequencesSearchDTO:
-      type: object
-      properties:
-        filter:
-          $ref: '#/components/schemas/SequenceFilter'
-        search:
-          $ref: '#/components/schemas/SequenceSearch'
-        limit:
-          description: Returns up to this many results.
-          maximum: 1000
-          minimum: 1
-          type: integer
-          format: int32
-          default: 100
-    SequencesAggregateFilter:
-      type: object
-      description: 'A filter DSL (Domain Specific Language) to define aggregate filters.
-
-        '
-      oneOf:
-      - $ref: '#/components/schemas/SequencesBoolAggregateFilter'
-      - $ref: '#/components/schemas/SequencesLeafAggregateFilter'
-    SequencesCountAggregateResponse:
-      type: object
-      title: Count
+      title: UniqueValues
       required:
       - items
       properties:
         items:
           type: array
-          minItems: 1
-          maxItems: 1
           items:
             type: object
             required:
+            - property
             - count
             properties:
+              values:
+                type: array
+                minItems: 1
+                maxItems: 1
+                description: The single element in this array is a value that is taken on by the given property in one or more of the sequences that match the given filters. Note that even if the original value was a number or a boolean, the value will be represented as a string in this array.
+                items:
+                  type: string
+                  maxLength: 255
               count:
                 type: integer
                 format: int64
-                description: The number of sequences that match the given filters.
-    SequencesInAggregateValues:
-      description: 'The property keys or property values (depending on the `aggregate` operation) on which you want to
-
-        filter the intermediate aggregate results.
-
-        '
-      type: array
-      minItems: 1
-      maxItems: 100
-      items:
-        $ref: '#/components/schemas/SequencesInAggregateValue'
+                description: The number of sequences that match the given filters and have the corresponding value for the given property.
     GetSequenceColumnDTO:
       type: object
       required:
@@ -1561,148 +2244,6 @@ components:
           description: The last time this asset was updated in CDF, in milliseconds since Jan 1, 1970.
           format: int64
           readOnly: true
-    AssetIdEither:
-      oneOf:
-      - $ref: '#/components/schemas/AssetInternalId'
-      - $ref: '#/components/schemas/AssetExternalId'
-    DataSetIdEither:
-      oneOf:
-      - $ref: '#/components/schemas/DataSetInternalId'
-      - $ref: '#/components/schemas/DataSetExternalId'
-    DataSequencePostData:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/SequencePostData'
-          minItems: 1
-          maxItems: 1000
-      example:
-        items:
-        - externalId: DL/DRILL412/20190103/T3
-          columns:
-          - Depth
-          - DepthSource
-          - PowerSetting
-          rows:
-          - rowNumber: 1
-            values:
-            - 23331.3
-            - s2
-            - 61
-    SequencesSortItem:
-      type: object
-      required:
-      - property
-      properties:
-        property:
-          type: array
-          description: "Property to sort on.\nSorting can be done on the following properties:\n  | Property                          |\n  |-----------------------------------|\n  | `['assetId']`                     |\n  | `['createdTime']`                 |\n  | `['dataSetId']`                   |\n  | `['description']`                 |\n  | `['externalId']`                  |\n  | `['lastUpdatedTime']`             |\n  | `['metadata', '<someCustomKey>']` |\n  | `['name']`                        |\n  | `['_score_']`                     |"
-          minItems: 1
-          maxItems: 2
-          items:
-            type: string
-            maxLength: 128
-        order:
-          type: string
-          description: 'The `order` attribute is optional and defaults to `desc` for `_score_` and `asc` for all
-
-            other properties.'
-          enum:
-          - asc
-          - desc
-        nulls:
-          type: string
-          description: 'The `nulls` attribute is optional and defaults to `auto`. `auto` is translated to `last`
-
-            for the `asc` order and to `first` for the `desc` order.'
-          enum:
-          - first
-          - last
-          - auto
-          default: auto
-    SequenceChangeDTO:
-      required:
-      - update
-      properties:
-        update:
-          type: object
-          description: A description of changes that should be done to the sequence.
-          properties:
-            name:
-              $ref: '#/components/schemas/SinglePatchString'
-            description:
-              $ref: '#/components/schemas/SinglePatchString'
-            assetId:
-              $ref: '#/components/schemas/SinglePatchLong'
-            externalId:
-              $ref: '#/components/schemas/SinglePatchString'
-            metadata:
-              $ref: '#/components/schemas/ObjectPatch'
-            dataSetId:
-              $ref: '#/components/schemas/SinglePatchLong'
-            columns:
-              $ref: '#/components/schemas/SequenceColumnChangeDTO'
-    SequencesPrefixFilter:
-      type: object
-      title: prefix
-      required:
-      - prefix
-      properties:
-        prefix:
-          required:
-          - property
-          - value
-          description: 'Matches items where the provided property begins with the given text.
-
-            '
-          type: object
-          properties:
-            property:
-              $ref: '#/components/schemas/SequencesFilterProperty'
-            value:
-              $ref: '#/components/schemas/SequencesStringValue'
-    SequencesStringValue:
-      title: String
-      description: 'A value that you wish to find in the provided property.
-
-        '
-      type: string
-      maxLength: 256
-    SequencePostData:
-      type: object
-      oneOf:
-      - required:
-        - id
-        title: Select by Id
-        allOf:
-        - $ref: '#/components/schemas/SequenceDataInsertion'
-        - properties:
-            id:
-              $ref: '#/components/schemas/CogniteInternalId'
-      - required:
-        - externalId
-        title: Select by ExternalId
-        allOf:
-        - $ref: '#/components/schemas/SequenceDataInsertion'
-        - properties:
-            externalId:
-              $ref: '#/components/schemas/CogniteExternalId'
-      example:
-        externalId: DL/DRILL412/20190103/T3
-        columns:
-        - Depth
-        - DepthSource
-        - PowerSetting
-        rows:
-        - rowNumber: 1
-          values:
-          - 23331.3
-          - s2
-          - 61
     SequencesRangeFilter:
       type: object
       title: range
@@ -1743,224 +2284,66 @@ components:
               $ref: '#/components/schemas/SequencesRangeValue'
             lt:
               $ref: '#/components/schemas/SequencesRangeValue'
-    PostSequenceDTO:
-      required:
-      - columns
+    SequencesUpdateById:
+      title: Select by Id
+      allOf:
+      - $ref: '#/components/schemas/SequenceChangeDTO'
+      - type: object
+        required:
+        - id
+        properties:
+          id:
+            $ref: '#/components/schemas/CogniteInternalId'
+    ObjectPatch:
       type: object
-      description: Describes a new sequence.
+      description: Custom, application specific metadata. String key -> String value.
+      oneOf:
+      - $ref: '#/components/schemas/ObjectPatchSet'
+      - $ref: '#/components/schemas/ObjectPatchAddRemove'
+    AssetExternalId:
+      type: object
+      required:
+      - externalId
       properties:
-        name:
-          type: string
-          example: Any relevant name
-          description: Name of the sequence.
-          maxLength: 255
-        description:
-          type: string
-          example: Optional description
-          description: Description of the sequence.
-          maxLength: 1000
-        assetId:
-          type: integer
-          example: 1221123111
-          description: Optional asset this sequence is associated with.
-          format: int64
         externalId:
           $ref: '#/components/schemas/CogniteExternalId'
-        metadata:
-          type: object
-          example:
-            extracted-by: cognite
-          description: 'Custom, application specific metadata. String key -> String value. Maximum length of key is 128 bytes, up to 256 key-value pairs, up to a total size of 10000 bytes across all keys and values.
-
-            '
-          additionalProperties:
-            type: string
+    DataSetIdEither:
+      oneOf:
+      - $ref: '#/components/schemas/DataSetInternalId'
+      - $ref: '#/components/schemas/DataSetExternalId'
+    SequenceDataInsertion:
+      type: object
+      required:
+      - columns
+      - rows
+      description: Data from a sequence.
+      properties:
         columns:
           type: array
-          description: List of column definitions. Maximum number of numeric columns is 400. Maximum number of string columns is 200. Maximum total number of columns is 400.
-          items:
-            $ref: '#/components/schemas/PostSequenceColumnDTO'
-          minItems: 1
-          maxItems: 400
-        dataSetId:
-          $ref: '#/components/schemas/DataSetId'
-    SequencesUpdate:
-      oneOf:
-      - $ref: '#/components/schemas/SequencesUpdateById'
-      - $ref: '#/components/schemas/SequencesUpdateByExternalId'
-    SequencesValue:
-      description: 'A value that you wish to find in the provided property.
-
-        '
-      oneOf:
-      - type: string
-        maxLength: 256
-      - type: number
-      - type: integer
-      - type: boolean
-    SequencesContainsAllFilter:
-      type: object
-      title: containsAll
-      required:
-      - containsAll
-      properties:
-        containsAll:
-          required:
-          - property
-          - values
-          description: 'Matches items where the property contains all the given values.
-
-            This filter can only be applied to multivalued properties.
-
-            '
-          type: object
-          properties:
-            property:
-              $ref: '#/components/schemas/SequencesFilterProperty'
-            values:
-              $ref: '#/components/schemas/SequencesValues'
-    RemoveField:
-      title: remove
-      type: object
-      required:
-      - setNull
-      properties:
-        setNull:
-          type: boolean
-          example: true
-    ObjectPatchAddRemove:
-      title: add/remove
-      type: object
-      properties:
-        add:
-          uniqueItems: true
-          type: object
-          description: Add the key-value pairs. Values for existing keys will be overwritten.
-          additionalProperties:
-            type: string
-          example:
-            key1: value1
-            key2: value2
-        remove:
-          uniqueItems: true
-          type: array
-          description: Remove the key-value pairs with the specified keys.
-          example:
-          - value1
-          - value2
+          description: Column external IDs in the same order as the values for each row.
           items:
             type: string
-    SequencesAggregatePath:
+          minItems: 1
+          maxItems: 200
+        rows:
+          type: array
+          description: List of rows. The number of rows per request is limited to 10000. The total number of values, including nulls, in a single request is limited to 100000.
+          items:
+            $ref: '#/components/schemas/SequenceRowDTO'
+          minItems: 1
+          maxItems: 10000
+    AssetInternalId:
       type: object
       required:
-      - path
+      - id
       properties:
-        path:
-          description: The scope within which properties should be aggregated. The only value that is currently allowed is `['metadata']`, which will aggregate metadata keys.
-          type: array
-          minItems: 1
-          maxItems: 1
-          items:
-            type: string
-            enum:
-            - metadata
-    SequenceFilter:
+        id:
+          $ref: '#/components/schemas/CogniteInternalId'
+    PartitionObject:
       type: object
       properties:
-        name:
-          type: string
-          description: Returns only sequences with this name.
-        externalIdPrefix:
-          $ref: '#/components/schemas/CogniteExternalIdPrefix'
-        metadata:
-          description: Filters the sequences by metadata fields and values. Format is {'key1':'value1','key2':'value2'}.
-          example:
-            key1: value1
-            key2: value2
-          type: object
-        assetIds:
-          type: array
-          description: Returns only sequences linked to one of the specified assets.
-          example:
-          - 363848954441724
-          - 793045462540095
-          - 1261042166839739
-          items:
-            $ref: '#/components/schemas/CogniteInternalId'
-          minItems: 1
-          maxItems: 100
-          uniqueItems: true
-        rootAssetIds:
-          type: array
-          description: Only includes sequences that have a related asset in a tree rooted at any of these root `assetIds`.
-          example:
-          - 363848954441724
-          - 793045462540095
-          - 1261042166839739
-          items:
-            $ref: '#/components/schemas/CogniteInternalId'
-          minItems: 1
-          maxItems: 100
-          uniqueItems: true
-        assetSubtreeIds:
-          type: array
-          description: Only includes sequences that have a related asset in a subtree rooted at any of these `assetIds` (including the roots given). If the total size of the given subtrees exceeds 100,000 assets, an error will be returned.
-          example:
-          - id: 1234567890
-          - externalId: externalId123
-          items:
-            $ref: '#/components/schemas/AssetIdEither'
-          minItems: 1
-          maxItems: 100
-          uniqueItems: true
-        createdTime:
-          $ref: '#/components/schemas/EpochTimestampRange'
-        lastUpdatedTime:
-          $ref: '#/components/schemas/EpochTimestampRange'
-        dataSetIds:
-          type: array
-          maxItems: 100
-          uniqueItems: true
-          description: Only includes sequences that belong to these datasets.
-          items:
-            $ref: '#/components/schemas/DataSetIdEither'
-    SequencesPrefixAggregateValue:
-      title: String
-      description: 'A string value that represents either a property key or a property value, depending on the
-
-        `aggregate` operation.
-
-        '
-      type: string
-      maxLength: 256
-    SequencesCardinalityPropertiesAggregateResponse:
-      type: object
-      title: CardinalityProperties
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          minItems: 1
-          maxItems: 1
-          items:
-            type: object
-            required:
-            - count
-            properties:
-              count:
-                type: integer
-                format: int64
-                description: The approximate number of unique properties that begin with the given property path among the sequences that match the given filters.
-    SequencesFilterProperty:
-      description: "The property on which you want to filter. May be either:\n- A single-element list that contains the name of one of the predefined top-level\n  properties, in which case the filter will be applied to that top-level property.\n- A single-element list that contains `'metadata'`, in which case the filter will be applied\n  to _all_ metadata properties.\n- A two-element list where the first element is `'metadata'` and the second one is any\n  string, in which case the filter will be applied to metadata properties with that name.\n"
-      type: array
-      minItems: 1
-      maxItems: 2
-      items:
-        type: string
-        minLength: 1
-        maxLength: 256
+        partition:
+          $ref: '#/components/schemas/Partition'
     DataResourceIdsWithIgnoreUnknownIds:
       type: object
       allOf:
@@ -1985,86 +2368,10 @@ components:
             minItems: 1
             maxItems: 1000
       - $ref: '#/components/schemas/IgnoreUnknownIdsField'
-    SequenceDataDeleteRequestDTO:
-      type: object
-      required:
-      - rows
-      description: Rows to delete from a sequence.
-      properties:
-        rows:
-          type: array
-          items:
-            type: integer
-            example: 1
-            format: int64
-          minItems: 1
-          maxItems: 10000
-    SequencesUniqueValuesAggregate:
-      title: UniqueValues
-      allOf:
-      - type: object
-        required:
-        - aggregate
-        properties:
-          aggregate:
-            description: 'The `uniqueValues` aggregation gets, from the sequences that match the filter(s),
-
-              the set of unique values (up to max 1000) that are taken on by the given property. For each such
-
-              value, the aggregation result will also specify the frequency - that is, the number of sequences
-
-              that match the filter(s) and have that property value. The results are ordered by frequency in
-
-              descending order.
-
-              '
-            type: string
-            enum:
-            - uniqueValues
-      - $ref: '#/components/schemas/SequencesAggregateProperties'
-    SequencesPrefixAggregateFilter:
-      type: object
-      title: prefix
-      required:
-      - prefix
-      properties:
-        prefix:
-          required:
-          - value
-          description: 'Matches intermediate aggregation results where the property key or the property value begins with
-
-            the given text. When the `aggregate` operation is `uniqueProperties` or `cardinalityProperties`,
-
-            property _keys_ will be targeted; when it is `uniqueValues` or `cardinalityValues`, property
-
-            _values_ will be targeted.
-
-            '
-          type: object
-          properties:
-            value:
-              $ref: '#/components/schemas/SequencesPrefixAggregateValue'
-    SequenceDataInsertion:
-      type: object
-      required:
-      - columns
-      - rows
-      description: Data from a sequence.
-      properties:
-        columns:
-          type: array
-          description: Column external IDs in the same order as the values for each row.
-          items:
-            type: string
-          minItems: 1
-          maxItems: 200
-        rows:
-          type: array
-          description: List of rows. The number of rows per request is limited to 10000. The total number of values, including nulls, in a single request is limited to 100000.
-          items:
-            $ref: '#/components/schemas/SequenceRowDTO'
-          minItems: 1
-          maxItems: 10000
+    AssetIdEither:
+      oneOf:
+      - $ref: '#/components/schemas/AssetInternalId'
+      - $ref: '#/components/schemas/AssetExternalId'
     SequencesInAggregateValue:
       description: 'The property key or property value (depending on the `aggregate` operation) on which you want to
 
@@ -2077,342 +2384,15 @@ components:
       - type: number
       - type: integer
       - type: boolean
-    SequencesRangeAggregateValue:
-      description: 'An upper or lower bound for a property key or property value (depending on which `aggregate` was
-
-        specified at the top level of the aggregation request).
-
-        '
-      oneOf:
-      - type: string
-        maxLength: 256
-      - type: number
-      - type: integer
-    SequencesLeafFilter:
-      description: 'Leaf filter.
-
-        '
-      title: Leaf filter
+    DataSetExternalId:
       type: object
-      oneOf:
-      - $ref: '#/components/schemas/SequencesEqualsFilter'
-      - $ref: '#/components/schemas/SequencesInFilter'
-      - $ref: '#/components/schemas/SequencesRangeFilter'
-      - $ref: '#/components/schemas/SequencesPrefixFilter'
-      - $ref: '#/components/schemas/SequencesExistsFilter'
-      - $ref: '#/components/schemas/SequencesContainsAnyFilter'
-      - $ref: '#/components/schemas/SequencesContainsAllFilter'
-      - $ref: '#/components/schemas/SequencesSearchFilter'
-    Error:
-      type: object
+      title: DataSetExternalId
       required:
-      - code
-      - message
-      description: Cognite API error.
-      properties:
-        code:
-          type: integer
-          description: HTTP status code.
-          format: int32
-          example: 401
-        message:
-          type: string
-          description: Error message.
-          example: Could not authenticate.
-        missing:
-          type: array
-          description: List of lookup objects that do not match any results.
-          items:
-            type: object
-            additionalProperties: true
-        duplicated:
-          type: array
-          description: List of objects that are not unique.
-          items:
-            type: object
-            additionalProperties: true
-    SequencesContainsAnyFilter:
-      type: object
-      title: containsAny
-      required:
-      - containsAny
-      properties:
-        containsAny:
-          required:
-          - property
-          - values
-          description: 'Matches items where the property contains one or more of the given values.
-
-            This filter can only be applied to multivalued properties.
-
-            '
-          type: object
-          properties:
-            property:
-              $ref: '#/components/schemas/SequencesFilterProperty'
-            values:
-              $ref: '#/components/schemas/SequencesValues'
-    Partition:
-      description: 'Splits the data set into `N` partitions.
-
-        The attribute is specified as a "M/N" string, where `M` is a natural number in the interval of `[1, N]`.
-
-        You need to follow the cursors within each partition in order to receive all the data.
-
-
-        To prevent unexpected problems and maximize read throughput, you should at most use 10 (N <= 10) partitions.
-
-
-        When using more than 10 partitions, CDF may reduce the number of partitions silently.
-
-        For example, CDF may reduce the number of partitions to `K = 10` so if you specify an `X/N` `partition` value where `X = 8` and `N = 20` - i.e. `"partition": "8/20"`- then
-
-        CDF will change `N` to `N = K = 10` and process the request.
-
-        But if you  specify the `X/N` `partition` value where `X = 11` (`X > K`) and `N = 20` - i.e. `"partition": "11/20"`- then
-
-        CDF will reply with an empty result list and no cursor in the response.\
-
-
-        In future releases of the resource APIs, Cognite may reject requests if you specify more than 10 partitions.
-
-        When Cognite enforces this behavior, the requests will result in a 400 Bad Request status.
-
-        '
-      type: string
-      example: 1/10
-    BasicGetSequenceColumnInfo:
-      type: object
-      description: Column information returned on data requests.
+      - externalId
       properties:
         externalId:
-          type: string
-          example: DPS1
-          description: User provided column identifier (unique for a given sequence).
-        name:
-          type: string
-          example: Depth sensor 1
-          description: Human readable name of the column.
-        valueType:
-          $ref: '#/components/schemas/SequenceValueTypeEnum'
-    SequencesRangeAggregateFilter:
-      type: object
-      title: range
-      required:
-      - range
-      properties:
-        range:
-          description: "Matches intermediate aggregation results where the property key or the property value is within the\nprovided range. When the `aggregate` operation is `uniqueProperties` or `cardinalityProperties`,\nproperty _keys_ will be targeted; when it is `uniqueValues` or `cardinalityValues`, property \n_values_ will be targeted.\n\nAt least one of the following bounds must be specified:\n- `gte`: Greater than or equal to.\n- `gt`: Greater than.\n- `lte`: Less than or equal to.\n- `lt`: Less than.\n\nIt is not valid to specify both inclusive and exclusive bounds \"on the same side\" together:\nat most one of `lte` and `lt` may be specified, and at most one of `gte` and `gt`.\n\nIn the case of `aggregate` being `uniqueProperties` or `cardinalityProperties`,\n`gte`/`gt`/`lte`/`lt` must be set to a string. In the case of `aggregate` being `uniqueValues` or\n`cardinalityValues`, this filter may only be applied to string properties or number properties,\nwith `gte`/`gt`/`lte`/`lt` containing values of the corresponding type.\n"
-          type: object
-          properties:
-            gte:
-              $ref: '#/components/schemas/SequencesRangeAggregateValue'
-            gt:
-              $ref: '#/components/schemas/SequencesRangeAggregateValue'
-            lte:
-              $ref: '#/components/schemas/SequencesRangeAggregateValue'
-            lt:
-              $ref: '#/components/schemas/SequencesRangeAggregateValue'
-    SequencesCardinalityValuesAggregate:
-      title: CardinalityValues
-      allOf:
-      - type: object
-        required:
-        - aggregate
-        properties:
-          aggregate:
-            description: 'The `cardinalityValues` aggregation gets, from the sequences that match the filter(s),
-
-              the approximate number of unique values that are taken on by the given property.
-
-              '
-            type: string
-            enum:
-            - cardinalityValues
-      - $ref: '#/components/schemas/SequencesAggregateProperties'
-    SetStringField:
-      type: object
-      title: set
-      required:
-      - set
-      properties:
-        set:
-          type: string
-    SequencesSort:
-      type: object
-      properties:
-        sort:
-          description: 'Sort by array of selected properties.
-
-            '
-          type: array
-          minItems: 1
-          maxItems: 2
-          items:
-            $ref: '#/components/schemas/SequencesSortItem'
-    SequenceValueTypeEnum:
-      type: string
-      description: What type the datapoints in a column will have. DOUBLE is restricted to the range [-1E100, 1E100]
-      default: DOUBLE
-      enum:
-      - STRING
-      - DOUBLE
-      - LONG
-    SequenceRowDTO:
-      type: object
-      description: A single row of datapoints.
-      required:
-      - rowNumber
-      - values
-      properties:
-        rowNumber:
-          type: integer
-          description: The row number for this row.
-          example: 1
-          minimum: 0
-          format: int64
-        values:
-          type: array
-          description: List of values in the order defined in the columns field. Number of items must match. Null is accepted for missing values. String values must be no longer than 256 characters.
-          items:
-            $ref: '#/components/schemas/SequenceItemDTO'
-          minItems: 1
-          maxItems: 400
-    SequencesRangeValue:
-      description: An upper or lower bound in a `range` filter.
-      oneOf:
-      - type: string
-        maxLength: 256
-      - type: number
-      - type: integer
-    SinglePatchLong:
-      title: set
-      type: object
-      oneOf:
-      - $ref: '#/components/schemas/SetLongField'
-      - $ref: '#/components/schemas/RemoveField'
-      description: Set a new value for the long, or remove the value.
-    SequencesInFilter:
-      type: object
-      title: in
-      required:
-      - in
-      properties:
-        in:
-          required:
-          - property
-          - values
-          description: 'Matches items where the given property is **exactly** equal to one of the given values.
-
-            This filter can only be applied to single-valued properties.
-
-            '
-          type: object
-          properties:
-            property:
-              $ref: '#/components/schemas/SequencesFilterProperty'
-            values:
-              $ref: '#/components/schemas/SequencesValues'
-    SequencesCardinalityValuesAggregateResponse:
-      type: object
-      title: CardinalityValues
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          minItems: 1
-          maxItems: 1
-          items:
-            type: object
-            required:
-            - count
-            properties:
-              count:
-                type: integer
-                format: int64
-                description: The approximate number of unique values for the given property among the sequences that match the given filters.
-    DataSequenceDataDeleteRequest:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/SequenceDeleteDataRequest'
-          minItems: 1
-          maxItems: 1000
-    SetLongField:
-      type: object
-      required:
-      - set
-      properties:
-        set:
-          type: integer
-          format: int64
-    SequenceColumnChangeDTO:
-      description: "Add, remove, or modify sequence columns. After the update, the number of numeric columns and\ndeleted columns should be â\x89¤ 400; the number of string columns and deleted columns should\nbe â\x89¤ 200; and the number of numeric columns, string columns, and deleted columns should\nbe â\x89¤ 400.\n"
-      properties:
-        modify:
-          type: array
-          description: List of single column updates.
-          items:
-            description: Modify a single sequence column by column externalId
-            required:
-            - externalId
-            - update
-            properties:
-              externalId:
-                $ref: '#/components/schemas/CogniteExternalId'
-              update:
-                type: object
-                description: Modifications to apply to a single column.
-                properties:
-                  description:
-                    $ref: '#/components/schemas/SinglePatchString'
-                  externalId:
-                    $ref: '#/components/schemas/SinglePatchRequiredString'
-                  name:
-                    $ref: '#/components/schemas/SinglePatchString'
-                  metadata:
-                    $ref: '#/components/schemas/ObjectPatch'
-        add:
-          type: array
-          description: List of column definitions to add.
-          items:
-            $ref: '#/components/schemas/PostSequenceColumnDTO'
-        remove:
-          type: array
-          description: List of columns to remove.
-          items:
-            type: object
-            required:
-            - externalId
-            properties:
-              externalId:
-                $ref: '#/components/schemas/CogniteExternalId'
+          $ref: '#/components/schemas/CogniteExternalId'
   parameters:
-    Cursor:
-      name: cursor
-      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
-
-        property, it means that there may be more results, and you should pass that value as the
-
-        `cursor` parameter in the next request.
-
-
-        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
-
-        decoded. Its internal structure is not a part of the public API, and may change without
-
-        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
-
-        '
-      in: query
-      schema:
-        type: string
-        example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
     partition:
       in: query
       name: partition
@@ -2446,13 +2426,27 @@ components:
       schema:
         type: string
         example: 1/10
+    Cursor:
+      name: cursor
+      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
+
+        property, it means that there may be more results, and you should pass that value as the
+
+        `cursor` parameter in the next request.
+
+
+        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
+
+        decoded. Its internal structure is not a part of the public API, and may change without
+
+        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
+
+        '
+      in: query
+      schema:
+        type: string
+        example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
   responses:
-    EmptyResponse:
-      description: Empty response.
-      content:
-        application/json:
-          schema:
-            type: object
     ErrorResponse:
       description: The response for a failed request.
       content:
@@ -2464,6 +2458,12 @@ components:
             properties:
               error:
                 $ref: '#/components/schemas/Error'
+    EmptyResponse:
+      description: Empty response.
+      content:
+        application/json:
+          schema:
+            type: object
   securitySchemes:
     oidc-token:
       type: http

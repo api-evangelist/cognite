@@ -412,6 +412,97 @@ paths:
       description: '> **Required capabilities:** `transformationsAcl:READ`'
 components:
   schemas:
+    ViewInfo:
+      required:
+      - space
+      - externalId
+      - version
+      type: object
+      properties:
+        space:
+          type: string
+          description: Space of the View
+        externalId:
+          type: string
+          description: External ID of the View
+        version:
+          type: string
+          description: Version of the View
+      description: Target view info
+    RawDataSource:
+      required:
+      - type
+      - database
+      - table
+      type: object
+      properties:
+        type:
+          type: string
+          description: The type of the destination resource indicating that the transformation will write to RAW.
+          enum:
+          - raw
+        database:
+          type: string
+          description: The database name.
+        table:
+          type: string
+          description: The table name.
+    ConflictMode:
+      type: string
+      description: Behavior when the data already exists.`upsert` - Create or Update,`abort` - Create and fail when already exists,`update` - update and fail if it does not exist,`delete` - delete the matched rows.
+      enum:
+      - abort
+      - delete
+      - update
+      - upsert
+    ItemsWithCursor_JobRead:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/JobRead'
+        nextCursor:
+          type: string
+          description: Cursor to get the next page of results (if available).
+    CogniteExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
+      type: string
+      maxLength: 255
+      example: my.known.id
+    EdgeType:
+      required:
+      - space
+      - externalId
+      type: object
+      properties:
+        space:
+          type: string
+          description: Space of the type
+        externalId:
+          type: string
+          description: External ID of the type
+      description: Target type of the connection definition
+    AssetCentricDataSource:
+      required:
+      - type
+      type: object
+      properties:
+        type:
+          type: string
+          description: The type of the destination resource.
+          enum:
+          - assets
+          - events
+          - asset_hierarchy
+          - datapoints
+          - string_datapoints
+          - timeseries
+          - sequences
+          - files
+          - labels
+          - relationships
+          - data_sets
     DataModelInfo:
       required:
       - space
@@ -436,6 +527,47 @@ components:
           type: string
           description: Property Identifier of the connection definition in destinationType
       description: Target data model info
+    Items_JobRead:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/JobRead'
+    SequenceRowDataSource:
+      required:
+      - type
+      - externalId
+      type: object
+      properties:
+        type:
+          type: string
+          description: The type of the destination resource indicating that the transformation will write to Sequence Rows.
+          enum:
+          - sequence_rows
+        externalId:
+          type: string
+          description: The externalId of sequence
+    ViewDataSource:
+      required:
+      - type
+      type: object
+      properties:
+        type:
+          type: string
+          description: The type of the destination resource indicating the instance type that the transformation will write to flexible data models.
+          enum:
+          - nodes
+          - edges
+        view:
+          $ref: '#/components/schemas/ViewInfo'
+        edgeType:
+          $ref: '#/components/schemas/EdgeType'
+        instanceSpace:
+          type: string
+          description: The space where the instances(nodes/edges) will be created.
+        autoCreate:
+          $ref: '#/components/schemas/AutoCreateOptions'
     AutoCreateOptions:
       type: object
       description: 'Options to control the automatic creation of related instances when writing to data models. By default, all options are true.
@@ -457,100 +589,6 @@ components:
           description: 'If true (default), missing direct relation targets are automatically created in the destination. If false, the transformation validates relation references and returns a 400 error if a referenced target node doesn''t exist.
 
             '
-    TransformationCogniteInternalId:
-      required:
-      - id
-      type: object
-      properties:
-        id:
-          type: integer
-          description: A server-generated ID for the object.
-          format: int32
-    AssetCentricDataSource:
-      required:
-      - type
-      type: object
-      properties:
-        type:
-          type: string
-          description: The type of the destination resource.
-          enum:
-          - assets
-          - events
-          - asset_hierarchy
-          - datapoints
-          - string_datapoints
-          - timeseries
-          - sequences
-          - files
-          - labels
-          - relationships
-          - data_sets
-    MetricCounter:
-      required:
-      - timestamp
-      - name
-      - count
-      type: object
-      properties:
-        timestamp:
-          type: integer
-          description: 'Time when this metric was recorded: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.'
-          format: int64
-        name:
-          type: string
-          description: Name of the metric. Metrics like `assets.read` mean how many items were fetched from CDF;`assets.create` and `assets.update` inform how many resources were created or updated (note that we count objects as updated even when no field is changed). `requests` says how many HTTP request were made to CDF to complete the job. `requestWithoutRetries` does not count retried requests. Normally, these two metrics should be almost equal, if there is a big difference, it may indicate a problem with rate-limiting.
-          example: assets.read
-        count:
-          type: integer
-          description: The value of this metric
-          format: int64
-    SequenceRowDataSource:
-      required:
-      - type
-      - externalId
-      type: object
-      properties:
-        type:
-          type: string
-          description: The type of the destination resource indicating that the transformation will write to Sequence Rows.
-          enum:
-          - sequence_rows
-        externalId:
-          type: string
-          description: The externalId of sequence
-    TransformationJobStatus:
-      type: string
-      description: Status of the job at the request time.
-      enum:
-      - Completed
-      - Created
-      - Failed
-      - Running
-    TransformationCogniteExternalId:
-      required:
-      - externalId
-      type: object
-      properties:
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-    ViewInfo:
-      required:
-      - space
-      - externalId
-      - version
-      type: object
-      properties:
-        space:
-          type: string
-          description: Space of the View
-        externalId:
-          type: string
-          description: External ID of the View
-        version:
-          type: string
-          description: Version of the View
-      description: Target view info
     JobRead:
       required:
       - id
@@ -625,32 +663,32 @@ components:
         status:
           $ref: '#/components/schemas/TransformationJobStatus'
       description: Details for the last finished job of this transformation
-    RawDataSource:
+    MetricCounter:
       required:
-      - type
-      - database
-      - table
+      - timestamp
+      - name
+      - count
       type: object
       properties:
-        type:
+        timestamp:
+          type: integer
+          description: 'Time when this metric was recorded: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.'
+          format: int64
+        name:
           type: string
-          description: The type of the destination resource indicating that the transformation will write to RAW.
-          enum:
-          - raw
-        database:
-          type: string
-          description: The database name.
-        table:
-          type: string
-          description: The table name.
-    ConflictMode:
-      type: string
-      description: Behavior when the data already exists.`upsert` - Create or Update,`abort` - Create and fail when already exists,`update` - update and fail if it does not exist,`delete` - delete the matched rows.
-      enum:
-      - abort
-      - delete
-      - update
-      - upsert
+          description: Name of the metric. Metrics like `assets.read` mean how many items were fetched from CDF;`assets.create` and `assets.update` inform how many resources were created or updated (note that we count objects as updated even when no field is changed). `requests` says how many HTTP request were made to CDF to complete the job. `requestWithoutRetries` does not count retried requests. Normally, these two metrics should be almost equal, if there is a big difference, it may indicate a problem with rate-limiting.
+          example: assets.read
+        count:
+          type: integer
+          description: The value of this metric
+          format: int64
+    TransformationCogniteExternalId:
+      required:
+      - externalId
+      type: object
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
     DataModelSource:
       required:
       - type
@@ -669,43 +707,6 @@ components:
           description: The space where the instances will be created.
         autoCreate:
           $ref: '#/components/schemas/AutoCreateOptions'
-    Items_MetricCounter:
-      type: object
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/MetricCounter'
-    ViewDataSource:
-      required:
-      - type
-      type: object
-      properties:
-        type:
-          type: string
-          description: The type of the destination resource indicating the instance type that the transformation will write to flexible data models.
-          enum:
-          - nodes
-          - edges
-        view:
-          $ref: '#/components/schemas/ViewInfo'
-        edgeType:
-          $ref: '#/components/schemas/EdgeType'
-        instanceSpace:
-          type: string
-          description: The space where the instances(nodes/edges) will be created.
-        autoCreate:
-          $ref: '#/components/schemas/AutoCreateOptions'
-    ItemsWithCursor_JobRead:
-      type: object
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/JobRead'
-        nextCursor:
-          type: string
-          description: Cursor to get the next page of results (if available).
     ItemsWithIgnoreUnknownIds_CogniteInternalId:
       type: object
       properties:
@@ -717,31 +718,30 @@ components:
           type: boolean
           description: Ignore IDs and external IDs that are not found. Defaults to false.
       description: All provided IDs and external IDs must be unique.
-    CogniteExternalId:
-      description: The external ID provided by the client. Must be unique for the resource type.
+    TransformationJobStatus:
       type: string
-      maxLength: 255
-      example: my.known.id
-    Items_JobRead:
+      description: Status of the job at the request time.
+      enum:
+      - Completed
+      - Created
+      - Failed
+      - Running
+    Items_MetricCounter:
       type: object
       properties:
         items:
           type: array
           items:
-            $ref: '#/components/schemas/JobRead'
-    EdgeType:
+            $ref: '#/components/schemas/MetricCounter'
+    TransformationCogniteInternalId:
       required:
-      - space
-      - externalId
+      - id
       type: object
       properties:
-        space:
-          type: string
-          description: Space of the type
-        externalId:
-          type: string
-          description: External ID of the type
-      description: Target type of the connection definition
+        id:
+          type: integer
+          description: A server-generated ID for the object.
+          format: int32
   securitySchemes:
     oidc-token:
       type: http

@@ -74,71 +74,6 @@ paths:
         source: "expression = '''\n    123\n    + ts{id:123}\n    + ts{externalId:'abc'}\n    + ts{space:'my-space',externalId:'my-ts-xid'}\n'''\ndps = client.time_series.data.synthetic.query(\n    expressions=expression,\n    start=\"2w-ago\",\n    end=\"now\")\n\nfrom cognite.client.data_classes.data_modeling.ids import NodeId\nts = client.time_series.retrieve(id=123)\nvariables = {\n    \"A\": ts,\n    \"B\": \"my_ts_external_id\",\n    \"C\": NodeId(\"my-space\", \"my-ts-xid\"),\n}\ndps = client.time_series.data.synthetic.query(\n    expressions=\"A+B+C\", start=\"2w-ago\", end=\"now\", variables=variables)\n\nfrom sympy import symbols, cos, sin\nx, y = symbols(\"x y\")\ndps = client.time_series.data.synthetic.query(\n    [sin(x), y*cos(x)],\n    start=\"2w-ago\",\n    end=\"now\",\n    variables={x: \"foo\", y: \"bar\"},\n    aggregate=\"interpolation\",\n    granularity=\"15m\",\n    target_unit=\"temperature:deg_c\")\n"
 components:
   schemas:
-    SyntheticDataValue:
-      type: object
-      required:
-      - timestamp
-      - value
-      properties:
-        timestamp:
-          $ref: '#/components/schemas/EpochTimestamp'
-        value:
-          type: number
-          description: the data value
-    EpochTimestamp:
-      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-      type: integer
-      minimum: 0
-      format: int64
-      example: 1730204346000
-    SyntheticDataPoint:
-      type: object
-      oneOf:
-      - $ref: '#/components/schemas/SyntheticDataValue'
-      - $ref: '#/components/schemas/SyntheticDataError'
-    TimestampOrStringEnd:
-      oneOf:
-      - type: integer
-      - type: string
-        default: now
-      description: Get datapoints up to, but excluding, this point in time. Same format as for start. Note that when using aggregates, the end will be rounded up such that the last aggregate represents a full aggregation interval containing the original end, where the interval is the granularity unit times the granularity multiplier. For granularity 2d, the aggregation interval is 2 days, if end was originally 3 days after the start, it will be rounded to 4 days after the start.
-    SyntheticMultiQuery:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/SyntheticQuery'
-          minItems: 1
-          maxItems: 10
-    TimestampOrStringStart:
-      oneOf:
-      - type: integer
-        default: 0
-      - type: string
-      description: 'Get datapoints starting from, and including, this time. The format is N[timeunit]-ago where
-
-        timeunit is w,d,h,m,s. Example: ''2d-ago'' gets datapoints that are up to 2 days
-
-        old. You can also specify time in milliseconds since epoch. Note that for aggregates, the start time is rounded down to a whole granularity unit (in UTC timezone). Daily granularities (d)
-
-        are rounded to 0:00 AM; hourly granularities (h) to the start of the hour, etc.'
-    SyntheticQueryResponse:
-      type: object
-      required:
-      - datapoints
-      properties:
-        isString:
-          type: boolean
-          example: false
-          description: whether the returned data points are of string type or floating point type. Currently it will always be false.
-        datapoints:
-          type: array
-          description: list of data points
-          items:
-            $ref: '#/components/schemas/SyntheticDataPoint'
     SyntheticQueryResponses:
       type: object
       required:
@@ -148,18 +83,12 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/SyntheticQueryResponse'
-    SyntheticDataError:
-      type: object
-      required:
-      - timestamp
-      - error
-      properties:
-        timestamp:
-          $ref: '#/components/schemas/EpochTimestamp'
-        error:
-          type: string
-          description: Human readable string with description of what went wrong
-          example: 'Error BAD_DOMAIN: Division by zero'
+    TimestampOrStringEnd:
+      oneOf:
+      - type: integer
+      - type: string
+        default: now
+      description: Get datapoints up to, but excluding, this point in time. Same format as for start. Note that when using aggregates, the end will be rounded up such that the last aggregate represents a full aggregation interval containing the original end, where the interval is the granularity unit times the granularity multiplier. For granularity 2d, the aggregation interval is 2 days, if end was originally 3 days after the start, it will be rounded to 4 days after the start.
     SyntheticQuery:
       type: object
       description: Synthetic query description
@@ -188,6 +117,77 @@ components:
             '
           default: UTC
           example: Europe/Oslo or UTC+05:30
+    SyntheticQueryResponse:
+      type: object
+      required:
+      - datapoints
+      properties:
+        isString:
+          type: boolean
+          example: false
+          description: whether the returned data points are of string type or floating point type. Currently it will always be false.
+        datapoints:
+          type: array
+          description: list of data points
+          items:
+            $ref: '#/components/schemas/SyntheticDataPoint'
+    SyntheticMultiQuery:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SyntheticQuery'
+          minItems: 1
+          maxItems: 10
+    SyntheticDataPoint:
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/SyntheticDataValue'
+      - $ref: '#/components/schemas/SyntheticDataError'
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    TimestampOrStringStart:
+      oneOf:
+      - type: integer
+        default: 0
+      - type: string
+      description: 'Get datapoints starting from, and including, this time. The format is N[timeunit]-ago where
+
+        timeunit is w,d,h,m,s. Example: ''2d-ago'' gets datapoints that are up to 2 days
+
+        old. You can also specify time in milliseconds since epoch. Note that for aggregates, the start time is rounded down to a whole granularity unit (in UTC timezone). Daily granularities (d)
+
+        are rounded to 0:00 AM; hourly granularities (h) to the start of the hour, etc.'
+    SyntheticDataError:
+      type: object
+      required:
+      - timestamp
+      - error
+      properties:
+        timestamp:
+          $ref: '#/components/schemas/EpochTimestamp'
+        error:
+          type: string
+          description: Human readable string with description of what went wrong
+          example: 'Error BAD_DOMAIN: Division by zero'
+    SyntheticDataValue:
+      type: object
+      required:
+      - timestamp
+      - value
+      properties:
+        timestamp:
+          $ref: '#/components/schemas/EpochTimestamp'
+        value:
+          type: number
+          description: the data value
   securitySchemes:
     oidc-token:
       type: http
