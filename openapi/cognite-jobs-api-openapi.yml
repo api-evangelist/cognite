@@ -352,245 +352,139 @@ paths:
 
           '
 components:
-  schemas:
-    ValueFormat:
-      additionalProperties: false
-      properties:
-        type:
-          enum:
-          - value
-          title: Type
-          type: string
-          description: Format type.
-        encoding:
-          $ref: '#/components/schemas/EncodingType'
-        compression:
-          $ref: '#/components/schemas/CompressionType'
-        prefix:
-          $ref: '#/components/schemas/PrefixConfig'
-        dataModels:
-          $ref: '#/components/schemas/DataModels'
-      required:
-      - type
-      title: ValueFormat
-      type: object
-      description: 'Assume the source data is on the form `some string` or `123.456`, and convert these into CDF datapoints, using prefix config to determine the timeseries external ID, and current time as timestamp.
+  parameters:
+    100Limit:
+      name: limit
+      description: Limits the number of results to be returned. The maximum results returned by the server is 100 even if you specify a higher limit.
+      in: query
+      schema:
+        type: integer
+        default: 100
+        minimum: 1
+        maximum: 100
+    Limit:
+      name: limit
+      description: Limits the number of results to be returned. The maximum results returned by the server is 1000 even if you specify a higher limit.
+      in: query
+      schema:
+        type: integer
+        default: 100
+        minimum: 1
+        maximum: 1000
+    Cursor:
+      name: cursor
+      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
 
-        If no prefix config is set, use the topic name as timeseries ID.'
-    Error:
-      type: object
-      required:
-      - code
-      - message
-      description: Cognite API error.
-      properties:
-        code:
-          type: integer
-          description: HTTP status code.
-          format: int32
-          example: 401
-        message:
-          type: string
-          description: Error message.
-          example: Could not authenticate.
-        missing:
-          type: array
-          description: List of lookup objects that do not match any results.
-          items:
-            type: object
-            additionalProperties: true
-        duplicated:
-          type: array
-          description: List of objects that are not unique.
-          items:
-            type: object
-            additionalProperties: true
-    EncodingType:
-      enum:
-      - utf8
-      - utf16
-      - utf16le
-      - latin1
-      title: EncodingType
-      description: 'The type of encoding to convert from.
+        property, it means that there may be more results, and you should pass that value as the
 
-        - `utf8`, UTF-8, default.
+        `cursor` parameter in the next request.
 
-        - `utf16`, UTF-16 big endian.
 
-        - `utf16le`, UTF-16 little endian.
+        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
 
-        - `latin1`, Latin 1, Specifically Windows CP 1252.'
-      type: string
-    Items_CreateJob_:
-      additionalProperties: false
-      properties:
-        items:
-          items:
-            $ref: '#/components/schemas/CreateJob'
-          title: Items
-          type: array
-          minItems: 1
-          maxItems: 10
-      required:
-      - items
-      title: Items[CreateJob]
-      type: object
-    JobConfig:
-      description: 'Source specific job configuration. The type depends on the type of source, and is required for some sources.
+        decoded. Its internal structure is not a part of the public API, and may change without
+
+        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
 
         '
-      title: Job Config
-      oneOf:
-      - $ref: '#/components/schemas/MQTTJobConfig'
-      - $ref: '#/components/schemas/KafkaJobConfig'
-      - $ref: '#/components/schemas/RestJobConfig'
-    RestInterval:
-      enum:
-      - 5m
-      - 15m
-      - 1h
-      - 6h
-      - 12h
-      - 1d
-      title: RestInterval
-      type: string
-    JobTargetStatus:
-      enum:
-      - running
-      - paused
-      title: JobTargetStatus
-      description: The target status of a job. Set this to start or stop the job.
-      type: string
-    ItemsWithIgnoreUnknownIds_ExternalId_:
-      additionalProperties: false
-      properties:
-        items:
-          items:
-            $ref: '#/components/schemas/ExternalIdWrapper'
-          title: Items
-          type: array
-          maxItems: 100
-          minItems: 1
-        ignoreUnknownIds:
-          type: boolean
-          title: IgnoreUnknownIds
-          description: Ignore IDs and external IDs that are not found
-      required:
-      - items
-      title: ItemsWithIgnoreUnknownIds_ExternalId
-      type: object
-    EpochTimestamp:
-      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-      type: integer
-      minimum: 0
-      format: int64
-      example: 1730204346000
-    MQTTJobConfig:
-      additionalProperties: false
-      type: object
-      title: MQTT
-      required:
-      - topicFilter
-      properties:
-        topicFilter:
-          title: TopicFilter
-          type: string
-          description: Topic filter.
-          maxLength: 200
-    Items_JobMetrics_:
-      additionalProperties: false
-      properties:
-        items:
-          items:
-            $ref: '#/components/schemas/JobMetrics'
-          title: Items
-          type: array
-          maxItems: 1000
-          minItems: 0
-      required:
-      - items
-      title: JobMetricsList
-      type: object
-    CogniteExternalId:
-      description: The external ID provided by the client. Must be unique for the resource type.
-      type: string
-      maxLength: 255
-      example: my.known.id
-    JobMetrics:
+      in: query
+      schema:
+        type: string
+        example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+  responses:
+    ValidationError:
+      description: Validation Error
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/ValidationErrorContent'
+    EmptyResponse:
+      description: Empty response.
+      content:
+        application/json:
+          schema:
+            type: object
+    400ErrorResponse:
+      description: The response for a bad request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: 400
+              message: '`null` values aren''t allowed.'
+  schemas:
+    JobLogEntry:
       additionalProperties: false
       properties:
         jobExternalId:
           type: string
-          description: External ID of the job this metrics batch belongs to.
+          description: External ID of the job this log entry belongs to.
           maxLength: 255
-        timestamp:
-          title: Timestamp
-          description: 'The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+        type:
+          type: string
+          enum:
+          - paused
+          - startup_error
+          - connection_error
+          - connected
+          - transform_error
+          - cdf_write_error
+          - ok
+          description: 'Type of log entry.
 
-            Metrics are from the UTC hour this timestamp is ingest. For example, if this timestamp is at 01:43:15, the metrics batch contains metrics from 01:00:00 to 01:43:15.'
-          type: integer
-          minimum: 0
-          format: int64
-        sourceMessages:
-          title: SourceMessages
-          minimum: 0
-          format: int64
-          type: integer
-          description: Messages received from the source.
-        cdfInputValues:
-          title: CDFInputValues
-          minimum: 0
-          format: int64
-          type: integer
-          description: Destination resources successfully transformed and passed to CDF.
-        cdfRequests:
-          title: CDFRequests
-          minimum: 0
-          format: int64
-          type: integer
-          description: Requests made to CDF containing data produced by this job.
-        transformFailures:
-          title: TransformFailures
-          minimum: 0
-          format: int64
-          type: integer
-          description: Source messages that failed to transform.
-        cdfWriteFailures:
-          title: CDFWriteFailures
-          minimum: 0
-          format: int64
-          type: integer
-          description: Times the destination received data from transformations, but failed to produce a valid request to CDF.
-        cdfSkippedValues:
-          title: CDFSkippedValues
-          minimum: 0
-          format: int64
-          type: integer
-          description: Values the destination received from the source, then decided to skip due to data type mismatch, invalid content, or other.
-        cdfFailedValues:
-          title: CDFFailedValues
-          minimum: 0
-          format: int64
-          type: integer
-          description: Values the destination was unable to upload to CDF.
-        cdfUploadedValues:
-          title: CDFUploadedValues
-          minimum: 0
-          format: int64
-          type: integer
-          description: Values the destination successfully uploaded to CDF.
+            `paused` indicates that the job has been stopped manually,
+
+            `startup_error` indicates that the job failed to start at all and requires changes to configuration,
+
+            `connected` indicates that the job has connected to the source but did not yet receive any data,
+
+            `transform_error` indicates that the job received data, but it failed to transform,
+
+            `cdf_write_error` indicates that ingesting the data to CDF failed,
+
+            `ok` means that data was successfully ingested to CDF.'
+        message:
+          type: string
+          description: Log message. Not all log entries have messages.
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+      title: JobLogEntry
+      type: object
       required:
       - jobExternalId
-      - timestamp
-      - sourceMessages
-      - cdfInputValues
-      - cdfRequests
-      - transformFailures
-      - cdfWriteFailures
-      - cdfSkippedValues
-      - cdfFailedValues
-      - cdfUploadedValues
+      - type
+      - createdTime
+    KafkaJobConfig:
+      additionalProperties: false
+      type: object
+      title: Kafka
+      required:
+      - topic
+      properties:
+        topic:
+          title: Topic
+          type: string
+          description: Kafka topic to connect to
+          maxLength: 200
+        partitions:
+          title: Partitions
+          type: integer
+          minimum: 1
+          maximum: 10
+          default: 1
+          description: Number of partitions on the topic.
     CreateJob:
       additionalProperties: false
       properties:
@@ -649,507 +543,6 @@ components:
       - format
       title: CreateJob
       type: object
-    UpdateItem_DestinationId_:
-      additionalProperties: false
-      properties:
-        set:
-          title: Set
-          type: string
-          maxLength: 255
-      required:
-      - set
-      title: UpdateItem_DestinationId
-      type: object
-      description: Set a new destination this job should write to.
-    PrefixConfig:
-      additionalProperties: false
-      properties:
-        fromTopic:
-          type: boolean
-          title: FromTopic
-          description: Generate the prefix based on the topic of the received message.
-        prefix:
-          type: string
-          title: Prefix
-          description: A fixed prefix to the generated IDs.
-          maxLength: 255
-      title: PrefixConfig
-      description: Generate a prefix for resources created using this format. If both `prefix` and `fromTopic` are set, the generated ID will be on the form `[prefix][topic][id]`
-      type: object
-    UpdateFormat:
-      additionalProperties: false
-      properties:
-        set:
-          discriminator:
-            mapping:
-              cognite: '#/components/schemas/CogniteFormat'
-              custom: '#/components/schemas/WriteCustomFormat'
-              rockwell: '#/components/schemas/RockwellFormat'
-              value: '#/components/schemas/ValueFormat'
-            propertyName: type
-          oneOf:
-          - $ref: '#/components/schemas/RockwellFormat'
-          - $ref: '#/components/schemas/CogniteFormat'
-          - $ref: '#/components/schemas/WriteCustomFormat'
-          - $ref: '#/components/schemas/ValueFormat'
-          title: Set
-          description: The format of the messages from the source. This is used to convert messages coming from the source system to a format that can be inserted into CDF.
-          type: object
-      required:
-      - set
-      title: UpdateFormat
-      type: object
-      description: Set a new format.
-    Items_JobUpdateItem_:
-      additionalProperties: false
-      properties:
-        items:
-          items:
-            $ref: '#/components/schemas/JobUpdateItem'
-          title: Items
-          type: array
-          minLength: 1
-          maxLength: 10
-      required:
-      - items
-      title: UpdateJobList
-      type: object
-    JobUpdateItem:
-      additionalProperties: false
-      properties:
-        externalId:
-          title: External ID
-          $ref: '#/components/schemas/CogniteExternalId'
-        update:
-          $ref: '#/components/schemas/JobUpdate'
-      required:
-      - externalId
-      - update
-      title: UpdateJob
-      type: object
-    CustomFormat:
-      additionalProperties: false
-      properties:
-        type:
-          enum:
-          - custom
-          title: Type
-          type: string
-          description: Format type.
-        mappingId:
-          type: string
-          title: MappingId
-          description: The ID of the mapping used for this format.
-          maxLength: 255
-        encoding:
-          $ref: '#/components/schemas/EncodingType'
-        compression:
-          $ref: '#/components/schemas/CompressionType'
-        expression:
-          type: string
-          title: Expression
-          description: The transformation expression of the mapping given by `mappingId`.
-          maxLength: 2000
-      required:
-      - type
-      - mappingId
-      - expression
-      title: CustomFormat
-      type: object
-    RestJobConfig:
-      additionalProperties: false
-      type: object
-      title: Rest
-      properties:
-        interval:
-          $ref: '#/components/schemas/RestInterval'
-        path:
-          type: string
-          title: Path
-          description: Path of resource to access on the server, without query.
-          minLength: 1
-          maxLength: 2048
-        method:
-          type: string
-          title: Method
-          description: HTTP method to use for each request.
-          enum:
-          - get
-          - post
-          default: get
-        body:
-          title: Body
-          description: 'Initial JSON body to send with request. Only applicable if method is `post`. Maximum of 10000 bytes total.
-
-            '
-        query:
-          type: object
-          title: Query
-          description: 'Query parameters to include in request. String key -> String value. Limits: Maximum 255 characters per key, 2048 per value, and at most 32 pairs.
-
-            '
-          x-maxKeyLength: 255
-          maxProperties: 32
-          additionalProperties:
-            type: string
-            maxLength: 2048
-        headers:
-          type: object
-          title: Query
-          description: 'Headers to include in request. String key -> String value. Limits: Maximum 255 characters per key, 2048 per value, and at most 32 pairs.
-
-            '
-          x-maxKeyLength: 255
-          maxProperties: 32
-          additionalProperties:
-            type: string
-            maxLength: 2048
-        incrementalLoad:
-          type: object
-          discriminator:
-            mapping:
-              queryParam: '#/components/schemas/QueryParameterConfig'
-              headerValue: '#/components/schemas/HeaderValueConfig'
-              body: '#/components/schemas/BodyPaginationConfig'
-            propertyName: type
-          oneOf:
-          - $ref: '#/components/schemas/QueryParameterConfig'
-          - $ref: '#/components/schemas/HeaderValueConfig'
-          - $ref: '#/components/schemas/BodyPaginationConfig'
-          title: Incremental load
-          description: The format of the messages from the source. This is used to convert messages coming from the source system to a format that can be inserted into CDF.
-        pagination:
-          type: object
-          discriminator:
-            mapping:
-              queryParam: '#/components/schemas/QueryParameterConfig'
-              headerValue: '#/components/schemas/HeaderValueConfig'
-              nextUrl: '#/components/schemas/NextUrlConfig'
-              body: '#/components/schemas/BodyPaginationConfig'
-            propertyName: type
-          oneOf:
-          - $ref: '#/components/schemas/QueryParameterConfig'
-          - $ref: '#/components/schemas/HeaderValueConfig'
-          - $ref: '#/components/schemas/NextUrlConfig'
-          - $ref: '#/components/schemas/BodyPaginationConfig'
-          title: Incremental load
-          description: The format of the messages from the source. This is used to convert messages coming from the source system to a format that can be inserted into CDF.
-      required:
-      - interval
-      - path
-    ItemsWithCursor_MinimalJob_:
-      additionalProperties: false
-      properties:
-        items:
-          items:
-            $ref: '#/components/schemas/MinimalJob'
-          title: Items
-          type: array
-          maxLength: 100
-          minLength: 0
-        nextCursor:
-          type: string
-          title: Next cursor
-          description: Cursor for pagination
-      required:
-      - items
-      title: JobList
-      type: object
-    ValidationErrorContent:
-      type: object
-      required:
-      - code
-      - message
-      description: Cognite API error.
-      properties:
-        code:
-          type: integer
-          description: HTTP status code.
-          format: int32
-          example: 422
-        message:
-          type: string
-          description: Error message.
-          example: 'Extra inputs are not permitted: type'
-    ExternalIdWrapper:
-      additionalProperties: false
-      properties:
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-      required:
-      - externalId
-      title: ExternalIdWrapper
-      type: object
-    JobUpdate:
-      additionalProperties: false
-      properties:
-        destinationId:
-          $ref: '#/components/schemas/UpdateItem_DestinationId_'
-        format:
-          $ref: '#/components/schemas/UpdateFormat'
-        sourceId:
-          $ref: '#/components/schemas/UpdateItem_SourceId_'
-        targetStatus:
-          $ref: '#/components/schemas/UpdateItem_JobTargetStatus_'
-        config:
-          $ref: '#/components/schemas/UpdateItem_JobConfig_'
-      title: JobUpdate
-      type: object
-    KafkaJobConfig:
-      additionalProperties: false
-      type: object
-      title: Kafka
-      required:
-      - topic
-      properties:
-        topic:
-          title: Topic
-          type: string
-          description: Kafka topic to connect to
-          maxLength: 200
-        partitions:
-          title: Partitions
-          type: integer
-          minimum: 1
-          maximum: 10
-          default: 1
-          description: Number of partitions on the topic.
-    RockwellFormat:
-      additionalProperties: false
-      properties:
-        type:
-          enum:
-          - rockwell
-          title: Type
-          type: string
-          description: Format type.
-        encoding:
-          $ref: '#/components/schemas/EncodingType'
-        compression:
-          $ref: '#/components/schemas/CompressionType'
-        prefix:
-          $ref: '#/components/schemas/PrefixConfig'
-        dataModels:
-          $ref: '#/components/schemas/DataModels'
-      required:
-      - type
-      title: RockwellFormat
-      description: Transform data on the Rockwell FactoryTalk format into CDF timeseries
-      type: object
-    UpdateItem_JobConfig_:
-      additionalProperties: false
-      type: object
-      title: UpdateItem_JobConfig
-      description: Set a new source specific job config.
-      properties:
-        set:
-          $ref: '#/components/schemas/JobConfig'
-    HeaderValueConfig:
-      additionalProperties: false
-      type: object
-      title: HeaderValueConfig
-      required:
-      - key
-      - value
-      - type
-      properties:
-        type:
-          title: Type
-          type: string
-          enum:
-          - headerValue
-        key:
-          title: Key
-          type: string
-          description: Key to insert the generated value into
-        value:
-          title: Value
-          type: string
-          description: Expression that will be evaluated, and its result used as a header value
-    Items_JobLogEntry_:
-      additionalProperties: false
-      properties:
-        items:
-          items:
-            $ref: '#/components/schemas/JobLogEntry'
-          title: Items
-          type: array
-          maxLength: 1000
-          minLength: 0
-      required:
-      - items
-      title: JobLogEntryList
-      type: object
-    CogniteFormat:
-      additionalProperties: false
-      properties:
-        type:
-          enum:
-          - cognite
-          title: Type
-          type: string
-          description: Format type.
-        encoding:
-          $ref: '#/components/schemas/EncodingType'
-        compression:
-          $ref: '#/components/schemas/CompressionType'
-        prefix:
-          $ref: '#/components/schemas/PrefixConfig'
-        dataModels:
-          $ref: '#/components/schemas/DataModels'
-      required:
-      - type
-      title: CogniteFormat
-      type: object
-      description: Convert from the special cognite format to CDF datapoints.
-    NextUrlConfig:
-      additionalProperties: false
-      type: object
-      title: HeaderValueConfig
-      required:
-      - type
-      - value
-      properties:
-        type:
-          title: Type
-          type: string
-          enum:
-          - nextUrl
-        value:
-          title: Value
-          type: string
-          description: Expression yielding the next URL to call
-    UpdateItem_JobTargetStatus_:
-      additionalProperties: false
-      properties:
-        set:
-          $ref: '#/components/schemas/JobTargetStatus'
-      required:
-      - set
-      title: UpdateItem_JobTargetStatus
-      type: object
-      description: Set a new job target status.
-    QueryParameterConfig:
-      additionalProperties: false
-      type: object
-      title: QueryParameterConfig
-      required:
-      - key
-      - value
-      - type
-      properties:
-        type:
-          title: Type
-          type: string
-          enum:
-          - queryParam
-        key:
-          title: Key
-          type: string
-          description: Key to insert the generated value into
-        value:
-          title: Value
-          type: string
-          description: Expression that will be evaluated, and its result used as a query parameter
-    Items_MinimalJob_:
-      additionalProperties: false
-      properties:
-        items:
-          items:
-            $ref: '#/components/schemas/MinimalJob'
-          title: Items
-          type: array
-          maxLength: 100
-          minLength: 0
-      required:
-      - items
-      title: JobList
-      type: object
-    CompressionType:
-      enum:
-      - gzip
-      title: CompressionType
-      description: 'The compression applied to incoming messages. The messages are decompressed before being passed to transformations.
-
-        This is usually not relevant for REST, where this is handled automatically, but MQTT, Kafka, and EventHub have no such mechanisms.'
-      type: string
-    JobLogEntry:
-      additionalProperties: false
-      properties:
-        jobExternalId:
-          type: string
-          description: External ID of the job this log entry belongs to.
-          maxLength: 255
-        type:
-          type: string
-          enum:
-          - paused
-          - startup_error
-          - connection_error
-          - connected
-          - transform_error
-          - cdf_write_error
-          - ok
-          description: 'Type of log entry.
-
-            `paused` indicates that the job has been stopped manually,
-
-            `startup_error` indicates that the job failed to start at all and requires changes to configuration,
-
-            `connected` indicates that the job has connected to the source but did not yet receive any data,
-
-            `transform_error` indicates that the job received data, but it failed to transform,
-
-            `cdf_write_error` indicates that ingesting the data to CDF failed,
-
-            `ok` means that data was successfully ingested to CDF.'
-        message:
-          type: string
-          description: Log message. Not all log entries have messages.
-        createdTime:
-          $ref: '#/components/schemas/EpochTimestamp'
-      title: JobLogEntry
-      type: object
-      required:
-      - jobExternalId
-      - type
-      - createdTime
-    DataModels:
-      type: object
-      additionalProperties: false
-      title: DataModels
-      description: Data models configuration to specify the space for all instances.
-      properties:
-        space:
-          type: string
-          title: Space
-          description: The data models space where time series will be created.
-      required:
-      - space
-    WriteCustomFormat:
-      additionalProperties: false
-      properties:
-        type:
-          enum:
-          - custom
-          title: Type
-          type: string
-          description: Format type.
-        encoding:
-          $ref: '#/components/schemas/EncodingType'
-        compression:
-          $ref: '#/components/schemas/CompressionType'
-        mappingId:
-          title: Mapping ID
-          type: string
-          description: ID of the mapping this format should be tied to.
-          maxLength: 255
-      required:
-      - type
-      - mappingId
-      title: WriteCustomFormat
-      type: object
-      description: Format the source data using a custom mapping.
     MinimalJob:
       additionalProperties: false
       properties:
@@ -1233,7 +626,196 @@ components:
       - config
       title: Job
       type: object
-    UpdateItem_SourceId_:
+    QueryParameterConfig:
+      additionalProperties: false
+      type: object
+      title: QueryParameterConfig
+      required:
+      - key
+      - value
+      - type
+      properties:
+        type:
+          title: Type
+          type: string
+          enum:
+          - queryParam
+        key:
+          title: Key
+          type: string
+          description: Key to insert the generated value into
+        value:
+          title: Value
+          type: string
+          description: Expression that will be evaluated, and its result used as a query parameter
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    Items_JobUpdateItem_:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/JobUpdateItem'
+          title: Items
+          type: array
+          minLength: 1
+          maxLength: 10
+      required:
+      - items
+      title: UpdateJobList
+      type: object
+    Items_CreateJob_:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/CreateJob'
+          title: Items
+          type: array
+          minItems: 1
+          maxItems: 10
+      required:
+      - items
+      title: Items[CreateJob]
+      type: object
+    UpdateFormat:
+      additionalProperties: false
+      properties:
+        set:
+          discriminator:
+            mapping:
+              cognite: '#/components/schemas/CogniteFormat'
+              custom: '#/components/schemas/WriteCustomFormat'
+              rockwell: '#/components/schemas/RockwellFormat'
+              value: '#/components/schemas/ValueFormat'
+            propertyName: type
+          oneOf:
+          - $ref: '#/components/schemas/RockwellFormat'
+          - $ref: '#/components/schemas/CogniteFormat'
+          - $ref: '#/components/schemas/WriteCustomFormat'
+          - $ref: '#/components/schemas/ValueFormat'
+          title: Set
+          description: The format of the messages from the source. This is used to convert messages coming from the source system to a format that can be inserted into CDF.
+          type: object
+      required:
+      - set
+      title: UpdateFormat
+      type: object
+      description: Set a new format.
+    CogniteFormat:
+      additionalProperties: false
+      properties:
+        type:
+          enum:
+          - cognite
+          title: Type
+          type: string
+          description: Format type.
+        encoding:
+          $ref: '#/components/schemas/EncodingType'
+        compression:
+          $ref: '#/components/schemas/CompressionType'
+        prefix:
+          $ref: '#/components/schemas/PrefixConfig'
+        dataModels:
+          $ref: '#/components/schemas/DataModels'
+      required:
+      - type
+      title: CogniteFormat
+      type: object
+      description: Convert from the special cognite format to CDF datapoints.
+    CogniteExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
+      type: string
+      maxLength: 255
+      example: my.known.id
+    ExternalIdWrapper:
+      additionalProperties: false
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+      required:
+      - externalId
+      title: ExternalIdWrapper
+      type: object
+    ValidationErrorContent:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 422
+        message:
+          type: string
+          description: Error message.
+          example: 'Extra inputs are not permitted: type'
+    JobUpdateItem:
+      additionalProperties: false
+      properties:
+        externalId:
+          title: External ID
+          $ref: '#/components/schemas/CogniteExternalId'
+        update:
+          $ref: '#/components/schemas/JobUpdate'
+      required:
+      - externalId
+      - update
+      title: UpdateJob
+      type: object
+    WriteCustomFormat:
+      additionalProperties: false
+      properties:
+        type:
+          enum:
+          - custom
+          title: Type
+          type: string
+          description: Format type.
+        encoding:
+          $ref: '#/components/schemas/EncodingType'
+        compression:
+          $ref: '#/components/schemas/CompressionType'
+        mappingId:
+          title: Mapping ID
+          type: string
+          description: ID of the mapping this format should be tied to.
+          maxLength: 255
+      required:
+      - type
+      - mappingId
+      title: WriteCustomFormat
+      type: object
+      description: Format the source data using a custom mapping.
+    DataModels:
+      type: object
+      additionalProperties: false
+      title: DataModels
+      description: Data models configuration to specify the space for all instances.
+      properties:
+        space:
+          type: string
+          title: Space
+          description: The data models space where time series will be created.
+      required:
+      - space
+    UpdateItem_JobConfig_:
+      additionalProperties: false
+      type: object
+      title: UpdateItem_JobConfig
+      description: Set a new source specific job config.
+      properties:
+        set:
+          $ref: '#/components/schemas/JobConfig'
+    UpdateItem_DestinationId_:
       additionalProperties: false
       properties:
         set:
@@ -1242,9 +824,186 @@ components:
           maxLength: 255
       required:
       - set
-      title: UpdateItem_SourceId
+      title: UpdateItem_DestinationId
       type: object
-      description: Set a new source this job should write to.
+      description: Set a new destination this job should write to.
+    Items_JobLogEntry_:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/JobLogEntry'
+          title: Items
+          type: array
+          maxLength: 1000
+          minLength: 0
+      required:
+      - items
+      title: JobLogEntryList
+      type: object
+    UpdateItem_JobTargetStatus_:
+      additionalProperties: false
+      properties:
+        set:
+          $ref: '#/components/schemas/JobTargetStatus'
+      required:
+      - set
+      title: UpdateItem_JobTargetStatus
+      type: object
+      description: Set a new job target status.
+    Items_JobMetrics_:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/JobMetrics'
+          title: Items
+          type: array
+          maxItems: 1000
+          minItems: 0
+      required:
+      - items
+      title: JobMetricsList
+      type: object
+    HeaderValueConfig:
+      additionalProperties: false
+      type: object
+      title: HeaderValueConfig
+      required:
+      - key
+      - value
+      - type
+      properties:
+        type:
+          title: Type
+          type: string
+          enum:
+          - headerValue
+        key:
+          title: Key
+          type: string
+          description: Key to insert the generated value into
+        value:
+          title: Value
+          type: string
+          description: Expression that will be evaluated, and its result used as a header value
+    JobMetrics:
+      additionalProperties: false
+      properties:
+        jobExternalId:
+          type: string
+          description: External ID of the job this metrics batch belongs to.
+          maxLength: 255
+        timestamp:
+          title: Timestamp
+          description: 'The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+
+            Metrics are from the UTC hour this timestamp is ingest. For example, if this timestamp is at 01:43:15, the metrics batch contains metrics from 01:00:00 to 01:43:15.'
+          type: integer
+          minimum: 0
+          format: int64
+        sourceMessages:
+          title: SourceMessages
+          minimum: 0
+          format: int64
+          type: integer
+          description: Messages received from the source.
+        cdfInputValues:
+          title: CDFInputValues
+          minimum: 0
+          format: int64
+          type: integer
+          description: Destination resources successfully transformed and passed to CDF.
+        cdfRequests:
+          title: CDFRequests
+          minimum: 0
+          format: int64
+          type: integer
+          description: Requests made to CDF containing data produced by this job.
+        transformFailures:
+          title: TransformFailures
+          minimum: 0
+          format: int64
+          type: integer
+          description: Source messages that failed to transform.
+        cdfWriteFailures:
+          title: CDFWriteFailures
+          minimum: 0
+          format: int64
+          type: integer
+          description: Times the destination received data from transformations, but failed to produce a valid request to CDF.
+        cdfSkippedValues:
+          title: CDFSkippedValues
+          minimum: 0
+          format: int64
+          type: integer
+          description: Values the destination received from the source, then decided to skip due to data type mismatch, invalid content, or other.
+        cdfFailedValues:
+          title: CDFFailedValues
+          minimum: 0
+          format: int64
+          type: integer
+          description: Values the destination was unable to upload to CDF.
+        cdfUploadedValues:
+          title: CDFUploadedValues
+          minimum: 0
+          format: int64
+          type: integer
+          description: Values the destination successfully uploaded to CDF.
+      required:
+      - jobExternalId
+      - timestamp
+      - sourceMessages
+      - cdfInputValues
+      - cdfRequests
+      - transformFailures
+      - cdfWriteFailures
+      - cdfSkippedValues
+      - cdfFailedValues
+      - cdfUploadedValues
+    RestInterval:
+      enum:
+      - 5m
+      - 15m
+      - 1h
+      - 6h
+      - 12h
+      - 1d
+      title: RestInterval
+      type: string
+    ItemsWithIgnoreUnknownIds_ExternalId_:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/ExternalIdWrapper'
+          title: Items
+          type: array
+          maxItems: 100
+          minItems: 1
+        ignoreUnknownIds:
+          type: boolean
+          title: IgnoreUnknownIds
+          description: Ignore IDs and external IDs that are not found
+      required:
+      - items
+      title: ItemsWithIgnoreUnknownIds_ExternalId
+      type: object
+    PrefixConfig:
+      additionalProperties: false
+      properties:
+        fromTopic:
+          type: boolean
+          title: FromTopic
+          description: Generate the prefix based on the topic of the received message.
+        prefix:
+          type: string
+          title: Prefix
+          description: A fixed prefix to the generated IDs.
+          maxLength: 255
+      title: PrefixConfig
+      description: Generate a prefix for resources created using this format. If both `prefix` and `fromTopic` are set, the generated ID will be on the form `[prefix][topic][id]`
+      type: object
     BodyPaginationConfig:
       additionalProperties: false
       type: object
@@ -1264,78 +1023,319 @@ components:
           description: 'Expression yielding next message body. Note that body-based pagination is not allowed to be used if `method` is not set to `post`.
 
             '
-  responses:
-    EmptyResponse:
-      description: Empty response.
-      content:
-        application/json:
-          schema:
-            type: object
-    ValidationError:
-      description: Validation Error
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - error
-            properties:
-              error:
-                $ref: '#/components/schemas/ValidationErrorContent'
-    400ErrorResponse:
-      description: The response for a bad request.
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - error
-            properties:
-              error:
-                $ref: '#/components/schemas/Error'
-          example:
-            error:
-              code: 400
-              message: '`null` values aren''t allowed.'
-  parameters:
-    100Limit:
-      name: limit
-      description: Limits the number of results to be returned. The maximum results returned by the server is 100 even if you specify a higher limit.
-      in: query
-      schema:
-        type: integer
-        default: 100
-        minimum: 1
-        maximum: 100
-    Limit:
-      name: limit
-      description: Limits the number of results to be returned. The maximum results returned by the server is 1000 even if you specify a higher limit.
-      in: query
-      schema:
-        type: integer
-        default: 100
-        minimum: 1
-        maximum: 1000
-    Cursor:
-      name: cursor
-      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
-
-        property, it means that there may be more results, and you should pass that value as the
-
-        `cursor` parameter in the next request.
-
-
-        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
-
-        decoded. Its internal structure is not a part of the public API, and may change without
-
-        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
+    ItemsWithCursor_MinimalJob_:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/MinimalJob'
+          title: Items
+          type: array
+          maxLength: 100
+          minLength: 0
+        nextCursor:
+          type: string
+          title: Next cursor
+          description: Cursor for pagination
+      required:
+      - items
+      title: JobList
+      type: object
+    UpdateItem_SourceId_:
+      additionalProperties: false
+      properties:
+        set:
+          title: Set
+          type: string
+          maxLength: 255
+      required:
+      - set
+      title: UpdateItem_SourceId
+      type: object
+      description: Set a new source this job should write to.
+    JobConfig:
+      description: 'Source specific job configuration. The type depends on the type of source, and is required for some sources.
 
         '
-      in: query
-      schema:
-        type: string
-        example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+      title: Job Config
+      oneOf:
+      - $ref: '#/components/schemas/MQTTJobConfig'
+      - $ref: '#/components/schemas/KafkaJobConfig'
+      - $ref: '#/components/schemas/RestJobConfig'
+    RockwellFormat:
+      additionalProperties: false
+      properties:
+        type:
+          enum:
+          - rockwell
+          title: Type
+          type: string
+          description: Format type.
+        encoding:
+          $ref: '#/components/schemas/EncodingType'
+        compression:
+          $ref: '#/components/schemas/CompressionType'
+        prefix:
+          $ref: '#/components/schemas/PrefixConfig'
+        dataModels:
+          $ref: '#/components/schemas/DataModels'
+      required:
+      - type
+      title: RockwellFormat
+      description: Transform data on the Rockwell FactoryTalk format into CDF timeseries
+      type: object
+    CustomFormat:
+      additionalProperties: false
+      properties:
+        type:
+          enum:
+          - custom
+          title: Type
+          type: string
+          description: Format type.
+        mappingId:
+          type: string
+          title: MappingId
+          description: The ID of the mapping used for this format.
+          maxLength: 255
+        encoding:
+          $ref: '#/components/schemas/EncodingType'
+        compression:
+          $ref: '#/components/schemas/CompressionType'
+        expression:
+          type: string
+          title: Expression
+          description: The transformation expression of the mapping given by `mappingId`.
+          maxLength: 2000
+      required:
+      - type
+      - mappingId
+      - expression
+      title: CustomFormat
+      type: object
+    CompressionType:
+      enum:
+      - gzip
+      title: CompressionType
+      description: 'The compression applied to incoming messages. The messages are decompressed before being passed to transformations.
+
+        This is usually not relevant for REST, where this is handled automatically, but MQTT, Kafka, and EventHub have no such mechanisms.'
+      type: string
+    NextUrlConfig:
+      additionalProperties: false
+      type: object
+      title: HeaderValueConfig
+      required:
+      - type
+      - value
+      properties:
+        type:
+          title: Type
+          type: string
+          enum:
+          - nextUrl
+        value:
+          title: Value
+          type: string
+          description: Expression yielding the next URL to call
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
+    RestJobConfig:
+      additionalProperties: false
+      type: object
+      title: Rest
+      properties:
+        interval:
+          $ref: '#/components/schemas/RestInterval'
+        path:
+          type: string
+          title: Path
+          description: Path of resource to access on the server, without query.
+          minLength: 1
+          maxLength: 2048
+        method:
+          type: string
+          title: Method
+          description: HTTP method to use for each request.
+          enum:
+          - get
+          - post
+          default: get
+        body:
+          title: Body
+          description: 'Initial JSON body to send with request. Only applicable if method is `post`. Maximum of 10000 bytes total.
+
+            '
+        query:
+          type: object
+          title: Query
+          description: 'Query parameters to include in request. String key -> String value. Limits: Maximum 255 characters per key, 2048 per value, and at most 32 pairs.
+
+            '
+          x-maxKeyLength: 255
+          maxProperties: 32
+          additionalProperties:
+            type: string
+            maxLength: 2048
+        headers:
+          type: object
+          title: Query
+          description: 'Headers to include in request. String key -> String value. Limits: Maximum 255 characters per key, 2048 per value, and at most 32 pairs.
+
+            '
+          x-maxKeyLength: 255
+          maxProperties: 32
+          additionalProperties:
+            type: string
+            maxLength: 2048
+        incrementalLoad:
+          type: object
+          discriminator:
+            mapping:
+              queryParam: '#/components/schemas/QueryParameterConfig'
+              headerValue: '#/components/schemas/HeaderValueConfig'
+              body: '#/components/schemas/BodyPaginationConfig'
+            propertyName: type
+          oneOf:
+          - $ref: '#/components/schemas/QueryParameterConfig'
+          - $ref: '#/components/schemas/HeaderValueConfig'
+          - $ref: '#/components/schemas/BodyPaginationConfig'
+          title: Incremental load
+          description: The format of the messages from the source. This is used to convert messages coming from the source system to a format that can be inserted into CDF.
+        pagination:
+          type: object
+          discriminator:
+            mapping:
+              queryParam: '#/components/schemas/QueryParameterConfig'
+              headerValue: '#/components/schemas/HeaderValueConfig'
+              nextUrl: '#/components/schemas/NextUrlConfig'
+              body: '#/components/schemas/BodyPaginationConfig'
+            propertyName: type
+          oneOf:
+          - $ref: '#/components/schemas/QueryParameterConfig'
+          - $ref: '#/components/schemas/HeaderValueConfig'
+          - $ref: '#/components/schemas/NextUrlConfig'
+          - $ref: '#/components/schemas/BodyPaginationConfig'
+          title: Incremental load
+          description: The format of the messages from the source. This is used to convert messages coming from the source system to a format that can be inserted into CDF.
+      required:
+      - interval
+      - path
+    MQTTJobConfig:
+      additionalProperties: false
+      type: object
+      title: MQTT
+      required:
+      - topicFilter
+      properties:
+        topicFilter:
+          title: TopicFilter
+          type: string
+          description: Topic filter.
+          maxLength: 200
+    JobUpdate:
+      additionalProperties: false
+      properties:
+        destinationId:
+          $ref: '#/components/schemas/UpdateItem_DestinationId_'
+        format:
+          $ref: '#/components/schemas/UpdateFormat'
+        sourceId:
+          $ref: '#/components/schemas/UpdateItem_SourceId_'
+        targetStatus:
+          $ref: '#/components/schemas/UpdateItem_JobTargetStatus_'
+        config:
+          $ref: '#/components/schemas/UpdateItem_JobConfig_'
+      title: JobUpdate
+      type: object
+    ValueFormat:
+      additionalProperties: false
+      properties:
+        type:
+          enum:
+          - value
+          title: Type
+          type: string
+          description: Format type.
+        encoding:
+          $ref: '#/components/schemas/EncodingType'
+        compression:
+          $ref: '#/components/schemas/CompressionType'
+        prefix:
+          $ref: '#/components/schemas/PrefixConfig'
+        dataModels:
+          $ref: '#/components/schemas/DataModels'
+      required:
+      - type
+      title: ValueFormat
+      type: object
+      description: 'Assume the source data is on the form `some string` or `123.456`, and convert these into CDF datapoints, using prefix config to determine the timeseries external ID, and current time as timestamp.
+
+        If no prefix config is set, use the topic name as timeseries ID.'
+    JobTargetStatus:
+      enum:
+      - running
+      - paused
+      title: JobTargetStatus
+      description: The target status of a job. Set this to start or stop the job.
+      type: string
+    Items_MinimalJob_:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/MinimalJob'
+          title: Items
+          type: array
+          maxLength: 100
+          minLength: 0
+      required:
+      - items
+      title: JobList
+      type: object
+    EncodingType:
+      enum:
+      - utf8
+      - utf16
+      - utf16le
+      - latin1
+      title: EncodingType
+      description: 'The type of encoding to convert from.
+
+        - `utf8`, UTF-8, default.
+
+        - `utf16`, UTF-16 big endian.
+
+        - `utf16le`, UTF-16 little endian.
+
+        - `latin1`, Latin 1, Specifically Windows CP 1252.'
+      type: string
   securitySchemes:
     oidc-token:
       type: http

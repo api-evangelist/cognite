@@ -158,34 +158,6 @@ paths:
           $ref: '#/components/responses/ErrorResponse'
 components:
   schemas:
-    Error:
-      type: object
-      required:
-      - code
-      - message
-      description: Cognite API error.
-      properties:
-        code:
-          type: integer
-          description: HTTP status code.
-          format: int32
-          example: 401
-        message:
-          type: string
-          description: Error message.
-          example: Could not authenticate.
-        missing:
-          type: array
-          description: List of lookup objects that do not match any results.
-          items:
-            type: object
-            additionalProperties: true
-        duplicated:
-          type: array
-          description: List of objects that are not unique.
-          items:
-            type: object
-            additionalProperties: true
     EntityCreateDraft:
       type: object
       required:
@@ -221,18 +193,28 @@ components:
         symbolId:
           description: The external ID of the symbol this diagram entity is detected as
           $ref: '#/components/schemas/CogniteExternalId'
-    EntityUpdateItem:
+    ExternalIdsRequest:
       type: object
       required:
-      - externalId
-      - update
+      - items
       properties:
-        externalId:
-          description: The external ID of the diagram entity
-          $ref: '#/components/schemas/CogniteExternalId'
-        update:
-          description: The properties to be updated
-          $ref: '#/components/schemas/EntityUpdateDraft'
+        items:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            type: object
+            required:
+            - externalId
+            properties:
+              externalId:
+                $ref: '#/components/schemas/CogniteExternalId'
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
     UpdateEntitiesRequest:
       type: object
       required:
@@ -248,6 +230,18 @@ components:
           items:
             type: object
             $ref: '#/components/schemas/EntityUpdateItem'
+    EntityUpdateItem:
+      type: object
+      required:
+      - externalId
+      - update
+      properties:
+        externalId:
+          description: The external ID of the diagram entity
+          $ref: '#/components/schemas/CogniteExternalId'
+        update:
+          description: The properties to be updated
+          $ref: '#/components/schemas/EntityUpdateDraft'
     EntityUpdateDraft:
       type: object
       properties:
@@ -267,33 +261,6 @@ components:
         isUserDetected:
           description: Determines if a diagram entity was detected manually
           type: boolean
-    EpochTimestamp:
-      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-      type: integer
-      minimum: 0
-      format: int64
-      example: 1730204346000
-    ExternalIdsRequest:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          minItems: 1
-          maxItems: 100
-          items:
-            type: object
-            required:
-            - externalId
-            properties:
-              externalId:
-                $ref: '#/components/schemas/CogniteExternalId'
-    CogniteExternalId:
-      description: The external ID provided by the client. Must be unique for the resource type.
-      type: string
-      maxLength: 255
-      example: my.known.id
     DmsId:
       description: A DMS Identifier using the space and externalId
       type: object
@@ -305,9 +272,11 @@ components:
           type: string
         externalId:
           $ref: '#/components/schemas/CogniteExternalId'
-    NextCursorV3:
-      description: The cursor value used to return (paginate to) the next page of results, when more data is available.
+    CogniteExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
       type: string
+      maxLength: 255
+      example: my.known.id
     EntityDto:
       type: object
       required:
@@ -364,20 +333,49 @@ components:
           items:
             type: object
             $ref: '#/components/schemas/EntityCreateDraft'
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
+    NextCursorV3:
+      description: The cursor value used to return (paginate to) the next page of results, when more data is available.
+      type: string
   responses:
-    EntitiesListResponse:
-      description: List of diagram entities
+    ErrorResponse:
+      description: The response for a failed request.
       content:
         application/json:
           schema:
             type: object
             required:
-            - items
+            - error
             properties:
-              items:
-                type: array
-                items:
-                  $ref: '#/components/schemas/EntityDto'
+              error:
+                $ref: '#/components/schemas/Error'
     ExternalIdsResponse:
       description: List of external IDs returned in a response
       content:
@@ -393,17 +391,6 @@ components:
                 maxItems: 100
                 items:
                   $ref: '#/components/schemas/CogniteExternalId'
-    ErrorResponse:
-      description: The response for a failed request.
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - error
-            properties:
-              error:
-                $ref: '#/components/schemas/Error'
     EntitiesListWithCursorResponse:
       description: List of diagram entities with next cursor
       content:
@@ -419,6 +406,19 @@ components:
                   $ref: '#/components/schemas/EntityDto'
               nextCursor:
                 $ref: '#/components/schemas/NextCursorV3'
+    EntitiesListResponse:
+      description: List of diagram entities
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            properties:
+              items:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EntityDto'
   parameters:
     diagramId:
       name: diagramId

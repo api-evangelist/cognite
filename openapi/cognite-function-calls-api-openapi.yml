@@ -275,284 +275,47 @@ paths:
 
           '
 components:
-  schemas:
-    Error:
-      type: object
-      required:
-      - code
-      - message
-      description: Cognite API error.
-      properties:
-        code:
-          type: integer
-          description: HTTP status code.
-          format: int32
-          example: 401
-        message:
-          type: string
-          description: Error message.
-          example: Could not authenticate.
-        missing:
-          type: array
-          description: List of lookup objects that do not match any results.
-          items:
-            type: object
-            additionalProperties: true
-        duplicated:
-          type: array
-          description: List of objects that are not unique.
-          items:
-            type: object
-            additionalProperties: true
-    FunctionCalls:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/FunctionCall'
-    FunctionCallRequest:
-      type: object
-      properties:
-        data:
-          $ref: '#/components/schemas/data'
-        nonce:
-          $ref: '#/components/schemas/nonce'
-      required:
-      - nonce
-    FunctionCallStatus:
-      type: string
-      description: Status of the function call.
-      enum:
-      - Running
-      - Completed
-      - Failed
-      - Timeout
-      example: Running
-    FunctionCallLogEntry:
-      title: FunctionCallLogEntry
-      type: object
-      properties:
-        timestamp:
-          $ref: '#/components/schemas/EpochTimestamp'
-        message:
-          type: string
-          description: Single line from stdout / stderr.
-          example: Did something great
-    EpochTimestamp:
-      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-      type: integer
-      minimum: 0
-      format: int64
-      example: 1730204346000
-    CogniteInternalId:
-      description: A server-generated ID for the object.
-      type: integer
-      minimum: 1
-      maximum: 9007199254740991
-      format: int64
-    FunctionCallFilter:
-      type: object
-      properties:
-        filter:
-          title: FunctionCallFilter
-          type: object
-          properties:
-            scheduleId:
-              $ref: '#/components/schemas/CogniteInternalId'
-            status:
-              $ref: '#/components/schemas/FunctionCallStatus'
-            startTime:
-              $ref: '#/components/schemas/EpochTimestampRange'
-            endTime:
-              $ref: '#/components/schemas/EpochTimestampRange'
-          description: ''
-    IgnoreUnknownIdsField:
-      type: object
-      properties:
-        ignoreUnknownIds:
-          description: Ignore IDs and external IDs that are not found
-          type: boolean
-          default: false
-    nonce:
-      type: string
-      description: Nonce retrieved from sessions API when creating a session. This will be used to bind the session before executing the function. The corresponding access token will be passed to the function and used to instantiate the client of the handle() function. You can create a session via the [Sessions API](#tag/Sessions/operation/createSessions). When using the Python SDK, the session will be created behind the scenes when creating the schedule.
-      writeOnly: true
-    FunctionCallIds:
-      type: object
-      allOf:
-      - type: object
-        required:
-        - items
-        properties:
-          items:
-            type: array
-            items:
-              $ref: '#/components/schemas/FunctionCallId'
-            maxItems: 10000
-            minItems: 1
-    FunctionCallId:
-      type: object
-      required:
-      - id
-      properties:
-        id:
-          $ref: '#/components/schemas/CogniteInternalId'
-    EpochTimestampRange:
-      description: Range between two timestamps (inclusive).
-      type: object
-      properties:
-        max:
-          description: Maximum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-          type: integer
-          minimum: 0
-          format: int64
-        min:
-          description: Minimum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-          type: integer
-          minimum: 0
-          format: int64
-    data:
-      type: object
-      description: Input data to the function (only present if provided on the schedule). This data is passed deserialized into the function through one of the arguments called `data`. **WARNING:** Secrets or other confidential information should not be passed via the `data` object. There is a dedicated `secrets` object in the request body to "Create functions" for this purpose.'
-      example:
-        timeSeriesId1: 13435351
-        maxValue: 4
-    429Error:
-      type: object
-      required:
-      - code
-      - message
-      description: Cognite API throttling.
-      properties:
-        code:
-          type: integer
-          description: 429 HTTP status code.
-          format: int32
-          example: 429
-        message:
-          type: string
-          description: "The error message specifies which kind of throttling happened:\n  - Too many concurrent requests for a single project or an identity.\n  - Too high rate of requests for a single project or an identity.\n\nSee more [here](https://docs.cognite.com/dev/concepts/request_throttling/ \"requests throttling\")."
-          example: Project exceeded maximum number='50' of concurrent requests. Please try again later.
-    FunctionCallListScope:
-      allOf:
-      - $ref: '#/components/schemas/FunctionCallFilter'
-      - $ref: '#/components/schemas/LimitList'
-      - $ref: '#/components/schemas/Cursor'
-    Cursor:
-      type: object
-      properties:
-        cursor:
-          type: string
-          example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
-      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
-
-        property, it means that there may be more results, and you should pass that value as the
-
-        `cursor` parameter in the next request.
-
-
-        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
-
-        decoded. Its internal structure is not a part of the public API, and may change without
-
-        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
-
-        '
-    FunctionCall:
-      title: FunctionCall
-      type: object
-      required:
-      - id
-      - status
-      - startTime
-      - functionId
-      properties:
-        id:
-          $ref: '#/components/schemas/CogniteInternalId'
-        status:
-          $ref: '#/components/schemas/FunctionCallStatus'
-        startTime:
-          $ref: '#/components/schemas/EpochTimestamp'
-        endTime:
-          $ref: '#/components/schemas/EpochTimestamp'
-        error:
-          type: string
-          description: Error message when the call status is Failed or Timeout.
-          example: 'ZeroDivisionError: division by zero'
-        scheduleId:
-          $ref: '#/components/schemas/CogniteInternalId'
-        functionId:
-          $ref: '#/components/schemas/CogniteInternalId'
-        scheduledTime:
-          $ref: '#/components/schemas/EpochTimestamp'
-    FunctionCallsWithCursor:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/FunctionCall'
-        nextCursor:
-          type: string
-          description: Cursor to get the next page of results (if available).
-    LimitList:
-      type: object
-      properties:
-        limit:
-          description: Limits the number of results to be returned.
-          type: integer
-          format: int32
-          minimum: 1
-          default: 100
-  parameters:
-    LimitQuery:
-      name: limit
-      description: Limits the number of results to be returned.
-      in: query
-      schema:
-        type: integer
-        default: 100
-        minimum: 1
-    callId:
-      schema:
-        type: integer
-      name: callId
-      in: path
-      required: true
-      description: The function call id.
-    Cursor:
-      name: cursor
-      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
-
-        property, it means that there may be more results, and you should pass that value as the
-
-        `cursor` parameter in the next request.
-
-
-        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
-
-        decoded. Its internal structure is not a part of the public API, and may change without
-
-        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
-
-        '
-      in: query
-      schema:
-        type: string
-        example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
-    functionId:
-      schema:
-        type: integer
-      name: functionId
-      in: path
-      required: true
-      description: The function id.
   responses:
+    ErrorResponse:
+      description: The response for a failed request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+    FunctionCallResponse:
+      description: OK
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - functionId
+            - callId
+            description: The function response.
+            properties:
+              response:
+                type: object
+              functionId:
+                $ref: '#/components/schemas/CogniteInternalId'
+              callId:
+                $ref: '#/components/schemas/CogniteInternalId'
+          examples:
+            Function response example:
+              value:
+                response:
+                  numAssets: 1234
+                  someCalculation: 3.14
+    FunctionCalled:
+      description: Created
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/FunctionCall'
     FunctionCallLog:
       description: OK
       content:
@@ -586,35 +349,6 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/FunctionCallsWithCursor'
-    FunctionCallResponse:
-      description: OK
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - functionId
-            - callId
-            description: The function response.
-            properties:
-              response:
-                type: object
-              functionId:
-                $ref: '#/components/schemas/CogniteInternalId'
-              callId:
-                $ref: '#/components/schemas/CogniteInternalId'
-          examples:
-            Function response example:
-              value:
-                response:
-                  numAssets: 1234
-                  someCalculation: 3.14
-    FunctionCalled:
-      description: Created
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/FunctionCall'
     429ErrorResponse:
       description: The response for too many requests (concurrency or rate throttling).
       content:
@@ -630,17 +364,283 @@ components:
             error:
               code: 429
               message: Project exceeded maximum number='50' of concurrent requests. Please try again later.
-    ErrorResponse:
-      description: The response for a failed request.
-      content:
-        application/json:
-          schema:
+  schemas:
+    429Error:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API throttling.
+      properties:
+        code:
+          type: integer
+          description: 429 HTTP status code.
+          format: int32
+          example: 429
+        message:
+          type: string
+          description: "The error message specifies which kind of throttling happened:\n  - Too many concurrent requests for a single project or an identity.\n  - Too high rate of requests for a single project or an identity.\n\nSee more [here](https://docs.cognite.com/dev/concepts/request_throttling/ \"requests throttling\")."
+          example: Project exceeded maximum number='50' of concurrent requests. Please try again later.
+    FunctionCalls:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FunctionCall'
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    FunctionCallsWithCursor:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FunctionCall'
+        nextCursor:
+          type: string
+          description: Cursor to get the next page of results (if available).
+    FunctionCallLogEntry:
+      title: FunctionCallLogEntry
+      type: object
+      properties:
+        timestamp:
+          $ref: '#/components/schemas/EpochTimestamp'
+        message:
+          type: string
+          description: Single line from stdout / stderr.
+          example: Did something great
+    CogniteInternalId:
+      description: A server-generated ID for the object.
+      type: integer
+      minimum: 1
+      maximum: 9007199254740991
+      format: int64
+    LimitList:
+      type: object
+      properties:
+        limit:
+          description: Limits the number of results to be returned.
+          type: integer
+          format: int32
+          minimum: 1
+          default: 100
+    FunctionCall:
+      title: FunctionCall
+      type: object
+      required:
+      - id
+      - status
+      - startTime
+      - functionId
+      properties:
+        id:
+          $ref: '#/components/schemas/CogniteInternalId'
+        status:
+          $ref: '#/components/schemas/FunctionCallStatus'
+        startTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        endTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        error:
+          type: string
+          description: Error message when the call status is Failed or Timeout.
+          example: 'ZeroDivisionError: division by zero'
+        scheduleId:
+          $ref: '#/components/schemas/CogniteInternalId'
+        functionId:
+          $ref: '#/components/schemas/CogniteInternalId'
+        scheduledTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+    FunctionCallRequest:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/data'
+        nonce:
+          $ref: '#/components/schemas/nonce'
+      required:
+      - nonce
+    Cursor:
+      type: object
+      properties:
+        cursor:
+          type: string
+          example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
+
+        property, it means that there may be more results, and you should pass that value as the
+
+        `cursor` parameter in the next request.
+
+
+        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
+
+        decoded. Its internal structure is not a part of the public API, and may change without
+
+        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
+
+        '
+    FunctionCallFilter:
+      type: object
+      properties:
+        filter:
+          title: FunctionCallFilter
+          type: object
+          properties:
+            scheduleId:
+              $ref: '#/components/schemas/CogniteInternalId'
+            status:
+              $ref: '#/components/schemas/FunctionCallStatus'
+            startTime:
+              $ref: '#/components/schemas/EpochTimestampRange'
+            endTime:
+              $ref: '#/components/schemas/EpochTimestampRange'
+          description: ''
+    FunctionCallStatus:
+      type: string
+      description: Status of the function call.
+      enum:
+      - Running
+      - Completed
+      - Failed
+      - Timeout
+      example: Running
+    data:
+      type: object
+      description: Input data to the function (only present if provided on the schedule). This data is passed deserialized into the function through one of the arguments called `data`. **WARNING:** Secrets or other confidential information should not be passed via the `data` object. There is a dedicated `secrets` object in the request body to "Create functions" for this purpose.'
+      example:
+        timeSeriesId1: 13435351
+        maxValue: 4
+    nonce:
+      type: string
+      description: Nonce retrieved from sessions API when creating a session. This will be used to bind the session before executing the function. The corresponding access token will be passed to the function and used to instantiate the client of the handle() function. You can create a session via the [Sessions API](#tag/Sessions/operation/createSessions). When using the Python SDK, the session will be created behind the scenes when creating the schedule.
+      writeOnly: true
+    FunctionCallId:
+      type: object
+      required:
+      - id
+      properties:
+        id:
+          $ref: '#/components/schemas/CogniteInternalId'
+    FunctionCallListScope:
+      allOf:
+      - $ref: '#/components/schemas/FunctionCallFilter'
+      - $ref: '#/components/schemas/LimitList'
+      - $ref: '#/components/schemas/Cursor'
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
             type: object
-            required:
-            - error
-            properties:
-              error:
-                $ref: '#/components/schemas/Error'
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
+    IgnoreUnknownIdsField:
+      type: object
+      properties:
+        ignoreUnknownIds:
+          description: Ignore IDs and external IDs that are not found
+          type: boolean
+          default: false
+    FunctionCallIds:
+      type: object
+      allOf:
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
+            items:
+              $ref: '#/components/schemas/FunctionCallId'
+            maxItems: 10000
+            minItems: 1
+    EpochTimestampRange:
+      description: Range between two timestamps (inclusive).
+      type: object
+      properties:
+        max:
+          description: Maximum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+          type: integer
+          minimum: 0
+          format: int64
+        min:
+          description: Minimum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+          type: integer
+          minimum: 0
+          format: int64
+  parameters:
+    callId:
+      schema:
+        type: integer
+      name: callId
+      in: path
+      required: true
+      description: The function call id.
+    functionId:
+      schema:
+        type: integer
+      name: functionId
+      in: path
+      required: true
+      description: The function id.
+    Cursor:
+      name: cursor
+      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
+
+        property, it means that there may be more results, and you should pass that value as the
+
+        `cursor` parameter in the next request.
+
+
+        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
+
+        decoded. Its internal structure is not a part of the public API, and may change without
+
+        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
+
+        '
+      in: query
+      schema:
+        type: string
+        example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+    LimitQuery:
+      name: limit
+      description: Limits the number of results to be returned.
+      in: query
+      schema:
+        type: integer
+        default: 100
+        minimum: 1
   securitySchemes:
     oidc-token:
       type: http

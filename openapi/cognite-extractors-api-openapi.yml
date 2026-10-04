@@ -245,74 +245,6 @@ paths:
           $ref: '#/components/responses/400ErrorResponse'
 components:
   schemas:
-    Error:
-      type: object
-      required:
-      - code
-      - message
-      description: Cognite API error.
-      properties:
-        code:
-          type: integer
-          description: HTTP status code.
-          format: int32
-          example: 401
-        message:
-          type: string
-          description: Error message.
-          example: Could not authenticate.
-        missing:
-          type: array
-          description: List of lookup objects that do not match any results.
-          items:
-            type: object
-            additionalProperties: true
-        duplicated:
-          type: array
-          description: List of objects that are not unique.
-          items:
-            type: object
-            additionalProperties: true
-    EpochTimestamp:
-      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-      type: integer
-      minimum: 0
-      format: int64
-      example: 1730204346000
-    ItemsWithIgnoreUnknownIds_ReleaseId_:
-      additionalProperties: false
-      description: List of release ids with optional ignore unknown ids
-      properties:
-        ignoreUnknownIds:
-          title: Ignore Unknown Ids
-          type: boolean
-        items:
-          items:
-            $ref: '#/components/schemas/ReleaseId'
-          title: Items
-          type: array
-      required:
-      - items
-      title: ItemsWithIgnoreUnknownIds[ReleaseId]
-      type: object
-    CogniteExternalId:
-      description: The external ID provided by the client. Must be unique for the resource type.
-      type: string
-      maxLength: 255
-      example: my.known.id
-    ItemsResponse_Release_:
-      additionalProperties: false
-      description: List of releases
-      properties:
-        items:
-          items:
-            $ref: '#/components/schemas/Release'
-          title: Items
-          type: array
-      required:
-      - items
-      title: ItemsResponse[Release]
-      type: object
     ItemsResponse_SourceSystem_:
       additionalProperties: false
       description: List of source systems
@@ -326,21 +258,77 @@ components:
       - items
       title: ItemsResponse[SourceSystem]
       type: object
-    ReleaseId:
-      additionalProperties: false
-      description: Identifier for a release
+    Artifact:
+      description: An artifact for an extractor release.
       properties:
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-        version:
-          title: Version
+        name:
+          title: Name
           type: string
-          description: Release version number, uses semantic versioning.
+          description: Filename of the artifact.
+        displayName:
+          title: Display Name
+          type: string
+          description: Human readable name of the artifact.
+        link:
+          title: Link
+          type: string
+          description: Link to obtain a temporary download link for the artifact.
+        platform:
+          title: Platform
+          type: string
+          description: Platform the extractor runs on. One of "windows", "linux", "macos", "docs", or "all".
+          enum:
+          - windows
+          - linux
+          - macos
+          - docs
+          - all
       required:
-      - externalId
-      - version
-      title: ReleaseId
+      - link
+      - platform
+      - name
+      title: Artifact
       type: object
+    ItemsResponse_Solution_:
+      additionalProperties: false
+      description: List of source systems
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/Solution'
+          title: Items
+          type: array
+      required:
+      - items
+      title: ItemsResponse[Solution]
+      type: object
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    CogniteExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
+      type: string
+      maxLength: 255
+      example: my.known.id
+    ValidationErrorContent:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 422
+        message:
+          type: string
+          description: Error message.
+          example: 'Extra inputs are not permitted: type'
     SourceSystem:
       description: A source system representing a source extractors may read from.
       type: object
@@ -397,63 +385,6 @@ components:
       - type
       title: Link
       type: object
-    Changelog:
-      description: Extractor changelog, uses the [keep-a-changelog](https://keepachangelog.com/en/1.1.0/) format
-      properties:
-        added:
-          items:
-            type: string
-          title: Added
-          type: array
-          description: Features added to this release.
-        changed:
-          items:
-            type: string
-          title: Changed
-          type: array
-          description: Changes made to the extractor in this release.
-        deprecated:
-          items:
-            type: string
-          title: Deprecated
-          type: array
-          description: Features that have been deprecated, but not yet removed.
-        fixed:
-          items:
-            type: string
-          title: Fixed
-          type: array
-          description: Bugs fixed in this release.
-        removed:
-          items:
-            type: string
-          title: Removed
-          type: array
-          description: Features that have been removed.
-        security:
-          items:
-            type: string
-          title: Security
-          type: array
-          description: Changes that affect security.
-      title: Changelog
-      type: object
-    ValidationErrorContent:
-      type: object
-      required:
-      - code
-      - message
-      description: Cognite API error.
-      properties:
-        code:
-          type: integer
-          description: HTTP status code.
-          format: int32
-          example: 422
-        message:
-          type: string
-          description: Error message.
-          example: 'Extra inputs are not permitted: type'
     ExtractorId:
       description: Identifier for an extractor
       type: object
@@ -462,6 +393,89 @@ components:
       properties:
         externalId:
           $ref: '#/components/schemas/CogniteExternalId'
+    LinkType:
+      description: Enumeration of link types.
+      enum:
+      - generic
+      - externalDocumentation
+      title: LinkType
+    Release:
+      additionalProperties: false
+      description: A release of an extractor
+      properties:
+        artifacts:
+          items:
+            $ref: '#/components/schemas/Artifact'
+          title: Artifacts
+          type: array
+          description: List of artifacts included in this release.
+        changelog:
+          $ref: '#/components/schemas/Changelog'
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        description:
+          title: Description
+          type: string
+          description: Short description of this release. Details are found in the changelog.
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        version:
+          title: Version
+          type: string
+          description: Release version number, uses semantic versioning.
+      required:
+      - externalId
+      - version
+      - artifacts
+      title: Release
+      type: object
+    ItemsWithIgnoreUnknownIds_ReleaseId_:
+      additionalProperties: false
+      description: List of release ids with optional ignore unknown ids
+      properties:
+        ignoreUnknownIds:
+          title: Ignore Unknown Ids
+          type: boolean
+        items:
+          items:
+            $ref: '#/components/schemas/ReleaseId'
+          title: Items
+          type: array
+      required:
+      - items
+      title: ItemsWithIgnoreUnknownIds[ReleaseId]
+      type: object
+    ExtractorsItemsWithIgnoreUnknownIds_ExternalId_:
+      additionalProperties: false
+      description: List of externalIds with optional ignore unknown ids
+      properties:
+        ignoreUnknownIds:
+          title: Ignore Unknown Ids
+          type: boolean
+        items:
+          items:
+            $ref: '#/components/schemas/ExtractorId'
+          title: Items
+          type: array
+      required:
+      - items
+      title: ItemsWithIgnoreUnknownIds[ExternalId]
+      type: object
+    ReleaseId:
+      additionalProperties: false
+      description: Identifier for a release
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        version:
+          title: Version
+          type: string
+          description: Release version number, uses semantic versioning.
+      required:
+      - externalId
+      - version
+      title: ReleaseId
+      type: object
     Extractor:
       description: An extractor instance
       properties:
@@ -515,122 +529,34 @@ components:
       - type
       title: Extractor
       type: object
-    Artifact:
-      description: An artifact for an extractor release.
-      properties:
-        name:
-          title: Name
-          type: string
-          description: Filename of the artifact.
-        displayName:
-          title: Display Name
-          type: string
-          description: Human readable name of the artifact.
-        link:
-          title: Link
-          type: string
-          description: Link to obtain a temporary download link for the artifact.
-        platform:
-          title: Platform
-          type: string
-          description: Platform the extractor runs on. One of "windows", "linux", "macos", "docs", or "all".
-          enum:
-          - windows
-          - linux
-          - macos
-          - docs
-          - all
-      required:
-      - link
-      - platform
-      - name
-      title: Artifact
+    Error:
       type: object
-    ItemsResponse_Extractor_:
-      additionalProperties: false
-      description: List of extractors
+      required:
+      - code
+      - message
+      description: Cognite API error.
       properties:
-        items:
-          items:
-            $ref: '#/components/schemas/Extractor'
-          title: Items
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
           type: array
-      required:
-      - items
-      title: ItemsResponse[Extractor]
-      type: object
-    Release:
-      additionalProperties: false
-      description: A release of an extractor
-      properties:
-        artifacts:
+          description: List of lookup objects that do not match any results.
           items:
-            $ref: '#/components/schemas/Artifact'
-          title: Artifacts
+            type: object
+            additionalProperties: true
+        duplicated:
           type: array
-          description: List of artifacts included in this release.
-        changelog:
-          $ref: '#/components/schemas/Changelog'
-        createdTime:
-          $ref: '#/components/schemas/EpochTimestamp'
-        description:
-          title: Description
-          type: string
-          description: Short description of this release. Details are found in the changelog.
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-        version:
-          title: Version
-          type: string
-          description: Release version number, uses semantic versioning.
-      required:
-      - externalId
-      - version
-      - artifacts
-      title: Release
-      type: object
-    LinkType:
-      description: Enumeration of link types.
-      enum:
-      - generic
-      - externalDocumentation
-      title: LinkType
-    ItemsResponse_Solution_:
-      additionalProperties: false
-      description: List of source systems
-      properties:
-        items:
+          description: List of objects that are not unique.
           items:
-            $ref: '#/components/schemas/Solution'
-          title: Items
-          type: array
-      required:
-      - items
-      title: ItemsResponse[Solution]
-      type: object
-    ExtractorsItemsWithIgnoreUnknownIds_ExternalId_:
-      additionalProperties: false
-      description: List of externalIds with optional ignore unknown ids
-      properties:
-        ignoreUnknownIds:
-          title: Ignore Unknown Ids
-          type: boolean
-        items:
-          items:
-            $ref: '#/components/schemas/ExtractorId'
-          title: Items
-          type: array
-      required:
-      - items
-      title: ItemsWithIgnoreUnknownIds[ExternalId]
-      type: object
-    ItemType:
-      description: Status of this item. "Global" means that it is maintained by Cognite and considered official. "Community" means that it is community made and maintained. "Unreleased" means that it is not yet released and it is visible only as a preview or closed beta.
-      type: string
-      enum:
-      - global
-      - community
-      - unreleased
+            type: object
+            additionalProperties: true
     Solution:
       description: A solution represents a connection between an extractor and a source system it can be configured to read from.
       required:
@@ -660,6 +586,80 @@ components:
           description: External ID of the extractor of this solution.
           maxLength: 255
           minLength: 1
+    Changelog:
+      description: Extractor changelog, uses the [keep-a-changelog](https://keepachangelog.com/en/1.1.0/) format
+      properties:
+        added:
+          items:
+            type: string
+          title: Added
+          type: array
+          description: Features added to this release.
+        changed:
+          items:
+            type: string
+          title: Changed
+          type: array
+          description: Changes made to the extractor in this release.
+        deprecated:
+          items:
+            type: string
+          title: Deprecated
+          type: array
+          description: Features that have been deprecated, but not yet removed.
+        fixed:
+          items:
+            type: string
+          title: Fixed
+          type: array
+          description: Bugs fixed in this release.
+        removed:
+          items:
+            type: string
+          title: Removed
+          type: array
+          description: Features that have been removed.
+        security:
+          items:
+            type: string
+          title: Security
+          type: array
+          description: Changes that affect security.
+      title: Changelog
+      type: object
+    ItemsResponse_Extractor_:
+      additionalProperties: false
+      description: List of extractors
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/Extractor'
+          title: Items
+          type: array
+      required:
+      - items
+      title: ItemsResponse[Extractor]
+      type: object
+    ItemsResponse_Release_:
+      additionalProperties: false
+      description: List of releases
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/Release'
+          title: Items
+          type: array
+      required:
+      - items
+      title: ItemsResponse[Release]
+      type: object
+    ItemType:
+      description: Status of this item. "Global" means that it is maintained by Cognite and considered official. "Community" means that it is community made and maintained. "Unreleased" means that it is not yet released and it is visible only as a preview or closed beta.
+      type: string
+      enum:
+      - global
+      - community
+      - unreleased
   responses:
     ValidationError:
       description: Validation Error

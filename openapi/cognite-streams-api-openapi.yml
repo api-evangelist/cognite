@@ -237,64 +237,54 @@ paths:
         '400':
           $ref: '#/components/responses/ErrorResponse'
 components:
+  responses:
+    ErrorResponse:
+      description: The response for a failed request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+    EmptyResponse:
+      description: Empty response.
+      content:
+        application/json:
+          schema:
+            type: object
+    400ErrorResponse:
+      description: The response for a bad request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: 400
+              message: '`null` values aren''t allowed.'
   schemas:
-    Error:
+    StreamRequestItem:
       type: object
-      required:
-      - code
-      - message
-      description: Cognite API error.
-      properties:
-        code:
-          type: integer
-          description: HTTP status code.
-          format: int32
-          example: 401
-        message:
-          type: string
-          description: Error message.
-          example: Could not authenticate.
-        missing:
-          type: array
-          description: List of lookup objects that do not match any results.
-          items:
-            type: object
-            additionalProperties: true
-        duplicated:
-          type: array
-          description: List of objects that are not unique.
-          items:
-            type: object
-            additionalProperties: true
-    StreamResponseItemSettings:
-      type: object
-      required:
-      - lifecycle
-      - limits
-      title: settings
-      description: 'Stream settings.
-
-        '
-      properties:
-        lifecycle:
-          allOf:
-          - $ref: '#/components/schemas/StreamLifecycleSettings'
-        limits:
-          allOf:
-          - $ref: '#/components/schemas/StreamLimitSettings'
-    StreamDeleteItem:
-      type: object
-      title: streamDeleteItem
-      description: 'Stream identifier to delete.
+      title: stream request item
+      description: 'Stream object.
 
         '
       required:
       - externalId
+      - settings
       properties:
         externalId:
           type: string
           title: streamId
-          description: 'Stream identifier. The identifier must be a valid stream identifier.
+          description: 'Stream identifier. The identifier must be unique within the project and must be a valid stream identifier.
 
             Stream identifiers can only consist of alphanumeric characters, hyphens, and underscores.
 
@@ -307,26 +297,9 @@ components:
           minLength: 1
           maxLength: 100
           example: test_stream_1
-    StreamDeleteRequest:
-      type: object
-      title: streamDeleteRequest
-      description: 'Request to delete a stream.
-
-        '
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          title: streamItems
-          description: 'List of streams to delete. Currently limited to 1 item.
-
-            '
-          minItems: 1
-          maxItems: 1
-          items:
-            allOf:
-            - $ref: '#/components/schemas/StreamDeleteItem'
+        settings:
+          allOf:
+          - $ref: '#/components/schemas/CreateStreamSettings'
     StreamResponse:
       type: object
       title: streamResponse
@@ -345,6 +318,43 @@ components:
           items:
             allOf:
             - $ref: '#/components/schemas/StreamResponseItem'
+    StreamCreateConflict:
+      type: object
+      required:
+      - error
+      properties:
+        error:
+          type: object
+          description: 'Details about the duplicated stream id.
+
+            '
+          required:
+          - code
+          - message
+          properties:
+            code:
+              type: integer
+              description: 'The HTTP status code returned.
+
+                '
+              format: int32
+              example: 409
+              enum:
+              - 409
+            message:
+              type: string
+              description: 'The error which describes the issue.
+
+                '
+            duplicated:
+              type: array
+              description: 'Single stream item in the list that is not unique.
+
+                '
+              items:
+                $ref: '#/components/schemas/StreamCreateConflictItem'
+              minItems: 1
+              maxItems: 1
     StreamCreateConflictItem:
       type: object
       title: streamCreateConflictItem
@@ -361,35 +371,56 @@ components:
 
             '
           example: test1
+    StreamLimit:
+      type: object
+      required:
+      - provisioned
+      properties:
+        provisioned:
+          type: number
+          title: provisioned
+          description: 'Amount of resource provisioned.
+
+            '
+          example: 1000
+        consumed:
+          type: number
+          title: consumed
+          description: 'Amount of resource consumed.
+
+
+            This value will be returned only in a Retrieve stream response,
+
+            and only if ```includeStatistics``` request parameter is ```true```.
+
+            Currently, this value is available for ```maxRecordsTotal``` and
+
+            ```maxGigaBytesTotal``` limits only.
+
+            '
+          example: 999
     EpochTimestamp:
       description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
       type: integer
       minimum: 0
       format: int64
       example: 1730204346000
-    CreateStreamSettings:
+    StreamResponseItemSettings:
       type: object
+      required:
+      - lifecycle
+      - limits
       title: settings
-      description: 'Stream settings which should be applied to a stream.
+      description: 'Stream settings.
 
         '
-      required:
-      - template
       properties:
-        template:
-          type: object
-          description: 'Reference to a template which should be used to define initial settings for the stream.
-
-            '
-          required:
-          - name
-          properties:
-            name:
-              type: string
-              description: 'The stream settings template name.
-
-                '
-              example: ImmutableTestStream
+        lifecycle:
+          allOf:
+          - $ref: '#/components/schemas/StreamLifecycleSettings'
+        limits:
+          allOf:
+          - $ref: '#/components/schemas/StreamLimitSettings'
     StreamResponseItem:
       type: object
       title: streamItem
@@ -461,6 +492,135 @@ components:
         settings:
           allOf:
           - $ref: '#/components/schemas/StreamResponseItemSettings'
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
+    StreamDeleteRequest:
+      type: object
+      title: streamDeleteRequest
+      description: 'Request to delete a stream.
+
+        '
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          title: streamItems
+          description: 'List of streams to delete. Currently limited to 1 item.
+
+            '
+          minItems: 1
+          maxItems: 1
+          items:
+            allOf:
+            - $ref: '#/components/schemas/StreamDeleteItem'
+    StreamDeleteItem:
+      type: object
+      title: streamDeleteItem
+      description: 'Stream identifier to delete.
+
+        '
+      required:
+      - externalId
+      properties:
+        externalId:
+          type: string
+          title: streamId
+          description: 'Stream identifier. The identifier must be a valid stream identifier.
+
+            Stream identifiers can only consist of alphanumeric characters, hyphens, and underscores.
+
+            It must not start with cdf_ or cognite_, as those are reserved for Cognite internal use.
+
+            Stream id cannot be logs or records. Max length is 100 characters.
+
+            '
+          pattern: ^[a-z]([a-z0-9_-]{0,98}[a-z0-9])?$
+          minLength: 1
+          maxLength: 100
+          example: test_stream_1
+    CreateStreamSettings:
+      type: object
+      title: settings
+      description: 'Stream settings which should be applied to a stream.
+
+        '
+      required:
+      - template
+      properties:
+        template:
+          type: object
+          description: 'Reference to a template which should be used to define initial settings for the stream.
+
+            '
+          required:
+          - name
+          properties:
+            name:
+              type: string
+              description: 'The stream settings template name.
+
+                '
+              example: ImmutableTestStream
+    StreamLimitSettings:
+      type: object
+      required:
+      - maxRecordsTotal
+      - maxGigaBytesTotal
+      title: limits
+      description: 'Limits and usage.
+
+        '
+      properties:
+        maxRecordsTotal:
+          title: maxRecordsTotal
+          description: 'Maximum number of records that can be stored in the stream.
+
+            '
+          allOf:
+          - $ref: '#/components/schemas/StreamLimit'
+        maxGigaBytesTotal:
+          title: maxGigaBytesTotal
+          description: 'Maximum amount of data that can be stored in the stream, in gigabytes.
+
+            '
+          allOf:
+          - $ref: '#/components/schemas/StreamLimit'
+        maxFilteringInterval:
+          type: string
+          title: maxFilteringInterval
+          description: 'Maximum length of time that the ```lastUpdatedTime``` filter can retrieve records for,
+
+            in ISO-8601 format. This setting is only available for immutable streams.
+
+            '
+          example: P1Y
     StreamLifecycleSettings:
       type: object
       required:
@@ -506,133 +666,6 @@ components:
 
             '
           example: P42D
-    StreamLimit:
-      type: object
-      required:
-      - provisioned
-      properties:
-        provisioned:
-          type: number
-          title: provisioned
-          description: 'Amount of resource provisioned.
-
-            '
-          example: 1000
-        consumed:
-          type: number
-          title: consumed
-          description: 'Amount of resource consumed.
-
-
-            This value will be returned only in a Retrieve stream response,
-
-            and only if ```includeStatistics``` request parameter is ```true```.
-
-            Currently, this value is available for ```maxRecordsTotal``` and
-
-            ```maxGigaBytesTotal``` limits only.
-
-            '
-          example: 999
-    StreamCreateConflict:
-      type: object
-      required:
-      - error
-      properties:
-        error:
-          type: object
-          description: 'Details about the duplicated stream id.
-
-            '
-          required:
-          - code
-          - message
-          properties:
-            code:
-              type: integer
-              description: 'The HTTP status code returned.
-
-                '
-              format: int32
-              example: 409
-              enum:
-              - 409
-            message:
-              type: string
-              description: 'The error which describes the issue.
-
-                '
-            duplicated:
-              type: array
-              description: 'Single stream item in the list that is not unique.
-
-                '
-              items:
-                $ref: '#/components/schemas/StreamCreateConflictItem'
-              minItems: 1
-              maxItems: 1
-    StreamLimitSettings:
-      type: object
-      required:
-      - maxRecordsTotal
-      - maxGigaBytesTotal
-      title: limits
-      description: 'Limits and usage.
-
-        '
-      properties:
-        maxRecordsTotal:
-          title: maxRecordsTotal
-          description: 'Maximum number of records that can be stored in the stream.
-
-            '
-          allOf:
-          - $ref: '#/components/schemas/StreamLimit'
-        maxGigaBytesTotal:
-          title: maxGigaBytesTotal
-          description: 'Maximum amount of data that can be stored in the stream, in gigabytes.
-
-            '
-          allOf:
-          - $ref: '#/components/schemas/StreamLimit'
-        maxFilteringInterval:
-          type: string
-          title: maxFilteringInterval
-          description: 'Maximum length of time that the ```lastUpdatedTime``` filter can retrieve records for,
-
-            in ISO-8601 format. This setting is only available for immutable streams.
-
-            '
-          example: P1Y
-    StreamRequestItem:
-      type: object
-      title: stream request item
-      description: 'Stream object.
-
-        '
-      required:
-      - externalId
-      - settings
-      properties:
-        externalId:
-          type: string
-          title: streamId
-          description: 'Stream identifier. The identifier must be unique within the project and must be a valid stream identifier.
-
-            Stream identifiers can only consist of alphanumeric characters, hyphens, and underscores.
-
-            It must not start with cdf_ or cognite_, as those are reserved for Cognite internal use.
-
-            Stream id cannot be logs or records. Max length is 100 characters.
-
-            '
-          pattern: ^[a-z]([a-z0-9_-]{0,98}[a-z0-9])?$
-          minLength: 1
-          maxLength: 100
-          example: test_stream_1
-        settings:
-          allOf:
-          - $ref: '#/components/schemas/CreateStreamSettings'
   parameters:
     StreamId:
       name: streamId
@@ -647,39 +680,6 @@ components:
         minLength: 1
         maxLength: 100
         example: test1
-  responses:
-    EmptyResponse:
-      description: Empty response.
-      content:
-        application/json:
-          schema:
-            type: object
-    400ErrorResponse:
-      description: The response for a bad request.
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - error
-            properties:
-              error:
-                $ref: '#/components/schemas/Error'
-          example:
-            error:
-              code: 400
-              message: '`null` values aren''t allowed.'
-    ErrorResponse:
-      description: The response for a failed request.
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - error
-            properties:
-              error:
-                $ref: '#/components/schemas/Error'
   securitySchemes:
     oidc-token:
       type: http

@@ -193,61 +193,60 @@ paths:
           $ref: '#/components/responses/WritebackValidationError'
       summary: Verify SAP Endpoint
 components:
+  responses:
+    ErrorResponse:
+      description: The response for a failed request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+    EmptyResponse:
+      description: Empty response.
+      content:
+        application/json:
+          schema:
+            type: object
+    ConnectionCheck:
+      description: Connection Check Result
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                $ref: '#/components/schemas/ConnectionCheckContent'
+    WritebackValidationError:
+      description: Validation Error
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/WritebackValidationErrorContent'
+    400ErrorResponse:
+      description: The response for a bad request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: 400
+              message: '`null` values aren''t allowed.'
   schemas:
-    Error:
-      type: object
-      required:
-      - code
-      - message
-      description: Cognite API error.
-      properties:
-        code:
-          type: integer
-          description: HTTP status code.
-          format: int32
-          example: 401
-        message:
-          type: string
-          description: Error message.
-          example: Could not authenticate.
-        missing:
-          type: array
-          description: List of lookup objects that do not match any results.
-          items:
-            type: object
-            additionalProperties: true
-        duplicated:
-          type: array
-          description: List of objects that are not unique.
-          items:
-            type: object
-            additionalProperties: true
-    EpochTimestamp:
-      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-      type: integer
-      minimum: 0
-      format: int64
-      example: 1730204346000
-    CogniteExternalId:
-      description: The external ID provided by the client. Must be unique for the resource type.
-      type: string
-      maxLength: 255
-      example: my.known.id
-    ConnectionCheckContent:
-      type: object
-      required:
-      - status
-      - error_message
-      description: Cognite API error.
-      properties:
-        status:
-          type: string
-          title: status
-          description: Connectivity status between the writeback API and the SAP destination endpoint. `success` means that the CDF writeback API has successfully connected to the SAP endpoint destination.
-          default: success
-        detail:
-          type: string
-          description: Description of the connection check
     WritebackExternalIdWrapper:
       additionalProperties: false
       properties:
@@ -271,6 +270,93 @@ components:
       - items
       title: CreateEndpoint list
       type: object
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    CogniteExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
+      type: string
+      maxLength: 255
+      example: my.known.id
+    CreateEndpoint:
+      additionalProperties: false
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        endpointType:
+          title: endpointType
+          type: string
+          description: SAP OData endpoint
+          enum:
+          - notification
+          - attachment
+        instanceId:
+          title: Instance ID
+          description: External ID of the SAP instance the endpoint should connect to.
+          type: string
+          maxLength: 255
+        mappingId:
+          title: SchemaMapping ID
+          description: External ID of the schema mapping this endpoint should use to transform the writeback request.
+          type: string
+          maxLength: 255
+      required:
+      - externalId
+      - endpointType
+      - instanceId
+      title: Instance
+      type: object
+    WritebackItemsWithIgnoreUnknownIds_ExternalId_:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/WritebackExternalIdWrapper'
+          title: Items
+          type: array
+          maxItems: 100
+          minItems: 1
+        ignoreUnknownIds:
+          type: boolean
+          title: IgnoreUnknownIds
+          description: Ignore IDs and external IDs that are not found
+      required:
+      - items
+      title: ItemsWithIgnoreUnknownIds_ExternalId
+      type: object
+    Items_Endpoint_:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/Endpoint'
+          title: Items
+          type: array
+          maxItems: 100
+          minItems: 0
+      required:
+      - items
+      title: InstanceList
+      type: object
+    WritebackValidationErrorContent:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 422
+        message:
+          type: string
+          description: Error message.
+          example: 'Extra inputs are not permitted: type'
     Endpoint:
       additionalProperties: false
       properties:
@@ -305,25 +391,7 @@ components:
       - createdTime
       title: Endpoint
       type: object
-    WritebackItemsWithIgnoreUnknownIds_ExternalId_:
-      additionalProperties: false
-      properties:
-        items:
-          items:
-            $ref: '#/components/schemas/WritebackExternalIdWrapper'
-          title: Items
-          type: array
-          maxItems: 100
-          minItems: 1
-        ignoreUnknownIds:
-          type: boolean
-          title: IgnoreUnknownIds
-          description: Ignore IDs and external IDs that are not found
-      required:
-      - items
-      title: ItemsWithIgnoreUnknownIds_ExternalId
-      type: object
-    WritebackValidationErrorContent:
+    Error:
       type: object
       required:
       - code
@@ -334,11 +402,23 @@ components:
           type: integer
           description: HTTP status code.
           format: int32
-          example: 422
+          example: 401
         message:
           type: string
           description: Error message.
-          example: 'Extra inputs are not permitted: type'
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
     ItemsWithCursor_Endpoint_:
       additionalProperties: false
       properties:
@@ -357,111 +437,22 @@ components:
       - items
       title: EndpointListWithCursor
       type: object
-    CreateEndpoint:
-      additionalProperties: false
-      properties:
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-        endpointType:
-          title: endpointType
-          type: string
-          description: SAP OData endpoint
-          enum:
-          - notification
-          - attachment
-        instanceId:
-          title: Instance ID
-          description: External ID of the SAP instance the endpoint should connect to.
-          type: string
-          maxLength: 255
-        mappingId:
-          title: SchemaMapping ID
-          description: External ID of the schema mapping this endpoint should use to transform the writeback request.
-          type: string
-          maxLength: 255
-      required:
-      - externalId
-      - endpointType
-      - instanceId
-      title: Instance
+    ConnectionCheckContent:
       type: object
-    Items_Endpoint_:
-      additionalProperties: false
-      properties:
-        items:
-          items:
-            $ref: '#/components/schemas/Endpoint'
-          title: Items
-          type: array
-          maxItems: 100
-          minItems: 0
       required:
-      - items
-      title: InstanceList
-      type: object
-  responses:
-    ConnectionCheck:
-      description: Connection Check Result
-      content:
-        application/json:
-          schema:
-            type: object
-            properties:
-              error:
-                $ref: '#/components/schemas/ConnectionCheckContent'
-    EmptyResponse:
-      description: Empty response.
-      content:
-        application/json:
-          schema:
-            type: object
-    ErrorResponse:
-      description: The response for a failed request.
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - error
-            properties:
-              error:
-                $ref: '#/components/schemas/Error'
-    WritebackValidationError:
-      description: Validation Error
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - error
-            properties:
-              error:
-                $ref: '#/components/schemas/WritebackValidationErrorContent'
-    400ErrorResponse:
-      description: The response for a bad request.
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - error
-            properties:
-              error:
-                $ref: '#/components/schemas/Error'
-          example:
-            error:
-              code: 400
-              message: '`null` values aren''t allowed.'
+      - status
+      - error_message
+      description: Cognite API error.
+      properties:
+        status:
+          type: string
+          title: status
+          description: Connectivity status between the writeback API and the SAP destination endpoint. `success` means that the CDF writeback API has successfully connected to the SAP endpoint destination.
+          default: success
+        detail:
+          type: string
+          description: Description of the connection check
   parameters:
-    Writeback100Limit:
-      name: limit
-      description: Limits the number of results to be returned. The maximum results returned by the server is 100 even if you specify a higher limit.
-      in: query
-      schema:
-        type: integer
-        default: 100
-        minimum: 1
-        maximum: 100
     Cursor:
       name: cursor
       description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
@@ -482,6 +473,15 @@ components:
       schema:
         type: string
         example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+    Writeback100Limit:
+      name: limit
+      description: Limits the number of results to be returned. The maximum results returned by the server is 100 even if you specify a higher limit.
+      in: query
+      schema:
+        type: integer
+        default: 100
+        minimum: 1
+        maximum: 100
   securitySchemes:
     oidc-token:
       type: http

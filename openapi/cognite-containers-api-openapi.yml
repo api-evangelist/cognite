@@ -317,63 +317,6 @@ paths:
       description: '> **Required capabilities:** `dataModelsAcl:READ`'
 components:
   schemas:
-    DirectNodeRelation:
-      type: object
-      description: Direct node relation
-      required:
-      - type
-      properties:
-        type:
-          type: string
-          enum:
-          - direct
-        container:
-          description: The (optional) required type for the node the direct relation points to. If specified, the node must exist before the direct relation is referenced and of the specified type. If no container specification is used, the node will be auto created with the built-in ```node``` container type, and it does not explicitly have to be created before the node that references it. For records, the container type constraint is not enforced and targets are not auto-created. Only the target space existence is validated.
-          allOf:
-          - $ref: '#/components/schemas/ContainerReference'
-        list:
-          description: 'Specifies that the data type is a list of values. The ordering of values is preserved.
-
-            '
-          type: boolean
-          default: false
-        maxListSize:
-          type: integer
-          description: Specifies the maximum number of values in the list
-    ConstraintDefinition:
-      type: object
-      description: "Describes a constraint across the properties included.\n\n\nConstraints enforce that;\n * Certain properties must be present,\n * A value must be unique across a single or several properties.\n\nA 'uniqueness' constraint can only apply to properties that are in the same container. Up to 10 'uniqueness' constraints can be added per container. \n\n\nA 'requires' constraint can reference other containers. As a result, the properties in those other containers must then also be set. Up to 25 'requires' constraints can be added per container. "
-      oneOf:
-      - $ref: '#/components/schemas/RequiresConstraintDefinition'
-      - $ref: '#/components/schemas/UniquenessConstraintDefinition'
-    Error:
-      type: object
-      required:
-      - code
-      - message
-      description: Cognite API error.
-      properties:
-        code:
-          type: integer
-          description: HTTP status code.
-          format: int32
-          example: 401
-        message:
-          type: string
-          description: Error message.
-          example: Could not authenticate.
-        missing:
-          type: array
-          description: List of lookup objects that do not match any results.
-          items:
-            type: object
-            additionalProperties: true
-        duplicated:
-          type: array
-          description: List of objects that are not unique.
-          items:
-            type: object
-            additionalProperties: true
     ContainerCommon:
       type: object
       description: Container for properties you can access through views. Container specifications give details about storage related details, such as how to index the data and what constraints should be present.
@@ -397,9 +340,35 @@ components:
           type: string
           description: Description of what the property contains, and how you intend to use it.
           maxLength: 1024
-    RecordDirectNodeRelation:
+    IndexCreateDefinition:
       type: object
-      description: Direct node relation. Only the target space existence is validated for records. Target nodes are not auto-created.
+      description: 'You can optimize query performance by defining an index to apply to a container.  You can only create an index across properties belonging to the same container.
+
+
+
+        Ordering of the properties included in the index definition list is significant.  The order should match the queries you expect. The properties of an index cannot be updated after creation. If you need to change the index, it must be recreated.
+
+
+
+        Indexes have different requirements for the different property data types.  As a result, the create index operation will fail if you specify an invalid combination.
+
+
+
+        Up to 10 indexes can be added on a container. '
+      oneOf:
+      - $ref: '#/components/schemas/BtreeIndexCreateDefinition'
+      - $ref: '#/components/schemas/InvertedIndexCreateDefinition'
+    UniquenessConstraintDefinition:
+      allOf:
+      - $ref: '#/components/schemas/ConstraintState'
+      - $ref: '#/components/schemas/UniquenessConstraintCreateDefinition'
+    RequiresConstraintDefinition:
+      allOf:
+      - $ref: '#/components/schemas/ConstraintState'
+      - $ref: '#/components/schemas/RequiresConstraintCreateDefinition'
+    DirectNodeRelation:
+      type: object
+      description: Direct node relation
       required:
       - type
       properties:
@@ -407,6 +376,10 @@ components:
           type: string
           enum:
           - direct
+        container:
+          description: The (optional) required type for the node the direct relation points to. If specified, the node must exist before the direct relation is referenced and of the specified type. If no container specification is used, the node will be auto created with the built-in ```node``` container type, and it does not explicitly have to be created before the node that references it. For records, the container type constraint is not enforced and targets are not auto-created. Only the target space existence is validated.
+          allOf:
+          - $ref: '#/components/schemas/ContainerReference'
         list:
           description: 'Specifies that the data type is a list of values. The ordering of values is preserved.
 
@@ -416,123 +389,190 @@ components:
         maxListSize:
           type: integer
           description: Specifies the maximum number of values in the list
-    RecordContainerPropertyCreateDefinition:
-      description: Defines a property of a record container. You can reference this property in views.
-      allOf:
-      - $ref: '#/components/schemas/RecordCorePropertyCreateDefinition'
-      - $ref: '#/components/schemas/RecordContainerPropertyTypeDefinition'
-    CorePropertyDefinition:
-      allOf:
-      - $ref: '#/components/schemas/CorePropertyCreateDefinition'
-      - type: object
-        required:
-        - constraintState
-        properties:
-          constraintState:
-            type: object
-            description: 'Describes the validity of constraints defined on this property.
-
-              Not applicable for records.
-
-              '
-            properties:
-              nullability:
-                description: 'For properties that have isNullable set to false, this field describes the validity of the not-null constraint.
-
-                  It is not specified for nullable properties.
-
-
-                  Possible values are:
-
-
-                  * `"failed"`: The property contains null values, violating the constraint. This can occur if a property with existing nulls was made non-nullable. New null values will still be rejected.
-
-                  * `"current"`: The constraint is satisfied; all values in the property are not null.
-
-                  * `"pending"`: The constraint validity has not yet been computed.
-
-                  '
-                $ref: '#/components/schemas/ConstraintOrIndexState'
-              maxListSize:
-                description: 'For list properties with maxListSize set, this field describes the validity of the maxListSize check constraint.
-
-                  It is not specified for properties with isList = false or maxListSize = null.
-
-
-                  Possible values are:
-
-
-                  * `"failed"`: The property contains overly large lists, violating the constraint. This can occur if maxListSize was set on a property with existing values. New overly large list values will still be rejected.
-
-                  * `"current"`: The constraint is satisfied; all list values in the property are within maxListSize.
-
-                  * `"pending"`: The constraint validity has not yet been computed.
-
-                  '
-                $ref: '#/components/schemas/ConstraintOrIndexState'
-              maxTextSize:
-                description: 'For text properties with maxTextSize set, this field describes the validity of the maxTextSize check constraint.
-
-                  It is not specified for non-text properties or properties with maxTextSize = null.
-
-
-                  Possible values are:
-
-
-                  * `"failed"`: The property contains overly big text values, violating the constraint. This can occur if maxTextSize was set on a property with existing values. New overly large text values will still be rejected.
-
-                  * `"current"`: The constraint is satisfied; all text values in the property are within maxTextSize.
-
-                  * `"pending"`: The constraint validity has not yet been computed.
-
-                  '
-                $ref: '#/components/schemas/ConstraintOrIndexState'
-    InvertedIndexDefinition:
-      allOf:
-      - $ref: '#/components/schemas/InvertedIndexCreateDefinition'
-      - $ref: '#/components/schemas/IndexState'
     EpochTimestamp:
       description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
       type: integer
       minimum: 0
       format: int64
       example: 1730204346000
-    ContainerPropertyTypeDefinition:
+    BtreeIndexDefinition:
+      allOf:
+      - $ref: '#/components/schemas/BtreeIndexCreateDefinition'
+      - $ref: '#/components/schemas/IndexState'
+    ConstraintOrIndexState:
+      type: string
+      enum:
+      - current
+      - pending
+      - failed
+    ViewReference:
+      type: object
+      description: Reference to a view
+      required:
+      - type
+      - space
+      - externalId
+      - version
+      properties:
+        type:
+          type: string
+          enum:
+          - view
+        space:
+          description: Id of the space that the view belongs to
+          allOf:
+          - $ref: '#/components/schemas/SpaceSpecification'
+        externalId:
+          description: External-id of the view
+          allOf:
+          - $ref: '#/components/schemas/DMSExternalId'
+        version:
+          description: Version of the view
+          allOf:
+          - $ref: '#/components/schemas/DMSVersion'
+    RecordContainerPropertyCreateDefinition:
+      description: Defines a property of a record container. You can reference this property in views.
+      allOf:
+      - $ref: '#/components/schemas/RecordCorePropertyCreateDefinition'
+      - $ref: '#/components/schemas/RecordContainerPropertyTypeDefinition'
+    RecordContainerPropertyTypeDefinition:
       type: object
       required:
       - type
       properties:
         type:
-          description: "The type of data you can store in this property. Most properties can also hold a list of values, for example, a list of integers or a list of timestamps. The supported storage types are:\n\n\n* text (allows user control of collation),\n * boolean,\n * 32-bit, and 64-bit float,\n * 32-bit, and 64-bit integer,\n * timestamp,\n * date,\n * JSON fragment,\n * direct relation to an existing node,\n * time series external-id reference,\n * file external-id reference,\n * sequence external-id reference,\n * enum.\n\n\nThe JSON fragments have to be valid JSON objects. If JSON arrays are to be stored, these must be wrapped in a JSON object. JSON values (such as string, number, boolean) should use their respective primitive form instead. The maximum allowed size for a JSON object is 40960 bytes. For lists of json values, the size of the entire list must be within this limit. The maximum allowed length of a key is 128, while the maximum allowed size of a value is 10240 bytes and you can have up to 256 key-value pairs. The  byte sizes are computed by representing the data as a UTF-8 encoded JSON string.\nDirect relations use a space external-id, the external-id for an existing node, and the external-id for the data container. E.g. ```s-spaceExternalId.uniqueNodeExternalId.containerExternalId```\nTimestamps must be a string in the format 'YYYY-MM-DDTHH:MM:SS[.millis][Z|time zone]' with optional milliseconds having precision of 1-3 decimal digits and optional timezone with format Â±HH:MM, Â±HHMM, Â±HH or Z, where Z represents UTC, Year must be between 0001 and 9999.\nDates must be a date string in the format 'YYYY-MM-DD'. Year must be between 1 and 9999. "
+          description: "The type of data you can store in this property. Most properties can also hold a list of values, for example, a list of integers or a list of timestamps. The supported storage types are:\n\n\n* text,\n * boolean,\n * 32-bit, and 64-bit float,\n * 32-bit, and 64-bit integer,\n * timestamp,\n * date,\n * JSON fragment,\n * direct relation to an existing node,\n * enum.\n\n\nThe JSON fragments have to be valid JSON objects. If JSON arrays are to be stored, these must be wrapped in a JSON object. JSON values (such as string, number, boolean) should use their respective primitive form instead. The maximum allowed size for a JSON object is 40960 bytes. For lists of json values, the size of the entire list must be within this limit. The maximum allowed length of a key is 128, while the maximum allowed size of a value is 10240 bytes and you can have up to 256 key-value pairs. The  byte sizes are computed by representing the data as a UTF-8 encoded JSON string.\nDirect relations use a space external-id and the external-id for an existing node. Only the target space existence is validated for records.\nTimestamps must be a string in the format 'YYYY-MM-DDTHH:MM:SS[.millis][Z|time zone]' with optional milliseconds having precision of 1-3 decimal digits and optional timezone with format Â±HH:MM, Â±HHMM, Â±HH or Z, where Z represents UTC, Year must be between 0001 and 9999.\nDates must be a date string in the format 'YYYY-MM-DD'. Year must be between 1 and 9999. "
           oneOf:
-          - $ref: '#/components/schemas/TextProperty'
+          - $ref: '#/components/schemas/RecordTextProperty'
           - $ref: '#/components/schemas/PrimitiveProperty'
-          - $ref: '#/components/schemas/CDFExternalIdReference'
-          - $ref: '#/components/schemas/DirectNodeRelation'
+          - $ref: '#/components/schemas/RecordDirectNodeRelation'
           - $ref: '#/components/schemas/EnumProperty'
-    UpsertConflict:
+    InvertedIndexDefinition:
+      allOf:
+      - $ref: '#/components/schemas/InvertedIndexCreateDefinition'
+      - $ref: '#/components/schemas/IndexState'
+    RecordCorePropertyCreateDefinition:
       type: object
-      required:
-      - error
       properties:
-        error:
-          type: object
-          description: Details about the error caused by the upsert/update.
-          required:
-          - code
-          - message
+        nullable:
+          type: boolean
+          description: Does this property need to be set to a value, or not?
+          default: true
+        defaultValue:
+          oneOf:
+          - type: string
+          - type: number
+          - type: boolean
+          - type: object
+          description: "Default value to use when you do not specify a value for the property.  The default value must be of the same type as what you defined for the property itself. \n\n\nWe do not currently support using default values for array/list types. "
+        description:
+          type: string
+          description: Description of the content and suggested use for this property.
+          maxLength: 1024
+        name:
+          type: string
+          description: Readable property name.
+          maxLength: 255
+    InstanceContainerCreateDefinition:
+      title: Instance Container
+      allOf:
+      - $ref: '#/components/schemas/ContainerCommon'
+      - type: object
+        required:
+        - properties
+        properties:
+          usedFor:
+            type: string
+            description: Should this container hold nodes, edges, or both.
+            enum:
+            - node
+            - edge
+            - all
+            default: node
           properties:
-            code:
-              type: integer
-              description: The HTTP status code returned
-              format: int32
-              example: 409
-            message:
-              type: string
-              description: The error message returned from the service.
-            isAutoRetryable:
-              type: boolean
-              description: Whether or not the error is auto-retryable. If present and true, the client can automatically retry the request after some delay.
+            description: 'We index the property by a local unique identifier. The identifier has to have a length of between 1 and 255 characters.  It must also match the pattern ```^[a-zA-Z0-9][a-zA-Z0-9_-]{0,253}[a-zA-Z0-9]?$``` , and it cannot be any of the following reserved identifiers: ```space```, ```externalId```, ```createdTime```, ```lastUpdatedTime```, ```deletedTime```, ```edge_id```, ```node_id```, ```project_id```, ```property_group```, ```seq```, ```tg_table_name```, and ```extensions```. The maximum number of properties depends on the project subscription and is by default 100.'
+            minProperties: 1
+            additionalProperties:
+              x-additionalPropertiesName: containerPropertyIdentifier
+              allOf:
+              - $ref: '#/components/schemas/ContainerPropertyCreateDefinition'
+          constraints:
+            type: object
+            description: Set of constraints to apply to the container. Constraint identifiers must be between 1 and 43 characters long.
+            additionalProperties:
+              x-additionalPropertiesName: constraint-identifier
+              allOf:
+              - $ref: '#/components/schemas/ConstraintCreateDefinition'
+          indexes:
+            type: object
+            description: Set of indexes to apply to the container. Up to 10 indexes can be added on a container. Index identifiers must be between 1 and 43 characters long.
+            additionalProperties:
+              x-additionalPropertiesName: index-identifier
+              allOf:
+              - $ref: '#/components/schemas/IndexCreateDefinition'
+    RecordContainerCreateDefinition:
+      title: Record Container
+      allOf:
+      - $ref: '#/components/schemas/ContainerCommon'
+      - type: object
+        required:
+        - properties
+        properties:
+          usedFor:
+            type: string
+            description: Must be set to ```record``` for record containers. A single container cannot serve both instances (nodes/edges) and records.
+            enum:
+            - record
+          properties:
+            description: 'We index the property by a local unique identifier. The identifier has to have a length of between 1 and 255 characters.  It must also match the pattern ```^[a-zA-Z0-9][a-zA-Z0-9_-]{0,253}[a-zA-Z0-9]?$``` , and it cannot be any of the following reserved identifiers: ```space```, ```externalId```, ```createdTime```, ```lastUpdatedTime```, ```deletedTime```, ```edge_id```, ```node_id```, ```project_id```, ```property_group```, ```seq```, ```tg_table_name```, and ```extensions```. The maximum number of properties depends on the project subscription and is by default 1,000.'
+            minProperties: 1
+            additionalProperties:
+              x-additionalPropertiesName: containerPropertyIdentifier
+              allOf:
+              - $ref: '#/components/schemas/RecordContainerPropertyCreateDefinition'
+    EnumProperty:
+      type: object
+      description: 'An enum type property.
+
+
+        An enum property can only consist of predefined values.
+
+        '
+      required:
+      - type
+      - values
+      properties:
+        type:
+          type: string
+          enum:
+          - enum
+        unknownValue:
+          type: string
+          description: 'The value to use when the enum value is unknown.
+
+            This can optionally be used to provide forward-compatibility, Specifying what value to use if the client does not recognize the returned value. It is not possible to ingest the unknown value, but it must be part of the allowed values.'
+        values:
+          type: object
+          description: 'A set of all possible values for the enum property. The enum value identifier has to have a length of between 1 and 127 characters.  It must also match the pattern ```^[_A-Za-z][_0-9A-Za-z]{0,127}$```, and not be `"true"`, `"false"` or `"null"`.
+
+
+            Example: ```{ "value1": { "name": "Value 1", "description": "This is value 1" }, "value2": { } }```'
+          additionalProperties:
+            x-additionalPropertiesName: enumValueIdentifier
+            minProperties: 1
+            maxProperties: 32
+            allOf:
+            - $ref: '#/components/schemas/EnumValueProperties'
+      example:
+        unknownValue: unknown
+        values:
+          value1:
+            name: Value 1
+            description: This is value 1
+          value2: {}
+          unknown:
+            name: Unknown
+            description: Used if the client does not recognize the returned value.
     CorePropertyCreateDefinition:
       type: object
       properties:
@@ -563,125 +603,6 @@ components:
           type: string
           description: Readable property name.
           maxLength: 255
-    ConstraintCreateDefinition:
-      type: object
-      description: "Defines a constraint across the properties you include.\n\n\nYou can use constraints to enforce that;\n * Certain properties must be present,\n * A value must be unique across a single or several properties.\n\nA 'uniqueness' constraint can only apply to properties that are in the same container. Up to 10 'uniqueness' constraints can be added per container. \n\n\nA 'requires' constraint can reference other containers. As a result, the properties in those other containers must then also be set. Up to 25 'requires' constraints can be added per container. "
-      oneOf:
-      - $ref: '#/components/schemas/RequiresConstraintCreateDefinition'
-      - $ref: '#/components/schemas/UniquenessConstraintCreateDefinition'
-    ContainerInspectRequest:
-      type: object
-      required:
-      - inspectionOperations
-      - items
-      properties:
-        inspectionOperations:
-          type: object
-          properties:
-            involvedViews:
-              type: object
-              properties:
-                allVersions:
-                  type: boolean
-                  default: false
-            totalInvolvedViewCount:
-              type: object
-              properties:
-                allVersions:
-                  type: boolean
-                  default: false
-                includeUnavailableViews:
-                  type: boolean
-                  default: true
-                  description: Whether or not to also count views which aren't available to the user. This is useful for understanding whether or not views/datamodels you don't have to access to will be affected by deleting/changing this container.
-        items:
-          type: array
-          minItems: 1
-          maxItems: 10
-          items:
-            type: object
-            required:
-            - space
-            - externalId
-            properties:
-              space:
-                $ref: '#/components/schemas/SpaceSpecification'
-              externalId:
-                description: External id for the requested container
-                allOf:
-                - $ref: '#/components/schemas/DMSExternalId'
-    ContainerSubObjectIdentifier:
-      type: object
-      required:
-      - space
-      - containerExternalId
-      - identifier
-      properties:
-        space:
-          $ref: '#/components/schemas/SpaceSpecification'
-        containerExternalId:
-          description: External id for the container
-          allOf:
-          - $ref: '#/components/schemas/DMSExternalId'
-        identifier:
-          type: string
-    ContainerReference:
-      type: object
-      description: Reference to an existing container
-      required:
-      - type
-      - space
-      - externalId
-      properties:
-        type:
-          type: string
-          enum:
-          - container
-        space:
-          description: Id of the space hosting (containing) the container
-          allOf:
-          - $ref: '#/components/schemas/SpaceSpecification'
-        externalId:
-          description: External-id of the container
-          allOf:
-          - $ref: '#/components/schemas/DMSExternalId'
-    ViewReference:
-      type: object
-      description: Reference to a view
-      required:
-      - type
-      - space
-      - externalId
-      - version
-      properties:
-        type:
-          type: string
-          enum:
-          - view
-        space:
-          description: Id of the space that the view belongs to
-          allOf:
-          - $ref: '#/components/schemas/SpaceSpecification'
-        externalId:
-          description: External-id of the view
-          allOf:
-          - $ref: '#/components/schemas/DMSExternalId'
-        version:
-          description: Version of the view
-          allOf:
-          - $ref: '#/components/schemas/DMSVersion'
-    RequiresConstraintCreateDefinition:
-      type: object
-      required:
-      - require
-      properties:
-        constraintType:
-          type: string
-          enum:
-          - requires
-          default: requires
-        require:
-          $ref: '#/components/schemas/ContainerReference'
     CDFExternalIdReference:
       type: object
       description: 'An external-id reference to an existing CDF resource type item, such as a time series.
@@ -1530,69 +1451,53 @@ components:
           - zu
           - zu-ZA
           default: ucs_basic
-    EnumValueProperties:
-      type: object
-      description: Metadata of the enum value.
-      properties:
-        name:
-          type: string
-          description: Name of the enum value.
-          maxLength: 255
-        description:
-          type: string
-          description: Description of the enum value.
-          maxLength: 1024
-    UsedFor:
+    DMSVersion:
       type: string
-      description: Should this operation apply to nodes, edges, records, or both nodes and edges. **NB!** Currently ```all``` applies to nodes and edges, but not records.
-      enum:
-      - node
-      - edge
-      - record
-      - all
-      default: node
-    DMSExternalId:
-      type: string
-      pattern: ^[a-zA-Z]([a-zA-Z0-9_]{0,253}[a-zA-Z0-9])?$
+      pattern: ^[a-zA-Z0-9]([.a-zA-Z0-9_-]{0,41}[a-zA-Z0-9])?$
       minLength: 1
-      maxLength: 255
-    InstanceContainerCreateDefinition:
-      title: Instance Container
-      allOf:
-      - $ref: '#/components/schemas/ContainerCommon'
-      - type: object
-        required:
-        - properties
-        properties:
-          usedFor:
-            type: string
-            description: Should this container hold nodes, edges, or both.
-            enum:
-            - node
-            - edge
-            - all
-            default: node
-          properties:
-            description: 'We index the property by a local unique identifier. The identifier has to have a length of between 1 and 255 characters.  It must also match the pattern ```^[a-zA-Z0-9][a-zA-Z0-9_-]{0,253}[a-zA-Z0-9]?$``` , and it cannot be any of the following reserved identifiers: ```space```, ```externalId```, ```createdTime```, ```lastUpdatedTime```, ```deletedTime```, ```edge_id```, ```node_id```, ```project_id```, ```property_group```, ```seq```, ```tg_table_name```, and ```extensions```. The maximum number of properties depends on the project subscription and is by default 100.'
-            minProperties: 1
-            additionalProperties:
-              x-additionalPropertiesName: containerPropertyIdentifier
-              allOf:
-              - $ref: '#/components/schemas/ContainerPropertyCreateDefinition'
-          constraints:
-            type: object
-            description: Set of constraints to apply to the container. Constraint identifiers must be between 1 and 43 characters long.
-            additionalProperties:
-              x-additionalPropertiesName: constraint-identifier
-              allOf:
-              - $ref: '#/components/schemas/ConstraintCreateDefinition'
-          indexes:
-            type: object
-            description: Set of indexes to apply to the container. Up to 10 indexes can be added on a container. Index identifiers must be between 1 and 43 characters long.
-            additionalProperties:
-              x-additionalPropertiesName: index-identifier
-              allOf:
-              - $ref: '#/components/schemas/IndexCreateDefinition'
+      maxLength: 43
+    IndexState:
+      type: object
+      required:
+      - state
+      properties:
+        state:
+          description: "This field describes the validity of the index.\n\nPossible values are:\n\n* `\"failed\"`: The index can't be built.\n  This can occur if data existing before the index was created data prevents the index from being built.\n  For example, property values in a btree index have a size limit on them.\n  Use `maxListSize` and `maxTextSize` to bound the size of btree indexed properties.\n* `\"current\"`: The index is built successfully.\n* `\"pending\"`: The index is still building.\n"
+          $ref: '#/components/schemas/ConstraintOrIndexState'
+    ContainerReference:
+      type: object
+      description: Reference to an existing container
+      required:
+      - type
+      - space
+      - externalId
+      properties:
+        type:
+          type: string
+          enum:
+          - container
+        space:
+          description: Id of the space hosting (containing) the container
+          allOf:
+          - $ref: '#/components/schemas/SpaceSpecification'
+        externalId:
+          description: External-id of the container
+          allOf:
+          - $ref: '#/components/schemas/DMSExternalId'
+    IndexDefinition:
+      type: object
+      description: 'Indexes applied to a container.  The properties of an index always belong to the same container.
+
+
+
+        Ordering of the properties included in the index definition list is significant.  The order should match the queries you expect. The properties of an index cannot be updated after creation. If you need to change the index, it must be recreated.
+
+
+
+        Up to 10 indexes can be added on a container. '
+      oneOf:
+      - $ref: '#/components/schemas/BtreeIndexDefinition'
+      - $ref: '#/components/schemas/InvertedIndexDefinition'
     UniquenessConstraintCreateDefinition:
       type: object
       required:
@@ -1612,6 +1517,321 @@ components:
           type: boolean
           description: Whether to make the constraint space-specific
           default: false
+    ContainerDefinition:
+      required:
+      - space
+      - externalId
+      - properties
+      - usedFor
+      - createdTime
+      - lastUpdatedTime
+      - isGlobal
+      allOf:
+      - $ref: '#/components/schemas/ContainerCommon'
+      - type: object
+        properties:
+          usedFor:
+            $ref: '#/components/schemas/UsedFor'
+          createdTime:
+            $ref: '#/components/schemas/EpochTimestamp'
+          lastUpdatedTime:
+            $ref: '#/components/schemas/EpochTimestamp'
+          isGlobal:
+            type: boolean
+            description: Is this a global container.
+          properties:
+            description: 'We index the property by a local unique identifier. The identifier has to have a length of between 1 and 255 characters.  It must also match the pattern ```^[a-zA-Z0-9][a-zA-Z0-9_-]{0,253}[a-zA-Z0-9]?$``` , and it cannot be any of the following reserved identifiers: ```space```, ```externalId```, ```createdTime```, ```lastUpdatedTime```, ```deletedTime```, ```edge_id```, ```node_id```, ```project_id```, ```property_group```, ```seq```, ```tg_table_name```, and ```extensions```. The maximum number of properties depends on the project subscription and is by default 100 (or 1,000 for containers with ```usedFor``` set to ```record```).'
+            minProperties: 1
+            additionalProperties:
+              x-additionalPropertiesName: containerPropertyIdentifier
+              allOf:
+              - $ref: '#/components/schemas/ContainerPropertyDefinition'
+          constraints:
+            type: object
+            description: Set of constraints applied to the container. Constraints are not supported for containers with ```usedFor``` set to ```record```.
+            additionalProperties:
+              x-additionalPropertiesName: constraint-identifier
+              allOf:
+              - $ref: '#/components/schemas/ConstraintDefinition'
+          indexes:
+            type: object
+            description: Set of indexes applied to the container. Indexes are not supported for containers with ```usedFor``` set to ```record```.
+            additionalProperties:
+              x-additionalPropertiesName: index-identifier
+              allOf:
+              - $ref: '#/components/schemas/IndexDefinition'
+    DMSExternalId:
+      type: string
+      pattern: ^[a-zA-Z]([a-zA-Z0-9_]{0,253}[a-zA-Z0-9])?$
+      minLength: 1
+      maxLength: 255
+    ContainerCreateCollection:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          description: List of containers to create/update
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/ContainerCreateDefinition'
+    ContainerInspectResultItem:
+      type: object
+      required:
+      - externalId
+      - space
+      - inspectionResults
+      properties:
+        externalId:
+          description: External ids for the requested items
+          allOf:
+          - $ref: '#/components/schemas/DMSExternalId'
+        space:
+          $ref: '#/components/schemas/SpaceSpecification'
+        inspectionResults:
+          type: object
+          properties:
+            involvedViewCount:
+              description: The total number of views mapping this container (including views you don't have access to)
+              type: integer
+            involvedViews:
+              type: array
+              description: The views you have access to which map this container.
+              items:
+                $ref: '#/components/schemas/ViewReference'
+    ContainerInspectRequest:
+      type: object
+      required:
+      - inspectionOperations
+      - items
+      properties:
+        inspectionOperations:
+          type: object
+          properties:
+            involvedViews:
+              type: object
+              properties:
+                allVersions:
+                  type: boolean
+                  default: false
+            totalInvolvedViewCount:
+              type: object
+              properties:
+                allVersions:
+                  type: boolean
+                  default: false
+                includeUnavailableViews:
+                  type: boolean
+                  default: true
+                  description: Whether or not to also count views which aren't available to the user. This is useful for understanding whether or not views/datamodels you don't have to access to will be affected by deleting/changing this container.
+        items:
+          type: array
+          minItems: 1
+          maxItems: 10
+          items:
+            type: object
+            required:
+            - space
+            - externalId
+            properties:
+              space:
+                $ref: '#/components/schemas/SpaceSpecification'
+              externalId:
+                description: External id for the requested container
+                allOf:
+                - $ref: '#/components/schemas/DMSExternalId'
+    UpsertConflict:
+      type: object
+      required:
+      - error
+      properties:
+        error:
+          type: object
+          description: Details about the error caused by the upsert/update.
+          required:
+          - code
+          - message
+          properties:
+            code:
+              type: integer
+              description: The HTTP status code returned
+              format: int32
+              example: 409
+            message:
+              type: string
+              description: The error message returned from the service.
+            isAutoRetryable:
+              type: boolean
+              description: Whether or not the error is auto-retryable. If present and true, the client can automatically retry the request after some delay.
+    InvertedIndexCreateDefinition:
+      type: object
+      required:
+      - properties
+      properties:
+        properties:
+          type: array
+          description: List of properties to define the index across
+          items:
+            type: string
+        indexType:
+          type: string
+          enum:
+          - inverted
+          default: inverted
+          description: 'An inverted index can be used to index composite values, and the queries to be handled by the index need to search for element values that appear within the composite items. So if for example you have a property X of type `int[]` and you want to efficiently query for all instances where X contains some value Y, you can create an inverted index on X. '
+    ContainerPropertyCreateDefinition:
+      description: Defines a property of a container.  You can reference this property in views.
+      allOf:
+      - $ref: '#/components/schemas/CorePropertyCreateDefinition'
+      - $ref: '#/components/schemas/ContainerPropertyTypeDefinition'
+    NodeOrEdgeExternalId:
+      type: string
+      pattern: ^[^\\x00]{1,256}$
+      minLength: 1
+      maxLength: 256
+    UsedFor:
+      type: string
+      description: Should this operation apply to nodes, edges, records, or both nodes and edges. **NB!** Currently ```all``` applies to nodes and edges, but not records.
+      enum:
+      - node
+      - edge
+      - record
+      - all
+      default: node
+    RequiresConstraintCreateDefinition:
+      type: object
+      required:
+      - require
+      properties:
+        constraintType:
+          type: string
+          enum:
+          - requires
+          default: requires
+        require:
+          $ref: '#/components/schemas/ContainerReference'
+    SpaceSpecification:
+      type: string
+      pattern: ^[a-zA-Z][a-zA-Z0-9_-]{0,41}[a-zA-Z0-9]?$
+      minLength: 1
+      maxLength: 43
+    ConstraintState:
+      type: object
+      required:
+      - state
+      properties:
+        state:
+          description: 'This field describes the validity of the constraint.
+
+
+            Possible values are:
+
+
+            * `"failed"`: The constraint is violated. This can occur if there exists data violating the constraint when the constraint was created. New data violating the constraint will still be rejected.
+
+            * `"current"`: The constraint is satisfied.
+
+            * `"pending"`: The constraint validity has not yet been computed.
+
+            '
+          $ref: '#/components/schemas/ConstraintOrIndexState'
+    ListOfSpaceExternalIdsRequest:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            type: object
+            required:
+            - space
+            - externalId
+            properties:
+              externalId:
+                description: External ids for the requested items
+                allOf:
+                - $ref: '#/components/schemas/DMSExternalId'
+              space:
+                $ref: '#/components/schemas/SpaceSpecification'
+    ContainerSubObjectIdentifier:
+      type: object
+      required:
+      - space
+      - containerExternalId
+      - identifier
+      properties:
+        space:
+          $ref: '#/components/schemas/SpaceSpecification'
+        containerExternalId:
+          description: External id for the container
+          allOf:
+          - $ref: '#/components/schemas/DMSExternalId'
+        identifier:
+          type: string
+    ContainerCreateDefinition:
+      oneOf:
+      - $ref: '#/components/schemas/InstanceContainerCreateDefinition'
+      - $ref: '#/components/schemas/RecordContainerCreateDefinition'
+    RecordTextProperty:
+      type: object
+      description: Text type
+      required:
+      - type
+      properties:
+        type:
+          type: string
+          enum:
+          - text
+        list:
+          type: boolean
+          description: 'Specifies that the data type is a list of values. The ordering of values is preserved.
+
+            '
+          default: false
+        maxListSize:
+          type: integer
+          description: Specifies the maximum number of values in the list
+        maxTextSize:
+          type: integer
+          description: Specifies the maximum size in bytes of the text property, when encoded with utf-8
+    ContainerPropertyDefinition:
+      description: Defines a property of a container.  You can reference this property in views.
+      allOf:
+      - $ref: '#/components/schemas/CorePropertyDefinition'
+      - $ref: '#/components/schemas/ContainerPropertyTypeDefinition'
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
     PrimitiveProperty:
       type: object
       description: 'Primitive types for the property.
@@ -1668,6 +1888,18 @@ components:
         maxListSize:
           type: integer
           description: Specifies the maximum number of values in the list
+    EnumValueProperties:
+      type: object
+      description: Metadata of the enum value.
+      properties:
+        name:
+          type: string
+          description: Name of the enum value.
+          maxLength: 255
+        description:
+          type: string
+          description: Description of the enum value.
+          maxLength: 1024
     BtreeIndexCreateDefinition:
       type: object
       required:
@@ -1692,262 +1924,6 @@ components:
           type: boolean
           description: Whether to make the index space-specific
           default: false
-    SpaceSpecification:
-      type: string
-      pattern: ^[a-zA-Z][a-zA-Z0-9_-]{0,41}[a-zA-Z0-9]?$
-      minLength: 1
-      maxLength: 43
-    ContainerCreateDefinition:
-      oneOf:
-      - $ref: '#/components/schemas/InstanceContainerCreateDefinition'
-      - $ref: '#/components/schemas/RecordContainerCreateDefinition'
-    ContainerPropertyCreateDefinition:
-      description: Defines a property of a container.  You can reference this property in views.
-      allOf:
-      - $ref: '#/components/schemas/CorePropertyCreateDefinition'
-      - $ref: '#/components/schemas/ContainerPropertyTypeDefinition'
-    ListOfSpaceExternalIdsRequest:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          minItems: 1
-          maxItems: 100
-          items:
-            type: object
-            required:
-            - space
-            - externalId
-            properties:
-              externalId:
-                description: External ids for the requested items
-                allOf:
-                - $ref: '#/components/schemas/DMSExternalId'
-              space:
-                $ref: '#/components/schemas/SpaceSpecification'
-    RequiresConstraintDefinition:
-      allOf:
-      - $ref: '#/components/schemas/ConstraintState'
-      - $ref: '#/components/schemas/RequiresConstraintCreateDefinition'
-    IndexCreateDefinition:
-      type: object
-      description: 'You can optimize query performance by defining an index to apply to a container.  You can only create an index across properties belonging to the same container.
-
-
-
-        Ordering of the properties included in the index definition list is significant.  The order should match the queries you expect. The properties of an index cannot be updated after creation. If you need to change the index, it must be recreated.
-
-
-
-        Indexes have different requirements for the different property data types.  As a result, the create index operation will fail if you specify an invalid combination.
-
-
-
-        Up to 10 indexes can be added on a container. '
-      oneOf:
-      - $ref: '#/components/schemas/BtreeIndexCreateDefinition'
-      - $ref: '#/components/schemas/InvertedIndexCreateDefinition'
-    RecordTextProperty:
-      type: object
-      description: Text type
-      required:
-      - type
-      properties:
-        type:
-          type: string
-          enum:
-          - text
-        list:
-          type: boolean
-          description: 'Specifies that the data type is a list of values. The ordering of values is preserved.
-
-            '
-          default: false
-        maxListSize:
-          type: integer
-          description: Specifies the maximum number of values in the list
-        maxTextSize:
-          type: integer
-          description: Specifies the maximum size in bytes of the text property, when encoded with utf-8
-    DMSVersion:
-      type: string
-      pattern: ^[a-zA-Z0-9]([.a-zA-Z0-9_-]{0,41}[a-zA-Z0-9])?$
-      minLength: 1
-      maxLength: 43
-    NextCursorV3:
-      description: The cursor value used to return (paginate to) the next page of results, when more data is available.
-      type: string
-    RecordContainerCreateDefinition:
-      title: Record Container
-      allOf:
-      - $ref: '#/components/schemas/ContainerCommon'
-      - type: object
-        required:
-        - properties
-        properties:
-          usedFor:
-            type: string
-            description: Must be set to ```record``` for record containers. A single container cannot serve both instances (nodes/edges) and records.
-            enum:
-            - record
-          properties:
-            description: 'We index the property by a local unique identifier. The identifier has to have a length of between 1 and 255 characters.  It must also match the pattern ```^[a-zA-Z0-9][a-zA-Z0-9_-]{0,253}[a-zA-Z0-9]?$``` , and it cannot be any of the following reserved identifiers: ```space```, ```externalId```, ```createdTime```, ```lastUpdatedTime```, ```deletedTime```, ```edge_id```, ```node_id```, ```project_id```, ```property_group```, ```seq```, ```tg_table_name```, and ```extensions```. The maximum number of properties depends on the project subscription and is by default 1,000.'
-            minProperties: 1
-            additionalProperties:
-              x-additionalPropertiesName: containerPropertyIdentifier
-              allOf:
-              - $ref: '#/components/schemas/RecordContainerPropertyCreateDefinition'
-    ContainerPropertyDefinition:
-      description: Defines a property of a container.  You can reference this property in views.
-      allOf:
-      - $ref: '#/components/schemas/CorePropertyDefinition'
-      - $ref: '#/components/schemas/ContainerPropertyTypeDefinition'
-    ContainerDefinition:
-      required:
-      - space
-      - externalId
-      - properties
-      - usedFor
-      - createdTime
-      - lastUpdatedTime
-      - isGlobal
-      allOf:
-      - $ref: '#/components/schemas/ContainerCommon'
-      - type: object
-        properties:
-          usedFor:
-            $ref: '#/components/schemas/UsedFor'
-          createdTime:
-            $ref: '#/components/schemas/EpochTimestamp'
-          lastUpdatedTime:
-            $ref: '#/components/schemas/EpochTimestamp'
-          isGlobal:
-            type: boolean
-            description: Is this a global container.
-          properties:
-            description: 'We index the property by a local unique identifier. The identifier has to have a length of between 1 and 255 characters.  It must also match the pattern ```^[a-zA-Z0-9][a-zA-Z0-9_-]{0,253}[a-zA-Z0-9]?$``` , and it cannot be any of the following reserved identifiers: ```space```, ```externalId```, ```createdTime```, ```lastUpdatedTime```, ```deletedTime```, ```edge_id```, ```node_id```, ```project_id```, ```property_group```, ```seq```, ```tg_table_name```, and ```extensions```. The maximum number of properties depends on the project subscription and is by default 100 (or 1,000 for containers with ```usedFor``` set to ```record```).'
-            minProperties: 1
-            additionalProperties:
-              x-additionalPropertiesName: containerPropertyIdentifier
-              allOf:
-              - $ref: '#/components/schemas/ContainerPropertyDefinition'
-          constraints:
-            type: object
-            description: Set of constraints applied to the container. Constraints are not supported for containers with ```usedFor``` set to ```record```.
-            additionalProperties:
-              x-additionalPropertiesName: constraint-identifier
-              allOf:
-              - $ref: '#/components/schemas/ConstraintDefinition'
-          indexes:
-            type: object
-            description: Set of indexes applied to the container. Indexes are not supported for containers with ```usedFor``` set to ```record```.
-            additionalProperties:
-              x-additionalPropertiesName: index-identifier
-              allOf:
-              - $ref: '#/components/schemas/IndexDefinition'
-    InvertedIndexCreateDefinition:
-      type: object
-      required:
-      - properties
-      properties:
-        properties:
-          type: array
-          description: List of properties to define the index across
-          items:
-            type: string
-        indexType:
-          type: string
-          enum:
-          - inverted
-          default: inverted
-          description: 'An inverted index can be used to index composite values, and the queries to be handled by the index need to search for element values that appear within the composite items. So if for example you have a property X of type `int[]` and you want to efficiently query for all instances where X contains some value Y, you can create an inverted index on X. '
-    EnumProperty:
-      type: object
-      description: 'An enum type property.
-
-
-        An enum property can only consist of predefined values.
-
-        '
-      required:
-      - type
-      - values
-      properties:
-        type:
-          type: string
-          enum:
-          - enum
-        unknownValue:
-          type: string
-          description: 'The value to use when the enum value is unknown.
-
-            This can optionally be used to provide forward-compatibility, Specifying what value to use if the client does not recognize the returned value. It is not possible to ingest the unknown value, but it must be part of the allowed values.'
-        values:
-          type: object
-          description: 'A set of all possible values for the enum property. The enum value identifier has to have a length of between 1 and 127 characters.  It must also match the pattern ```^[_A-Za-z][_0-9A-Za-z]{0,127}$```, and not be `"true"`, `"false"` or `"null"`.
-
-
-            Example: ```{ "value1": { "name": "Value 1", "description": "This is value 1" }, "value2": { } }```'
-          additionalProperties:
-            x-additionalPropertiesName: enumValueIdentifier
-            minProperties: 1
-            maxProperties: 32
-            allOf:
-            - $ref: '#/components/schemas/EnumValueProperties'
-      example:
-        unknownValue: unknown
-        values:
-          value1:
-            name: Value 1
-            description: This is value 1
-          value2: {}
-          unknown:
-            name: Unknown
-            description: Used if the client does not recognize the returned value.
-    RecordCorePropertyCreateDefinition:
-      type: object
-      properties:
-        nullable:
-          type: boolean
-          description: Does this property need to be set to a value, or not?
-          default: true
-        defaultValue:
-          oneOf:
-          - type: string
-          - type: number
-          - type: boolean
-          - type: object
-          description: "Default value to use when you do not specify a value for the property.  The default value must be of the same type as what you defined for the property itself. \n\n\nWe do not currently support using default values for array/list types. "
-        description:
-          type: string
-          description: Description of the content and suggested use for this property.
-          maxLength: 1024
-        name:
-          type: string
-          description: Readable property name.
-          maxLength: 255
-    ConstraintState:
-      type: object
-      required:
-      - state
-      properties:
-        state:
-          description: 'This field describes the validity of the constraint.
-
-
-            Possible values are:
-
-
-            * `"failed"`: The constraint is violated. This can occur if there exists data violating the constraint when the constraint was created. New data violating the constraint will still be rejected.
-
-            * `"current"`: The constraint is satisfied.
-
-            * `"pending"`: The constraint validity has not yet been computed.
-
-            '
-          $ref: '#/components/schemas/ConstraintOrIndexState'
     ListOfContainerSubObjectIdentifierRequest:
       type: object
       required:
@@ -1959,96 +1935,200 @@ components:
           maxItems: 10
           items:
             $ref: '#/components/schemas/ContainerSubObjectIdentifier'
-    NodeOrEdgeExternalId:
-      type: string
-      pattern: ^[^\\x00]{1,256}$
-      minLength: 1
-      maxLength: 256
-    BtreeIndexDefinition:
-      allOf:
-      - $ref: '#/components/schemas/BtreeIndexCreateDefinition'
-      - $ref: '#/components/schemas/IndexState'
-    ContainerInspectResultItem:
+    ConstraintDefinition:
       type: object
-      required:
-      - externalId
-      - space
-      - inspectionResults
-      properties:
-        externalId:
-          description: External ids for the requested items
-          allOf:
-          - $ref: '#/components/schemas/DMSExternalId'
-        space:
-          $ref: '#/components/schemas/SpaceSpecification'
-        inspectionResults:
-          type: object
-          properties:
-            involvedViewCount:
-              description: The total number of views mapping this container (including views you don't have access to)
-              type: integer
-            involvedViews:
-              type: array
-              description: The views you have access to which map this container.
-              items:
-                $ref: '#/components/schemas/ViewReference'
-    RecordContainerPropertyTypeDefinition:
+      description: "Describes a constraint across the properties included.\n\n\nConstraints enforce that;\n * Certain properties must be present,\n * A value must be unique across a single or several properties.\n\nA 'uniqueness' constraint can only apply to properties that are in the same container. Up to 10 'uniqueness' constraints can be added per container. \n\n\nA 'requires' constraint can reference other containers. As a result, the properties in those other containers must then also be set. Up to 25 'requires' constraints can be added per container. "
+      oneOf:
+      - $ref: '#/components/schemas/RequiresConstraintDefinition'
+      - $ref: '#/components/schemas/UniquenessConstraintDefinition'
+    CorePropertyDefinition:
+      allOf:
+      - $ref: '#/components/schemas/CorePropertyCreateDefinition'
+      - type: object
+        required:
+        - constraintState
+        properties:
+          constraintState:
+            type: object
+            description: 'Describes the validity of constraints defined on this property.
+
+              Not applicable for records.
+
+              '
+            properties:
+              nullability:
+                description: 'For properties that have isNullable set to false, this field describes the validity of the not-null constraint.
+
+                  It is not specified for nullable properties.
+
+
+                  Possible values are:
+
+
+                  * `"failed"`: The property contains null values, violating the constraint. This can occur if a property with existing nulls was made non-nullable. New null values will still be rejected.
+
+                  * `"current"`: The constraint is satisfied; all values in the property are not null.
+
+                  * `"pending"`: The constraint validity has not yet been computed.
+
+                  '
+                $ref: '#/components/schemas/ConstraintOrIndexState'
+              maxListSize:
+                description: 'For list properties with maxListSize set, this field describes the validity of the maxListSize check constraint.
+
+                  It is not specified for properties with isList = false or maxListSize = null.
+
+
+                  Possible values are:
+
+
+                  * `"failed"`: The property contains overly large lists, violating the constraint. This can occur if maxListSize was set on a property with existing values. New overly large list values will still be rejected.
+
+                  * `"current"`: The constraint is satisfied; all list values in the property are within maxListSize.
+
+                  * `"pending"`: The constraint validity has not yet been computed.
+
+                  '
+                $ref: '#/components/schemas/ConstraintOrIndexState'
+              maxTextSize:
+                description: 'For text properties with maxTextSize set, this field describes the validity of the maxTextSize check constraint.
+
+                  It is not specified for non-text properties or properties with maxTextSize = null.
+
+
+                  Possible values are:
+
+
+                  * `"failed"`: The property contains overly big text values, violating the constraint. This can occur if maxTextSize was set on a property with existing values. New overly large text values will still be rejected.
+
+                  * `"current"`: The constraint is satisfied; all text values in the property are within maxTextSize.
+
+                  * `"pending"`: The constraint validity has not yet been computed.
+
+                  '
+                $ref: '#/components/schemas/ConstraintOrIndexState'
+    ConstraintCreateDefinition:
+      type: object
+      description: "Defines a constraint across the properties you include.\n\n\nYou can use constraints to enforce that;\n * Certain properties must be present,\n * A value must be unique across a single or several properties.\n\nA 'uniqueness' constraint can only apply to properties that are in the same container. Up to 10 'uniqueness' constraints can be added per container. \n\n\nA 'requires' constraint can reference other containers. As a result, the properties in those other containers must then also be set. Up to 25 'requires' constraints can be added per container. "
+      oneOf:
+      - $ref: '#/components/schemas/RequiresConstraintCreateDefinition'
+      - $ref: '#/components/schemas/UniquenessConstraintCreateDefinition'
+    ContainerPropertyTypeDefinition:
       type: object
       required:
       - type
       properties:
         type:
-          description: "The type of data you can store in this property. Most properties can also hold a list of values, for example, a list of integers or a list of timestamps. The supported storage types are:\n\n\n* text,\n * boolean,\n * 32-bit, and 64-bit float,\n * 32-bit, and 64-bit integer,\n * timestamp,\n * date,\n * JSON fragment,\n * direct relation to an existing node,\n * enum.\n\n\nThe JSON fragments have to be valid JSON objects. If JSON arrays are to be stored, these must be wrapped in a JSON object. JSON values (such as string, number, boolean) should use their respective primitive form instead. The maximum allowed size for a JSON object is 40960 bytes. For lists of json values, the size of the entire list must be within this limit. The maximum allowed length of a key is 128, while the maximum allowed size of a value is 10240 bytes and you can have up to 256 key-value pairs. The  byte sizes are computed by representing the data as a UTF-8 encoded JSON string.\nDirect relations use a space external-id and the external-id for an existing node. Only the target space existence is validated for records.\nTimestamps must be a string in the format 'YYYY-MM-DDTHH:MM:SS[.millis][Z|time zone]' with optional milliseconds having precision of 1-3 decimal digits and optional timezone with format Â±HH:MM, Â±HHMM, Â±HH or Z, where Z represents UTC, Year must be between 0001 and 9999.\nDates must be a date string in the format 'YYYY-MM-DD'. Year must be between 1 and 9999. "
+          description: "The type of data you can store in this property. Most properties can also hold a list of values, for example, a list of integers or a list of timestamps. The supported storage types are:\n\n\n* text (allows user control of collation),\n * boolean,\n * 32-bit, and 64-bit float,\n * 32-bit, and 64-bit integer,\n * timestamp,\n * date,\n * JSON fragment,\n * direct relation to an existing node,\n * time series external-id reference,\n * file external-id reference,\n * sequence external-id reference,\n * enum.\n\n\nThe JSON fragments have to be valid JSON objects. If JSON arrays are to be stored, these must be wrapped in a JSON object. JSON values (such as string, number, boolean) should use their respective primitive form instead. The maximum allowed size for a JSON object is 40960 bytes. For lists of json values, the size of the entire list must be within this limit. The maximum allowed length of a key is 128, while the maximum allowed size of a value is 10240 bytes and you can have up to 256 key-value pairs. The  byte sizes are computed by representing the data as a UTF-8 encoded JSON string.\nDirect relations use a space external-id, the external-id for an existing node, and the external-id for the data container. E.g. ```s-spaceExternalId.uniqueNodeExternalId.containerExternalId```\nTimestamps must be a string in the format 'YYYY-MM-DDTHH:MM:SS[.millis][Z|time zone]' with optional milliseconds having precision of 1-3 decimal digits and optional timezone with format Â±HH:MM, Â±HHMM, Â±HH or Z, where Z represents UTC, Year must be between 0001 and 9999.\nDates must be a date string in the format 'YYYY-MM-DD'. Year must be between 1 and 9999. "
           oneOf:
-          - $ref: '#/components/schemas/RecordTextProperty'
+          - $ref: '#/components/schemas/TextProperty'
           - $ref: '#/components/schemas/PrimitiveProperty'
-          - $ref: '#/components/schemas/RecordDirectNodeRelation'
+          - $ref: '#/components/schemas/CDFExternalIdReference'
+          - $ref: '#/components/schemas/DirectNodeRelation'
           - $ref: '#/components/schemas/EnumProperty'
-    UniquenessConstraintDefinition:
-      allOf:
-      - $ref: '#/components/schemas/ConstraintState'
-      - $ref: '#/components/schemas/UniquenessConstraintCreateDefinition'
-    IndexState:
+    RecordDirectNodeRelation:
       type: object
+      description: Direct node relation. Only the target space existence is validated for records. Target nodes are not auto-created.
       required:
-      - state
+      - type
       properties:
-        state:
-          description: "This field describes the validity of the index.\n\nPossible values are:\n\n* `\"failed\"`: The index can't be built.\n  This can occur if data existing before the index was created data prevents the index from being built.\n  For example, property values in a btree index have a size limit on them.\n  Use `maxListSize` and `maxTextSize` to bound the size of btree indexed properties.\n* `\"current\"`: The index is built successfully.\n* `\"pending\"`: The index is still building.\n"
-          $ref: '#/components/schemas/ConstraintOrIndexState'
-    ConstraintOrIndexState:
+        type:
+          type: string
+          enum:
+          - direct
+        list:
+          description: 'Specifies that the data type is a list of values. The ordering of values is preserved.
+
+            '
+          type: boolean
+          default: false
+        maxListSize:
+          type: integer
+          description: Specifies the maximum number of values in the list
+    NextCursorV3:
+      description: The cursor value used to return (paginate to) the next page of results, when more data is available.
       type: string
-      enum:
-      - current
-      - pending
-      - failed
-    IndexDefinition:
-      type: object
-      description: 'Indexes applied to a container.  The properties of an index always belong to the same container.
-
-
-
-        Ordering of the properties included in the index definition list is significant.  The order should match the queries you expect. The properties of an index cannot be updated after creation. If you need to change the index, it must be recreated.
-
-
-
-        Up to 10 indexes can be added on a container. '
-      oneOf:
-      - $ref: '#/components/schemas/BtreeIndexDefinition'
-      - $ref: '#/components/schemas/InvertedIndexDefinition'
-    ContainerCreateCollection:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          description: List of containers to create/update
-          minItems: 1
-          maxItems: 100
-          items:
-            $ref: '#/components/schemas/ContainerCreateDefinition'
   responses:
+    ListOfSpaceExternalIdsResponse:
+      description: List of External id(s) for the affected items
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            properties:
+              items:
+                type: array
+                minItems: 1
+                maxItems: 100
+                items:
+                  type: object
+                  required:
+                  - space
+                  - externalId
+                  properties:
+                    externalId:
+                      description: List of external id(s) for the requested items
+                      allOf:
+                      - $ref: '#/components/schemas/DMSExternalId'
+                    space:
+                      $ref: '#/components/schemas/SpaceSpecification'
+    ErrorResponse:
+      description: The response for a failed request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+    ContainerCollectionResponseWithCursor:
+      description: List of containers
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            properties:
+              items:
+                type: array
+                description: List of containers
+                items:
+                  $ref: '#/components/schemas/ContainerDefinition'
+              nextCursor:
+                $ref: '#/components/schemas/NextCursorV3'
+    ContainerInspectResponse:
+      description: Containers along with the results of the inspection operations
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            properties:
+              items:
+                type: array
+                description: List of container inspection results
+                items:
+                  $ref: '#/components/schemas/ContainerInspectResultItem'
+    ContainerCollectionResponse:
+      description: List of containers
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            properties:
+              items:
+                type: array
+                description: List of containers
+                items:
+                  $ref: '#/components/schemas/ContainerDefinition'
     ListOfContainerSubObjectIdentifierResponse:
       description: List of External id(s) for the affected items
       content:
@@ -2075,87 +2155,23 @@ components:
                       - $ref: '#/components/schemas/DMSExternalId'
                     identifier:
                       type: string
-    ContainerCollectionResponseWithCursor:
-      description: List of containers
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - items
-            properties:
-              items:
-                type: array
-                description: List of containers
-                items:
-                  $ref: '#/components/schemas/ContainerDefinition'
-              nextCursor:
-                $ref: '#/components/schemas/NextCursorV3'
-    ListOfSpaceExternalIdsResponse:
-      description: List of External id(s) for the affected items
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - items
-            properties:
-              items:
-                type: array
-                minItems: 1
-                maxItems: 100
-                items:
-                  type: object
-                  required:
-                  - space
-                  - externalId
-                  properties:
-                    externalId:
-                      description: List of external id(s) for the requested items
-                      allOf:
-                      - $ref: '#/components/schemas/DMSExternalId'
-                    space:
-                      $ref: '#/components/schemas/SpaceSpecification'
-    ContainerInspectResponse:
-      description: Containers along with the results of the inspection operations
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - items
-            properties:
-              items:
-                type: array
-                description: List of container inspection results
-                items:
-                  $ref: '#/components/schemas/ContainerInspectResultItem'
-    ErrorResponse:
-      description: The response for a failed request.
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - error
-            properties:
-              error:
-                $ref: '#/components/schemas/Error'
-    ContainerCollectionResponse:
-      description: List of containers
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - items
-            properties:
-              items:
-                type: array
-                description: List of containers
-                items:
-                  $ref: '#/components/schemas/ContainerDefinition'
   parameters:
+    IncludeGlobal:
+      name: includeGlobal
+      in: query
+      description: If the global items of the entity should be returned. Defaults to false which excludes global items.
+      schema:
+        type: boolean
+        default: false
+    ReducedLimit:
+      name: limit
+      description: Limit the number of results returned. The largest result-set returned by the server will be 1000 items, even if you specify a higher limit.
+      in: query
+      schema:
+        type: integer
+        default: 10
+        minimum: 1
+        maximum: 1000
     Space:
       in: query
       name: space
@@ -2166,20 +2182,6 @@ components:
         minLength: 1
         maxLength: 43
         example: timeseries
-    FilterUsedFor:
-      name: usedFor
-      in: query
-      description: Only include containers that have been marked as used for the specified purposes. Defaults to [node, edge, all]
-      schema:
-        type: array
-        uniqueItems: true
-        example:
-        - node
-        - edge
-        - all
-        - record
-        items:
-          $ref: '#/components/schemas/UsedFor'
     Cursor:
       name: cursor
       description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
@@ -2200,22 +2202,20 @@ components:
       schema:
         type: string
         example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
-    IncludeGlobal:
-      name: includeGlobal
+    FilterUsedFor:
+      name: usedFor
       in: query
-      description: If the global items of the entity should be returned. Defaults to false which excludes global items.
+      description: Only include containers that have been marked as used for the specified purposes. Defaults to [node, edge, all]
       schema:
-        type: boolean
-        default: false
-    ReducedLimit:
-      name: limit
-      description: Limit the number of results returned. The largest result-set returned by the server will be 1000 items, even if you specify a higher limit.
-      in: query
-      schema:
-        type: integer
-        default: 10
-        minimum: 1
-        maximum: 1000
+        type: array
+        uniqueItems: true
+        example:
+        - node
+        - edge
+        - all
+        - record
+        items:
+          $ref: '#/components/schemas/UsedFor'
   securitySchemes:
     oidc-token:
       type: http

@@ -109,7 +109,151 @@ paths:
       tags:
       - Document AI
 components:
+  responses:
+    ErrorResponse:
+      description: The response for a failed request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
   schemas:
+    DocumentExternalId:
+      additionalProperties: false
+      properties:
+        externalId:
+          description: The external ID for the document. The value matches the externalId set in the Files API.
+          title: Externalid
+          type: string
+      required:
+      - externalId
+      title: DocumentExternalId
+      type: object
+    DocumentSummarizationResponseItemExternalId:
+      additionalProperties: false
+      properties:
+        externalId:
+          description: The external ID for the document. The value matches the externalId set in the Files API.
+          title: Externalid
+          type: string
+        summary:
+          description: The summary of the document.
+          title: Summary
+          type: string
+      required:
+      - externalId
+      - summary
+      title: DocumentSummarizationResponseItemExternalId
+      type: object
+    Content:
+      additionalProperties: false
+      properties:
+        references:
+          description: The document locations that this part of the answer is sourced from.
+          items:
+            $ref: '#/components/schemas/ReferenceAI'
+          title: References
+          type: array
+        text:
+          description: A part of the answer from the LLM.
+          title: Text
+          type: string
+      required:
+      - text
+      title: Content
+      type: object
+    Answer:
+      additionalProperties: false
+      properties:
+        content:
+          description: The content of an answer consists of one or more parts. Each part can have a different set of document locations connected to it.
+          items:
+            $ref: '#/components/schemas/Content'
+          title: Content
+          type: array
+      required:
+      - content
+      title: Answer
+      type: object
+    InstanceIdAI:
+      additionalProperties: false
+      properties:
+        externalId:
+          description: The data modeling external ID of the document.
+          pattern: ^[^]{1,256}$
+          title: Externalid
+          type: string
+        space:
+          description: The data modeling space of the document.
+          pattern: ^[a-zA-Z][a-zA-Z0-9_-]{0,41}[a-zA-Z0-9]?$
+          title: Space
+          type: string
+      required:
+      - space
+      - externalId
+      title: InstanceId
+      type: object
+    DocumentsLanguage:
+      enum:
+      - Chinese
+      - Dutch
+      - English
+      - French
+      - German
+      - Italian
+      - Japanese
+      - Korean
+      - Latvian
+      - Norwegian
+      - Portuguese
+      - Spanish
+      - Swedish
+      title: DocumentsLanguage
+      type: string
+    DocumentInstanceId:
+      additionalProperties: false
+      properties:
+        instanceId:
+          $ref: '#/components/schemas/InstanceIdAI'
+          description: The data modeling instance ID for the document.
+      required:
+      - instanceId
+      title: DocumentInstanceId
+      type: object
+    ReferenceAI:
+      additionalProperties: false
+      properties:
+        externalId:
+          description: The external ID of the file.
+          title: Externalid
+          type: string
+        fileId:
+          description: The ID of the file.
+          title: Fileid
+          type: integer
+        fileName:
+          description: The name of the file.
+          title: Filename
+          type: string
+        instanceId:
+          $ref: '#/components/schemas/InstanceIdAI'
+          description: The instance ID of the file.
+        locations:
+          description: The locations in the document that contain the relevant text.
+          items:
+            $ref: '#/components/schemas/LocationAI'
+          title: Locations
+          type: array
+      required:
+      - fileId
+      - fileName
+      - locations
+      title: Reference
+      type: object
     Error:
       type: object
       required:
@@ -149,6 +293,49 @@ components:
       - id
       title: DocumentInternalId
       type: object
+    DocumentSummarizationResponseItemInternalId:
+      additionalProperties: false
+      properties:
+        id:
+          description: The file ID for the document.
+          title: Id
+          type: integer
+        summary:
+          description: The summary of the document.
+          title: Summary
+          type: string
+      required:
+      - id
+      - summary
+      title: DocumentSummarizationResponseItemInternalId
+      type: object
+    LocationAI:
+      additionalProperties: false
+      properties:
+        bottom:
+          title: Bottom
+          type: number
+        left:
+          title: Left
+          type: number
+        pageNumber:
+          description: The page number within the file. Page numbers start at 1.
+          title: Pagenumber
+          type: integer
+        right:
+          title: Right
+          type: number
+        top:
+          title: Top
+          type: number
+      required:
+      - pageNumber
+      - left
+      - right
+      - top
+      - bottom
+      title: Location
+      type: object
     DocumentSummarizationResponse:
       additionalProperties: false
       properties:
@@ -165,20 +352,32 @@ components:
       - items
       title: DocumentSummarizationResponse
       type: object
-    DocumentSummarizationResponseItemInstanceId:
+    DocumentSummarizationRequest:
       additionalProperties: false
       properties:
-        instanceId:
-          $ref: '#/components/schemas/InstanceIdAI'
-          description: The data modeling instance ID for the document.
-        summary:
-          description: The summary of the document.
-          title: Summary
-          type: string
+        ignoreUnknownIds:
+          default: false
+          description: If `true`, the API will not fail if any documents are missing, but summaries for the missing documents will be excluded from the response.
+          title: Ignoreunknownids
+          type: boolean
+        items:
+          description: A list of documents to summarize.
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/DocumentInternalId'
+            - $ref: '#/components/schemas/DocumentExternalId'
+            - $ref: '#/components/schemas/DocumentInstanceId'
+          maxItems: 1
+          minItems: 1
+          title: Items
+          type: array
+        language:
+          $ref: '#/components/schemas/DocumentsLanguage'
+          default: English
+          description: The language in which the answer should be provided.
       required:
-      - instanceId
-      - summary
-      title: DocumentSummarizationResponseItemInstanceId
+      - items
+      title: DocumentSummarizationRequest
       type: object
     DocumentQARequest:
       additionalProperties: false
@@ -220,220 +419,21 @@ components:
       - fileIds
       title: DocumentQARequest
       type: object
-    DocumentInstanceId:
+    DocumentSummarizationResponseItemInstanceId:
       additionalProperties: false
       properties:
         instanceId:
           $ref: '#/components/schemas/InstanceIdAI'
           description: The data modeling instance ID for the document.
+        summary:
+          description: The summary of the document.
+          title: Summary
+          type: string
       required:
       - instanceId
-      title: DocumentInstanceId
-      type: object
-    DocumentExternalId:
-      additionalProperties: false
-      properties:
-        externalId:
-          description: The external ID for the document. The value matches the externalId set in the Files API.
-          title: Externalid
-          type: string
-      required:
-      - externalId
-      title: DocumentExternalId
-      type: object
-    ReferenceAI:
-      additionalProperties: false
-      properties:
-        externalId:
-          description: The external ID of the file.
-          title: Externalid
-          type: string
-        fileId:
-          description: The ID of the file.
-          title: Fileid
-          type: integer
-        fileName:
-          description: The name of the file.
-          title: Filename
-          type: string
-        instanceId:
-          $ref: '#/components/schemas/InstanceIdAI'
-          description: The instance ID of the file.
-        locations:
-          description: The locations in the document that contain the relevant text.
-          items:
-            $ref: '#/components/schemas/LocationAI'
-          title: Locations
-          type: array
-      required:
-      - fileId
-      - fileName
-      - locations
-      title: Reference
-      type: object
-    DocumentSummarizationRequest:
-      additionalProperties: false
-      properties:
-        ignoreUnknownIds:
-          default: false
-          description: If `true`, the API will not fail if any documents are missing, but summaries for the missing documents will be excluded from the response.
-          title: Ignoreunknownids
-          type: boolean
-        items:
-          description: A list of documents to summarize.
-          items:
-            oneOf:
-            - $ref: '#/components/schemas/DocumentInternalId'
-            - $ref: '#/components/schemas/DocumentExternalId'
-            - $ref: '#/components/schemas/DocumentInstanceId'
-          maxItems: 1
-          minItems: 1
-          title: Items
-          type: array
-        language:
-          $ref: '#/components/schemas/DocumentsLanguage'
-          default: English
-          description: The language in which the answer should be provided.
-      required:
-      - items
-      title: DocumentSummarizationRequest
-      type: object
-    DocumentsLanguage:
-      enum:
-      - Chinese
-      - Dutch
-      - English
-      - French
-      - German
-      - Italian
-      - Japanese
-      - Korean
-      - Latvian
-      - Norwegian
-      - Portuguese
-      - Spanish
-      - Swedish
-      title: DocumentsLanguage
-      type: string
-    LocationAI:
-      additionalProperties: false
-      properties:
-        bottom:
-          title: Bottom
-          type: number
-        left:
-          title: Left
-          type: number
-        pageNumber:
-          description: The page number within the file. Page numbers start at 1.
-          title: Pagenumber
-          type: integer
-        right:
-          title: Right
-          type: number
-        top:
-          title: Top
-          type: number
-      required:
-      - pageNumber
-      - left
-      - right
-      - top
-      - bottom
-      title: Location
-      type: object
-    Content:
-      additionalProperties: false
-      properties:
-        references:
-          description: The document locations that this part of the answer is sourced from.
-          items:
-            $ref: '#/components/schemas/ReferenceAI'
-          title: References
-          type: array
-        text:
-          description: A part of the answer from the LLM.
-          title: Text
-          type: string
-      required:
-      - text
-      title: Content
-      type: object
-    InstanceIdAI:
-      additionalProperties: false
-      properties:
-        externalId:
-          description: The data modeling external ID of the document.
-          pattern: ^[^]{1,256}$
-          title: Externalid
-          type: string
-        space:
-          description: The data modeling space of the document.
-          pattern: ^[a-zA-Z][a-zA-Z0-9_-]{0,41}[a-zA-Z0-9]?$
-          title: Space
-          type: string
-      required:
-      - space
-      - externalId
-      title: InstanceId
-      type: object
-    DocumentSummarizationResponseItemInternalId:
-      additionalProperties: false
-      properties:
-        id:
-          description: The file ID for the document.
-          title: Id
-          type: integer
-        summary:
-          description: The summary of the document.
-          title: Summary
-          type: string
-      required:
-      - id
       - summary
-      title: DocumentSummarizationResponseItemInternalId
+      title: DocumentSummarizationResponseItemInstanceId
       type: object
-    Answer:
-      additionalProperties: false
-      properties:
-        content:
-          description: The content of an answer consists of one or more parts. Each part can have a different set of document locations connected to it.
-          items:
-            $ref: '#/components/schemas/Content'
-          title: Content
-          type: array
-      required:
-      - content
-      title: Answer
-      type: object
-    DocumentSummarizationResponseItemExternalId:
-      additionalProperties: false
-      properties:
-        externalId:
-          description: The external ID for the document. The value matches the externalId set in the Files API.
-          title: Externalid
-          type: string
-        summary:
-          description: The summary of the document.
-          title: Summary
-          type: string
-      required:
-      - externalId
-      - summary
-      title: DocumentSummarizationResponseItemExternalId
-      type: object
-  responses:
-    ErrorResponse:
-      description: The response for a failed request.
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - error
-            properties:
-              error:
-                $ref: '#/components/schemas/Error'
   securitySchemes:
     oidc-token:
       type: http

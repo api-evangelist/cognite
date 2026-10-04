@@ -263,16 +263,28 @@ paths:
           $ref: '#/components/responses/LoginSessionsNotFoundResponse'
 components:
   responses:
-    LoginSessionsPaginatedListResponse:
-      description: A list of login sessions, with a cursor pointing to the next results page (if any).
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/LoginSessionsListPaginatedDto'
     LoginSessionsRevokeBadRequestResponse:
       description: 'Bad request body: the number of login sessions to revoke is out of range, or one or more of the login session
 
         ids do not exist or do not belong to this organization or user principal.'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SimpleError'
+    MeResponse:
+      description: The principal that issued the request.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PrincipalDto'
+    LoginSessionsNotFoundResponse:
+      description: The principal id does not exist, or does not belong to this organization.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SimpleError'
+    LoginSessionsListBadRequestResponse:
+      description: 'Bad parameters: the limit is out of range or not a number, or the cursor is invalid.'
       content:
         application/json:
           schema:
@@ -283,24 +295,18 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/PrincipalsListPaginatedDto'
-    MeResponse:
-      description: The principal that issued the request.
+    LoginSessionsPaginatedListResponse:
+      description: A list of login sessions, with a cursor pointing to the next results page (if any).
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/PrincipalDto'
-    LoginSessionsListBadRequestResponse:
-      description: 'Bad parameters: the limit is out of range or not a number, or the cursor is invalid.'
+            $ref: '#/components/schemas/LoginSessionsListPaginatedDto'
+    PrincipalsListResponse:
+      description: A list of principals.
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/SimpleError'
-    LoginSessionsNotFoundResponse:
-      description: The principal id does not exist, or does not belong to this organization.
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/SimpleError'
+            $ref: '#/components/schemas/PrincipalsListResponseDto'
     LoginSessionsForbiddenResponse:
       description: 'The calling user is not an admin of the organization, or the principal id references a service account rather
 
@@ -309,13 +315,20 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/SimpleError'
-    PrincipalsListResponse:
-      description: A list of principals.
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/PrincipalsListResponseDto'
   schemas:
+    ReferenceByIdOrExternalId:
+      type: object
+      description: Either a principal ID, or a principal external ID
+      oneOf:
+      - $ref: '#/components/schemas/ReferenceById'
+      - $ref: '#/components/schemas/ReferenceByExternalId'
+    UserId:
+      type: string
+      description: The ID of an organization user
+      minLength: 22
+      maxLength: 22
+      example: -user-string-id-aBc123
+      pattern: ^[-_a-zA-Z0-9]{22}$
     BasePrincipalDto:
       type: object
       description: A principal
@@ -330,6 +343,64 @@ components:
           $ref: '#/components/schemas/PrincipalName'
         pictureUrl:
           $ref: '#/components/schemas/PrincipalPictureUrl'
+    PrincipalId:
+      type: string
+      description: Unique identifier of a principal
+      example: 5yAFQRAATb7vtWGp4gvbJD3wE7VS81CGuQ7EZT
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    ServiceAccountDescription:
+      type: string
+      description: Longer description of a service account
+      maxLength: 500
+      example: This is a service account used by data pipeline A-xxx
+    CogniteExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
+      type: string
+      maxLength: 255
+      example: my.known.id
+    ReferenceByExternalId:
+      type: object
+      required:
+      - externalId
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+    SimpleError:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+        message:
+          type: string
+          description: Error message.
+    PrincipalDto:
+      oneOf:
+      - $ref: '#/components/schemas/ServiceAccountDto'
+      - $ref: '#/components/schemas/UserDto'
+    OrgId:
+      type: string
+      description: The ID of an organization
+      minLength: 3
+      maxLength: 64
+      example: my-org
+      pattern: ^([a-z][a-z0-9-]{1,62}[a-z0-9])$
+    ServiceAccountName:
+      type: string
+      description: Human-readable name of a service account
+      minLength: 1
+      maxLength: 50
+      example: My service account
     ServiceAccountCreatorUser:
       type: object
       description: The user that created the entity.
@@ -341,39 +412,63 @@ components:
           $ref: '#/components/schemas/OrgId'
         userId:
           $ref: '#/components/schemas/UserId'
-    UserId:
-      type: string
-      description: The ID of an organization user
-      minLength: 22
-      maxLength: 22
-      example: -user-string-id-aBc123
-      pattern: ^[-_a-zA-Z0-9]{22}$
-    PrincipalType:
-      type: string
-      enum:
-      - SERVICE_ACCOUNT
-      - USER
-      description: The type of a principal
-    EpochTimestamp:
-      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-      type: integer
-      minimum: 0
-      format: int64
-      example: 1730204346000
-    PrincipalsListResponseDto:
+    ServiceAccountDto:
+      allOf:
+      - type: object
+        description: A service account
+        required:
+        - id
+        - type
+        - name
+        - createdBy
+        - createdTime
+        - lastUpdatedTime
+        properties:
+          id:
+            $ref: '#/components/schemas/ServiceAccountId'
+          type:
+            type: string
+            description: Principal type
+            enum:
+            - SERVICE_ACCOUNT
+            example: SERVICE_ACCOUNT
+          externalId:
+            $ref: '#/components/schemas/CogniteExternalId'
+          name:
+            $ref: '#/components/schemas/ServiceAccountName'
+          description:
+            $ref: '#/components/schemas/ServiceAccountDescription'
+          createdBy:
+            $ref: '#/components/schemas/ServiceAccountCreator'
+          createdTime:
+            $ref: '#/components/schemas/EpochTimestamp'
+          lastUpdatedTime:
+            $ref: '#/components/schemas/EpochTimestamp'
+      - $ref: '#/components/schemas/BasePrincipalDto'
+    ServiceAccountCreator:
+      description: The principal that created the entity.
+      oneOf:
+      - $ref: '#/components/schemas/ServiceAccountCreatorUser'
+    Cursor:
       type: object
-      required:
-      - items
       properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/PrincipalDto'
-    CogniteExternalId:
-      description: The external ID provided by the client. Must be unique for the resource type.
-      type: string
-      maxLength: 255
-      example: my.known.id
+        cursor:
+          type: string
+          example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
+
+        property, it means that there may be more results, and you should pass that value as the
+
+        `cursor` parameter in the next request.
+
+
+        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
+
+        decoded. Its internal structure is not a part of the public API, and may change without
+
+        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
+
+        '
     LoginSessionsListPaginatedDto:
       type: object
       required:
@@ -386,13 +481,32 @@ components:
             $ref: '#/components/schemas/LoginSessionDto'
         nextCursor:
           $ref: '#/components/schemas/Cursor'
-    OrgId:
+    PrincipalType:
       type: string
-      description: The ID of an organization
-      minLength: 3
-      maxLength: 64
-      example: my-org
-      pattern: ^([a-z][a-z0-9-]{1,62}[a-z0-9])$
+      enum:
+      - SERVICE_ACCOUNT
+      - USER
+      description: The type of a principal
+    PrincipalListByIdsRequestDto:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/ReferenceByIdOrExternalId'
+        ignoreUnknownIds:
+          type: boolean
+          default: false
+          description: 'If `true`, IDs that do not match existing principals will be ignored.
+
+
+            If `false`, the request will fail if any of the IDs do not match existing principals.
+
+            This is the default behavior.'
     LoginSessionId:
       type: string
       description: Unique identifier of a login session.
@@ -404,37 +518,15 @@ components:
       properties:
         id:
           $ref: '#/components/schemas/PrincipalId'
-    LoginSessionDto:
+    PrincipalsListResponseDto:
       type: object
       required:
-      - id
-      - createdTime
-      - status
+      - items
       properties:
-        id:
-          $ref: '#/components/schemas/LoginSessionId'
-        createdTime:
-          type: integer
-          description: The Unix timestamp (in milliseconds) when the login session was created (during the user's initial login).
-        status:
-          type: string
-          description: "Login session status.\n\n- `ACTIVE`: The login session is active. The access token that was issued during login may be used to send\n  requests to the Cognite API, the refresh token may be used to obtain a new access token, and any\n  background jobs started from this login session will keep running.\n- `LOGGED_OUT`: The user logged themselves out. The access token that was issued during login may no longer\n  be used to send requests to the Cognite API, and the refresh token may no longer be used to obtain a new\n  access token. However, any background jobs started from this login session will keep running.\n- `EXPIRED`: Cognite failed to refresh the user's session in the organization's external identity provider\n  (the customer's Entra ID tenant or other identity provider service), and this login session is now\n  completely unusable. Like for `LOGGED_OUT`, the access and refresh tokens may no longer be used. Unlike\n  for `LOGGED_OUT`, any background jobs started from this login session will stop running.\n- `REVOKED`: The login session was revoked by an organization administrator via the\n  `/api/v1/orgs/{org}/principals/{principal}/sessions/revoke` endpoint, and this login session is now\n  completely unusable. Like for `EXPIRED`, the access and refresh tokens may no longer be used, and any\n  background jobs started from this login session will stop running."
-          enum:
-          - ACTIVE
-          - LOGGED_OUT
-          - EXPIRED
-          - REVOKED
-        deactivatedTime:
-          type: integer
-          description: 'The Unix timestamp (in milliseconds) when the login session was deactivated,
-
-            or `null` or absent if `status` is `ACTIVE`.'
-    ReferenceByIdOrExternalId:
-      type: object
-      description: Either a principal ID, or a principal external ID
-      oneOf:
-      - $ref: '#/components/schemas/ReferenceById'
-      - $ref: '#/components/schemas/ReferenceByExternalId'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PrincipalDto'
     UserDto:
       allOf:
       - type: object
@@ -471,134 +563,14 @@ components:
             type: string
             example: Doe
       - $ref: '#/components/schemas/BasePrincipalDto'
-    ServiceAccountCreator:
-      description: The principal that created the entity.
-      oneOf:
-      - $ref: '#/components/schemas/ServiceAccountCreatorUser'
-    PrincipalId:
-      type: string
-      description: Unique identifier of a principal
-      example: 5yAFQRAATb7vtWGp4gvbJD3wE7VS81CGuQ7EZT
-    PrincipalListByIdsRequestDto:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          minItems: 1
-          maxItems: 100
-          items:
-            $ref: '#/components/schemas/ReferenceByIdOrExternalId'
-        ignoreUnknownIds:
-          type: boolean
-          default: false
-          description: 'If `true`, IDs that do not match existing principals will be ignored.
-
-
-            If `false`, the request will fail if any of the IDs do not match existing principals.
-
-            This is the default behavior.'
     ServiceAccountId:
       type: string
       description: Unique identifier of a service account
       example: 5yAFQRAATb7vtWGp4gvbJD3wE7VS81CGuQ7EZT
-    PrincipalDto:
-      oneOf:
-      - $ref: '#/components/schemas/ServiceAccountDto'
-      - $ref: '#/components/schemas/UserDto'
-    Cursor:
-      type: object
-      properties:
-        cursor:
-          type: string
-          example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
-      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
-
-        property, it means that there may be more results, and you should pass that value as the
-
-        `cursor` parameter in the next request.
-
-
-        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
-
-        decoded. Its internal structure is not a part of the public API, and may change without
-
-        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
-
-        '
     PrincipalPictureUrl:
       type: string
       description: URL to a picture of the principal
       format: url
-    ServiceAccountDto:
-      allOf:
-      - type: object
-        description: A service account
-        required:
-        - id
-        - type
-        - name
-        - createdBy
-        - createdTime
-        - lastUpdatedTime
-        properties:
-          id:
-            $ref: '#/components/schemas/ServiceAccountId'
-          type:
-            type: string
-            description: Principal type
-            enum:
-            - SERVICE_ACCOUNT
-            example: SERVICE_ACCOUNT
-          externalId:
-            $ref: '#/components/schemas/CogniteExternalId'
-          name:
-            $ref: '#/components/schemas/ServiceAccountName'
-          description:
-            $ref: '#/components/schemas/ServiceAccountDescription'
-          createdBy:
-            $ref: '#/components/schemas/ServiceAccountCreator'
-          createdTime:
-            $ref: '#/components/schemas/EpochTimestamp'
-          lastUpdatedTime:
-            $ref: '#/components/schemas/EpochTimestamp'
-      - $ref: '#/components/schemas/BasePrincipalDto'
-    PrincipalName:
-      type: string
-      description: Human-readable name of the principal
-    ServiceAccountDescription:
-      type: string
-      description: Longer description of a service account
-      maxLength: 500
-      example: This is a service account used by data pipeline A-xxx
-    SimpleError:
-      type: object
-      required:
-      - code
-      - message
-      description: Cognite API error.
-      properties:
-        code:
-          type: integer
-          description: HTTP status code.
-          format: int32
-        message:
-          type: string
-          description: Error message.
-    ReferenceByExternalId:
-      type: object
-      required:
-      - externalId
-      properties:
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-    ServiceAccountName:
-      type: string
-      description: Human-readable name of a service account
-      minLength: 1
-      maxLength: 50
-      example: My service account
     PrincipalsListPaginatedDto:
       type: object
       required:
@@ -611,34 +583,35 @@ components:
             $ref: '#/components/schemas/PrincipalDto'
         nextCursor:
           $ref: '#/components/schemas/Cursor'
+    PrincipalName:
+      type: string
+      description: Human-readable name of the principal
+    LoginSessionDto:
+      type: object
+      required:
+      - id
+      - createdTime
+      - status
+      properties:
+        id:
+          $ref: '#/components/schemas/LoginSessionId'
+        createdTime:
+          type: integer
+          description: The Unix timestamp (in milliseconds) when the login session was created (during the user's initial login).
+        status:
+          type: string
+          description: "Login session status.\n\n- `ACTIVE`: The login session is active. The access token that was issued during login may be used to send\n  requests to the Cognite API, the refresh token may be used to obtain a new access token, and any\n  background jobs started from this login session will keep running.\n- `LOGGED_OUT`: The user logged themselves out. The access token that was issued during login may no longer\n  be used to send requests to the Cognite API, and the refresh token may no longer be used to obtain a new\n  access token. However, any background jobs started from this login session will keep running.\n- `EXPIRED`: Cognite failed to refresh the user's session in the organization's external identity provider\n  (the customer's Entra ID tenant or other identity provider service), and this login session is now\n  completely unusable. Like for `LOGGED_OUT`, the access and refresh tokens may no longer be used. Unlike\n  for `LOGGED_OUT`, any background jobs started from this login session will stop running.\n- `REVOKED`: The login session was revoked by an organization administrator via the\n  `/api/v1/orgs/{org}/principals/{principal}/sessions/revoke` endpoint, and this login session is now\n  completely unusable. Like for `EXPIRED`, the access and refresh tokens may no longer be used, and any\n  background jobs started from this login session will stop running."
+          enum:
+          - ACTIVE
+          - LOGGED_OUT
+          - EXPIRED
+          - REVOKED
+        deactivatedTime:
+          type: integer
+          description: 'The Unix timestamp (in milliseconds) when the login session was deactivated,
+
+            or `null` or absent if `status` is `ACTIVE`.'
   parameters:
-    PrincipalTypes:
-      in: query
-      required: false
-      name: types
-      description: 'Filter by principal types.
-
-        If not specified, all principal types will be included.
-
-        You can filter by multiple types by providing a comma-separated list, or by repeating the parameter.'
-      schema:
-        $ref: '#/components/schemas/PrincipalType'
-      example: USER,SERVICE_ACCOUNT
-    ListLimit100:
-      in: query
-      required: false
-      name: limit
-      schema:
-        type: integer
-        minimum: 1
-        maximum: 100
-    OrgId:
-      name: org
-      in: path
-      description: ID of an organization
-      required: true
-      schema:
-        $ref: '#/components/schemas/OrgId'
     PrincipalId:
       name: principal
       in: path
@@ -666,6 +639,13 @@ components:
       schema:
         type: string
         example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+    OrgId:
+      name: org
+      in: path
+      description: ID of an organization
+      required: true
+      schema:
+        $ref: '#/components/schemas/OrgId'
     ListLimit1000:
       in: query
       required: false
@@ -675,17 +655,27 @@ components:
         minimum: 1
         maximum: 1000
       description: The maximum number of items to return.
+    ListLimit100:
+      in: query
+      required: false
+      name: limit
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+    PrincipalTypes:
+      in: query
+      required: false
+      name: types
+      description: 'Filter by principal types.
+
+        If not specified, all principal types will be included.
+
+        You can filter by multiple types by providing a comma-separated list, or by repeating the parameter.'
+      schema:
+        $ref: '#/components/schemas/PrincipalType'
+      example: USER,SERVICE_ACCOUNT
   requestBodies:
-    PrincipalsListByIdsRequest:
-      description: 'A request to retrieve principals by reference.
-
-
-        For now, only service accounts can have an external ID.'
-      required: true
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/PrincipalListByIdsRequestDto'
     RevokeLoginSessionsRequest:
       description: A request to revoke login sessions for a user principal.
       required: true
@@ -707,6 +697,16 @@ components:
                   properties:
                     id:
                       $ref: '#/components/schemas/LoginSessionId'
+    PrincipalsListByIdsRequest:
+      description: 'A request to retrieve principals by reference.
+
+
+        For now, only service accounts can have an external ID.'
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PrincipalListByIdsRequestDto'
   securitySchemes:
     oidc-token:
       type: http

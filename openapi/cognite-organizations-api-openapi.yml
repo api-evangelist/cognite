@@ -185,6 +185,44 @@ components:
           clientId:
             type: string
             description: The client ID of the Keycloak application
+    SAuthIdp:
+      allOf:
+      - $ref: '#/components/schemas/IdpBase'
+      - type: object
+        description: SAuth IdP configuration
+        required:
+        - idpVendor
+        - clientId
+        - clientSecret
+        - appKey
+        - groupsUrl
+        - idTokenAudience
+        - extraScope
+        properties:
+          idpVendor:
+            type: string
+            enum:
+            - SAUTH
+          clientId:
+            type: string
+            description: The client ID of the SAuth application
+          clientSecret:
+            type: string
+            format: password
+            description: The client secret of the SAuth application. It is write-only and cannot be read.
+          appKey:
+            type: string
+            format: password
+            description: The app key of the SAuth application. It is write-only and cannot be read.
+          groupsUrl:
+            type: string
+            description: The URL for the group membership callback endpoint of the SAuth server.
+          idTokenAudience:
+            type: string
+            description: The expected value of the `aud` claim in the SAuth identity tokens.
+          extraScope:
+            type: string
+            description: The extra scope to request from SAuth, in addition to the standard scopes `openid offline_access profile email`.
     IdentityProvider:
       description: Configuration for an external OIDC-compliant IdP.
       oneOf:
@@ -201,6 +239,54 @@ components:
       maxLength: 64
       example: my-org
       pattern: ^([a-z][a-z0-9-]{1,62}[a-z0-9])$
+    IdpBase:
+      type: object
+      required:
+      - issuer
+      properties:
+        issuer:
+          type: string
+          format: url
+          example: https://login.microsoftonline.com/some-tenant-id/v2.0
+          description: The issuer for the external IdP.
+    ExternalGroupId:
+      type: string
+      description: The ID of a group managed by the external identity provider
+      minLength: 3
+      maxLength: 64
+      example: my-external-group
+    OrganizationWithContactPersons:
+      allOf:
+      - $ref: '#/components/schemas/Organization'
+      - description: An organization
+    AWSCognitoIdP:
+      allOf:
+      - $ref: '#/components/schemas/IdpBase'
+      - type: object
+        description: AWS Cognito IdP configuration
+        required:
+        - idpVendor
+        - clientId
+        - clientSecret
+        properties:
+          idpVendor:
+            type: string
+            enum:
+            - AWS_COGNITO
+          clientId:
+            type: string
+            description: The client ID of the AWS Cognito application
+          clientSecret:
+            type: string
+            format: password
+            description: The client secret of the AWS Cognito application
+    ClusterName:
+      type: string
+      description: A CDF cluster name
+      minLength: 1
+      maxLength: 32
+      pattern: ^[a-z0-9-]{1,32}$
+      example: westeurope-1
     Auth0Idp:
       allOf:
       - $ref: '#/components/schemas/IdpBase'
@@ -282,88 +368,6 @@ components:
           - asia-northeast1-1
           items:
             $ref: '#/components/schemas/ClusterName'
-    IdpBase:
-      type: object
-      required:
-      - issuer
-      properties:
-        issuer:
-          type: string
-          format: url
-          example: https://login.microsoftonline.com/some-tenant-id/v2.0
-          description: The issuer for the external IdP.
-    AWSCognitoIdP:
-      allOf:
-      - $ref: '#/components/schemas/IdpBase'
-      - type: object
-        description: AWS Cognito IdP configuration
-        required:
-        - idpVendor
-        - clientId
-        - clientSecret
-        properties:
-          idpVendor:
-            type: string
-            enum:
-            - AWS_COGNITO
-          clientId:
-            type: string
-            description: The client ID of the AWS Cognito application
-          clientSecret:
-            type: string
-            format: password
-            description: The client secret of the AWS Cognito application
-    OrganizationWithContactPersons:
-      allOf:
-      - $ref: '#/components/schemas/Organization'
-      - description: An organization
-    OktaIdP:
-      allOf:
-      - $ref: '#/components/schemas/IdpBase'
-      - type: object
-        description: Okta IdP configuration
-        required:
-        - idpVendor
-        - clientId
-        - clientSecret
-        - groupsClaimName
-        - accessTokenAudience
-        properties:
-          idpVendor:
-            type: string
-            enum:
-            - OKTA
-          clientId:
-            type: string
-            description: The client ID of the Okta application.
-          clientSecret:
-            type: string
-            description: The client secret of the Okta application. It is write-only and cannot be read.
-          groupsClaimName:
-            description: The name of the claim that contains the groups in the token
-            type: string
-            pattern: ^[a-z0-9][a-z0-9_\-./:]{0,31}(?<![^a-z0-9])$
-            minLength: 1
-            maxLength: 32
-            example: my-groups-claim
-          accessTokenAudience:
-            type: string
-            description: The expected value of the `aud` claim in the Okta access tokens.
-    AzureAdIdp:
-      allOf:
-      - type: object
-        description: Azure AD IdP configuration
-        required:
-        - idpVendor
-        properties:
-          idpVendor:
-            type: string
-            enum:
-            - AZURE_AD
-          issuer:
-            example: https://login.microsoftonline.com/some-tenant-id/v2.0
-            description: The issuer for the external IdP. For Azure AD, it conforms to the example URL and contains the tenant ID.
-      - $ref: '#/components/schemas/IdpBase'
     OrganizationRequestItem:
       type: object
       required:
@@ -405,44 +409,21 @@ components:
           - asia-northeast1-1
           items:
             $ref: '#/components/schemas/ClusterName'
-    SAuthIdp:
+    AzureAdIdp:
       allOf:
-      - $ref: '#/components/schemas/IdpBase'
       - type: object
-        description: SAuth IdP configuration
+        description: Azure AD IdP configuration
         required:
         - idpVendor
-        - clientId
-        - clientSecret
-        - appKey
-        - groupsUrl
-        - idTokenAudience
-        - extraScope
         properties:
           idpVendor:
             type: string
             enum:
-            - SAUTH
-          clientId:
-            type: string
-            description: The client ID of the SAuth application
-          clientSecret:
-            type: string
-            format: password
-            description: The client secret of the SAuth application. It is write-only and cannot be read.
-          appKey:
-            type: string
-            format: password
-            description: The app key of the SAuth application. It is write-only and cannot be read.
-          groupsUrl:
-            type: string
-            description: The URL for the group membership callback endpoint of the SAuth server.
-          idTokenAudience:
-            type: string
-            description: The expected value of the `aud` claim in the SAuth identity tokens.
-          extraScope:
-            type: string
-            description: The extra scope to request from SAuth, in addition to the standard scopes `openid offline_access profile email`.
+            - AZURE_AD
+          issuer:
+            example: https://login.microsoftonline.com/some-tenant-id/v2.0
+            description: The issuer for the external IdP. For Azure AD, it conforms to the example URL and contains the tenant ID.
+      - $ref: '#/components/schemas/IdpBase'
     ExtraAuthParameter:
       type: object
       description: Extra parameters to send to the external IdP
@@ -456,19 +437,38 @@ components:
         value:
           type: string
           description: The value of the parameter
-    ClusterName:
-      type: string
-      description: A CDF cluster name
-      minLength: 1
-      maxLength: 32
-      pattern: ^[a-z0-9-]{1,32}$
-      example: westeurope-1
-    ExternalGroupId:
-      type: string
-      description: The ID of a group managed by the external identity provider
-      minLength: 3
-      maxLength: 64
-      example: my-external-group
+    OktaIdP:
+      allOf:
+      - $ref: '#/components/schemas/IdpBase'
+      - type: object
+        description: Okta IdP configuration
+        required:
+        - idpVendor
+        - clientId
+        - clientSecret
+        - groupsClaimName
+        - accessTokenAudience
+        properties:
+          idpVendor:
+            type: string
+            enum:
+            - OKTA
+          clientId:
+            type: string
+            description: The client ID of the Okta application.
+          clientSecret:
+            type: string
+            description: The client secret of the Okta application. It is write-only and cannot be read.
+          groupsClaimName:
+            description: The name of the claim that contains the groups in the token
+            type: string
+            pattern: ^[a-z0-9][a-z0-9_\-./:]{0,31}(?<![^a-z0-9])$
+            minLength: 1
+            maxLength: 32
+            example: my-groups-claim
+          accessTokenAudience:
+            type: string
+            description: The expected value of the `aud` claim in the Okta access tokens.
   responses:
     OrganizationWithContactPersonsResponseDto:
       description: An organization
@@ -509,14 +509,6 @@ components:
                 description: 'The cursor to get the next page of results (if available). Note that the server
 
                   may choose to paginate the results even though no limit can be specified by the user.'
-  parameters:
-    OrgId:
-      name: org
-      in: path
-      description: ID of an organization
-      required: true
-      schema:
-        $ref: '#/components/schemas/OrgId'
   requestBodies:
     OrganizationRequestDto:
       description: A request to create an organization.
@@ -534,6 +526,14 @@ components:
                 maxItems: 1
                 items:
                   $ref: '#/components/schemas/OrganizationRequestItem'
+  parameters:
+    OrgId:
+      name: org
+      in: path
+      description: ID of an organization
+      required: true
+      schema:
+        $ref: '#/components/schemas/OrgId'
   securitySchemes:
     oidc-token:
       type: http

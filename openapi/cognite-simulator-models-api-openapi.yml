@@ -380,6 +380,17 @@ paths:
           description: Internal Server Error
 components:
   schemas:
+    AggregateCount:
+      properties:
+        count:
+          type: integer
+          title: Count
+          description: Number of items
+      additionalProperties: false
+      type: object
+      required:
+      - count
+      title: AggregateCount
     ListSimulatorModelsFilters:
       properties:
         simulatorExternalIds:
@@ -409,48 +420,54 @@ components:
       additionalProperties: false
       type: object
       title: ListSimulatorModelsFilters
-    SimulatorModelRevisionCreateCommand:
-      properties:
-        externalId:
-          type: string
-          maxLength: 255
-          minLength: 1
-          title: ExternalId
-          description: External id of the simulation model revision
-        modelExternalId:
-          type: string
-          title: ModelExternalId
-          description: External id of the simulation model
-        description:
-          title: Description
-          description: Description of the simulation model revision
-          type: string
-          maxLength: 255
-          minLength: 1
-        fileId:
-          type: integer
-          title: FileId
-          description: Source file id of the simulation model revision
-      additionalProperties: false
-      type: object
-      required:
-      - externalId
-      - modelExternalId
-      - fileId
-      title: SimulatorModelRevisionCreateCommand
-    SingleItemSimulatorModelCreateCommand:
+    ListAggregateCount:
       properties:
         items:
           items:
-            $ref: '#/components/schemas/SimulatorModelCreateCommand'
+            $ref: '#/components/schemas/AggregateCount'
           type: array
           title: Items
-          description: A list with a single item
       additionalProperties: false
       type: object
       required:
       - items
-      title: SingleItemSimulatorModelCreateCommand
+      title: ListAggregateCount
+    SimulatorModelUpdate:
+      properties:
+        name:
+          description: Name of the model
+          examples:
+          - set: Model for PROSPER
+          $ref: '#/components/schemas/UpdateSetShortStr'
+        description:
+          description: Description of the simulation model
+          $ref: '#/components/schemas/UpdateSetString'
+      additionalProperties: false
+      type: object
+      title: SimulatorModelUpdate
+    ListSimulatorModelsQuery:
+      properties:
+        filter:
+          $ref: '#/components/schemas/ListSimulatorModelsFilters'
+        limit:
+          type: integer
+          maximum: 1000
+          minimum: 1
+          title: Limit
+          default: 1000
+        cursor:
+          title: Cursor
+          description: Cursor for pagination
+          type: string
+        sort:
+          title: Sort
+          description: Only supports sorting by one property at a time
+          items:
+            $ref: '#/components/schemas/SortByCreatedTime'
+          type: array
+      additionalProperties: false
+      type: object
+      title: ListSimulatorModelsQuery
     SimulatorModelRevisionView:
       properties:
         dataSetId:
@@ -524,6 +541,67 @@ components:
       - createdTime
       - lastUpdatedTime
       title: SimulatorModelRevisionView
+    SimulatorModelRevisionStatus:
+      type: string
+      enum:
+      - unknown
+      - success
+      - failure
+      title: SimulatorModelRevisionStatus
+    AggregateSimulatorModelsQuery:
+      properties:
+        filter:
+          $ref: '#/components/schemas/ListSimulatorModelsFilters'
+        aggregate:
+          type: string
+          const: count
+          title: Aggregate
+          description: Aggregate type
+          enum:
+          - count
+      additionalProperties: false
+      type: object
+      required:
+      - aggregate
+      title: AggregateSimulatorModelsQuery
+    ListWithCursorSimulatorModelRevisionView:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/SimulatorModelRevisionView'
+          type: array
+          title: Items
+        nextCursor:
+          title: NextCursor
+          type: string
+      additionalProperties: false
+      type: object
+      required:
+      - items
+      title: ListWithCursorSimulatorModelRevisionView
+    ListSimulatorModelRevisionsQuery:
+      properties:
+        filter:
+          $ref: '#/components/schemas/ListSimulatorModelRevisionsFilters'
+        limit:
+          type: integer
+          maximum: 1000
+          minimum: 1
+          title: Limit
+          default: 1000
+        cursor:
+          title: Cursor
+          description: Cursor for pagination
+          type: string
+        sort:
+          title: Sort
+          description: Only supports sorting by one property at a time
+          items:
+            $ref: '#/components/schemas/SortByCreatedTime'
+          type: array
+      additionalProperties: false
+      type: object
+      title: ListSimulatorModelRevisionsQuery
     ListSimulatorModel:
       properties:
         items:
@@ -536,6 +614,249 @@ components:
       required:
       - items
       title: ListSimulatorModel
+    SortByCreatedTime:
+      properties:
+        order:
+          anyOf:
+          - type: string
+            const: asc
+            enum:
+            - asc
+          - type: string
+            const: desc
+            enum:
+            - desc
+          title: Order
+          description: Sort order
+        property:
+          type: string
+          const: createdTime
+          title: Property
+          description: Name of the property to sort by
+          enum:
+          - createdTime
+      additionalProperties: false
+      type: object
+      required:
+      - order
+      - property
+      title: SortByCreatedTime
+    ErrorBase:
+      properties:
+        error:
+          $ref: '#/components/schemas/APIError'
+      type: object
+      required:
+      - error
+      title: ErrorBase
+    APIError:
+      properties:
+        message:
+          type: string
+          title: Message
+        code:
+          type: integer
+          title: Code
+      type: object
+      required:
+      - message
+      - code
+      title: APIError
+    ExternalIdRef:
+      properties:
+        externalId:
+          type: string
+          title: ExternalId
+          description: String-based ID
+      additionalProperties: false
+      type: object
+      required:
+      - externalId
+      title: ExternalIdRef
+    EmptyResponse:
+      properties: {}
+      type: object
+      title: EmptyResponse
+    ListSimulatorModelRevisionsFilters:
+      properties:
+        modelExternalIds:
+          title: ModelExternalIds
+          description: Filter by model external ids
+          examples:
+          - - model_1
+            - model_2
+          items:
+            type: string
+          type: array
+          maxItems: 100
+          minItems: 1
+        simulatorExternalIds:
+          title: SimulatorExternalIds
+          description: Filter by simulator external ids
+          examples:
+          - - PROSPER
+            - PetroSIM
+          items:
+            type: string
+            maxLength: 50
+            minLength: 1
+          type: array
+          maxItems: 100
+          minItems: 1
+        allVersions:
+          title: AllVersions
+          description: If all versions of the entity should be returned. Defaults to false which returns only the latest revision for each model.
+          default: false
+          type: boolean
+        createdTime:
+          description: Filter by created time range
+          $ref: '#/components/schemas/EpochTimestampRange'
+        lastUpdatedTime:
+          description: Filter by last updated time range
+          $ref: '#/components/schemas/EpochTimestampRange'
+      additionalProperties: false
+      type: object
+      title: ListSimulatorModelRevisionsFilters
+    SimulatorModelCreateCommand:
+      properties:
+        externalId:
+          type: string
+          maxLength: 255
+          minLength: 1
+          title: ExternalId
+          description: External id of the simulation model
+        simulatorExternalId:
+          type: string
+          maxLength: 50
+          minLength: 1
+          title: SimulatorExternalId
+          description: External id of the simulator
+        name:
+          type: string
+          maxLength: 50
+          minLength: 1
+          title: Name
+          description: Name of the simulation model
+        description:
+          title: Description
+          description: Description of the simulation model
+          type: string
+          maxLength: 255
+          minLength: 1
+        dataSetId:
+          type: integer
+          title: DataSetId
+          description: Data set id of the simulation model
+        type:
+          type: string
+          maxLength: 50
+          minLength: 1
+          title: Type
+          description: Model type of the simulation model. List of available types is available in the simulator resource.
+      additionalProperties: false
+      type: object
+      required:
+      - externalId
+      - simulatorExternalId
+      - name
+      - dataSetId
+      - type
+      title: SimulatorModelCreateCommand
+    SingleItemSimulatorModelUpdateCommand:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/SimulatorModelUpdateCommand'
+          type: array
+          title: Items
+          description: A list with a single item
+      additionalProperties: false
+      type: object
+      required:
+      - items
+      title: SingleItemSimulatorModelUpdateCommand
+    SimulatorModelRevisionCreateCommand:
+      properties:
+        externalId:
+          type: string
+          maxLength: 255
+          minLength: 1
+          title: ExternalId
+          description: External id of the simulation model revision
+        modelExternalId:
+          type: string
+          title: ModelExternalId
+          description: External id of the simulation model
+        description:
+          title: Description
+          description: Description of the simulation model revision
+          type: string
+          maxLength: 255
+          minLength: 1
+        fileId:
+          type: integer
+          title: FileId
+          description: Source file id of the simulation model revision
+      additionalProperties: false
+      type: object
+      required:
+      - externalId
+      - modelExternalId
+      - fileId
+      title: SimulatorModelRevisionCreateCommand
+    SimulatorModelUpdateCommand:
+      properties:
+        id:
+          type: integer
+          title: Id
+          description: Id of the simulator model
+        update:
+          $ref: '#/components/schemas/SimulatorModelUpdate'
+      additionalProperties: false
+      type: object
+      required:
+      - id
+      - update
+      title: SimulatorModelUpdateCommand
+    IdRef:
+      properties:
+        id:
+          type: integer
+          title: Id
+          description: ID
+          examples:
+          - 5559452808603919
+      additionalProperties: false
+      type: object
+      required:
+      - id
+      title: IdRef
+    UpdateSetString:
+      properties:
+        set:
+          type: string
+          maxLength: 255
+          minLength: 1
+          title: Set
+          description: Value to set
+      additionalProperties: false
+      type: object
+      required:
+      - set
+      title: UpdateSetString
+    SingleItemSimulatorModelCreateCommand:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/SimulatorModelCreateCommand'
+          type: array
+          title: Items
+          description: A list with a single item
+      additionalProperties: false
+      type: object
+      required:
+      - items
+      title: SingleItemSimulatorModelCreateCommand
     SimulatorModelRevision:
       properties:
         dataSetId:
@@ -609,67 +930,19 @@ components:
       - createdTime
       - lastUpdatedTime
       title: SimulatorModelRevision
-    SimulatorModelUpdate:
+    UpdateSetShortStr:
       properties:
-        name:
-          description: Name of the model
-          examples:
-          - set: Model for PROSPER
-          $ref: '#/components/schemas/UpdateSetShortStr'
-        description:
-          description: Description of the simulation model
-          $ref: '#/components/schemas/UpdateSetString'
-      additionalProperties: false
-      type: object
-      title: SimulatorModelUpdate
-    InputItemsIdRefOrExternalIdRef:
-      properties:
-        items:
-          items:
-            anyOf:
-            - $ref: '#/components/schemas/IdRef'
-            - $ref: '#/components/schemas/ExternalIdRef'
-          type: array
-          maxItems: 100
-          minItems: 1
-          title: Items
-          description: A list of items
-      additionalProperties: false
-      type: object
-      required:
-      - items
-      title: InputItemsIdRefOrExternalIdRef
-    ErrorBase:
-      properties:
-        error:
-          $ref: '#/components/schemas/APIError'
-      type: object
-      required:
-      - error
-      title: ErrorBase
-    ListSimulatorModelsQuery:
-      properties:
-        filter:
-          $ref: '#/components/schemas/ListSimulatorModelsFilters'
-        limit:
-          type: integer
-          maximum: 1000
-          minimum: 1
-          title: Limit
-          default: 1000
-        cursor:
-          title: Cursor
-          description: Cursor for pagination
+        set:
           type: string
-        sort:
-          title: Sort
-          description: Only supports sorting by one property at a time
-          items:
-            $ref: '#/components/schemas/SortByCreatedTime'
-          type: array
+          maxLength: 50
+          minLength: 1
+          title: Set
+          description: Value to set
       additionalProperties: false
       type: object
-      title: ListSimulatorModelsQuery
+      required:
+      - set
+      title: UpdateSetShortStr
     SingleItemIdRefOrExternalIdRef:
       properties:
         items:
@@ -685,98 +958,6 @@ components:
       required:
       - items
       title: SingleItemIdRefOrExternalIdRef
-    ListSimulatorModelRevision:
-      properties:
-        items:
-          items:
-            $ref: '#/components/schemas/SimulatorModelRevision'
-          type: array
-          title: Items
-      additionalProperties: false
-      type: object
-      required:
-      - items
-      title: ListSimulatorModelRevision
-    EmptyResponse:
-      properties: {}
-      type: object
-      title: EmptyResponse
-    SimulatorModelUpdateCommand:
-      properties:
-        id:
-          type: integer
-          title: Id
-          description: Id of the simulator model
-        update:
-          $ref: '#/components/schemas/SimulatorModelUpdate'
-      additionalProperties: false
-      type: object
-      required:
-      - id
-      - update
-      title: SimulatorModelUpdateCommand
-    ListWithCursorSimulatorModelRevisionView:
-      properties:
-        items:
-          items:
-            $ref: '#/components/schemas/SimulatorModelRevisionView'
-          type: array
-          title: Items
-        nextCursor:
-          title: NextCursor
-          type: string
-      additionalProperties: false
-      type: object
-      required:
-      - items
-      title: ListWithCursorSimulatorModelRevisionView
-    ListSimulatorModelRevisionsQuery:
-      properties:
-        filter:
-          $ref: '#/components/schemas/ListSimulatorModelRevisionsFilters'
-        limit:
-          type: integer
-          maximum: 1000
-          minimum: 1
-          title: Limit
-          default: 1000
-        cursor:
-          title: Cursor
-          description: Cursor for pagination
-          type: string
-        sort:
-          title: Sort
-          description: Only supports sorting by one property at a time
-          items:
-            $ref: '#/components/schemas/SortByCreatedTime'
-          type: array
-      additionalProperties: false
-      type: object
-      title: ListSimulatorModelRevisionsQuery
-    ExternalIdRef:
-      properties:
-        externalId:
-          type: string
-          title: ExternalId
-          description: String-based ID
-      additionalProperties: false
-      type: object
-      required:
-      - externalId
-      title: ExternalIdRef
-    APIError:
-      properties:
-        message:
-          type: string
-          title: Message
-        code:
-          type: integer
-          title: Code
-      type: object
-      required:
-      - message
-      - code
-      title: APIError
     EpochTimestampRange:
       description: Range between two timestamps (inclusive).
       type: object
@@ -791,84 +972,33 @@ components:
           type: integer
           minimum: 0
           format: int64
-    ListAggregateCount:
+    ListWithCursorSimulatorModel:
       properties:
         items:
           items:
-            $ref: '#/components/schemas/AggregateCount'
+            $ref: '#/components/schemas/SimulatorModel'
           type: array
           title: Items
-      additionalProperties: false
-      type: object
-      required:
-      - items
-      title: ListAggregateCount
-    UpdateSetShortStr:
-      properties:
-        set:
+        nextCursor:
+          title: NextCursor
           type: string
-          maxLength: 50
-          minLength: 1
-          title: Set
-          description: Value to set
-      additionalProperties: false
-      type: object
-      required:
-      - set
-      title: UpdateSetShortStr
-    SingleItemSimulatorModelRevisionCreateCommand:
-      properties:
-        items:
-          items:
-            $ref: '#/components/schemas/SimulatorModelRevisionCreateCommand'
-          type: array
-          title: Items
-          description: A list with a single item
       additionalProperties: false
       type: object
       required:
       - items
-      title: SingleItemSimulatorModelRevisionCreateCommand
-    ListSimulatorModelRevisionsFilters:
+      title: ListWithCursorSimulatorModel
+    ListSimulatorModelRevision:
       properties:
-        modelExternalIds:
-          title: ModelExternalIds
-          description: Filter by model external ids
-          examples:
-          - - model_1
-            - model_2
+        items:
           items:
-            type: string
+            $ref: '#/components/schemas/SimulatorModelRevision'
           type: array
-          maxItems: 100
-          minItems: 1
-        simulatorExternalIds:
-          title: SimulatorExternalIds
-          description: Filter by simulator external ids
-          examples:
-          - - PROSPER
-            - PetroSIM
-          items:
-            type: string
-            maxLength: 50
-            minLength: 1
-          type: array
-          maxItems: 100
-          minItems: 1
-        allVersions:
-          title: AllVersions
-          description: If all versions of the entity should be returned. Defaults to false which returns only the latest revision for each model.
-          default: false
-          type: boolean
-        createdTime:
-          description: Filter by created time range
-          $ref: '#/components/schemas/EpochTimestampRange'
-        lastUpdatedTime:
-          description: Filter by last updated time range
-          $ref: '#/components/schemas/EpochTimestampRange'
+          title: Items
       additionalProperties: false
       type: object
-      title: ListSimulatorModelRevisionsFilters
+      required:
+      - items
+      title: ListSimulatorModelRevision
     SimulatorModel:
       properties:
         dataSetId:
@@ -918,27 +1048,28 @@ components:
       - createdTime
       - lastUpdatedTime
       title: SimulatorModel
-    AggregateSimulatorModelsQuery:
-      properties:
-        filter:
-          $ref: '#/components/schemas/ListSimulatorModelsFilters'
-        aggregate:
-          type: string
-          const: count
-          title: Aggregate
-          description: Aggregate type
-          enum:
-          - count
-      additionalProperties: false
-      type: object
-      required:
-      - aggregate
-      title: AggregateSimulatorModelsQuery
-    SingleItemSimulatorModelUpdateCommand:
+    InputItemsIdRefOrExternalIdRef:
       properties:
         items:
           items:
-            $ref: '#/components/schemas/SimulatorModelUpdateCommand'
+            anyOf:
+            - $ref: '#/components/schemas/IdRef'
+            - $ref: '#/components/schemas/ExternalIdRef'
+          type: array
+          maxItems: 100
+          minItems: 1
+          title: Items
+          description: A list of items
+      additionalProperties: false
+      type: object
+      required:
+      - items
+      title: InputItemsIdRefOrExternalIdRef
+    SingleItemSimulatorModelRevisionCreateCommand:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/SimulatorModelRevisionCreateCommand'
           type: array
           title: Items
           description: A list with a single item
@@ -946,138 +1077,7 @@ components:
       type: object
       required:
       - items
-      title: SingleItemSimulatorModelUpdateCommand
-    ListWithCursorSimulatorModel:
-      properties:
-        items:
-          items:
-            $ref: '#/components/schemas/SimulatorModel'
-          type: array
-          title: Items
-        nextCursor:
-          title: NextCursor
-          type: string
-      additionalProperties: false
-      type: object
-      required:
-      - items
-      title: ListWithCursorSimulatorModel
-    SimulatorModelCreateCommand:
-      properties:
-        externalId:
-          type: string
-          maxLength: 255
-          minLength: 1
-          title: ExternalId
-          description: External id of the simulation model
-        simulatorExternalId:
-          type: string
-          maxLength: 50
-          minLength: 1
-          title: SimulatorExternalId
-          description: External id of the simulator
-        name:
-          type: string
-          maxLength: 50
-          minLength: 1
-          title: Name
-          description: Name of the simulation model
-        description:
-          title: Description
-          description: Description of the simulation model
-          type: string
-          maxLength: 255
-          minLength: 1
-        dataSetId:
-          type: integer
-          title: DataSetId
-          description: Data set id of the simulation model
-        type:
-          type: string
-          maxLength: 50
-          minLength: 1
-          title: Type
-          description: Model type of the simulation model. List of available types is available in the simulator resource.
-      additionalProperties: false
-      type: object
-      required:
-      - externalId
-      - simulatorExternalId
-      - name
-      - dataSetId
-      - type
-      title: SimulatorModelCreateCommand
-    IdRef:
-      properties:
-        id:
-          type: integer
-          title: Id
-          description: ID
-          examples:
-          - 5559452808603919
-      additionalProperties: false
-      type: object
-      required:
-      - id
-      title: IdRef
-    SortByCreatedTime:
-      properties:
-        order:
-          anyOf:
-          - type: string
-            const: asc
-            enum:
-            - asc
-          - type: string
-            const: desc
-            enum:
-            - desc
-          title: Order
-          description: Sort order
-        property:
-          type: string
-          const: createdTime
-          title: Property
-          description: Name of the property to sort by
-          enum:
-          - createdTime
-      additionalProperties: false
-      type: object
-      required:
-      - order
-      - property
-      title: SortByCreatedTime
-    SimulatorModelRevisionStatus:
-      type: string
-      enum:
-      - unknown
-      - success
-      - failure
-      title: SimulatorModelRevisionStatus
-    AggregateCount:
-      properties:
-        count:
-          type: integer
-          title: Count
-          description: Number of items
-      additionalProperties: false
-      type: object
-      required:
-      - count
-      title: AggregateCount
-    UpdateSetString:
-      properties:
-        set:
-          type: string
-          maxLength: 255
-          minLength: 1
-          title: Set
-          description: Value to set
-      additionalProperties: false
-      type: object
-      required:
-      - set
-      title: UpdateSetString
+      title: SingleItemSimulatorModelRevisionCreateCommand
   securitySchemes:
     oidc-token:
       type: http

@@ -322,50 +322,14 @@ paths:
           '
 components:
   schemas:
-    Error:
+    FunctionId:
       type: object
       required:
-      - code
-      - message
-      description: Cognite API error.
+      - id
       properties:
-        code:
-          type: integer
-          description: HTTP status code.
-          format: int32
-          example: 401
-        message:
-          type: string
-          description: Error message.
-          example: Could not authenticate.
-        missing:
-          type: array
-          description: List of lookup objects that do not match any results.
-          items:
-            type: object
-            additionalProperties: true
-        duplicated:
-          type: array
-          description: List of objects that are not unique.
-          items:
-            type: object
-            additionalProperties: true
-    FunctionType:
-      type: string
-      enum:
-      - classic
-      - functionApp
-      example: classic
-      description: Type of the function. Determines whether the function is a classic function with basic capabilities or a function app.
-    FunctionOwner:
-      type: string
-      example: user@cognite.com
-      maxLength: 128
-      description: Owner of this function. Typically used to know who created it. If omitted or blank on creation, the server automatically sets this field to `user_identifier:<hash>` derived from the caller's authentication token. A client-supplied value that does not start with the reserved prefix `user_identifier:` is always preserved as-is. Values that start with `user_identifier:` are overwritten by the server to prevent spoofing. The hash can be resolved to a display name via the IAM Principals API.
-    FunctionIdEither:
-      oneOf:
-      - $ref: '#/components/schemas/FunctionId'
-      - $ref: '#/components/schemas/FunctionExternalId'
+        id:
+          $ref: '#/components/schemas/CogniteInternalId'
+      description: The ID of the function.
     Function:
       type: object
       required:
@@ -500,100 +464,6 @@ components:
           items:
             type: string
           writeOnly: true
-    EpochTimestamp:
-      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-      type: integer
-      minimum: 0
-      format: int64
-      example: 1730204346000
-    CogniteExternalId:
-      description: The external ID provided by the client. Must be unique for the resource type.
-      type: string
-      maxLength: 255
-      example: my.known.id
-    FunctionId:
-      type: object
-      required:
-      - id
-      properties:
-        id:
-          $ref: '#/components/schemas/CogniteInternalId'
-      description: The ID of the function.
-    CogniteInternalId:
-      description: A server-generated ID for the object.
-      type: integer
-      minimum: 1
-      maximum: 9007199254740991
-      format: int64
-    FunctionExternalId:
-      type: object
-      required:
-      - externalId
-      properties:
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-      description: The external ID of the function. Should be unique for the project.
-    IgnoreUnknownIdsField:
-      type: object
-      properties:
-        ignoreUnknownIds:
-          description: Ignore IDs and external IDs that are not found
-          type: boolean
-          default: false
-    FunctionName:
-      type: string
-      description: The name of the function.
-      example: myfunction
-      minLength: 1
-      maxLength: 140
-    EpochTimestampRange:
-      description: Range between two timestamps (inclusive).
-      type: object
-      properties:
-        max:
-          description: Maximum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-          type: integer
-          minimum: 0
-          format: int64
-        min:
-          description: Minimum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-          type: integer
-          minimum: 0
-          format: int64
-    FunctionStatus:
-      type: string
-      enum:
-      - Queued
-      - Deploying
-      - Ready
-      - Failed
-      example: Queued
-      description: Status of the function. It starts in a Queued state, is then Deploying before it is either Ready or Failed. If the function is Ready, it can be called.
-    FunctionBuildError:
-      type: object
-      required:
-      - message
-      - trace
-      description: Cognite Function API error.
-      properties:
-        message:
-          type: string
-          description: Error message.
-          example: Function deployment failed.
-        trace:
-          type:
-          - string
-          - 'null'
-          description: 'Raw build output from the deployment process, truncated to 2000 characters. Contains the tail of the build log, typically showing the cause of the failure (e.g., a pip install error).
-
-            '
-          example: 'ERROR: Could not find a version that satisfies the requirement pandas==99.0.0
-
-            ERROR: No matching distribution found for pandas==99.0.0'
-    FunctionListScope:
-      allOf:
-      - $ref: '#/components/schemas/FunctionFilter'
-      - $ref: '#/components/schemas/LimitList'
     MemoryRange:
       type: object
       description: The amount of available memory in GB per function execution (i.e. function call).
@@ -614,39 +484,6 @@ components:
           type: number
           example: 1.5
           description: The default value when creating a function.
-    MetaData:
-      type: object
-      additionalProperties:
-        type: string
-      description: 'Custom, application specific metadata. String key -> String value. Limits: Maximum length of key is 32, value 512 characters, up to 16 key-value pairs. Maximum size of entire metadata is 4096 bytes.'
-    FunctionFilter:
-      type: object
-      properties:
-        filter:
-          title: FunctionFilter
-          type: object
-          properties:
-            name:
-              $ref: '#/components/schemas/FunctionName'
-            owner:
-              $ref: '#/components/schemas/FunctionOwner'
-            fileId:
-              $ref: '#/components/schemas/FunctionFileId'
-            status:
-              $ref: '#/components/schemas/FunctionStatus'
-            externalIdPrefix:
-              $ref: '#/components/schemas/CogniteExternalId'
-            createdTime:
-              $ref: '#/components/schemas/EpochTimestampRange'
-            metadata:
-              $ref: '#/components/schemas/MetaData'
-    FunctionFileId:
-      description: 'The file ID to a file uploaded to Cognite''s Files API. This file must be a zip file and contain a file called `handler.py` in the root folder (unless otherwise specified in the `functionPath` argument). This file must contain a function named `handle` with any of the following arguments: `data`, `client`, `secrets` and `function_call_info`, which are passed into the function. The zip file can contain other files as well (model binary data, libraries etc).
-
-
-        Custom packages can be pip installed by providing a requirements.txt file in the root of the zip file. The latest version of the Cognite Python SDK is automatically installed. If a specific version is needed, please specify this in the requirements.txt file.'
-      allOf:
-      - $ref: '#/components/schemas/CogniteInternalId'
     FunctionDeleteRequest:
       type: object
       allOf:
@@ -681,6 +518,71 @@ components:
           type: number
           example: 1
           description: The default value when creating a function.
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    CogniteExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
+      type: string
+      maxLength: 255
+      example: my.known.id
+    CogniteInternalId:
+      description: A server-generated ID for the object.
+      type: integer
+      minimum: 1
+      maximum: 9007199254740991
+      format: int64
+    LimitList:
+      type: object
+      properties:
+        limit:
+          description: Limits the number of results to be returned.
+          type: integer
+          format: int32
+          minimum: 1
+          default: 100
+    FunctionExternalId:
+      type: object
+      required:
+      - externalId
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+      description: The external ID of the function. Should be unique for the project.
+    FunctionName:
+      type: string
+      description: The name of the function.
+      example: myfunction
+      minLength: 1
+      maxLength: 140
+    FunctionListScope:
+      allOf:
+      - $ref: '#/components/schemas/FunctionFilter'
+      - $ref: '#/components/schemas/LimitList'
+    FunctionOwner:
+      type: string
+      example: user@cognite.com
+      maxLength: 128
+      description: Owner of this function. Typically used to know who created it. If omitted or blank on creation, the server automatically sets this field to `user_identifier:<hash>` derived from the caller's authentication token. A client-supplied value that does not start with the reserved prefix `user_identifier:` is always preserved as-is. Values that start with `user_identifier:` are overwritten by the server to prevent spoofing. The hash can be resolved to a display name via the IAM Principals API.
+    FunctionStatus:
+      type: string
+      enum:
+      - Queued
+      - Deploying
+      - Ready
+      - Failed
+      example: Queued
+      description: Status of the function. It starts in a Queued state, is then Deploying before it is either Ready or Failed. If the function is Ready, it can be called.
+    FunctionFileId:
+      description: 'The file ID to a file uploaded to Cognite''s Files API. This file must be a zip file and contain a file called `handler.py` in the root folder (unless otherwise specified in the `functionPath` argument). This file must contain a function named `handle` with any of the following arguments: `data`, `client`, `secrets` and `function_call_info`, which are passed into the function. The zip file can contain other files as well (model binary data, libraries etc).
+
+
+        Custom packages can be pip installed by providing a requirements.txt file in the root of the zip file. The latest version of the Cognite Python SDK is automatically installed. If a specific version is needed, please specify this in the requirements.txt file.'
+      allOf:
+      - $ref: '#/components/schemas/CogniteInternalId'
     FunctionIdEitherList:
       type: object
       allOf:
@@ -695,35 +597,125 @@ components:
             items:
               $ref: '#/components/schemas/FunctionIdEither'
       - $ref: '#/components/schemas/IgnoreUnknownIdsField'
-    LimitList:
+    FunctionType:
+      type: string
+      enum:
+      - classic
+      - functionApp
+      example: classic
+      description: Type of the function. Determines whether the function is a classic function with basic capabilities or a function app.
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
+    IgnoreUnknownIdsField:
       type: object
       properties:
-        limit:
-          description: Limits the number of results to be returned.
+        ignoreUnknownIds:
+          description: Ignore IDs and external IDs that are not found
+          type: boolean
+          default: false
+    FunctionIdEither:
+      oneOf:
+      - $ref: '#/components/schemas/FunctionId'
+      - $ref: '#/components/schemas/FunctionExternalId'
+    EpochTimestampRange:
+      description: Range between two timestamps (inclusive).
+      type: object
+      properties:
+        max:
+          description: Maximum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
           type: integer
-          format: int32
-          minimum: 1
-          default: 100
+          minimum: 0
+          format: int64
+        min:
+          description: Minimum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+          type: integer
+          minimum: 0
+          format: int64
+    MetaData:
+      type: object
+      additionalProperties:
+        type: string
+      description: 'Custom, application specific metadata. String key -> String value. Limits: Maximum length of key is 32, value 512 characters, up to 16 key-value pairs. Maximum size of entire metadata is 4096 bytes.'
+    FunctionBuildError:
+      type: object
+      required:
+      - message
+      - trace
+      description: Cognite Function API error.
+      properties:
+        message:
+          type: string
+          description: Error message.
+          example: Function deployment failed.
+        trace:
+          type:
+          - string
+          - 'null'
+          description: 'Raw build output from the deployment process, truncated to 2000 characters. Contains the tail of the build log, typically showing the cause of the failure (e.g., a pip install error).
+
+            '
+          example: 'ERROR: Could not find a version that satisfies the requirement pandas==99.0.0
+
+            ERROR: No matching distribution found for pandas==99.0.0'
+    FunctionFilter:
+      type: object
+      properties:
+        filter:
+          title: FunctionFilter
+          type: object
+          properties:
+            name:
+              $ref: '#/components/schemas/FunctionName'
+            owner:
+              $ref: '#/components/schemas/FunctionOwner'
+            fileId:
+              $ref: '#/components/schemas/FunctionFileId'
+            status:
+              $ref: '#/components/schemas/FunctionStatus'
+            externalIdPrefix:
+              $ref: '#/components/schemas/CogniteExternalId'
+            createdTime:
+              $ref: '#/components/schemas/EpochTimestampRange'
+            metadata:
+              $ref: '#/components/schemas/MetaData'
   responses:
-    EmptyResponse:
-      description: Empty response.
-      content:
-        application/json:
-          schema:
-            type: object
-    FunctionList:
-      description: List of functions.
+    ErrorResponse:
+      description: The response for a failed request.
       content:
         application/json:
           schema:
             type: object
             required:
-            - items
+            - error
             properties:
-              items:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Function'
+              error:
+                $ref: '#/components/schemas/Error'
     FunctionsActivation:
       description: Functions activation status
       content:
@@ -740,17 +732,6 @@ components:
                 - inactive
                 - requested
                 - activated
-    ErrorResponse:
-      description: The response for a failed request.
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - error
-            properties:
-              error:
-                $ref: '#/components/schemas/Error'
     FunctionsLimits:
       description: Limits
       content:
@@ -786,7 +767,33 @@ components:
                 type: integer
                 description: Maximum response size of function calls.
                 example: 1
+    EmptyResponse:
+      description: Empty response.
+      content:
+        application/json:
+          schema:
+            type: object
+    FunctionList:
+      description: List of functions.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            properties:
+              items:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Function'
   parameters:
+    functionId:
+      schema:
+        type: integer
+      name: functionId
+      in: path
+      required: true
+      description: The function id.
     LimitQuery:
       name: limit
       description: Limits the number of results to be returned.
@@ -795,13 +802,6 @@ components:
         type: integer
         default: 100
         minimum: 1
-    functionId:
-      schema:
-        type: integer
-      name: functionId
-      in: path
-      required: true
-      description: The function id.
   securitySchemes:
     oidc-token:
       type: http

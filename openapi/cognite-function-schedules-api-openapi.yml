@@ -239,7 +239,165 @@ paths:
 
           '
 components:
+  responses:
+    ErrorResponse:
+      description: The response for a failed request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+    EmptyResponse:
+      description: Empty response.
+      content:
+        application/json:
+          schema:
+            type: object
+    FunctionScheduleList:
+      description: OK
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            properties:
+              items:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FunctionSchedule'
+    FunctionScheduleCreated:
+      description: Created
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            properties:
+              items:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FunctionSchedule'
+    FunctionScheduleDataResponse:
+      description: Input data to the associated function.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - id
+            properties:
+              id:
+                $ref: '#/components/schemas/CogniteInternalId'
+              data:
+                $ref: '#/components/schemas/data'
   schemas:
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    CogniteExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
+      type: string
+      maxLength: 255
+      example: my.known.id
+    CogniteInternalId:
+      description: A server-generated ID for the object.
+      type: integer
+      minimum: 1
+      maximum: 9007199254740991
+      format: int64
+    LimitList:
+      type: object
+      properties:
+        limit:
+          description: Limits the number of results to be returned.
+          type: integer
+          format: int32
+          minimum: 1
+          default: 100
+    FunctionScheduleIdArray:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          maxItems: 10000
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/FunctionScheduleId'
+    SessionId:
+      description: Id of the session.
+      type: string
+    FunctionScheduleName:
+      type: string
+      description: Name of function schedule.
+      example: My schedule
+      minLength: 1
+      maxLength: 140
+    FunctionScheduleWhen:
+      type: string
+      description: When the schedule will trigger, in human readable text.
+      example: Every hour
+    FunctionScheduleDescription:
+      type: string
+      example: This is a nice schedule
+      maxLength: 500
+      description: Description of function schedule.
+    FunctionScheduleScope:
+      allOf:
+      - $ref: '#/components/schemas/FunctionScheduleFilter'
+      - $ref: '#/components/schemas/LimitList'
+    FunctionScheduleCronExpression:
+      type: string
+      example: '* * * * *'
+      maxLength: 1024
+      description: Cron expression describes when the function should be called. Use http://www.cronmaker.com to create a cron expression.
+    data:
+      type: object
+      description: Input data to the function (only present if provided on the schedule). This data is passed deserialized into the function through one of the arguments called `data`. **WARNING:** Secrets or other confidential information should not be passed via the `data` object. There is a dedicated `secrets` object in the request body to "Create functions" for this purpose.'
+      example:
+        timeSeriesId1: 13435351
+        maxValue: 4
+    FunctionScheduleIds:
+      type: object
+      allOf:
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
+            items:
+              type: object
+              required:
+              - id
+              properties:
+                id:
+                  allOf:
+                  - $ref: '#/components/schemas/CogniteInternalId'
+            maxItems: 10000
+            minItems: 1
+    nonce:
+      type: string
+      description: Nonce retrieved from sessions API when creating a session. This will be used to bind the session before executing the function. The corresponding access token will be passed to the function and used to instantiate the client of the handle() function. You can create a session via the [Sessions API](#tag/Sessions/operation/createSessions). When using the Python SDK, the session will be created behind the scenes when creating the schedule.
+      writeOnly: true
+    FunctionScheduleId:
+      type: object
+      required:
+      - id
+      properties:
+        id:
+          $ref: '#/components/schemas/CogniteInternalId'
+      description: The ID of the function schedule.
     Error:
       type: object
       required:
@@ -268,14 +426,13 @@ components:
           items:
             type: object
             additionalProperties: true
-    FunctionScheduleId:
+    IgnoreUnknownIdsField:
       type: object
-      required:
-      - id
       properties:
-        id:
-          $ref: '#/components/schemas/CogniteInternalId'
-      description: The ID of the function schedule.
+        ignoreUnknownIds:
+          description: Ignore IDs and external IDs that are not found
+          type: boolean
+          default: false
     FunctionScheduleFilter:
       type: object
       properties:
@@ -294,58 +451,6 @@ components:
             cronExpression:
               $ref: '#/components/schemas/FunctionScheduleCronExpression'
           description: ''
-    EpochTimestamp:
-      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-      type: integer
-      minimum: 0
-      format: int64
-      example: 1730204346000
-    CogniteExternalId:
-      description: The external ID provided by the client. Must be unique for the resource type.
-      type: string
-      maxLength: 255
-      example: my.known.id
-    CogniteInternalId:
-      description: A server-generated ID for the object.
-      type: integer
-      minimum: 1
-      maximum: 9007199254740991
-      format: int64
-    FunctionScheduleIds:
-      type: object
-      allOf:
-      - type: object
-        required:
-        - items
-        properties:
-          items:
-            type: array
-            items:
-              type: object
-              required:
-              - id
-              properties:
-                id:
-                  allOf:
-                  - $ref: '#/components/schemas/CogniteInternalId'
-            maxItems: 10000
-            minItems: 1
-    FunctionScheduleCronExpression:
-      type: string
-      example: '* * * * *'
-      maxLength: 1024
-      description: Cron expression describes when the function should be called. Use http://www.cronmaker.com to create a cron expression.
-    IgnoreUnknownIdsField:
-      type: object
-      properties:
-        ignoreUnknownIds:
-          description: Ignore IDs and external IDs that are not found
-          type: boolean
-          default: false
-    nonce:
-      type: string
-      description: Nonce retrieved from sessions API when creating a session. This will be used to bind the session before executing the function. The corresponding access token will be passed to the function and used to instantiate the client of the handle() function. You can create a session via the [Sessions API](#tag/Sessions/operation/createSessions). When using the Python SDK, the session will be created behind the scenes when creating the schedule.
-      writeOnly: true
     EpochTimestampRange:
       description: Range between two timestamps (inclusive).
       type: object
@@ -360,12 +465,6 @@ components:
           type: integer
           minimum: 0
           format: int64
-    data:
-      type: object
-      description: Input data to the function (only present if provided on the schedule). This data is passed deserialized into the function through one of the arguments called `data`. **WARNING:** Secrets or other confidential information should not be passed via the `data` object. There is a dedicated `secrets` object in the request body to "Create functions" for this purpose.'
-      example:
-        timeSeriesId1: 13435351
-        maxValue: 4
     FunctionSchedule:
       allOf:
       - title: Funtion Schedule
@@ -412,106 +511,14 @@ components:
       - when
       - sessionId
       - nonce
-    FunctionScheduleName:
-      type: string
-      description: Name of function schedule.
-      example: My schedule
-      minLength: 1
-      maxLength: 140
-    FunctionScheduleWhen:
-      type: string
-      description: When the schedule will trigger, in human readable text.
-      example: Every hour
-    FunctionScheduleDescription:
-      type: string
-      example: This is a nice schedule
-      maxLength: 500
-      description: Description of function schedule.
-    SessionId:
-      description: Id of the session.
-      type: string
-    FunctionScheduleScope:
-      allOf:
-      - $ref: '#/components/schemas/FunctionScheduleFilter'
-      - $ref: '#/components/schemas/LimitList'
-    FunctionScheduleIdArray:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          maxItems: 10000
-          minItems: 1
-          items:
-            $ref: '#/components/schemas/FunctionScheduleId'
-    LimitList:
-      type: object
-      properties:
-        limit:
-          description: Limits the number of results to be returned.
-          type: integer
-          format: int32
-          minimum: 1
-          default: 100
-  responses:
-    EmptyResponse:
-      description: Empty response.
-      content:
-        application/json:
-          schema:
-            type: object
-    FunctionScheduleList:
-      description: OK
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - items
-            properties:
-              items:
-                type: array
-                items:
-                  $ref: '#/components/schemas/FunctionSchedule'
-    FunctionScheduleCreated:
-      description: Created
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - items
-            properties:
-              items:
-                type: array
-                items:
-                  $ref: '#/components/schemas/FunctionSchedule'
-    FunctionScheduleDataResponse:
-      description: Input data to the associated function.
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - id
-            properties:
-              id:
-                $ref: '#/components/schemas/CogniteInternalId'
-              data:
-                $ref: '#/components/schemas/data'
-    ErrorResponse:
-      description: The response for a failed request.
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - error
-            properties:
-              error:
-                $ref: '#/components/schemas/Error'
   parameters:
+    scheduleId:
+      schema:
+        type: integer
+      name: scheduleId
+      in: path
+      required: true
+      description: The function schedule id.
     LimitQuery:
       name: limit
       description: Limits the number of results to be returned.
@@ -520,13 +527,6 @@ components:
         type: integer
         default: 100
         minimum: 1
-    scheduleId:
-      schema:
-        type: integer
-      name: scheduleId
-      in: path
-      required: true
-      description: The function schedule id.
   securitySchemes:
     oidc-token:
       type: http

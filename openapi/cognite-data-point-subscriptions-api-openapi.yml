@@ -321,52 +321,75 @@ paths:
         source: "for batch in client.time_series.subscriptions.iterate_data(\"my_subscription\"):\n    # Changes to the subscription itself:\n    print(f\"Added {len(batch.subscription_changes.added)} timeseries\")\n    print(f\"Removed {len(batch.subscription_changes.removed)} timeseries\")\n    print(f\"Changed timeseries data in {len(batch.updates)} updates\")\n    # Changes to datapoints for time series in the subscription:\n    for update in batch.updates:\n        upserts.time_series  # The time series the update belongs to\n        upserts.upserts  # The upserted datapoints, if any\n        upserts.deletes  # Ranges of deleted periods, if any\n    if not batch.has_next:\n        break\n\nfor batch in client.time_series.subscriptions.iterate_data(\"my_subscription\", \"3d-ago\"):\n    pass  # do something\n"
 components:
   schemas:
-    SubscriptionFilterLanguage:
+    TimeSeriesEqualsFilter:
       type: object
-      description: 'A filter DSL (Domain Specific Language) to define advanced filter queries.
+      title: equals
+      required:
+      - equals
+      properties:
+        equals:
+          required:
+          - property
+          - value
+          description: 'Matches items where the given property is **exactly** equal to the given value.
+
+            '
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/TimeSeriesFilterProperty'
+            value:
+              $ref: '#/components/schemas/TimeSeriesValue'
+    DatapointsDeleteRange:
+      required:
+      - inclusiveBegin
+      properties:
+        inclusiveBegin:
+          $ref: '#/components/schemas/TimeSeriesEpochTimestamp'
+        exclusiveEnd:
+          $ref: '#/components/schemas/TimeSeriesEpochTimestamp'
+    ListSubscriptionDTO:
+      description: List of subscriptions.
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SubscriptionDTO'
+    DatapointStatus:
+      type: object
+      description: 'The [status code](<https://docs.cognite.com/dev/concepts/reference/status_codes>) of the datapoint.
 
 
-        At the top level, a `filter` expression is either a single Boolean filter or a
+        The most common status codes are:\
 
-        single leaf filter. Boolean filters contain other Boolean filters and/or leaf filters. The
+        _Good_ (0) (Default)\
 
-        total number of filters may be at most 100, and the depth (the greatest number of times
+        _Uncertain_ (1073741824)\
 
-        filters have been nested inside each other) may be at most 10.
+        _Bad_ (2147483648)
 
-        '
-      oneOf:
-      - $ref: '#/components/schemas/TimeSeriesBoolFilter'
-      - $ref: '#/components/schemas/SubscriptionLeafFilter'
-      example:
-        or:
-        - not:
-            and:
-            - equals:
-                property:
-                - metadata
-                - manufacturer
-                value: acme
-            - in:
-                property:
-                - name
-                values:
-                - pump-1-temperature
-                - motor-9-temperature
-            - range:
-                property:
-                - dataSetId
-                gte: 1
-                lt: 10
-        - and:
-          - equals:
-              property:
-              - assetId
-              value: 1234
-          - equals:
-              property:
-              - description
-              value: Temperature in Celsius
+
+        Only one of code and symbol is required. If both are defined, they must match.'
+      properties:
+        code:
+          type: integer
+          format: int64
+          description: The numeric status code of the data point.
+        symbol:
+          type: string
+          description: The status name of the data point.
+    SubscriptionMemberDTO:
+      type: object
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        id:
+          $ref: '#/components/schemas/CogniteInternalId'
+        instanceId:
+          $ref: '#/components/schemas/CogniteInstanceId'
     TimeSeriesValue:
       description: 'A value that you wish to find in the provided property.
 
@@ -377,21 +400,59 @@ components:
       - type: number
       - type: integer
       - type: boolean
-    CogniteInstanceId:
-      description: The ID of an [instance in Cognite Data Models](https://docs.cognite.com/cdf/dm/dm_concepts/dm_spaces_instances#instance).
+    ListSubscriptionDTOWithCursor:
       type: object
       required:
-      - space
-      - externalId
+      - items
       properties:
-        space:
+        items:
+          type: array
+          minItems: 0
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/SubscriptionDTO'
+        nextCursor:
           type: string
-          minLength: 1
-          maxLength: 43
-        externalId:
-          type: string
-          minLength: 1
-          maxLength: 255
+          description: The cursor to get the next page of results (if available).
+      description: A list of subscriptions along with possible cursors to get the next page of result
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    TimeSeriesContainsAllFilter:
+      type: object
+      title: containsAll
+      required:
+      - containsAll
+      properties:
+        containsAll:
+          required:
+          - property
+          - values
+          description: 'Matches items where the property contains all the given values.
+
+            This filter can only be applied to multivalued properties.
+
+            '
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/TimeSeriesFilterProperty'
+            values:
+              $ref: '#/components/schemas/TimeSeriesValues'
+    DataSetId:
+      description: The dataSet Id for the item.
+      type: integer
+      minimum: 1
+      maximum: 9007199254740991
+      format: int64
+    CogniteExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
+      type: string
+      maxLength: 255
+      example: my.known.id
     TimeSeriesRangeFilter:
       type: object
       title: range
@@ -432,6 +493,165 @@ components:
               $ref: '#/components/schemas/TimeSeriesRangeValue'
             lt:
               $ref: '#/components/schemas/TimeSeriesRangeValue'
+    SubscriptionLeafFilter:
+      description: 'Leaf filter.
+
+        '
+      title: Leaf filter
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/TimeSeriesEqualsFilter'
+      - $ref: '#/components/schemas/TimeSeriesInFilter'
+      - $ref: '#/components/schemas/TimeSeriesRangeFilter'
+      - $ref: '#/components/schemas/TimeSeriesPrefixFilter'
+      - $ref: '#/components/schemas/TimeSeriesExistsFilter'
+      - $ref: '#/components/schemas/TimeSeriesContainsAnyFilter'
+      - $ref: '#/components/schemas/TimeSeriesContainsAllFilter'
+    CogniteInternalId:
+      description: A server-generated ID for the object.
+      type: integer
+      minimum: 1
+      maximum: 9007199254740991
+      format: int64
+    SubscriptionsCreateRequest:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 1
+          description: "<details>\n<summary>\nSubscription definitions. A subscription may be configured explicitly with a list\nof time series, or it may be a configured dynamically through a filter. The\nsubscription cannot change type later.\n\nAn explicit list must be manually updated by the user, while a filter will be updated\nautomatically whenever a time series is added/deleted/updated (eventually consistent).\n\nThe filter subscriptions uses the same syntax as advanced filters in the _Filter time series_\nendpoint, with two exceptions: The field is named &#x60;filter&#x60; instead of &#x60;advancedFilter&#x60;,\nand we do not support the &#x60;search&#x60; LeafFilter.\n</summary>\n\n### Advanced filtering\n\nThe `filter`\nfield lets you create complex filtering expressions that combine simple operations,\nsuch as `equals`, `prefix`, and `exists`, by using the Boolean operators `and`, `or`, and `not`.\nFiltering applies to basic fields as well as metadata. See the `advancedFilter` syntax in the request example.\n\n\n\n#### Supported leaf filters\n\n| Leaf filter    | Supported fields       | Description and example                                                                                                                                                            |\n|----------------|------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|\n| `containsAll`  | Array type fields      | Only includes results which contain all of the specified values. <br /> `{\"containsAll\": {\"property\": [\"property\"], \"values\": [1, 2, 3]}}`                                         |\n| `containsAny`  | Array type fields      | Only includes results which contain at least one of the specified values. <br /> `{\"containsAny\": {\"property\": [\"property\"], \"values\": [1, 2, 3]}}`                                |\n| `equals`       | Non-array type fields  | Only includes results that are equal to the specified value. <br /> `{\"equals\": {\"property\": [\"property\"], \"value\": \"example\"}}`                                                   |\n| `exists`       | All fields             | Only includes results where the specified property exists (has a value). <br /> `{\"exists\": {\"property\": [\"property\"]}}`                                                           |\n| `in`           | Non-array type fields  | Only includes results that are equal to one of the specified values. <br /> `{\"in\": {\"property\": [\"property\"], \"values\": [1, 2, 3]}}`                                              |\n| `prefix`       | String type fields     | Only includes results which start with the specified text. <br /> `{\"prefix\": {\"property\": [\"property\"], \"value\": \"example\"}}`                                                     |\n| `range`        | Non-array type fields  | Only includes results that fall within the specified range. <br /> `{\"range\": {\"property\": [\"property\"], \"gt\": 1, \"lte\": 5}}` <br /> Supported operators: `gt`, `lt`, `gte`, `lte` |\n\n#### Supported properties\n\n| Property                          | Type               |\n|-----------------------------------|--------------------|\n| `[\"description\"]`                 | string             |\n| `[\"externalId\"]`                  | string             |\n| `[\"metadata\", \"<someCustomKey>\"]` | string             |\n| `[\"name\"]`                        | string             |\n| `[\"unit\"]`                         | string              |\n| `[\"unitExternalId\"]`               | string              |\n| `[\"unitQuantity\"]`                 | string              |\n| `[\"instanceId\", \"space\"]`          | string              |\n| `[\"instanceId\", \"externalId\"]`     | string              |\n| `[\"assetId\"]`                      | number              |\n| `[\"assetRootId\"]`                  | number              |\n| `[\"createdTime\"]`                  | number              |\n| `[\"dataSetId\"]`                    | number              |\n| `[\"id\"]`                           | number              |\n| `[\"lastUpdatedTime\"]`              | number              |\n| `[\"isStep\"]`                       | Boolean             |\n| `[\"isString\"]`                     | Boolean             |\n| `[\"type\"]`                         | string              |\n\n#### Limits\n\n- Filter query max depth: 10.\n- Filter query max number of clauses: 100.\n- `and` and `or` clauses must have at least one element (and at most 99, since each element counts\n  towards the total clause limit, and so does the `and`/`or` clause itself).\n- The `property` array of each leaf filter has the following limitations:\n  - Number of elements in the array is 1 or 2.\n  - Elements must not be null or blank.\n  - Each element max length is 256 characters.\n  - The `property` array must match one of the existing properties (static top-level property or dynamic metadata property).\n- `containsAll`, `containsAny`, and `in` filter `values` array size must be in the range [1, 100].\n- `containsAll`, `containsAny`, and `in` filter `values` array must contain elements of number or string type (matching the type of the given property).\n- `range` filter must have at lest one of `gt`, `gte`, `lt`, `lte` attributes.\n  But `gt` is mutually exclusive to `gte`, while `lt` is mutually exclusive to `lte`.\n- `gt`, `gte`, `lt`, `lte` in the `range` filter must be of number or string type (matching the type of the given property).\n- The maximum length of the `value` of a leaf filter that is applied to a string property is 256.\n\n</details>\n"
+          items:
+            type: object
+            required:
+            - externalId
+            - partitionCount
+            properties:
+              externalId:
+                maxLength: 255
+                type: string
+                description: Externally provided ID for the subscription. Must be unique.
+              name:
+                maxLength: 255
+                type: string
+                description: Human readable name of the subscription.
+              description:
+                maxLength: 1000
+                type: string
+                description: A description of the subscription.
+              dataSetId:
+                $ref: '#/components/schemas/DataSetId'
+              partitionCount:
+                description: The maximum effective parallelism of this subscription (the number of clients that can read from it concurrently) will be limited to this number, but a higher partition count will cause a higher time overhead.
+                minimum: 1
+                maximum: 100
+                type: integer
+                format: int32
+              timeSeriesIds:
+                type: array
+                description: List of (external) ids of time series that this subscription will listen to. Not compatible with filter. The list can initially contain up to 100 time series. The subscription can be updated later, up to a total of 10,000 time series, by adding time series in batches.
+                minItems: 1
+                maxItems: 100
+                items:
+                  $ref: '#/components/schemas/CogniteExternalId'
+              instanceIds:
+                type: array
+                description: List of instance ids of time series that this subscription will listen to. Not compatible with filter. The list can initially contain up to 100 time series. The subscription can be updated later, up to a total of 10,000 time series, by adding time series in batches.
+                minItems: 1
+                maxItems: 100
+                items:
+                  $ref: '#/components/schemas/CogniteInstanceId'
+              filter:
+                $ref: '#/components/schemas/SubscriptionFilterLanguage'
+    NullableSinglePatchLong:
+      oneOf:
+      - type: object
+        required:
+        - set
+        title: set
+        properties:
+          set:
+            type: integer
+            format: int64
+      - type: object
+        required:
+        - setNull
+        title: remove
+        properties:
+          setNull:
+            type: boolean
+            enum:
+            - true
+      description: The change that will be applied to the key.
+    TimeSeriesEpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds. Can be negative to define dates before 1970, up to 1900.
+      type: integer
+      minimum: -2208988800000
+      format: int64
+      example: 1638795554528
+    SubscriptionsListDataRequest:
+      type: object
+      required:
+      - partitions
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        partitions:
+          type: array
+          description: Pairs of (partition, cursor) to fetch from.
+          items:
+            $ref: '#/components/schemas/SubscriptionsDataPartitionRequestDTO'
+        limit:
+          type: integer
+          description: Approximate number of results to return across all partitions. We will batch together groups of updates, where each group come from the same ingestion request. Thus, if a single group is large, it may exceed limit, otherwise we will return up to limit results. To check whether you have reached the end, do not rely on the count. Instead, check the `hasNext` field.
+          minimum: 1
+          maximum: 100000
+          default: 100
+        initializeCursors:
+          type: string
+          description: 'If `partitions.cursor` is not set, the default behaviour is to start from the beginning of the stream.
+
+            `initializeCursors` can be used to override this behaviour.
+
+
+            The format is "N[timeunit]-ago", where timeunit is w,d,h,m (week, day, hour, minute).
+
+            For instance, "2d-ago" will give a stream of changes ingested up to 2 days ago.
+
+            You can also use "now" to jump straight to the end of the stream.
+
+
+            Note that initializeCursors is not exact; a deviation of some seconds can occur.'
+        pollTimeoutSeconds:
+          type: integer
+          minimum: 0
+          maximum: 5
+          default: 5
+          description: 'The maximum time to wait for data to arrive, in seconds. As soon as data is available,
+
+            the request will return immediately with the data. If the timeout is reached while
+
+            waiting for data, the request will return an empty data response.'
+        includeStatus:
+          type: boolean
+          description: 'Show the [status code](<https://docs.cognite.com/dev/concepts/reference/status_codes>) for each data point in the response.
+
+            _Good_ (code = 0) status codes are always omitted.'
+          default: false
+        ignoreBadDataPoints:
+          type: boolean
+          description: 'Treat data points with a _Bad_ status code as if they do not exist.
+
+            Set to false to include all data points.'
+          default: true
+        treatUncertainAsBad:
+          type: boolean
+          description: 'Treat data points with _Uncertain_ status codes as _Bad_.
+
+            Set to false to include uncertain data points.'
+          default: true
     SubscriptionsUpdateRequest:
       type: object
       required:
@@ -531,31 +751,99 @@ components:
                     properties:
                       set:
                         $ref: '#/components/schemas/SubscriptionFilterLanguage'
-    ListSubscriptionDTO:
-      description: List of subscriptions.
+    TimeSeriesFilterProperty:
+      description: "The property on which you want to filter. May be either:\n- A single-element list that contains the name of one of the predefined top-level\n  properties, in which case the filter will be applied to that top-level property.\n- A single-element list that contains `'metadata'`, in which case the filter will be applied\n  to _all_ metadata properties.\n- A two-element list where the first element is `'metadata'` and the second one is any\n  string, in which case the filter will be applied to metadata properties with that name.\n- A two-element list where the first element is `'instanceId'` and the second element is\n  either `'space'` or `'externalId'`.\n"
+      type: array
+      minItems: 1
+      maxItems: 2
+      items:
+        type: string
+        minLength: 1
+        maxLength: 256
+    SubscriptionsDataDeletesDTO:
+      type: array
+      description: List of time ranges in which all data points were deleted.
+      items:
+        $ref: '#/components/schemas/DatapointsDeleteRange'
+    TimeSeriesLeafFilter:
+      description: 'Leaf filter.
+
+        '
+      title: Leaf filter
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/TimeSeriesEqualsFilter'
+      - $ref: '#/components/schemas/TimeSeriesInFilter'
+      - $ref: '#/components/schemas/TimeSeriesRangeFilter'
+      - $ref: '#/components/schemas/TimeSeriesPrefixFilter'
+      - $ref: '#/components/schemas/TimeSeriesExistsFilter'
+      - $ref: '#/components/schemas/TimeSeriesContainsAnyFilter'
+      - $ref: '#/components/schemas/TimeSeriesContainsAllFilter'
+      - $ref: '#/components/schemas/TimeSeriesSearchFilter'
+    SubscriptionsByIdsRequest:
+      type: object
+      required:
+      - items
+      allOf:
+      - properties:
+          items:
+            uniqueItems: true
+            type: array
+            maxItems: 1
+            minItems: 1
+            description: List of ID objects
+            items:
+              type: object
+              title: QueryWithExternalId
+              properties:
+                externalId:
+                  $ref: '#/components/schemas/CogniteExternalId'
+      - $ref: '#/components/schemas/IgnoreUnknownIdsField'
+    ListSubscriptionMemberDTOWithCursor:
       type: object
       required:
       - items
       properties:
         items:
           type: array
+          minItems: 0
+          maxItems: 100
           items:
-            $ref: '#/components/schemas/SubscriptionDTO'
-    TimeSeriesValues:
-      description: 'One or more values that you wish to find in the provided properties.
-
-        '
-      type: array
-      minItems: 1
-      maxItems: 100
-      items:
-        $ref: '#/components/schemas/TimeSeriesValue'
-    EpochTimestamp:
-      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-      type: integer
-      minimum: 0
-      format: int64
-      example: 1730204346000
+            $ref: '#/components/schemas/SubscriptionMemberDTO'
+        nextCursor:
+          type: string
+          description: The cursor to get the next page of results (if available).
+      description: A list of member time series along with possible cursors to get the next page of result
+    SubscriptionsDataPartitionRequestDTO:
+      type: object
+      required:
+      - index
+      properties:
+        index:
+          type: integer
+          description: Partition index to fetch data from. Between 0 and `partitions-1` inclusive.
+        cursor:
+          type: string
+          description: Position in the partition stream to start fetching data from. Defaults to start of stream.
+    NullableSinglePatchString:
+      oneOf:
+      - type: object
+        required:
+        - set
+        title: set
+        properties:
+          set:
+            type: string
+      - type: object
+        required:
+        - setNull
+        title: remove
+        properties:
+          setNull:
+            type: boolean
+            enum:
+            - true
+      description: The change that will be applied to the key.
     SubscriptionDTO:
       type: object
       required:
@@ -590,194 +878,6 @@ components:
           $ref: '#/components/schemas/EpochTimestamp'
         lastUpdatedTime:
           $ref: '#/components/schemas/EpochTimestamp'
-    CogniteExternalId:
-      description: The external ID provided by the client. Must be unique for the resource type.
-      type: string
-      maxLength: 255
-      example: my.known.id
-    TimeSeriesLeafFilter:
-      description: 'Leaf filter.
-
-        '
-      title: Leaf filter
-      type: object
-      oneOf:
-      - $ref: '#/components/schemas/TimeSeriesEqualsFilter'
-      - $ref: '#/components/schemas/TimeSeriesInFilter'
-      - $ref: '#/components/schemas/TimeSeriesRangeFilter'
-      - $ref: '#/components/schemas/TimeSeriesPrefixFilter'
-      - $ref: '#/components/schemas/TimeSeriesExistsFilter'
-      - $ref: '#/components/schemas/TimeSeriesContainsAnyFilter'
-      - $ref: '#/components/schemas/TimeSeriesContainsAllFilter'
-      - $ref: '#/components/schemas/TimeSeriesSearchFilter'
-    CogniteInternalId:
-      description: A server-generated ID for the object.
-      type: integer
-      minimum: 1
-      maximum: 9007199254740991
-      format: int64
-    PostDatapoint:
-      oneOf:
-      - required:
-        - timestamp
-        title: NumericalDatapoint
-        type: object
-        properties:
-          timestamp:
-            minimum: -2208988800000
-            maximum: 4102444799999
-            description: The timestamp in milliseconds since the Epoch (Jan 1, 1970). The timestamp must be from a year between 1900 and 2099, inclusive. Use a negative number for timestamps before 1970.
-          value:
-            type: number
-            description: 'The numerical data value of a numerical metric.
-
-              Numerical data values can be in the range (-1e100, 1e100)
-
-
-              The value is required unless the status is bad. Bad data points may also have one
-
-              of the three special string values: ''NaN'', ''Infinity'' or ''-Infinity''.'
-          status:
-            $ref: '#/components/schemas/DatapointStatus'
-      - required:
-        - timestamp
-        type: object
-        title: StringDatapoint
-        properties:
-          timestamp:
-            minimum: -2208988800000
-            maximum: 4102444799999
-            description: The timestamp in milliseconds since the Epoch (Jan 1, 1970). The timestamp must be from a year between 1900 and 2099, inclusive. Use a negative number for timestamps before 1970.
-          value:
-            maxLength: 1023
-            type: string
-            description: "The string data value of a string metric. The value is required unless the status is bad. The max length is 1023 bytes (UTF-8 encoded). The \"character-to-byte ratio\" is dependent on the language / alphabet used. The following can be used as a **loose** guide for estimation:\n  * Basic Latin characters (ASCII): 1 byte / character\n  * Latin-based alphabets with diacritics (e.g., French, German): 1-2 bytes / character\n  * Greek, Cyrillic, Arabic, Hebrew: typically 2 bytes / character\n  * CJK logograms (e.g., Chinese, Japanese, Korean): typically 3 bytes / character\n  * Emojis and other symbols: typically 4 bytes / character\n"
-          status:
-            $ref: '#/components/schemas/DatapointStatus'
-    TimeSeriesType:
-      type: string
-      description: 'The type of the time series. Currently, time series can either be of type `numeric` or `string`. ** The available types of time series may be extended in the future. **
-
-        '
-    SubscriptionLeafFilter:
-      description: 'Leaf filter.
-
-        '
-      title: Leaf filter
-      type: object
-      oneOf:
-      - $ref: '#/components/schemas/TimeSeriesEqualsFilter'
-      - $ref: '#/components/schemas/TimeSeriesInFilter'
-      - $ref: '#/components/schemas/TimeSeriesRangeFilter'
-      - $ref: '#/components/schemas/TimeSeriesPrefixFilter'
-      - $ref: '#/components/schemas/TimeSeriesExistsFilter'
-      - $ref: '#/components/schemas/TimeSeriesContainsAnyFilter'
-      - $ref: '#/components/schemas/TimeSeriesContainsAllFilter'
-    IgnoreUnknownIdsField:
-      type: object
-      properties:
-        ignoreUnknownIds:
-          description: Ignore IDs and external IDs that are not found
-          type: boolean
-          default: false
-    TimeSeriesStringValue:
-      title: String
-      description: 'A value that you wish to find in the provided property.
-
-        '
-      type: string
-      maxLength: 256
-    DatapointStatus:
-      type: object
-      description: 'The [status code](<https://docs.cognite.com/dev/concepts/reference/status_codes>) of the datapoint.
-
-
-        The most common status codes are:\
-
-        _Good_ (0) (Default)\
-
-        _Uncertain_ (1073741824)\
-
-        _Bad_ (2147483648)
-
-
-        Only one of code and symbol is required. If both are defined, they must match.'
-      properties:
-        code:
-          type: integer
-          format: int64
-          description: The numeric status code of the data point.
-        symbol:
-          type: string
-          description: The status name of the data point.
-    TimeSeriesExistsFilter:
-      type: object
-      title: exists
-      required:
-      - exists
-      properties:
-        exists:
-          required:
-          - property
-          description: 'Matches items that have a value for the specified property.
-
-            '
-          type: object
-          properties:
-            property:
-              $ref: '#/components/schemas/TimeSeriesFilterProperty'
-    SubscriptionsCreateRequest:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          minItems: 1
-          maxItems: 1
-          description: "<details>\n<summary>\nSubscription definitions. A subscription may be configured explicitly with a list\nof time series, or it may be a configured dynamically through a filter. The\nsubscription cannot change type later.\n\nAn explicit list must be manually updated by the user, while a filter will be updated\nautomatically whenever a time series is added/deleted/updated (eventually consistent).\n\nThe filter subscriptions uses the same syntax as advanced filters in the _Filter time series_\nendpoint, with two exceptions: The field is named &#x60;filter&#x60; instead of &#x60;advancedFilter&#x60;,\nand we do not support the &#x60;search&#x60; LeafFilter.\n</summary>\n\n### Advanced filtering\n\nThe `filter`\nfield lets you create complex filtering expressions that combine simple operations,\nsuch as `equals`, `prefix`, and `exists`, by using the Boolean operators `and`, `or`, and `not`.\nFiltering applies to basic fields as well as metadata. See the `advancedFilter` syntax in the request example.\n\n\n\n#### Supported leaf filters\n\n| Leaf filter    | Supported fields       | Description and example                                                                                                                                                            |\n|----------------|------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|\n| `containsAll`  | Array type fields      | Only includes results which contain all of the specified values. <br /> `{\"containsAll\": {\"property\": [\"property\"], \"values\": [1, 2, 3]}}`                                         |\n| `containsAny`  | Array type fields      | Only includes results which contain at least one of the specified values. <br /> `{\"containsAny\": {\"property\": [\"property\"], \"values\": [1, 2, 3]}}`                                |\n| `equals`       | Non-array type fields  | Only includes results that are equal to the specified value. <br /> `{\"equals\": {\"property\": [\"property\"], \"value\": \"example\"}}`                                                   |\n| `exists`       | All fields             | Only includes results where the specified property exists (has a value). <br /> `{\"exists\": {\"property\": [\"property\"]}}`                                                           |\n| `in`           | Non-array type fields  | Only includes results that are equal to one of the specified values. <br /> `{\"in\": {\"property\": [\"property\"], \"values\": [1, 2, 3]}}`                                              |\n| `prefix`       | String type fields     | Only includes results which start with the specified text. <br /> `{\"prefix\": {\"property\": [\"property\"], \"value\": \"example\"}}`                                                     |\n| `range`        | Non-array type fields  | Only includes results that fall within the specified range. <br /> `{\"range\": {\"property\": [\"property\"], \"gt\": 1, \"lte\": 5}}` <br /> Supported operators: `gt`, `lt`, `gte`, `lte` |\n\n#### Supported properties\n\n| Property                          | Type               |\n|-----------------------------------|--------------------|\n| `[\"description\"]`                 | string             |\n| `[\"externalId\"]`                  | string             |\n| `[\"metadata\", \"<someCustomKey>\"]` | string             |\n| `[\"name\"]`                        | string             |\n| `[\"unit\"]`                         | string              |\n| `[\"unitExternalId\"]`               | string              |\n| `[\"unitQuantity\"]`                 | string              |\n| `[\"instanceId\", \"space\"]`          | string              |\n| `[\"instanceId\", \"externalId\"]`     | string              |\n| `[\"assetId\"]`                      | number              |\n| `[\"assetRootId\"]`                  | number              |\n| `[\"createdTime\"]`                  | number              |\n| `[\"dataSetId\"]`                    | number              |\n| `[\"id\"]`                           | number              |\n| `[\"lastUpdatedTime\"]`              | number              |\n| `[\"isStep\"]`                       | Boolean             |\n| `[\"isString\"]`                     | Boolean             |\n| `[\"type\"]`                         | string              |\n\n#### Limits\n\n- Filter query max depth: 10.\n- Filter query max number of clauses: 100.\n- `and` and `or` clauses must have at least one element (and at most 99, since each element counts\n  towards the total clause limit, and so does the `and`/`or` clause itself).\n- The `property` array of each leaf filter has the following limitations:\n  - Number of elements in the array is 1 or 2.\n  - Elements must not be null or blank.\n  - Each element max length is 256 characters.\n  - The `property` array must match one of the existing properties (static top-level property or dynamic metadata property).\n- `containsAll`, `containsAny`, and `in` filter `values` array size must be in the range [1, 100].\n- `containsAll`, `containsAny`, and `in` filter `values` array must contain elements of number or string type (matching the type of the given property).\n- `range` filter must have at lest one of `gt`, `gte`, `lt`, `lte` attributes.\n  But `gt` is mutually exclusive to `gte`, while `lt` is mutually exclusive to `lte`.\n- `gt`, `gte`, `lt`, `lte` in the `range` filter must be of number or string type (matching the type of the given property).\n- The maximum length of the `value` of a leaf filter that is applied to a string property is 256.\n\n</details>\n"
-          items:
-            type: object
-            required:
-            - externalId
-            - partitionCount
-            properties:
-              externalId:
-                maxLength: 255
-                type: string
-                description: Externally provided ID for the subscription. Must be unique.
-              name:
-                maxLength: 255
-                type: string
-                description: Human readable name of the subscription.
-              description:
-                maxLength: 1000
-                type: string
-                description: A description of the subscription.
-              dataSetId:
-                $ref: '#/components/schemas/DataSetId'
-              partitionCount:
-                description: The maximum effective parallelism of this subscription (the number of clients that can read from it concurrently) will be limited to this number, but a higher partition count will cause a higher time overhead.
-                minimum: 1
-                maximum: 100
-                type: integer
-                format: int32
-              timeSeriesIds:
-                type: array
-                description: List of (external) ids of time series that this subscription will listen to. Not compatible with filter. The list can initially contain up to 100 time series. The subscription can be updated later, up to a total of 10,000 time series, by adding time series in batches.
-                minItems: 1
-                maxItems: 100
-                items:
-                  $ref: '#/components/schemas/CogniteExternalId'
-              instanceIds:
-                type: array
-                description: List of instance ids of time series that this subscription will listen to. Not compatible with filter. The list can initially contain up to 100 time series. The subscription can be updated later, up to a total of 10,000 time series, by adding time series in batches.
-                minItems: 1
-                maxItems: 100
-                items:
-                  $ref: '#/components/schemas/CogniteInstanceId'
-              filter:
-                $ref: '#/components/schemas/SubscriptionFilterLanguage'
     TimeSeriesRangeValue:
       description: An upper or lower bound in a `range` filter.
       oneOf:
@@ -785,12 +885,11 @@ components:
         maxLength: 256
       - type: number
       - type: integer
-    DataSetId:
-      description: The dataSet Id for the item.
-      type: integer
-      minimum: 1
-      maximum: 9007199254740991
-      format: int64
+    SubscriptionsDataUpsertsDTO:
+      type: array
+      description: List of data points inserted into the time series (possibly overwriting existing data).
+      items:
+        $ref: '#/components/schemas/PostDatapoint'
     SubscriptionsDataUpdateResponseDTO:
       type: object
       properties:
@@ -800,155 +899,6 @@ components:
           $ref: '#/components/schemas/SubscriptionsDataUpsertsDTO'
         deletes:
           $ref: '#/components/schemas/SubscriptionsDataDeletesDTO'
-    SubscriptionsDataPartitionRequestDTO:
-      type: object
-      required:
-      - index
-      properties:
-        index:
-          type: integer
-          description: Partition index to fetch data from. Between 0 and `partitions-1` inclusive.
-        cursor:
-          type: string
-          description: Position in the partition stream to start fetching data from. Defaults to start of stream.
-    SubscriptionsByIdsRequest:
-      type: object
-      required:
-      - items
-      allOf:
-      - properties:
-          items:
-            uniqueItems: true
-            type: array
-            maxItems: 1
-            minItems: 1
-            description: List of ID objects
-            items:
-              type: object
-              title: QueryWithExternalId
-              properties:
-                externalId:
-                  $ref: '#/components/schemas/CogniteExternalId'
-      - $ref: '#/components/schemas/IgnoreUnknownIdsField'
-    ListSubscriptionDTOWithCursor:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          minItems: 0
-          maxItems: 100
-          items:
-            $ref: '#/components/schemas/SubscriptionDTO'
-        nextCursor:
-          type: string
-          description: The cursor to get the next page of results (if available).
-      description: A list of subscriptions along with possible cursors to get the next page of result
-    SubscriptionsListDataRequest:
-      type: object
-      required:
-      - partitions
-      properties:
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-        partitions:
-          type: array
-          description: Pairs of (partition, cursor) to fetch from.
-          items:
-            $ref: '#/components/schemas/SubscriptionsDataPartitionRequestDTO'
-        limit:
-          type: integer
-          description: Approximate number of results to return across all partitions. We will batch together groups of updates, where each group come from the same ingestion request. Thus, if a single group is large, it may exceed limit, otherwise we will return up to limit results. To check whether you have reached the end, do not rely on the count. Instead, check the `hasNext` field.
-          minimum: 1
-          maximum: 100000
-          default: 100
-        initializeCursors:
-          type: string
-          description: 'If `partitions.cursor` is not set, the default behaviour is to start from the beginning of the stream.
-
-            `initializeCursors` can be used to override this behaviour.
-
-
-            The format is "N[timeunit]-ago", where timeunit is w,d,h,m (week, day, hour, minute).
-
-            For instance, "2d-ago" will give a stream of changes ingested up to 2 days ago.
-
-            You can also use "now" to jump straight to the end of the stream.
-
-
-            Note that initializeCursors is not exact; a deviation of some seconds can occur.'
-        pollTimeoutSeconds:
-          type: integer
-          minimum: 0
-          maximum: 5
-          default: 5
-          description: 'The maximum time to wait for data to arrive, in seconds. As soon as data is available,
-
-            the request will return immediately with the data. If the timeout is reached while
-
-            waiting for data, the request will return an empty data response.'
-        includeStatus:
-          type: boolean
-          description: 'Show the [status code](<https://docs.cognite.com/dev/concepts/reference/status_codes>) for each data point in the response.
-
-            _Good_ (code = 0) status codes are always omitted.'
-          default: false
-        ignoreBadDataPoints:
-          type: boolean
-          description: 'Treat data points with a _Bad_ status code as if they do not exist.
-
-            Set to false to include all data points.'
-          default: true
-        treatUncertainAsBad:
-          type: boolean
-          description: 'Treat data points with _Uncertain_ status codes as _Bad_.
-
-            Set to false to include uncertain data points.'
-          default: true
-    TimeSeriesFilterProperty:
-      description: "The property on which you want to filter. May be either:\n- A single-element list that contains the name of one of the predefined top-level\n  properties, in which case the filter will be applied to that top-level property.\n- A single-element list that contains `'metadata'`, in which case the filter will be applied\n  to _all_ metadata properties.\n- A two-element list where the first element is `'metadata'` and the second one is any\n  string, in which case the filter will be applied to metadata properties with that name.\n- A two-element list where the first element is `'instanceId'` and the second element is\n  either `'space'` or `'externalId'`.\n"
-      type: array
-      minItems: 1
-      maxItems: 2
-      items:
-        type: string
-        minLength: 1
-        maxLength: 256
-    ListSubscriptionMemberDTOWithCursor:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          minItems: 0
-          maxItems: 100
-          items:
-            $ref: '#/components/schemas/SubscriptionMemberDTO'
-        nextCursor:
-          type: string
-          description: The cursor to get the next page of results (if available).
-      description: A list of member time series along with possible cursors to get the next page of result
-    TimeSeriesPrefixFilter:
-      type: object
-      title: prefix
-      required:
-      - prefix
-      properties:
-        prefix:
-          required:
-          - property
-          - value
-          description: 'Matches items where the provided property begins with the given text.
-
-            '
-          type: object
-          properties:
-            property:
-              $ref: '#/components/schemas/TimeSeriesFilterProperty'
-            value:
-              $ref: '#/components/schemas/TimeSeriesStringValue'
     TimeSeriesBoolFilter:
       description: 'A query that matches items matching boolean combinations of other queries.
 
@@ -997,25 +947,6 @@ components:
             type: object
             allOf:
             - $ref: '#/components/schemas/TimeSeriesFilterLanguage'
-    NullableSinglePatchString:
-      oneOf:
-      - type: object
-        required:
-        - set
-        title: set
-        properties:
-          set:
-            type: string
-      - type: object
-        required:
-        - setNull
-        title: remove
-        properties:
-          setNull:
-            type: boolean
-            enum:
-            - true
-      description: The change that will be applied to the key.
     SubscriptionsDeleteRequest:
       type: object
       allOf:
@@ -1036,6 +967,36 @@ components:
             maxItems: 1
             minItems: 1
       - $ref: '#/components/schemas/IgnoreUnknownIdsField'
+    TimeSeriesType:
+      type: string
+      description: 'The type of the time series. Currently, time series can either be of type `numeric` or `string`. ** The available types of time series may be extended in the future. **
+
+        '
+    TimeSeriesExistsFilter:
+      type: object
+      title: exists
+      required:
+      - exists
+      properties:
+        exists:
+          required:
+          - property
+          description: 'Matches items that have a value for the specified property.
+
+            '
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/TimeSeriesFilterProperty'
+    TimeSeriesValues:
+      description: 'One or more values that you wish to find in the provided properties.
+
+        '
+      type: array
+      minItems: 1
+      maxItems: 100
+      items:
+        $ref: '#/components/schemas/TimeSeriesValue'
     NotFoundResponse:
       type: object
       required:
@@ -1085,19 +1046,72 @@ components:
                   properties:
                     instanceId:
                       $ref: '#/components/schemas/CogniteInstanceId'
-    DatapointsDeleteRange:
+    TimeSeriesInFilter:
+      type: object
+      title: in
       required:
-      - inclusiveBegin
+      - in
       properties:
-        inclusiveBegin:
-          $ref: '#/components/schemas/TimeSeriesEpochTimestamp'
-        exclusiveEnd:
-          $ref: '#/components/schemas/TimeSeriesEpochTimestamp'
-    SubscriptionsDataUpsertsDTO:
-      type: array
-      description: List of data points inserted into the time series (possibly overwriting existing data).
-      items:
-        $ref: '#/components/schemas/PostDatapoint'
+        in:
+          required:
+          - property
+          - values
+          description: 'Matches items where the given property is **exactly** equal to one of the given values.
+
+            This filter can only be applied to single-valued properties.
+
+            '
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/TimeSeriesFilterProperty'
+            values:
+              $ref: '#/components/schemas/TimeSeriesValues'
+    IgnoreUnknownIdsField:
+      type: object
+      properties:
+        ignoreUnknownIds:
+          description: Ignore IDs and external IDs that are not found
+          type: boolean
+          default: false
+    PostDatapoint:
+      oneOf:
+      - required:
+        - timestamp
+        title: NumericalDatapoint
+        type: object
+        properties:
+          timestamp:
+            minimum: -2208988800000
+            maximum: 4102444799999
+            description: The timestamp in milliseconds since the Epoch (Jan 1, 1970). The timestamp must be from a year between 1900 and 2099, inclusive. Use a negative number for timestamps before 1970.
+          value:
+            type: number
+            description: 'The numerical data value of a numerical metric.
+
+              Numerical data values can be in the range (-1e100, 1e100)
+
+
+              The value is required unless the status is bad. Bad data points may also have one
+
+              of the three special string values: ''NaN'', ''Infinity'' or ''-Infinity''.'
+          status:
+            $ref: '#/components/schemas/DatapointStatus'
+      - required:
+        - timestamp
+        type: object
+        title: StringDatapoint
+        properties:
+          timestamp:
+            minimum: -2208988800000
+            maximum: 4102444799999
+            description: The timestamp in milliseconds since the Epoch (Jan 1, 1970). The timestamp must be from a year between 1900 and 2099, inclusive. Use a negative number for timestamps before 1970.
+          value:
+            maxLength: 1023
+            type: string
+            description: "The string data value of a string metric. The value is required unless the status is bad. The max length is 1023 bytes (UTF-8 encoded). The \"character-to-byte ratio\" is dependent on the language / alphabet used. The following can be used as a **loose** guide for estimation:\n  * Basic Latin characters (ASCII): 1 byte / character\n  * Latin-based alphabets with diacritics (e.g., French, German): 1-2 bytes / character\n  * Greek, Cyrillic, Arabic, Hebrew: typically 2 bytes / character\n  * CJK logograms (e.g., Chinese, Japanese, Korean): typically 3 bytes / character\n  * Emojis and other symbols: typically 4 bytes / character\n"
+          status:
+            $ref: '#/components/schemas/DatapointStatus'
     SubscriptionsListDataResponse:
       type: object
       description: Subscription data along with cursors.
@@ -1172,6 +1186,47 @@ components:
             the case, just continue to query with the updated cursors,
 
             and it will eventually return false.'
+    TimeSeriesStringValue:
+      title: String
+      description: 'A value that you wish to find in the provided property.
+
+        '
+      type: string
+      maxLength: 256
+    CogniteInstanceId:
+      description: The ID of an [instance in Cognite Data Models](https://docs.cognite.com/cdf/dm/dm_concepts/dm_spaces_instances#instance).
+      type: object
+      required:
+      - space
+      - externalId
+      properties:
+        space:
+          type: string
+          minLength: 1
+          maxLength: 43
+        externalId:
+          type: string
+          minLength: 1
+          maxLength: 255
+    TimeSeriesPrefixFilter:
+      type: object
+      title: prefix
+      required:
+      - prefix
+      properties:
+        prefix:
+          required:
+          - property
+          - value
+          description: 'Matches items where the provided property begins with the given text.
+
+            '
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/TimeSeriesFilterProperty'
+            value:
+              $ref: '#/components/schemas/TimeSeriesStringValue'
     TimeSeriesFilterLanguage:
       type: object
       description: 'A filter DSL (Domain Specific Language) to define advanced filter queries.
@@ -1222,6 +1277,93 @@ components:
               property:
               - description
               value: Temperature in Celsius
+    TimeSeriesContainsAnyFilter:
+      type: object
+      title: containsAny
+      required:
+      - containsAny
+      properties:
+        containsAny:
+          required:
+          - property
+          - values
+          description: 'Matches items where the property contains one or more of the given values.
+
+            This filter can only be applied to multivalued properties.
+
+            '
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/TimeSeriesFilterProperty'
+            values:
+              $ref: '#/components/schemas/TimeSeriesValues'
+    SubscriptionFilterLanguage:
+      type: object
+      description: 'A filter DSL (Domain Specific Language) to define advanced filter queries.
+
+
+        At the top level, a `filter` expression is either a single Boolean filter or a
+
+        single leaf filter. Boolean filters contain other Boolean filters and/or leaf filters. The
+
+        total number of filters may be at most 100, and the depth (the greatest number of times
+
+        filters have been nested inside each other) may be at most 10.
+
+        '
+      oneOf:
+      - $ref: '#/components/schemas/TimeSeriesBoolFilter'
+      - $ref: '#/components/schemas/SubscriptionLeafFilter'
+      example:
+        or:
+        - not:
+            and:
+            - equals:
+                property:
+                - metadata
+                - manufacturer
+                value: acme
+            - in:
+                property:
+                - name
+                values:
+                - pump-1-temperature
+                - motor-9-temperature
+            - range:
+                property:
+                - dataSetId
+                gte: 1
+                lt: 10
+        - and:
+          - equals:
+              property:
+              - assetId
+              value: 1234
+          - equals:
+              property:
+              - description
+              value: Temperature in Celsius
+    GetTimeSeriesForSubscription:
+      type: object
+      required:
+      - id
+      - isString
+      - type
+      properties:
+        id:
+          $ref: '#/components/schemas/CogniteInternalId'
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        instanceId:
+          $ref: '#/components/schemas/CogniteInstanceId'
+        isString:
+          type: boolean
+          description: 'True if the time series contains string values; false if it contains numeric values.
+
+            '
+        type:
+          $ref: '#/components/schemas/TimeSeriesType'
     TimeSeriesSearchFilter:
       type: object
       title: search
@@ -1259,148 +1401,6 @@ components:
               $ref: '#/components/schemas/TimeSeriesFilterProperty'
             value:
               $ref: '#/components/schemas/TimeSeriesStringValue'
-    NullableSinglePatchLong:
-      oneOf:
-      - type: object
-        required:
-        - set
-        title: set
-        properties:
-          set:
-            type: integer
-            format: int64
-      - type: object
-        required:
-        - setNull
-        title: remove
-        properties:
-          setNull:
-            type: boolean
-            enum:
-            - true
-      description: The change that will be applied to the key.
-    TimeSeriesEqualsFilter:
-      type: object
-      title: equals
-      required:
-      - equals
-      properties:
-        equals:
-          required:
-          - property
-          - value
-          description: 'Matches items where the given property is **exactly** equal to the given value.
-
-            '
-          type: object
-          properties:
-            property:
-              $ref: '#/components/schemas/TimeSeriesFilterProperty'
-            value:
-              $ref: '#/components/schemas/TimeSeriesValue'
-    SubscriptionsDataDeletesDTO:
-      type: array
-      description: List of time ranges in which all data points were deleted.
-      items:
-        $ref: '#/components/schemas/DatapointsDeleteRange'
-    TimeSeriesContainsAllFilter:
-      type: object
-      title: containsAll
-      required:
-      - containsAll
-      properties:
-        containsAll:
-          required:
-          - property
-          - values
-          description: 'Matches items where the property contains all the given values.
-
-            This filter can only be applied to multivalued properties.
-
-            '
-          type: object
-          properties:
-            property:
-              $ref: '#/components/schemas/TimeSeriesFilterProperty'
-            values:
-              $ref: '#/components/schemas/TimeSeriesValues'
-    SubscriptionMemberDTO:
-      type: object
-      properties:
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-        id:
-          $ref: '#/components/schemas/CogniteInternalId'
-        instanceId:
-          $ref: '#/components/schemas/CogniteInstanceId'
-    TimeSeriesEpochTimestamp:
-      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds. Can be negative to define dates before 1970, up to 1900.
-      type: integer
-      minimum: -2208988800000
-      format: int64
-      example: 1638795554528
-    TimeSeriesInFilter:
-      type: object
-      title: in
-      required:
-      - in
-      properties:
-        in:
-          required:
-          - property
-          - values
-          description: 'Matches items where the given property is **exactly** equal to one of the given values.
-
-            This filter can only be applied to single-valued properties.
-
-            '
-          type: object
-          properties:
-            property:
-              $ref: '#/components/schemas/TimeSeriesFilterProperty'
-            values:
-              $ref: '#/components/schemas/TimeSeriesValues'
-    GetTimeSeriesForSubscription:
-      type: object
-      required:
-      - id
-      - isString
-      - type
-      properties:
-        id:
-          $ref: '#/components/schemas/CogniteInternalId'
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-        instanceId:
-          $ref: '#/components/schemas/CogniteInstanceId'
-        isString:
-          type: boolean
-          description: 'True if the time series contains string values; false if it contains numeric values.
-
-            '
-        type:
-          $ref: '#/components/schemas/TimeSeriesType'
-    TimeSeriesContainsAnyFilter:
-      type: object
-      title: containsAny
-      required:
-      - containsAny
-      properties:
-        containsAny:
-          required:
-          - property
-          - values
-          description: 'Matches items where the property contains one or more of the given values.
-
-            This filter can only be applied to multivalued properties.
-
-            '
-          type: object
-          properties:
-            property:
-              $ref: '#/components/schemas/TimeSeriesFilterProperty'
-            values:
-              $ref: '#/components/schemas/TimeSeriesValues'
   responses:
     EmptyResponse:
       description: Empty response.

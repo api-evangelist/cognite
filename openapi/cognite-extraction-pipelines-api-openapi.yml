@@ -314,6 +314,41 @@ paths:
         source: "List<ExtractionPipeline> listPipelinesResults = new ArrayList<>(); \nclient.extractionPipelines() \n          .list(Request.create() \n               .withFilterParameter(\"source\", \"source\")) \n          .forEachRemaining(events -> listPipelinesResults.addAll(events)); \n\n"
 components:
   schemas:
+    MapUpdate:
+      type: object
+      description: 'Custom, application specific metadata. String key -> String value. Limits of updated extraction pipeline: Maximum length of key is 128 bytes, value 10240 bytes, up to 256 key-value pairs, of total size at most 10240.'
+      oneOf:
+      - $ref: '#/components/schemas/MapUpdateSet'
+      - $ref: '#/components/schemas/MapUpdateAddRemove'
+    DocumentationUpdateField:
+      type: object
+      properties:
+        set:
+          maxLength: 10000
+          type: string
+          description: Documentation text field
+          nullable: true
+      description: Set a new value for documentation.
+    DescriptionUpdateField:
+      type: object
+      properties:
+        set:
+          maxLength: 500
+          type: string
+          description: Description of Extraction Pipeline
+          nullable: true
+      description: Set a new value for description.
+    ItemsRequest_CreateExtPipe_:
+      required:
+      - items
+      type: object
+      properties:
+        items:
+          maxItems: 1000
+          minItems: 1
+          type: array
+          items:
+            $ref: '#/components/schemas/CreateExtPipe'
     ExtPipeExternalId:
       required:
       - externalId
@@ -324,17 +359,20 @@ components:
           minLength: 1
           type: string
           description: External Id provided by client. Should be unique within the project.
-    ExtPipeInternalId:
-      required:
-      - id
+    RawTablesUpdateSet:
       type: object
       properties:
-        id:
-          maximum: 9007199254740991
-          minimum: 0
-          type: integer
-          description: A server-generated ID for the object.
-          format: int64
+        set:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/RawTable'
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
     ExtendedItemsRequest_ExtPipeId_:
       required:
       - items
@@ -350,283 +388,11 @@ components:
           type: boolean
           description: Ignore IDs and external IDs that are not found
           default: false
-    ScheduleUpdateField:
-      type: object
-      properties:
-        set:
-          pattern: ^(On trigger|Continuous)|(@(annually|yearly|monthly|weekly|daily|hourly|reboot))|(@every (\d+(ns|us|Âµs|ms|s|m|h))+)|((((\d+,)+\d+|(\d+([/\-])\d+)|\d+|\*(/\d+)?) ?){5,7})$
-          type: string
-          description: "Possible values: â\x80\x9COn triggerâ\x80\x9D, â\x80\x9CContinuousâ\x80\x9D or cron expression. If empty then null"
-          nullable: true
-      description: Set a new value for schedule.
-    DefaultError:
-      type: object
-      properties:
-        code:
-          required:
-          - 'true'
-          type: integer
-          description: HTTP status code
-          format: int32
-        message:
-          required:
-          - 'true'
-          type: string
-          description: Error message
-        missing:
-          type: array
-          description: List of lookup objects that do not match any results.
-          items:
-            type: object
-        duplicated:
-          type: array
-          description: List of objects that are not unique.
-          items:
-            type: object
-      description: Cognite API error
-    ItemsRequest_CreateExtPipe_:
-      required:
-      - items
-      type: object
-      properties:
-        items:
-          maxItems: 1000
-          minItems: 1
-          type: array
-          items:
-            $ref: '#/components/schemas/CreateExtPipe'
-    EpochTimestamp:
-      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-      type: integer
-      minimum: 0
-      format: int64
-      example: 1730204346000
     CogniteExternalId:
       description: The external ID provided by the client. Must be unique for the resource type.
       type: string
       maxLength: 255
       example: my.known.id
-    CogniteInternalId:
-      description: A server-generated ID for the object.
-      type: integer
-      minimum: 1
-      maximum: 9007199254740991
-      format: int64
-    NameUpdateField:
-      required:
-      - set
-      type: object
-      properties:
-        set:
-          maxLength: 140
-          minLength: 1
-          type: string
-          description: Name of Extraction Pipeline
-      description: Set a new value for name.
-    DescriptionUpdateField:
-      type: object
-      properties:
-        set:
-          maxLength: 500
-          type: string
-          description: Description of Extraction Pipeline
-          nullable: true
-      description: Set a new value for description.
-    DataSetInternalId:
-      type: object
-      title: DataSetInternalId
-      required:
-      - id
-      properties:
-        id:
-          $ref: '#/components/schemas/CogniteInternalId'
-    ExtPipeId:
-      type: object
-      oneOf:
-      - $ref: '#/components/schemas/ExtPipeInternalId'
-      - $ref: '#/components/schemas/ExtPipeExternalId'
-    ExtPipeNotificationConfiguration:
-      type: object
-      properties:
-        allowedNotSeenRangeInMinutes:
-          minimum: 0
-          type: integer
-          description: Notifications configuration value. Time in minutes to pass without any Run. Null if extraction pipeline is not checked.
-          format: int64
-          nullable: true
-    ContactsUpdateAddRemove:
-      type: object
-      properties:
-        add:
-          type: array
-          description: Contacts to add
-          items:
-            $ref: '#/components/schemas/Contact'
-        remove:
-          type: array
-          description: Contacts to remove
-          items:
-            $ref: '#/components/schemas/Contact'
-    EpochTimestampRange:
-      description: Range between two timestamps (inclusive).
-      type: object
-      properties:
-        max:
-          description: Maximum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-          type: integer
-          minimum: 0
-          format: int64
-        min:
-          description: Minimum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-          type: integer
-          minimum: 0
-          format: int64
-    RawTablesUpdateAddRemove:
-      type: object
-      properties:
-        add:
-          type: array
-          items:
-            $ref: '#/components/schemas/RawTable'
-        remove:
-          type: array
-          items:
-            $ref: '#/components/schemas/RawTable'
-    MapUpdate:
-      type: object
-      description: 'Custom, application specific metadata. String key -> String value. Limits of updated extraction pipeline: Maximum length of key is 128 bytes, value 10240 bytes, up to 256 key-value pairs, of total size at most 10240.'
-      oneOf:
-      - $ref: '#/components/schemas/MapUpdateSet'
-      - $ref: '#/components/schemas/MapUpdateAddRemove'
-    MapUpdateAddRemove:
-      type: object
-      properties:
-        add:
-          type: object
-          additionalProperties:
-            type: string
-          description: Add the key-value pairs. Values for existing keys will be overwritten.
-          nullable: true
-          example:
-            property1: string
-            property2: string
-        remove:
-          type: array
-          description: Remove the key-value pairs with the specified keys.
-          nullable: true
-          items:
-            type: string
-    ExtPipesFilter:
-      type: object
-      properties:
-        externalIdPrefix:
-          maxLength: 255
-          minLength: 1
-          type: string
-          description: Filter by this (case-sensitive) prefix for the external ID.
-        name:
-          maxLength: 140
-          minLength: 1
-          type: string
-          description: Name of Extraction Pipeline
-        description:
-          maxLength: 500
-          type: string
-          description: Description of Extraction Pipeline
-        dataSetIds:
-          maxItems: 100
-          minItems: 1
-          type: array
-          description: DataSetId list
-          items:
-            $ref: '#/components/schemas/DataSetIdEither'
-        schedule:
-          pattern: ^(On trigger|Continuous|Null)|(@(annually|yearly|monthly|weekly|daily|hourly|reboot))|(@every (\d+(ns|us|Âµs|ms|s|m|h))+)|((((\d+,)+\d+|(\d+([/\-])\d+)|\d+|\*(/\d+)?) ?){5,7})$
-          type: string
-          description: "Possible values: â\x80\x9COn triggerâ\x80\x9D, â\x80\x9CContinuousâ\x80\x9D or cron expression. If empty then â\x80\x9CNullâ\x80\x9C"
-        contacts:
-          type: array
-          description: Contacts list.
-          items:
-            $ref: '#/components/schemas/Contact'
-        rawTables:
-          type: array
-          description: Raw tables
-          items:
-            $ref: '#/components/schemas/RawTable'
-        metadata:
-          type: object
-          additionalProperties:
-            type: string
-          description: 'Custom, application specific metadata. String key -> String value. Limits: Key are at most 128 bytes. Values are at most 10240 bytes. Up to 256 key-value pairs. Total size is at most 10240.'
-          example:
-            property1: string
-            property2: string
-        source:
-          maxLength: 255
-          minLength: 1
-          type: string
-          description: Source for Extraction Pipeline
-        documentation:
-          maxLength: 10000
-          minLength: 1
-          type: string
-          description: Documentation text field
-        createdBy:
-          maxLength: 255
-          minLength: 1
-          type: string
-          description: Extraction Pipeline creator. Usually user email is expected here
-        createdTime:
-          $ref: '#/components/schemas/EpochTimestampRange'
-        lastUpdatedTime:
-          $ref: '#/components/schemas/EpochTimestampRange'
-    ExtPipeUpdateByExternalId:
-      type: object
-      properties:
-        externalId:
-          maxLength: 255
-          type: string
-          description: External Id provided by client. Should be unique within the project.
-          nullable: true
-        update:
-          $ref: '#/components/schemas/ExtPipeUpdateData'
-    ExtPipesFilterRequest:
-      type: object
-      properties:
-        filter:
-          $ref: '#/components/schemas/ExtPipesFilter'
-        limit:
-          maximum: 1000
-          minimum: 1
-          type: integer
-          description: Limits the number of results to return.
-          format: int32
-          default: 100
-        cursor:
-          type: string
-    Contact:
-      type: object
-      properties:
-        name:
-          type: string
-          description: Contact name
-          nullable: true
-        email:
-          maxLength: 254
-          minLength: 1
-          type: string
-          description: Contact email
-          format: email
-          nullable: true
-        role:
-          type: string
-          description: Contact role
-          nullable: true
-        sendNotification:
-          type: boolean
-          description: True, if contact receives email notifications
-          nullable: true
     MapUpdateSet:
       type: object
       properties:
@@ -639,200 +405,12 @@ components:
           example:
             property1: string
             property2: string
-    ExtPipeUpdate:
-      type: object
-      oneOf:
-      - $ref: '#/components/schemas/ExtPipeUpdateById'
-      - $ref: '#/components/schemas/ExtPipeUpdateByExternalId'
-    ExtPipeUpdateData:
-      type: object
-      properties:
-        externalId:
-          $ref: '#/components/schemas/ExternalIdUpdateField'
-        name:
-          $ref: '#/components/schemas/NameUpdateField'
-        description:
-          $ref: '#/components/schemas/DescriptionUpdateField'
-        dataSetId:
-          $ref: '#/components/schemas/DataSetIdUpdateField'
-        schedule:
-          $ref: '#/components/schemas/ScheduleUpdateField'
-        rawTables:
-          $ref: '#/components/schemas/RawTablesUpdate'
-        contacts:
-          $ref: '#/components/schemas/ContactsUpdate'
-        metadata:
-          $ref: '#/components/schemas/MapUpdate'
-        source:
-          $ref: '#/components/schemas/SourceUpdateField'
-        documentation:
-          $ref: '#/components/schemas/DocumentationUpdateField'
-        notificationConfig:
-          $ref: '#/components/schemas/ConfigurationUpdateSet'
-      description: List of updates for Extraction Pipeline
-    ExtPipesWithCursor:
-      type: object
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/ExtPipe'
-        nextCursor:
-          type: string
-          description: The cursor to get the next page of results (if available).
-      description: List of extraction pipelines
-    DataSetIdEither:
-      oneOf:
-      - $ref: '#/components/schemas/DataSetInternalId'
-      - $ref: '#/components/schemas/DataSetExternalId'
-    DocumentationUpdateField:
-      type: object
-      properties:
-        set:
-          maxLength: 10000
-          type: string
-          description: Documentation text field
-          nullable: true
-      description: Set a new value for documentation.
-    ContactsUpdateSet:
-      type: object
-      properties:
-        set:
-          type: array
-          description: New contacts list
-          items:
-            $ref: '#/components/schemas/Contact'
-    RawTable:
-      required:
-      - dbName
-      - tableName
-      type: object
-      properties:
-        dbName:
-          minLength: 1
-          type: string
-          description: Database name
-        tableName:
-          minLength: 1
-          type: string
-          description: Table name
-    RawTablesUpdateSet:
-      type: object
-      properties:
-        set:
-          type: array
-          nullable: true
-          items:
-            $ref: '#/components/schemas/RawTable'
-    ContactsUpdate:
-      type: object
-      description: 'Updates the resource''s assigned contacts. Contacts can be added, removed or replaced (set). '
-      oneOf:
-      - $ref: '#/components/schemas/ContactsUpdateSet'
-      - $ref: '#/components/schemas/ContactsUpdateAddRemove'
-    DataSetIdUpdateField:
-      type: object
-      properties:
-        set:
-          maximum: 9007199254740991
-          minimum: 0
-          required:
-          - 'true'
-          type: integer
-          description: DataSet ID
-          format: int64
-      description: Set a new value for dataSetId.
-    RawTablesUpdate:
-      type: object
-      description: 'Updates the resource''s assigned rawTables. RawTables can be added, removed or replaced (set). '
-      oneOf:
-      - $ref: '#/components/schemas/RawTablesUpdateSet'
-      - $ref: '#/components/schemas/RawTablesUpdateAddRemove'
-    ItemsRequest_ExtPipeUpdate_:
-      required:
-      - items
-      type: object
-      properties:
-        items:
-          maxItems: 1000
-          minItems: 1
-          type: array
-          items:
-            $ref: '#/components/schemas/ExtPipeUpdate'
-    ExternalIdUpdateField:
-      required:
-      - set
-      type: object
-      properties:
-        set:
-          maxLength: 255
-          minLength: 1
-          type: string
-          description: External Id provided by client. Should be unique within the project.
-      description: Set a new value for the externalId. Must be unique for the resource type.
-    DataSetExternalId:
-      type: object
-      title: DataSetExternalId
-      required:
-      - externalId
-      properties:
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-    ConfigurationUpdateSet:
-      type: object
-      properties:
-        set:
-          $ref: '#/components/schemas/ExtPipeNotificationConfiguration'
-    SourceUpdateField:
-      type: object
-      properties:
-        set:
-          maxLength: 255
-          type: string
-          description: Source for Extraction Pipeline
-          nullable: true
-      description: Set a new value for source.
-    ExtPipes:
-      type: object
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/ExtPipe'
-      description: List of extraction pipelines
-    ExtPipe:
-      allOf:
-      - $ref: '#/components/schemas/CreateExtPipe'
-      - type: object
-        properties:
-          id:
-            maximum: 9007199254740991
-            minimum: 0
-            type: integer
-            description: A server-generated ID for the object.
-            format: int64
-          lastSuccess:
-            type: integer
-            description: Time of last successful run. The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-            format: int64
-          lastFailure:
-            type: integer
-            description: Time of last failure run. The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-            format: int64
-          lastMessage:
-            type: string
-            description: Last failure message.
-          lastSeen:
-            type: integer
-            description: Last seen time. The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-            format: int64
-          createdTime:
-            $ref: '#/components/schemas/EpochTimestamp'
-          lastUpdatedTime:
-            $ref: '#/components/schemas/EpochTimestamp'
-          createdBy:
-            type: string
-            description: Extraction Pipeline creator. Usually user email is expected here
+    CogniteInternalId:
+      description: A server-generated ID for the object.
+      type: integer
+      minimum: 1
+      maximum: 9007199254740991
+      format: int64
     CreateExtPipe:
       required:
       - dataSetId
@@ -909,6 +487,85 @@ components:
           type: string
           description: Extraction Pipeline creator. Usually user email is expected here
           nullable: true
+    ExtPipeNotificationConfiguration:
+      type: object
+      properties:
+        allowedNotSeenRangeInMinutes:
+          minimum: 0
+          type: integer
+          description: Notifications configuration value. Time in minutes to pass without any Run. Null if extraction pipeline is not checked.
+          format: int64
+          nullable: true
+    ConfigurationUpdateSet:
+      type: object
+      properties:
+        set:
+          $ref: '#/components/schemas/ExtPipeNotificationConfiguration'
+    ExtPipesFilter:
+      type: object
+      properties:
+        externalIdPrefix:
+          maxLength: 255
+          minLength: 1
+          type: string
+          description: Filter by this (case-sensitive) prefix for the external ID.
+        name:
+          maxLength: 140
+          minLength: 1
+          type: string
+          description: Name of Extraction Pipeline
+        description:
+          maxLength: 500
+          type: string
+          description: Description of Extraction Pipeline
+        dataSetIds:
+          maxItems: 100
+          minItems: 1
+          type: array
+          description: DataSetId list
+          items:
+            $ref: '#/components/schemas/DataSetIdEither'
+        schedule:
+          pattern: ^(On trigger|Continuous|Null)|(@(annually|yearly|monthly|weekly|daily|hourly|reboot))|(@every (\d+(ns|us|Âµs|ms|s|m|h))+)|((((\d+,)+\d+|(\d+([/\-])\d+)|\d+|\*(/\d+)?) ?){5,7})$
+          type: string
+          description: "Possible values: â\x80\x9COn triggerâ\x80\x9D, â\x80\x9CContinuousâ\x80\x9D or cron expression. If empty then â\x80\x9CNullâ\x80\x9C"
+        contacts:
+          type: array
+          description: Contacts list.
+          items:
+            $ref: '#/components/schemas/Contact'
+        rawTables:
+          type: array
+          description: Raw tables
+          items:
+            $ref: '#/components/schemas/RawTable'
+        metadata:
+          type: object
+          additionalProperties:
+            type: string
+          description: 'Custom, application specific metadata. String key -> String value. Limits: Key are at most 128 bytes. Values are at most 10240 bytes. Up to 256 key-value pairs. Total size is at most 10240.'
+          example:
+            property1: string
+            property2: string
+        source:
+          maxLength: 255
+          minLength: 1
+          type: string
+          description: Source for Extraction Pipeline
+        documentation:
+          maxLength: 10000
+          minLength: 1
+          type: string
+          description: Documentation text field
+        createdBy:
+          maxLength: 255
+          minLength: 1
+          type: string
+          description: Extraction Pipeline creator. Usually user email is expected here
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestampRange'
+        lastUpdatedTime:
+          $ref: '#/components/schemas/EpochTimestampRange'
     ExtPipeUpdateById:
       type: object
       properties:
@@ -920,20 +577,350 @@ components:
           format: int64
         update:
           $ref: '#/components/schemas/ExtPipeUpdateData'
-  responses:
-    EmptyResponse:
-      description: Empty response.
-      content:
-        application/json:
-          schema:
+    ExtPipesWithCursor:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExtPipe'
+        nextCursor:
+          type: string
+          description: The cursor to get the next page of results (if available).
+      description: List of extraction pipelines
+    ExtPipes:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExtPipe'
+      description: List of extraction pipelines
+    ExtPipeUpdate:
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/ExtPipeUpdateById'
+      - $ref: '#/components/schemas/ExtPipeUpdateByExternalId'
+    ExtPipeUpdateData:
+      type: object
+      properties:
+        externalId:
+          $ref: '#/components/schemas/ExternalIdUpdateField'
+        name:
+          $ref: '#/components/schemas/NameUpdateField'
+        description:
+          $ref: '#/components/schemas/DescriptionUpdateField'
+        dataSetId:
+          $ref: '#/components/schemas/DataSetIdUpdateField'
+        schedule:
+          $ref: '#/components/schemas/ScheduleUpdateField'
+        rawTables:
+          $ref: '#/components/schemas/RawTablesUpdate'
+        contacts:
+          $ref: '#/components/schemas/ContactsUpdate'
+        metadata:
+          $ref: '#/components/schemas/MapUpdate'
+        source:
+          $ref: '#/components/schemas/SourceUpdateField'
+        documentation:
+          $ref: '#/components/schemas/DocumentationUpdateField'
+        notificationConfig:
+          $ref: '#/components/schemas/ConfigurationUpdateSet'
+      description: List of updates for Extraction Pipeline
+    ContactsUpdateAddRemove:
+      type: object
+      properties:
+        add:
+          type: array
+          description: Contacts to add
+          items:
+            $ref: '#/components/schemas/Contact'
+        remove:
+          type: array
+          description: Contacts to remove
+          items:
+            $ref: '#/components/schemas/Contact'
+    ExtPipe:
+      allOf:
+      - $ref: '#/components/schemas/CreateExtPipe'
+      - type: object
+        properties:
+          id:
+            maximum: 9007199254740991
+            minimum: 0
+            type: integer
+            description: A server-generated ID for the object.
+            format: int64
+          lastSuccess:
+            type: integer
+            description: Time of last successful run. The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+            format: int64
+          lastFailure:
+            type: integer
+            description: Time of last failure run. The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+            format: int64
+          lastMessage:
+            type: string
+            description: Last failure message.
+          lastSeen:
+            type: integer
+            description: Last seen time. The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+            format: int64
+          createdTime:
+            $ref: '#/components/schemas/EpochTimestamp'
+          lastUpdatedTime:
+            $ref: '#/components/schemas/EpochTimestamp'
+          createdBy:
+            type: string
+            description: Extraction Pipeline creator. Usually user email is expected here
+    ScheduleUpdateField:
+      type: object
+      properties:
+        set:
+          pattern: ^(On trigger|Continuous)|(@(annually|yearly|monthly|weekly|daily|hourly|reboot))|(@every (\d+(ns|us|Âµs|ms|s|m|h))+)|((((\d+,)+\d+|(\d+([/\-])\d+)|\d+|\*(/\d+)?) ?){5,7})$
+          type: string
+          description: "Possible values: â\x80\x9COn triggerâ\x80\x9D, â\x80\x9CContinuousâ\x80\x9D or cron expression. If empty then null"
+          nullable: true
+      description: Set a new value for schedule.
+    RawTablesUpdate:
+      type: object
+      description: 'Updates the resource''s assigned rawTables. RawTables can be added, removed or replaced (set). '
+      oneOf:
+      - $ref: '#/components/schemas/RawTablesUpdateSet'
+      - $ref: '#/components/schemas/RawTablesUpdateAddRemove'
+    ContactsUpdate:
+      type: object
+      description: 'Updates the resource''s assigned contacts. Contacts can be added, removed or replaced (set). '
+      oneOf:
+      - $ref: '#/components/schemas/ContactsUpdateSet'
+      - $ref: '#/components/schemas/ContactsUpdateAddRemove'
+    ContactsUpdateSet:
+      type: object
+      properties:
+        set:
+          type: array
+          description: New contacts list
+          items:
+            $ref: '#/components/schemas/Contact'
+    SourceUpdateField:
+      type: object
+      properties:
+        set:
+          maxLength: 255
+          type: string
+          description: Source for Extraction Pipeline
+          nullable: true
+      description: Set a new value for source.
+    DataSetIdEither:
+      oneOf:
+      - $ref: '#/components/schemas/DataSetInternalId'
+      - $ref: '#/components/schemas/DataSetExternalId'
+    RawTablesUpdateAddRemove:
+      type: object
+      properties:
+        add:
+          type: array
+          items:
+            $ref: '#/components/schemas/RawTable'
+        remove:
+          type: array
+          items:
+            $ref: '#/components/schemas/RawTable'
+    RawTable:
+      required:
+      - dbName
+      - tableName
+      type: object
+      properties:
+        dbName:
+          minLength: 1
+          type: string
+          description: Database name
+        tableName:
+          minLength: 1
+          type: string
+          description: Table name
+    ExtPipeUpdateByExternalId:
+      type: object
+      properties:
+        externalId:
+          maxLength: 255
+          type: string
+          description: External Id provided by client. Should be unique within the project.
+          nullable: true
+        update:
+          $ref: '#/components/schemas/ExtPipeUpdateData'
+    DataSetIdUpdateField:
+      type: object
+      properties:
+        set:
+          maximum: 9007199254740991
+          minimum: 0
+          required:
+          - 'true'
+          type: integer
+          description: DataSet ID
+          format: int64
+      description: Set a new value for dataSetId.
+    ExtPipeInternalId:
+      required:
+      - id
+      type: object
+      properties:
+        id:
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+          description: A server-generated ID for the object.
+          format: int64
+    DataSetInternalId:
+      type: object
+      title: DataSetInternalId
+      required:
+      - id
+      properties:
+        id:
+          $ref: '#/components/schemas/CogniteInternalId'
+    DataSetExternalId:
+      type: object
+      title: DataSetExternalId
+      required:
+      - externalId
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+    ItemsRequest_ExtPipeUpdate_:
+      required:
+      - items
+      type: object
+      properties:
+        items:
+          maxItems: 1000
+          minItems: 1
+          type: array
+          items:
+            $ref: '#/components/schemas/ExtPipeUpdate'
+    ExternalIdUpdateField:
+      required:
+      - set
+      type: object
+      properties:
+        set:
+          maxLength: 255
+          minLength: 1
+          type: string
+          description: External Id provided by client. Should be unique within the project.
+      description: Set a new value for the externalId. Must be unique for the resource type.
+    MapUpdateAddRemove:
+      type: object
+      properties:
+        add:
+          type: object
+          additionalProperties:
+            type: string
+          description: Add the key-value pairs. Values for existing keys will be overwritten.
+          nullable: true
+          example:
+            property1: string
+            property2: string
+        remove:
+          type: array
+          description: Remove the key-value pairs with the specified keys.
+          nullable: true
+          items:
+            type: string
+    Contact:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Contact name
+          nullable: true
+        email:
+          maxLength: 254
+          minLength: 1
+          type: string
+          description: Contact email
+          format: email
+          nullable: true
+        role:
+          type: string
+          description: Contact role
+          nullable: true
+        sendNotification:
+          type: boolean
+          description: True, if contact receives email notifications
+          nullable: true
+    DefaultError:
+      type: object
+      properties:
+        code:
+          required:
+          - 'true'
+          type: integer
+          description: HTTP status code
+          format: int32
+        message:
+          required:
+          - 'true'
+          type: string
+          description: Error message
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
             type: object
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+      description: Cognite API error
+    EpochTimestampRange:
+      description: Range between two timestamps (inclusive).
+      type: object
+      properties:
+        max:
+          description: Maximum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+          type: integer
+          minimum: 0
+          format: int64
+        min:
+          description: Minimum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+          type: integer
+          minimum: 0
+          format: int64
+    NameUpdateField:
+      required:
+      - set
+      type: object
+      properties:
+        set:
+          maxLength: 140
+          minLength: 1
+          type: string
+          description: Name of Extraction Pipeline
+      description: Set a new value for name.
+    ExtPipesFilterRequest:
+      type: object
+      properties:
+        filter:
+          $ref: '#/components/schemas/ExtPipesFilter'
+        limit:
+          maximum: 1000
+          minimum: 1
+          type: integer
+          description: Limits the number of results to return.
+          format: int32
+          default: 100
+        cursor:
+          type: string
+    ExtPipeId:
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/ExtPipeInternalId'
+      - $ref: '#/components/schemas/ExtPipeExternalId'
   parameters:
-    CogniteInternalId:
-      in: path
-      name: id
-      required: true
-      schema:
-        $ref: '#/components/schemas/CogniteInternalId'
     Limit:
       name: limit
       description: Limits the number of results to be returned. The maximum results returned by the server is 1000 even if you specify a higher limit.
@@ -963,6 +950,19 @@ components:
       schema:
         type: string
         example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+    CogniteInternalId:
+      in: path
+      name: id
+      required: true
+      schema:
+        $ref: '#/components/schemas/CogniteInternalId'
+  responses:
+    EmptyResponse:
+      description: Empty response.
+      content:
+        application/json:
+          schema:
+            type: object
   securitySchemes:
     oidc-token:
       type: http

@@ -178,7 +178,174 @@ paths:
         label: Java SDK
         source: "List<Item> deleteItemsByExternalIds = List.of(Item.newBuilder() \n          .setExternalId(\"10\") \n          .build()); \nList<Item> deleteItemsResults = \n          client.labels().delete(deleteItemsByExternalIds); \n\nList<Item> deleteItemsByInternalIds = List.of(Item.newBuilder() \n          .setId(10) \n          .build()); \nList<Item> deleteItemsResults = \n          client.labels().delete(deleteItemsByInternalIds); \n\n"
 components:
+  responses:
+    ErrorResponse:
+      description: The response for a failed request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+    EmptyResponse:
+      description: Empty response.
+      content:
+        application/json:
+          schema:
+            type: object
+    LabelDefinitionCreateResponse:
+      description: A list of label definitions.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/LabelDefinitionCreateList'
+    LabelDefinitionListResponse:
+      description: A list of label definitions.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/LabelDefinitionList'
   schemas:
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    LabelDefinitionCreateList:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/LabelDefinition'
+    CogniteExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
+      type: string
+      maxLength: 255
+      example: my.known.id
+    CogniteInternalId:
+      description: A server-generated ID for the object.
+      type: integer
+      minimum: 1
+      maximum: 9007199254740991
+      format: int64
+    LabelDefinitionExternalId:
+      type: object
+      required:
+      - externalId
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+    ExternalLabelDefinitionList:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/ExternalLabelDefinition'
+    LabelSelectByExternalId:
+      type: object
+      title: Select by ExternalId
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+    Cursor:
+      type: object
+      properties:
+        cursor:
+          type: string
+          example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
+
+        property, it means that there may be more results, and you should pass that value as the
+
+        `cursor` parameter in the next request.
+
+
+        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
+
+        decoded. Its internal structure is not a part of the public API, and may change without
+
+        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
+
+        '
+    LabelDefinitionFilter:
+      type: object
+      properties:
+        filter:
+          type: object
+          description: Filter on labels definitions with strict matching.
+          title: Filter
+          properties:
+            name:
+              description: Returns the label definitions matching that name.
+              type: string
+              minLength: 1
+              maxLength: 140
+            externalIdPrefix:
+              $ref: '#/components/schemas/ExternalIdPrefixFilter'
+            dataSetIds:
+              type: array
+              maxItems: 1000
+              items:
+                $ref: '#/components/schemas/DataSetIdEither'
+    LabelDefinitionExternalIdList:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/LabelDefinitionExternalId'
+    ExternalIdPrefixFilter:
+      description: filter external ids starting with the prefix specified
+      type: string
+      maxLength: 255
+    LabelsIdsWithIgnoreUnknownIds:
+      type: object
+      allOf:
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
+            items:
+              $ref: '#/components/schemas/LabelSelectByExternalId'
+            minItems: 1
+            maxItems: 1000
+      - $ref: '#/components/schemas/IgnoreUnknownIdsField'
+    LabelDefinition:
+      allOf:
+      - $ref: '#/components/schemas/ExternalLabelDefinition'
+      - type: object
+        required:
+        - createdTime
+        properties:
+          createdTime:
+            $ref: '#/components/schemas/EpochTimestamp'
+    DataSetIdEither:
+      oneOf:
+      - $ref: '#/components/schemas/DataSetInternalId'
+      - $ref: '#/components/schemas/DataSetExternalId'
     Error:
       type: object
       required:
@@ -207,27 +374,6 @@ components:
           items:
             type: object
             additionalProperties: true
-    EpochTimestamp:
-      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-      type: integer
-      minimum: 0
-      format: int64
-      example: 1730204346000
-    ExternalIdPrefixFilter:
-      description: filter external ids starting with the prefix specified
-      type: string
-      maxLength: 255
-    CogniteExternalId:
-      description: The external ID provided by the client. Must be unique for the resource type.
-      type: string
-      maxLength: 255
-      example: my.known.id
-    CogniteInternalId:
-      description: A server-generated ID for the object.
-      type: integer
-      minimum: 1
-      maximum: 9007199254740991
-      format: int64
     DataSetInternalId:
       type: object
       title: DataSetInternalId
@@ -236,88 +382,6 @@ components:
       properties:
         id:
           $ref: '#/components/schemas/CogniteInternalId'
-    LabelDefinition:
-      allOf:
-      - $ref: '#/components/schemas/ExternalLabelDefinition'
-      - type: object
-        required:
-        - createdTime
-        properties:
-          createdTime:
-            $ref: '#/components/schemas/EpochTimestamp'
-    IgnoreUnknownIdsField:
-      type: object
-      properties:
-        ignoreUnknownIds:
-          description: Ignore IDs and external IDs that are not found
-          type: boolean
-          default: false
-    LabelDefinitionListScope:
-      allOf:
-      - $ref: '#/components/schemas/LabelDefinitionFilter'
-      - $ref: '#/components/schemas/Cursor'
-      - $ref: '#/components/schemas/Limit'
-    LabelDefinitionExternalId:
-      type: object
-      required:
-      - externalId
-      properties:
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-    LabelDefinitionExternalIdList:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          minItems: 1
-          maxItems: 1000
-          uniqueItems: true
-          items:
-            $ref: '#/components/schemas/LabelDefinitionExternalId'
-    LabelSelectByExternalId:
-      type: object
-      title: Select by ExternalId
-      properties:
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-    DataSetIdEither:
-      oneOf:
-      - $ref: '#/components/schemas/DataSetInternalId'
-      - $ref: '#/components/schemas/DataSetExternalId'
-    ExternalLabelDefinitionList:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          minItems: 1
-          maxItems: 1000
-          uniqueItems: true
-          items:
-            $ref: '#/components/schemas/ExternalLabelDefinition'
-    Cursor:
-      type: object
-      properties:
-        cursor:
-          type: string
-          example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
-      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
-
-        property, it means that there may be more results, and you should pass that value as the
-
-        `cursor` parameter in the next request.
-
-
-        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
-
-        decoded. Its internal structure is not a part of the public API, and may change without
-
-        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
-
-        '
     ExternalLabelDefinition:
       type: object
       required:
@@ -342,32 +406,21 @@ components:
           description: The id of the dataset this label belongs to.
           allOf:
           - $ref: '#/components/schemas/CogniteInternalId'
-    LabelDefinitionCreateList:
+    DataSetExternalId:
       type: object
+      title: DataSetExternalId
       required:
-      - items
+      - externalId
       properties:
-        items:
-          type: array
-          minItems: 1
-          maxItems: 1000
-          uniqueItems: true
-          items:
-            $ref: '#/components/schemas/LabelDefinition'
-    LabelsIdsWithIgnoreUnknownIds:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+    IgnoreUnknownIdsField:
       type: object
-      allOf:
-      - type: object
-        required:
-        - items
-        properties:
-          items:
-            type: array
-            items:
-              $ref: '#/components/schemas/LabelSelectByExternalId'
-            minItems: 1
-            maxItems: 1000
-      - $ref: '#/components/schemas/IgnoreUnknownIdsField'
+      properties:
+        ignoreUnknownIds:
+          description: Ignore IDs and external IDs that are not found
+          type: boolean
+          default: false
     LabelDefinitionList:
       type: object
       required:
@@ -383,34 +436,11 @@ components:
         nextCursor:
           type: string
           description: The cursor to get the next page of results (if available).
-    DataSetExternalId:
-      type: object
-      title: DataSetExternalId
-      required:
-      - externalId
-      properties:
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-    LabelDefinitionFilter:
-      type: object
-      properties:
-        filter:
-          type: object
-          description: Filter on labels definitions with strict matching.
-          title: Filter
-          properties:
-            name:
-              description: Returns the label definitions matching that name.
-              type: string
-              minLength: 1
-              maxLength: 140
-            externalIdPrefix:
-              $ref: '#/components/schemas/ExternalIdPrefixFilter'
-            dataSetIds:
-              type: array
-              maxItems: 1000
-              items:
-                $ref: '#/components/schemas/DataSetIdEither'
+    LabelDefinitionListScope:
+      allOf:
+      - $ref: '#/components/schemas/LabelDefinitionFilter'
+      - $ref: '#/components/schemas/Cursor'
+      - $ref: '#/components/schemas/Limit'
     Limit:
       type: object
       properties:
@@ -420,36 +450,6 @@ components:
           default: 100
           minimum: 1
           maximum: 1000
-  responses:
-    EmptyResponse:
-      description: Empty response.
-      content:
-        application/json:
-          schema:
-            type: object
-    LabelDefinitionListResponse:
-      description: A list of label definitions.
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/LabelDefinitionList'
-    LabelDefinitionCreateResponse:
-      description: A list of label definitions.
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/LabelDefinitionCreateList'
-    ErrorResponse:
-      description: The response for a failed request.
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - error
-            properties:
-              error:
-                $ref: '#/components/schemas/Error'
   securitySchemes:
     oidc-token:
       type: http

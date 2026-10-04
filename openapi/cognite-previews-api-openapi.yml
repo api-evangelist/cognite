@@ -138,71 +138,133 @@ paths:
           $ref: '#/components/responses/ValidationError'
       summary: Download preview result
 components:
+  responses:
+    ValidationError:
+      description: Validation Error
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/ValidationErrorContent'
+    400ErrorResponse:
+      description: The response for a bad request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: 400
+              message: '`null` values aren''t allowed.'
   schemas:
-    Error:
+    KafkaJobConfig:
+      additionalProperties: false
       type: object
+      title: Kafka
       required:
-      - code
-      - message
-      description: Cognite API error.
+      - topic
       properties:
-        code:
-          type: integer
-          description: HTTP status code.
-          format: int32
-          example: 401
-        message:
+        topic:
+          title: Topic
           type: string
-          description: Error message.
-          example: Could not authenticate.
-        missing:
-          type: array
-          description: List of lookup objects that do not match any results.
-          items:
-            type: object
-            additionalProperties: true
-        duplicated:
-          type: array
-          description: List of objects that are not unique.
-          items:
-            type: object
-            additionalProperties: true
-    EncodingType:
-      enum:
-      - utf8
-      - utf16
-      - utf16le
-      - latin1
-      title: EncodingType
-      description: 'The type of encoding to convert from.
-
-        - `utf8`, UTF-8, default.
-
-        - `utf16`, UTF-16 big endian.
-
-        - `utf16le`, UTF-16 little endian.
-
-        - `latin1`, Latin 1, Specifically Windows CP 1252.'
-      type: string
-    JobConfig:
-      description: 'Source specific job configuration. The type depends on the type of source, and is required for some sources.
+          description: Kafka topic to connect to
+          maxLength: 200
+        partitions:
+          title: Partitions
+          type: integer
+          minimum: 1
+          maximum: 10
+          default: 1
+          description: Number of partitions on the topic.
+    PreviewResultPending:
+      type: object
+      title: PreviewResultPayload
+      description: A result indicating the preview is still running.
+      properties:
+        type:
+          enum:
+          - pending
+          title: Type
+          type: string
+          description: Result type
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+      required:
+      - type
+      - externalId
+    QueryParameterConfig:
+      additionalProperties: false
+      type: object
+      title: QueryParameterConfig
+      required:
+      - key
+      - value
+      - type
+      properties:
+        type:
+          title: Type
+          type: string
+          enum:
+          - queryParam
+        key:
+          title: Key
+          type: string
+          description: Key to insert the generated value into
+        value:
+          title: Value
+          type: string
+          description: Expression that will be evaluated, and its result used as a query parameter
+    CsvConfig:
+      additionalProperties: false
+      type: object
+      title: CSV
+      description: 'Transform the input from a CSV (Comma Separated Values) file to a list of JSON objects. The input to the mapping will be a list on the form `[{\"header1\": \"value1\", ...}, ...]`.
 
         '
-      title: Job Config
-      oneOf:
-      - $ref: '#/components/schemas/MQTTJobConfig'
-      - $ref: '#/components/schemas/KafkaJobConfig'
-      - $ref: '#/components/schemas/RestJobConfig'
-    RestInterval:
-      enum:
-      - 5m
-      - 15m
-      - 1h
-      - 6h
-      - 12h
-      - 1d
-      title: RestInterval
+      properties:
+        type:
+          type: string
+          enum:
+          - csv
+          description: Input type
+          title: Type
+        delimiter:
+          type: string
+          description: A single ASCII character used as the separator in the CSV file. Defaults to `,`
+          maxLength: 1
+          minLength: 1
+          title: Delimiter
+        customKeys:
+          type: array
+          minItems: 1
+          maxItems: 20
+          description: List of headers. If this is not set, the headers will be retrieved from the CSV file.
+          items:
+            type: string
+            description: CSV file header value.
+            title: CSV_Header
+      required:
+      - type
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    CogniteExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
       type: string
+      maxLength: 255
+      example: my.known.id
     InputConfig:
       type: object
       description: Optionally set input mapping input type. This defaults to json if left out. Any input type is converted to JSON before being passed to the mapping expression.
@@ -218,70 +280,44 @@ components:
       - $ref: '#/components/schemas/CsvConfig'
       - $ref: '#/components/schemas/XmlConfig'
       - $ref: '#/components/schemas/JsonConfig'
-    EpochTimestamp:
-      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-      type: integer
-      minimum: 0
-      format: int64
-      example: 1730204346000
-    CreateInputConfig:
-      type: object
-      description: Optionally set input mapping input type. This defaults to json if left out. Each input type is converted to JSON before being passed to the mapping expression.
-      discriminator:
-        mapping:
-          protobuf: '#/components/schemas/CreateProtobufConfig'
-          csv: '#/components/schemas/CsvConfig'
-          xml: '#/components/schemas/XmlConfig'
-          json: '#/components/schemas/JsonConfig'
-        propertyName: type
-      oneOf:
-      - $ref: '#/components/schemas/CreateProtobufConfig'
-      - $ref: '#/components/schemas/CsvConfig'
-      - $ref: '#/components/schemas/XmlConfig'
-      - $ref: '#/components/schemas/JsonConfig'
-    MQTTJobConfig:
+    ExternalIdWrapper:
       additionalProperties: false
-      type: object
-      title: MQTT
-      required:
-      - topicFilter
       properties:
-        topicFilter:
-          title: TopicFilter
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+      required:
+      - externalId
+      title: ExternalIdWrapper
+      type: object
+    ValidationErrorContent:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 422
+        message:
           type: string
-          description: Topic filter.
-          maxLength: 200
-    CogniteExternalId:
-      description: The external ID provided by the client. Must be unique for the resource type.
-      type: string
-      maxLength: 255
-      example: my.known.id
-    CreateProtobufConfig:
+          description: Error message.
+          example: 'Extra inputs are not permitted: type'
+    JsonConfig:
       additionalProperties: false
-      description: List of protobuf files used to define input to the mapping. This will be compiled to a collection of definitions which will be used to convert the input to JSON.
-      title: ProtoBuf
+      type: object
+      description: Treat the input as UTF-8 encoded JSON.
+      title: JSON
       properties:
         type:
           type: string
           enum:
-          - protobuf
+          - json
           description: Input type
           title: Type
-        messageName:
-          type: string
-          description: Name of root message in the protobuf files.
-          maxLength: 128
-          title: Message Name
-        files:
-          type: array
-          maxItems: 20
-          minItems: 1
-          description: List of protobuf files as text.
-          items:
-            $ref: '#/components/schemas/CreateProtoFile'
       required:
-      - messageName
-      - files
       - type
     PreviewResultError:
       type: object
@@ -315,20 +351,180 @@ components:
       - externalId
       - createdTime
       - kind
-    JsonConfig:
+    XmlConfig:
       additionalProperties: false
       type: object
-      description: Treat the input as UTF-8 encoded JSON.
-      title: JSON
+      title: XML
+      description: 'Transform the input from an XML file to a JSON object.
+
+        '
       properties:
         type:
           type: string
           enum:
-          - json
+          - xml
           description: Input type
           title: Type
       required:
       - type
+    CreateProtoFile:
+      additionalProperties: false
+      description: Definition of a protobuf file used for loading input to the mapping.
+      properties:
+        fileName:
+          type: string
+          title: File Name
+          format: '[a-zA-Z0-9_-]+\.proto'
+          maxLength: 128
+          description: Name of protobuf file. Must contain only letters, numbers, underscores, and hyphens, and must end with '.proto'.
+        content:
+          type: string
+          title: Content
+          description: Protobuf file content. Must be a valid protobuf file.
+          maxLength: 10000
+      required:
+      - fileName
+      - content
+    CreatePreview:
+      type: object
+      title: CreatePreview
+      description: Create object for a preview job.
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        sourceId:
+          title: Source ID
+          description: ID of the source this preview job should read from.
+          type: string
+          maxLength: 255
+        config:
+          $ref: '#/components/schemas/JobConfig'
+        format:
+          type: object
+          title: Format
+          description: Input format parameters.
+          properties:
+            encoding:
+              $ref: '#/components/schemas/EncodingType'
+            compression:
+              $ref: '#/components/schemas/CompressionType'
+        input:
+          $ref: '#/components/schemas/CreateInputConfig'
+      required:
+      - externalId
+      - sourceId
+      - config
+    HeaderValueConfig:
+      additionalProperties: false
+      type: object
+      title: HeaderValueConfig
+      required:
+      - key
+      - value
+      - type
+      properties:
+        type:
+          title: Type
+          type: string
+          enum:
+          - headerValue
+        key:
+          title: Key
+          type: string
+          description: Key to insert the generated value into
+        value:
+          title: Value
+          type: string
+          description: Expression that will be evaluated, and its result used as a header value
+    EncodingType:
+      enum:
+      - utf8
+      - utf16
+      - utf16le
+      - latin1
+      title: EncodingType
+      description: 'The type of encoding to convert from.
+
+        - `utf8`, UTF-8, default.
+
+        - `utf16`, UTF-16 big endian.
+
+        - `utf16le`, UTF-16 little endian.
+
+        - `latin1`, Latin 1, Specifically Windows CP 1252.'
+      type: string
+    BodyPaginationConfig:
+      additionalProperties: false
+      type: object
+      title: BodyPaginationConfig
+      required:
+      - type
+      - value
+      properties:
+        type:
+          title: Type
+          type: string
+          enum:
+          - body
+        value:
+          title: Value
+          type: string
+          description: 'Expression yielding next message body. Note that body-based pagination is not allowed to be used if `method` is not set to `post`.
+
+            '
+    ProtobufConfig:
+      additionalProperties: false
+      description: List of protobuf files used to define input to the mapping. This will be compiled to a collection of definitions which will be used to convert the input to JSON.
+      title: ProtoBuf
+      properties:
+        type:
+          type: string
+          enum:
+          - protobuf
+          description: Input type
+          title: Type
+        messageName:
+          type: string
+          description: Name of root message in the protobuf files.
+          maxLength: 128
+          title: Message Name
+        files:
+          type: array
+          maxItems: 20
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/ProtoFile'
+      required:
+      - messageName
+      - files
+      - type
+    CreateInputConfig:
+      type: object
+      description: Optionally set input mapping input type. This defaults to json if left out. Each input type is converted to JSON before being passed to the mapping expression.
+      discriminator:
+        mapping:
+          protobuf: '#/components/schemas/CreateProtobufConfig'
+          csv: '#/components/schemas/CsvConfig'
+          xml: '#/components/schemas/XmlConfig'
+          json: '#/components/schemas/JsonConfig'
+        propertyName: type
+      oneOf:
+      - $ref: '#/components/schemas/CreateProtobufConfig'
+      - $ref: '#/components/schemas/CsvConfig'
+      - $ref: '#/components/schemas/XmlConfig'
+      - $ref: '#/components/schemas/JsonConfig'
+    ProtoFile:
+      additionalProperties: false
+      description: Description of a protobuf file used for loading input to the mapping.
+      properties:
+        fileName:
+          type: string
+          title: File Name
+          format: '[a-zA-Z0-9_-]+\.proto'
+          maxLength: 128
+          description: Name of protobuf file. Must contain only letters, numbers, underscores, and hyphens, and must end with '.proto'.
+      required:
+      - fileName
     MinimalPreview:
       type: object
       title: MinimalPreview
@@ -362,6 +558,94 @@ components:
       - config
       - createdTime
       - input
+    JobConfig:
+      description: 'Source specific job configuration. The type depends on the type of source, and is required for some sources.
+
+        '
+      title: Job Config
+      oneOf:
+      - $ref: '#/components/schemas/MQTTJobConfig'
+      - $ref: '#/components/schemas/KafkaJobConfig'
+      - $ref: '#/components/schemas/RestJobConfig'
+    PreviewResultPayload:
+      type: object
+      title: PreviewResultPayload
+      description: Result of a successful preview.
+      properties:
+        type:
+          enum:
+          - preview
+          title: Type
+          type: string
+          description: Result type
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        json:
+          title: Json
+          description: Arbitrary json that is the data that would be passed to the mapping. Note that if you have specified a custom `input` type, or custom `format` parameters, this is the data _after_ it has passed through those.
+        context:
+          title: Context
+          description: Message context that would be passed to the mapping.
+          type: object
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+      required:
+      - type
+      - externalId
+      - createdTime
+    CompressionType:
+      enum:
+      - gzip
+      title: CompressionType
+      description: 'The compression applied to incoming messages. The messages are decompressed before being passed to transformations.
+
+        This is usually not relevant for REST, where this is handled automatically, but MQTT, Kafka, and EventHub have no such mechanisms.'
+      type: string
+    NextUrlConfig:
+      additionalProperties: false
+      type: object
+      title: HeaderValueConfig
+      required:
+      - type
+      - value
+      properties:
+        type:
+          title: Type
+          type: string
+          enum:
+          - nextUrl
+        value:
+          title: Value
+          type: string
+          description: Expression yielding the next URL to call
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
     RestJobConfig:
       additionalProperties: false
       type: object
@@ -443,169 +727,7 @@ components:
       required:
       - interval
       - path
-    XmlConfig:
-      additionalProperties: false
-      type: object
-      title: XML
-      description: 'Transform the input from an XML file to a JSON object.
-
-        '
-      properties:
-        type:
-          type: string
-          enum:
-          - xml
-          description: Input type
-          title: Type
-      required:
-      - type
-    PreviewResultPending:
-      type: object
-      title: PreviewResultPayload
-      description: A result indicating the preview is still running.
-      properties:
-        type:
-          enum:
-          - pending
-          title: Type
-          type: string
-          description: Result type
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-      required:
-      - type
-      - externalId
-    ValidationErrorContent:
-      type: object
-      required:
-      - code
-      - message
-      description: Cognite API error.
-      properties:
-        code:
-          type: integer
-          description: HTTP status code.
-          format: int32
-          example: 422
-        message:
-          type: string
-          description: Error message.
-          example: 'Extra inputs are not permitted: type'
-    CreateProtoFile:
-      additionalProperties: false
-      description: Definition of a protobuf file used for loading input to the mapping.
-      properties:
-        fileName:
-          type: string
-          title: File Name
-          format: '[a-zA-Z0-9_-]+\.proto'
-          maxLength: 128
-          description: Name of protobuf file. Must contain only letters, numbers, underscores, and hyphens, and must end with '.proto'.
-        content:
-          type: string
-          title: Content
-          description: Protobuf file content. Must be a valid protobuf file.
-          maxLength: 10000
-      required:
-      - fileName
-      - content
-    ExternalIdWrapper:
-      additionalProperties: false
-      properties:
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-      required:
-      - externalId
-      title: ExternalIdWrapper
-      type: object
-    CreatePreview:
-      type: object
-      title: CreatePreview
-      description: Create object for a preview job.
-      properties:
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-        sourceId:
-          title: Source ID
-          description: ID of the source this preview job should read from.
-          type: string
-          maxLength: 255
-        config:
-          $ref: '#/components/schemas/JobConfig'
-        format:
-          type: object
-          title: Format
-          description: Input format parameters.
-          properties:
-            encoding:
-              $ref: '#/components/schemas/EncodingType'
-            compression:
-              $ref: '#/components/schemas/CompressionType'
-        input:
-          $ref: '#/components/schemas/CreateInputConfig'
-      required:
-      - externalId
-      - sourceId
-      - config
-    KafkaJobConfig:
-      additionalProperties: false
-      type: object
-      title: Kafka
-      required:
-      - topic
-      properties:
-        topic:
-          title: Topic
-          type: string
-          description: Kafka topic to connect to
-          maxLength: 200
-        partitions:
-          title: Partitions
-          type: integer
-          minimum: 1
-          maximum: 10
-          default: 1
-          description: Number of partitions on the topic.
-    HeaderValueConfig:
-      additionalProperties: false
-      type: object
-      title: HeaderValueConfig
-      required:
-      - key
-      - value
-      - type
-      properties:
-        type:
-          title: Type
-          type: string
-          enum:
-          - headerValue
-        key:
-          title: Key
-          type: string
-          description: Key to insert the generated value into
-        value:
-          title: Value
-          type: string
-          description: Expression that will be evaluated, and its result used as a header value
-    NextUrlConfig:
-      additionalProperties: false
-      type: object
-      title: HeaderValueConfig
-      required:
-      - type
-      - value
-      properties:
-        type:
-          title: Type
-          type: string
-          enum:
-          - nextUrl
-        value:
-          title: Value
-          type: string
-          description: Expression yielding the next URL to call
-    ProtobufConfig:
+    CreateProtobufConfig:
       additionalProperties: false
       description: List of protobuf files used to define input to the mapping. This will be compiled to a collection of definitions which will be used to convert the input to JSON.
       title: ProtoBuf
@@ -625,111 +747,13 @@ components:
           type: array
           maxItems: 20
           minItems: 1
+          description: List of protobuf files as text.
           items:
-            $ref: '#/components/schemas/ProtoFile'
+            $ref: '#/components/schemas/CreateProtoFile'
       required:
       - messageName
       - files
       - type
-    QueryParameterConfig:
-      additionalProperties: false
-      type: object
-      title: QueryParameterConfig
-      required:
-      - key
-      - value
-      - type
-      properties:
-        type:
-          title: Type
-          type: string
-          enum:
-          - queryParam
-        key:
-          title: Key
-          type: string
-          description: Key to insert the generated value into
-        value:
-          title: Value
-          type: string
-          description: Expression that will be evaluated, and its result used as a query parameter
-    PreviewResultPayload:
-      type: object
-      title: PreviewResultPayload
-      description: Result of a successful preview.
-      properties:
-        type:
-          enum:
-          - preview
-          title: Type
-          type: string
-          description: Result type
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-        json:
-          title: Json
-          description: Arbitrary json that is the data that would be passed to the mapping. Note that if you have specified a custom `input` type, or custom `format` parameters, this is the data _after_ it has passed through those.
-        context:
-          title: Context
-          description: Message context that would be passed to the mapping.
-          type: object
-        createdTime:
-          $ref: '#/components/schemas/EpochTimestamp'
-      required:
-      - type
-      - externalId
-      - createdTime
-    CompressionType:
-      enum:
-      - gzip
-      title: CompressionType
-      description: 'The compression applied to incoming messages. The messages are decompressed before being passed to transformations.
-
-        This is usually not relevant for REST, where this is handled automatically, but MQTT, Kafka, and EventHub have no such mechanisms.'
-      type: string
-    CsvConfig:
-      additionalProperties: false
-      type: object
-      title: CSV
-      description: 'Transform the input from a CSV (Comma Separated Values) file to a list of JSON objects. The input to the mapping will be a list on the form `[{\"header1\": \"value1\", ...}, ...]`.
-
-        '
-      properties:
-        type:
-          type: string
-          enum:
-          - csv
-          description: Input type
-          title: Type
-        delimiter:
-          type: string
-          description: A single ASCII character used as the separator in the CSV file. Defaults to `,`
-          maxLength: 1
-          minLength: 1
-          title: Delimiter
-        customKeys:
-          type: array
-          minItems: 1
-          maxItems: 20
-          description: List of headers. If this is not set, the headers will be retrieved from the CSV file.
-          items:
-            type: string
-            description: CSV file header value.
-            title: CSV_Header
-      required:
-      - type
-    ProtoFile:
-      additionalProperties: false
-      description: Description of a protobuf file used for loading input to the mapping.
-      properties:
-        fileName:
-          type: string
-          title: File Name
-          format: '[a-zA-Z0-9_-]+\.proto'
-          maxLength: 128
-          description: Name of protobuf file. Must contain only letters, numbers, underscores, and hyphens, and must end with '.proto'.
-      required:
-      - fileName
     PreviewResult:
       type: object
       title: PreviewResult
@@ -744,52 +768,28 @@ components:
       - $ref: '#/components/schemas/PreviewResultError'
       - $ref: '#/components/schemas/PreviewResultPayload'
       - $ref: '#/components/schemas/PreviewResultPending'
-    BodyPaginationConfig:
+    MQTTJobConfig:
       additionalProperties: false
       type: object
-      title: BodyPaginationConfig
+      title: MQTT
       required:
-      - type
-      - value
+      - topicFilter
       properties:
-        type:
-          title: Type
+        topicFilter:
+          title: TopicFilter
           type: string
-          enum:
-          - body
-        value:
-          title: Value
-          type: string
-          description: 'Expression yielding next message body. Note that body-based pagination is not allowed to be used if `method` is not set to `post`.
-
-            '
-  responses:
-    ValidationError:
-      description: Validation Error
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - error
-            properties:
-              error:
-                $ref: '#/components/schemas/ValidationErrorContent'
-    400ErrorResponse:
-      description: The response for a bad request.
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - error
-            properties:
-              error:
-                $ref: '#/components/schemas/Error'
-          example:
-            error:
-              code: 400
-              message: '`null` values aren''t allowed.'
+          description: Topic filter.
+          maxLength: 200
+    RestInterval:
+      enum:
+      - 5m
+      - 15m
+      - 1h
+      - 6h
+      - 12h
+      - 1d
+      title: RestInterval
+      type: string
   securitySchemes:
     oidc-token:
       type: http

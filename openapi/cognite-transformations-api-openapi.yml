@@ -1017,6 +1017,193 @@ paths:
       description: '> **Required capabilities:** `transformationsAcl:WRITE`'
 components:
   schemas:
+    JobRead:
+      required:
+      - id
+      - uuid
+      - transformationId
+      - transformationExternalId
+      - sourceProject
+      - destinationProject
+      - destination
+      - conflictMode
+      - query
+      - ignoreNullFields
+      - status
+      - createdTime
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Job numeric ID.
+          format: int32
+        uuid:
+          type: string
+          description: UUID id of the job.
+        transformationId:
+          type: integer
+          description: ID of the transformation that created this job.
+          format: int32
+        transformationExternalId:
+          type: string
+          description: External ID of the transformation that created this job.
+        sourceProject:
+          type: string
+          description: CDF project which is used as source for reading data.
+        destinationProject:
+          type: string
+          description: CDF project which is used as destination for writing data.
+        destination:
+          description: Destination data type.
+          oneOf:
+          - $ref: '#/components/schemas/AssetCentricDataSource'
+          - $ref: '#/components/schemas/DataModelSource'
+          - $ref: '#/components/schemas/ViewDataSource'
+          - $ref: '#/components/schemas/RawDataSource'
+          - $ref: '#/components/schemas/SequenceRowDataSource'
+        conflictMode:
+          $ref: '#/components/schemas/ConflictMode'
+        query:
+          type: string
+          description: The SQL query being executed.
+        createdTime:
+          type: integer
+          description: 'Time when the job was created: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.'
+          format: int64
+        startedTime:
+          type: integer
+          description: 'Time when this job started executing: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.'
+          format: int64
+        finishedTime:
+          type: integer
+          description: 'Time when this job finished running: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.'
+          format: int64
+        lastSeenTime:
+          type: integer
+          description: 'Time when this job last registered running: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.'
+          format: int64
+        error:
+          type: string
+          description: If the job failed, this will be a string describing why. When null, the job did not fail.
+        ignoreNullFields:
+          type: boolean
+          description: 'How NULL values are handled on updates: ignore or setNull.'
+        status:
+          $ref: '#/components/schemas/TransformationJobStatus'
+      description: Details for the last finished job of this transformation
+    TransformationCreate:
+      required:
+      - name
+      - externalId
+      - ignoreNullFields
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 128
+          description: Transformation name. Maximum length is 128 characters.
+        query:
+          type: string
+        destination:
+          description: Destination data type.
+          oneOf:
+          - $ref: '#/components/schemas/AssetCentricDataSource'
+          - $ref: '#/components/schemas/DataModelSource'
+          - $ref: '#/components/schemas/ViewDataSource'
+          - $ref: '#/components/schemas/RawDataSource'
+          - $ref: '#/components/schemas/SequenceRowDataSource'
+        conflictMode:
+          $ref: '#/components/schemas/ConflictMode'
+        isPublic:
+          type: boolean
+        sourceOidcCredentials:
+          $ref: '#/components/schemas/FlatOidcCredentials'
+        destinationOidcCredentials:
+          $ref: '#/components/schemas/FlatOidcCredentials'
+        sourceNonce:
+          $ref: '#/components/schemas/NonceCredentials'
+        destinationNonce:
+          $ref: '#/components/schemas/NonceCredentials'
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        ignoreNullFields:
+          type: boolean
+          description: 'How NULL values are handled on updates: ignore or setNull.'
+        dataSetId:
+          type: integer
+          format: int64
+        tags:
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 35
+          description: List of tags for the Transformation.
+          minItems: 1
+          maxItems: 5
+    SessionInfo:
+      type: object
+      properties:
+        clientId:
+          type: string
+          description: Idp client ID
+        sessionId:
+          type: integer
+          description: CDF session ID
+          format: int64
+        projectName:
+          type: string
+          description: CDF project name
+      description: Details for the session used to read from the source project.
+    CronValue:
+      type: string
+      example: 0 0 * * *
+      description: Cron expression describes when the job should run.
+    AssetCentricDataSource:
+      required:
+      - type
+      type: object
+      properties:
+        type:
+          type: string
+          description: The type of the destination resource.
+          enum:
+          - assets
+          - events
+          - asset_hierarchy
+          - datapoints
+          - string_datapoints
+          - timeseries
+          - sequences
+          - files
+          - labels
+          - relationships
+          - data_sets
+    SetNull_FlatOidcCredentialsUpdate:
+      required:
+      - setNull
+      type: object
+      properties:
+        setNull:
+          type: boolean
+    DataModelSource:
+      required:
+      - type
+      - dataModel
+      type: object
+      properties:
+        type:
+          type: string
+          description: The type of the destination resource indicating that the transformation will write to data models
+          enum:
+          - instances
+        dataModel:
+          $ref: '#/components/schemas/DataModelInfo'
+        instanceSpace:
+          type: string
+          description: The space where the instances will be created.
+        autoCreate:
+          $ref: '#/components/schemas/AutoCreateOptions'
     ViewInfo:
       required:
       - space
@@ -1034,55 +1221,204 @@ components:
           type: string
           description: Version of the View
       description: Target view info
-    TransformBlockedInfo:
-      required:
-      - reason
-      - createdTime
+    UpdateArray_String:
       type: object
       properties:
-        reason:
-          type: string
-          description: Indicates the reason if the transformation is blocked.
-        createdTime:
+        add:
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 35
+          description: List of tags to add to the Transformation.
+        remove:
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 35
+          description: List of tags to remove from the Transformation.
+    CogniteExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
+      type: string
+      maxLength: 255
+      example: my.known.id
+    TransformationRunWithId:
+      required:
+      - id
+      type: object
+      properties:
+        id:
           type: integer
-          description: 'Indicates the blocked time if the transformation is blocked: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.'
+          format: int32
+        nonce:
+          $ref: '#/components/schemas/NonceCredentials'
+    CogniteIntId:
+      required:
+      - id
+      type: object
+      properties:
+        id:
+          type: integer
           format: int64
-      description: Provides reason and time if the transformation is blocked.
-    RawDataSource:
+      description: A server-generated ID for the object.
+    SetNull_NonceCredentials:
+      required:
+      - setNull
+      type: object
+      properties:
+        setNull:
+          type: boolean
+    SetExternalId:
+      type: object
+      title: set
+      required:
+      - set
+      properties:
+        set:
+          $ref: '#/components/schemas/CogniteExternalId'
+    UpdateItemWithExternalId_TransformationUpdate:
+      required:
+      - update
+      - externalId
+      type: object
+      properties:
+        update:
+          $ref: '#/components/schemas/TransformationUpdate'
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+    NonceCredentials:
+      description: Credentials for a CDF session (sessionId, nonce, and project name). These are obtained when you create a session via the Sessions API. See [Sessions API](#tag/Sessions/operation/createSessions) documentation for more information.
+      required:
+      - sessionId
+      - nonce
+      - cdfProjectName
+      type: object
+      properties:
+        sessionId:
+          type: integer
+          format: int64
+        nonce:
+          type: string
+        cdfProjectName:
+          type: string
+        clientId:
+          type: string
+    TransformationUpdate:
+      type: object
+      properties:
+        name:
+          allOf:
+          - $ref: '#/components/schemas/SetStringField'
+          - type: object
+            properties:
+              set:
+                type: string
+                maxLength: 128
+          description: Set a new value for the transformation name. Maximum length is 128 characters.
+        externalId:
+          allOf:
+          - $ref: '#/components/schemas/SetExternalId'
+          description: Set a new value for the transformation External ID.
+        destination:
+          $ref: '#/components/schemas/SetValue_DataSource'
+        conflictMode:
+          $ref: '#/components/schemas/SetValue_ConflictMode'
+        query:
+          allOf:
+          - $ref: '#/components/schemas/SetStringField'
+          description: Set a new value for the transformation query.
+        sourceOidcCredentials:
+          description: Set a new value for the transformation source OIDC credentials, or remove it.
+          oneOf:
+          - $ref: '#/components/schemas/SetNull_FlatOidcCredentialsUpdate'
+          - $ref: '#/components/schemas/SetValue_FlatOidcCredentialsUpdate'
+        destinationOidcCredentials:
+          description: Set a new value for the transformation destination OIDC credentials, or remove it.
+          oneOf:
+          - $ref: '#/components/schemas/SetNull_FlatOidcCredentialsUpdate'
+          - $ref: '#/components/schemas/SetValue_FlatOidcCredentialsUpdate'
+        sourceNonce:
+          description: Bind to a new source CDF session, or remove it
+          oneOf:
+          - $ref: '#/components/schemas/SetNull_NonceCredentials'
+          - $ref: '#/components/schemas/SetValue_NonceCredentials'
+        destinationNonce:
+          description: Bind to a new destination session, or remove it
+          oneOf:
+          - $ref: '#/components/schemas/SetNull_NonceCredentials'
+          - $ref: '#/components/schemas/SetValue_NonceCredentials'
+        isPublic:
+          allOf:
+          - $ref: '#/components/schemas/SetBooleanField'
+          description: Set a new value for the transformation isPublic flag to change who can see the transformation.
+        ignoreNullFields:
+          allOf:
+          - $ref: '#/components/schemas/SetBooleanField'
+          description: Set a new value for the transformation ignoreNullFields flag to change to change how nulls are handled on updates.
+        dataSetId:
+          description: Set a new value for the transformation dataset id which is used for access control.
+          oneOf:
+          - $ref: '#/components/schemas/SetNull_Long'
+          - $ref: '#/components/schemas/SetValue_Long'
+        tags:
+          description: List of tags for the Transformation.
+          oneOf:
+          - $ref: '#/components/schemas/SetValue_Seq_String'
+          - $ref: '#/components/schemas/UpdateArray_String'
+    ItemsWithByIdsFlags_CogniteId:
+      required:
+      - withJobDetails
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/TransformationCogniteExternalId'
+            - $ref: '#/components/schemas/TransformationCogniteInternalId'
+          maxItems: 1000
+        ignoreUnknownIds:
+          type: boolean
+          description: Ignore IDs and external IDs that are not found. Defaults to false.
+        withJobDetails:
+          type: boolean
+          description: Whether the transformations will be returned with running job and last created job details.
+      description: All provided IDs and external IDs must be unique.
+    Items_TransformationCreate:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransformationCreate'
+          maxItems: 1000
+    SequenceRowDataSource:
       required:
       - type
-      - database
-      - table
+      - externalId
       type: object
       properties:
         type:
           type: string
-          description: The type of the destination resource indicating that the transformation will write to RAW.
+          description: The type of the destination resource indicating that the transformation will write to Sequence Rows.
           enum:
-          - raw
-        database:
+          - sequence_rows
+        externalId:
           type: string
-          description: The database name.
-        table:
-          type: string
-          description: The table name.
-    TransformationRunWithExternalId:
-      required:
-      - externalId
+          description: The externalId of sequence
+    SetValue_Seq_String:
       type: object
       properties:
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-        nonce:
-          $ref: '#/components/schemas/NonceCredentials'
-    ConflictMode:
-      type: string
-      description: Behavior when the data already exists.`upsert` - Create or Update,`abort` - Create and fail when already exists,`update` - update and fail if it does not exist,`delete` - delete the matched rows.
-      enum:
-      - abort
-      - delete
-      - update
-      - upsert
+        set:
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 35
+          description: List of tags for the Transformation.
+          minItems: 1
+          maxItems: 5
     TransformationRead:
       required:
       - id
@@ -1175,42 +1511,39 @@ components:
           description: List of tags for the Transformation.
           minItems: 1
           maxItems: 5
-    SetValue_DataSource:
+    RawDataSource:
       required:
-      - set
+      - type
+      - database
+      - table
       type: object
       properties:
-        set:
-          oneOf:
-          - $ref: '#/components/schemas/AssetCentricDataSource'
-          - $ref: '#/components/schemas/DataModelSource'
-          - $ref: '#/components/schemas/ViewDataSource'
-          - $ref: '#/components/schemas/RawDataSource'
-          - $ref: '#/components/schemas/SequenceRowDataSource'
-      description: Set a new value for the transformation destination type. Indicates result resource type.
-    SetValue_ConflictMode:
-      required:
-      - set
+        type:
+          type: string
+          description: The type of the destination resource indicating that the transformation will write to RAW.
+          enum:
+          - raw
+        database:
+          type: string
+          description: The database name.
+        table:
+          type: string
+          description: The table name.
+    FlatOidcCredentialsUpdate:
       type: object
       properties:
-        set:
-          $ref: '#/components/schemas/ConflictMode'
-      description: Set a new value for the transformation conflictMode (action).
-    TransformationRunWithId:
-      required:
-      - id
-      type: object
-      properties:
-        id:
-          type: integer
-          format: int32
-        nonce:
-          $ref: '#/components/schemas/NonceCredentials'
-    CogniteExternalId:
-      description: The external ID provided by the client. Must be unique for the resource type.
-      type: string
-      maxLength: 255
-      example: my.known.id
+        clientId:
+          type: string
+        clientSecret:
+          type: string
+        scopes:
+          type: string
+        tokenUri:
+          type: string
+        cdfProjectName:
+          type: string
+        audience:
+          type: string
     SetValue_NonceCredentials:
       required:
       - set
@@ -1218,22 +1551,28 @@ components:
       properties:
         set:
           $ref: '#/components/schemas/NonceCredentials'
-    MinMax:
+    TransformBlockedInfo:
+      required:
+      - reason
+      - createdTime
       type: object
       properties:
-        min:
+        reason:
+          type: string
+          description: Indicates the reason if the transformation is blocked.
+        createdTime:
           type: integer
-          description: 'Minimum timestamp (inclusive).
-
-            The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.'
+          description: 'Indicates the blocked time if the transformation is blocked: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.'
           format: int64
-        max:
-          type: integer
-          description: 'Maximum timestamp (inclusive).
-
-            The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.'
-          format: int64
-      description: Range between two timestamps (inclusive).
+      description: Provides reason and time if the transformation is blocked.
+    TransformationJobStatus:
+      type: string
+      description: Status of the job at the request time.
+      enum:
+      - Completed
+      - Created
+      - Failed
+      - Running
     Schedule:
       required:
       - id
@@ -1278,26 +1617,118 @@ components:
           type: string
           description: External ID of the type
       description: Target type of the connection definition
-    AssetCentricDataSource:
+    TransformationAdvancedList:
       required:
-      - type
+      - filter
       type: object
       properties:
-        type:
+        filter:
+          $ref: '#/components/schemas/TransformationFilter'
+        limit:
+          type: integer
+          format: int32
+        cursor:
           type: string
-          description: The type of the destination resource.
-          enum:
-          - assets
-          - events
-          - asset_hierarchy
-          - datapoints
-          - string_datapoints
-          - timeseries
-          - sequences
-          - files
-          - labels
-          - relationships
-          - data_sets
+    SetNull_Long:
+      required:
+      - setNull
+      type: object
+      properties:
+        setNull:
+          type: boolean
+    MinMax:
+      type: object
+      properties:
+        min:
+          type: integer
+          description: 'Minimum timestamp (inclusive).
+
+            The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.'
+          format: int64
+        max:
+          type: integer
+          description: 'Maximum timestamp (inclusive).
+
+            The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.'
+          format: int64
+      description: Range between two timestamps (inclusive).
+    TransformationRunWithExternalId:
+      required:
+      - externalId
+      type: object
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        nonce:
+          $ref: '#/components/schemas/NonceCredentials'
+    FlatOidcCredentials:
+      required:
+      - clientId
+      - clientSecret
+      - tokenUri
+      - cdfProjectName
+      type: object
+      properties:
+        clientId:
+          type: string
+        clientSecret:
+          type: string
+        scopes:
+          type: string
+        tokenUri:
+          type: string
+        cdfProjectName:
+          type: string
+        audience:
+          type: string
+    SetStringField:
+      type: object
+      title: set
+      required:
+      - set
+      properties:
+        set:
+          type: string
+    SetValue_Long:
+      required:
+      - set
+      type: object
+      properties:
+        set:
+          type: integer
+          format: int64
+    Items_TransformationRead:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransformationRead'
+      description: Array of objects (Transformation).
+    TransformationCogniteExternalId:
+      required:
+      - externalId
+      type: object
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+    CogniteExtId:
+      required:
+      - externalId
+      type: object
+      properties:
+        externalId:
+          type: string
+      description: The external ID provided by the client. Must be unique for the resource type.
+    TransformationCogniteInternalId:
+      required:
+      - id
+      type: object
+      properties:
+        id:
+          type: integer
+          description: A server-generated ID for the object.
+          format: int32
     DataModelInfo:
       required:
       - space
@@ -1322,59 +1753,70 @@ components:
           type: string
           description: Property Identifier of the connection definition in destinationType
       description: Target data model info
-    SetExternalId:
+    Items_UpdateItem_TransformationUpdate:
       type: object
-      title: set
+      properties:
+        items:
+          type: array
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/UpdateItemWithExternalId_TransformationUpdate'
+            - $ref: '#/components/schemas/UpdateItemWithId_TransformationUpdate'
+          maxItems: 1000
+    SetValue_DataSource:
       required:
       - set
+      type: object
       properties:
         set:
-          $ref: '#/components/schemas/CogniteExternalId'
-    SetNull_Long:
-      required:
-      - setNull
+          oneOf:
+          - $ref: '#/components/schemas/AssetCentricDataSource'
+          - $ref: '#/components/schemas/DataModelSource'
+          - $ref: '#/components/schemas/ViewDataSource'
+          - $ref: '#/components/schemas/RawDataSource'
+          - $ref: '#/components/schemas/SequenceRowDataSource'
+      description: Set a new value for the transformation destination type. Indicates result resource type.
+    AutoCreateOptions:
       type: object
+      description: 'Options to control the automatic creation of related instances when writing to data models. By default, all options are true.
+
+        '
       properties:
-        setNull:
+        startNodes:
           type: boolean
-    UpdateArray_String:
-      type: object
-      properties:
-        add:
-          type: array
-          items:
-            type: string
-            minLength: 1
-            maxLength: 35
-          description: List of tags to add to the Transformation.
-        remove:
-          type: array
-          items:
-            type: string
-            minLength: 1
-            maxLength: 35
-          description: List of tags to remove from the Transformation.
-    SetNull_FlatOidcCredentialsUpdate:
-      required:
-      - setNull
-      type: object
-      properties:
-        setNull:
+          description: 'If true (default), missing start nodes are automatically created in the destination. If false, the transformation validates node references and returns a 400 error if a referenced start node for creating edges doesn''t exist.
+
+            '
+        endNodes:
           type: boolean
-    SequenceRowDataSource:
+          description: 'If true (default), missing end nodes  are automatically created in the destination. If false, the transformation validates node references and returns a 400 error if a referenced end node for creating edges doesn''t exist.
+
+            '
+        directRelations:
+          type: boolean
+          description: 'If true (default), missing direct relation targets are automatically created in the destination. If false, the transformation validates relation references and returns a 400 error if a referenced target node doesn''t exist.
+
+            '
+    ViewDataSource:
       required:
       - type
-      - externalId
       type: object
       properties:
         type:
           type: string
-          description: The type of the destination resource indicating that the transformation will write to Sequence Rows.
+          description: The type of the destination resource indicating the instance type that the transformation will write to flexible data models.
           enum:
-          - sequence_rows
-        externalId:
+          - nodes
+          - edges
+        view:
+          $ref: '#/components/schemas/ViewInfo'
+        edgeType:
+          $ref: '#/components/schemas/EdgeType'
+        instanceSpace:
           type: string
-          description: The externalId of sequence
+          description: The space where the instances(nodes/edges) will be created.
+        autoCreate:
+          $ref: '#/components/schemas/AutoCreateOptions'
     SetValue_FlatOidcCredentialsUpdate:
       required:
       - set
@@ -1437,224 +1879,14 @@ components:
           description: Return the transformations depending on the tags filter provided.
           oneOf:
           - $ref: '#/components/schemas/ContainsAny'
-    SetStringField:
-      type: object
-      title: set
-      required:
-      - set
-      properties:
-        set:
-          type: string
-    SetValue_Long:
-      required:
-      - set
+    ContainsAny:
       type: object
       properties:
-        set:
-          type: integer
-          format: int64
-    TransformationCreate:
-      required:
-      - name
-      - externalId
-      - ignoreNullFields
-      type: object
-      properties:
-        name:
-          type: string
-          maxLength: 128
-          description: Transformation name. Maximum length is 128 characters.
-        query:
-          type: string
-        destination:
-          description: Destination data type.
-          oneOf:
-          - $ref: '#/components/schemas/AssetCentricDataSource'
-          - $ref: '#/components/schemas/DataModelSource'
-          - $ref: '#/components/schemas/ViewDataSource'
-          - $ref: '#/components/schemas/RawDataSource'
-          - $ref: '#/components/schemas/SequenceRowDataSource'
-        conflictMode:
-          $ref: '#/components/schemas/ConflictMode'
-        isPublic:
-          type: boolean
-        sourceOidcCredentials:
-          $ref: '#/components/schemas/FlatOidcCredentials'
-        destinationOidcCredentials:
-          $ref: '#/components/schemas/FlatOidcCredentials'
-        sourceNonce:
-          $ref: '#/components/schemas/NonceCredentials'
-        destinationNonce:
-          $ref: '#/components/schemas/NonceCredentials'
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-        ignoreNullFields:
-          type: boolean
-          description: 'How NULL values are handled on updates: ignore or setNull.'
-        dataSetId:
-          type: integer
-          format: int64
-        tags:
+        containsAny:
           type: array
           items:
             type: string
-            minLength: 1
-            maxLength: 35
-          description: List of tags for the Transformation.
-          minItems: 1
-          maxItems: 5
-    Items_UpdateItem_TransformationUpdate:
-      type: object
-      properties:
-        items:
-          type: array
-          items:
-            oneOf:
-            - $ref: '#/components/schemas/UpdateItemWithExternalId_TransformationUpdate'
-            - $ref: '#/components/schemas/UpdateItemWithId_TransformationUpdate'
-          maxItems: 1000
-    SessionInfo:
-      type: object
-      properties:
-        clientId:
-          type: string
-          description: Idp client ID
-        sessionId:
-          type: integer
-          description: CDF session ID
-          format: int64
-        projectName:
-          type: string
-          description: CDF project name
-      description: Details for the session used to read from the source project.
-    TransformationUpdate:
-      type: object
-      properties:
-        name:
-          allOf:
-          - $ref: '#/components/schemas/SetStringField'
-          - type: object
-            properties:
-              set:
-                type: string
-                maxLength: 128
-          description: Set a new value for the transformation name. Maximum length is 128 characters.
-        externalId:
-          allOf:
-          - $ref: '#/components/schemas/SetExternalId'
-          description: Set a new value for the transformation External ID.
-        destination:
-          $ref: '#/components/schemas/SetValue_DataSource'
-        conflictMode:
-          $ref: '#/components/schemas/SetValue_ConflictMode'
-        query:
-          allOf:
-          - $ref: '#/components/schemas/SetStringField'
-          description: Set a new value for the transformation query.
-        sourceOidcCredentials:
-          description: Set a new value for the transformation source OIDC credentials, or remove it.
-          oneOf:
-          - $ref: '#/components/schemas/SetNull_FlatOidcCredentialsUpdate'
-          - $ref: '#/components/schemas/SetValue_FlatOidcCredentialsUpdate'
-        destinationOidcCredentials:
-          description: Set a new value for the transformation destination OIDC credentials, or remove it.
-          oneOf:
-          - $ref: '#/components/schemas/SetNull_FlatOidcCredentialsUpdate'
-          - $ref: '#/components/schemas/SetValue_FlatOidcCredentialsUpdate'
-        sourceNonce:
-          description: Bind to a new source CDF session, or remove it
-          oneOf:
-          - $ref: '#/components/schemas/SetNull_NonceCredentials'
-          - $ref: '#/components/schemas/SetValue_NonceCredentials'
-        destinationNonce:
-          description: Bind to a new destination session, or remove it
-          oneOf:
-          - $ref: '#/components/schemas/SetNull_NonceCredentials'
-          - $ref: '#/components/schemas/SetValue_NonceCredentials'
-        isPublic:
-          allOf:
-          - $ref: '#/components/schemas/SetBooleanField'
-          description: Set a new value for the transformation isPublic flag to change who can see the transformation.
-        ignoreNullFields:
-          allOf:
-          - $ref: '#/components/schemas/SetBooleanField'
-          description: Set a new value for the transformation ignoreNullFields flag to change to change how nulls are handled on updates.
-        dataSetId:
-          description: Set a new value for the transformation dataset id which is used for access control.
-          oneOf:
-          - $ref: '#/components/schemas/SetNull_Long'
-          - $ref: '#/components/schemas/SetValue_Long'
-        tags:
-          description: List of tags for the Transformation.
-          oneOf:
-          - $ref: '#/components/schemas/SetValue_Seq_String'
-          - $ref: '#/components/schemas/UpdateArray_String'
-    ViewDataSource:
-      required:
-      - type
-      type: object
-      properties:
-        type:
-          type: string
-          description: The type of the destination resource indicating the instance type that the transformation will write to flexible data models.
-          enum:
-          - nodes
-          - edges
-        view:
-          $ref: '#/components/schemas/ViewInfo'
-        edgeType:
-          $ref: '#/components/schemas/EdgeType'
-        instanceSpace:
-          type: string
-          description: The space where the instances(nodes/edges) will be created.
-        autoCreate:
-          $ref: '#/components/schemas/AutoCreateOptions'
-    SetBooleanField:
-      type: object
-      title: set
-      required:
-      - set
-      properties:
-        set:
-          type: boolean
-    AutoCreateOptions:
-      type: object
-      description: 'Options to control the automatic creation of related instances when writing to data models. By default, all options are true.
-
-        '
-      properties:
-        startNodes:
-          type: boolean
-          description: 'If true (default), missing start nodes are automatically created in the destination. If false, the transformation validates node references and returns a 400 error if a referenced start node for creating edges doesn''t exist.
-
-            '
-        endNodes:
-          type: boolean
-          description: 'If true (default), missing end nodes  are automatically created in the destination. If false, the transformation validates node references and returns a 400 error if a referenced end node for creating edges doesn''t exist.
-
-            '
-        directRelations:
-          type: boolean
-          description: 'If true (default), missing direct relation targets are automatically created in the destination. If false, the transformation validates relation references and returns a 400 error if a referenced target node doesn''t exist.
-
-            '
-    NonceCredentials:
-      description: Credentials for a CDF session (sessionId, nonce, and project name). These are obtained when you create a session via the Sessions API. See [Sessions API](#tag/Sessions/operation/createSessions) documentation for more information.
-      required:
-      - sessionId
-      - nonce
-      - cdfProjectName
-      type: object
-      properties:
-        sessionId:
-          type: integer
-          format: int64
-        nonce:
-          type: string
-        cdfProjectName:
-          type: string
-        clientId:
-          type: string
+          description: Filter the transformations having any of these tags.
     ItemsWithIgnoreUnknownIds_CogniteId:
       type: object
       properties:
@@ -1669,37 +1901,22 @@ components:
           type: boolean
           description: Ignore IDs and external IDs that are not found. Defaults to false.
       description: All provided IDs and external IDs must be unique.
-    FlatOidcCredentials:
-      required:
-      - clientId
-      - clientSecret
-      - tokenUri
-      - cdfProjectName
+    SetBooleanField:
       type: object
-      properties:
-        clientId:
-          type: string
-        clientSecret:
-          type: string
-        scopes:
-          type: string
-        tokenUri:
-          type: string
-        cdfProjectName:
-          type: string
-        audience:
-          type: string
-    CronValue:
-      type: string
-      example: 0 0 * * *
-      description: Cron expression describes when the job should run.
-    SetNull_NonceCredentials:
+      title: set
       required:
-      - setNull
-      type: object
+      - set
       properties:
-        setNull:
+        set:
           type: boolean
+    SetValue_ConflictMode:
+      required:
+      - set
+      type: object
+      properties:
+        set:
+          $ref: '#/components/schemas/ConflictMode'
+      description: Set a new value for the transformation conflictMode (action).
     UpdateItemWithId_TransformationUpdate:
       required:
       - update
@@ -1712,164 +1929,14 @@ components:
           type: integer
           description: A server-generated ID for the object.
           format: int32
-    CogniteExtId:
-      required:
-      - externalId
-      type: object
-      properties:
-        externalId:
-          type: string
-      description: The external ID provided by the client. Must be unique for the resource type.
-    JobRead:
-      required:
-      - id
-      - uuid
-      - transformationId
-      - transformationExternalId
-      - sourceProject
-      - destinationProject
-      - destination
-      - conflictMode
-      - query
-      - ignoreNullFields
-      - status
-      - createdTime
-      type: object
-      properties:
-        id:
-          type: integer
-          description: Job numeric ID.
-          format: int32
-        uuid:
-          type: string
-          description: UUID id of the job.
-        transformationId:
-          type: integer
-          description: ID of the transformation that created this job.
-          format: int32
-        transformationExternalId:
-          type: string
-          description: External ID of the transformation that created this job.
-        sourceProject:
-          type: string
-          description: CDF project which is used as source for reading data.
-        destinationProject:
-          type: string
-          description: CDF project which is used as destination for writing data.
-        destination:
-          description: Destination data type.
-          oneOf:
-          - $ref: '#/components/schemas/AssetCentricDataSource'
-          - $ref: '#/components/schemas/DataModelSource'
-          - $ref: '#/components/schemas/ViewDataSource'
-          - $ref: '#/components/schemas/RawDataSource'
-          - $ref: '#/components/schemas/SequenceRowDataSource'
-        conflictMode:
-          $ref: '#/components/schemas/ConflictMode'
-        query:
-          type: string
-          description: The SQL query being executed.
-        createdTime:
-          type: integer
-          description: 'Time when the job was created: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.'
-          format: int64
-        startedTime:
-          type: integer
-          description: 'Time when this job started executing: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.'
-          format: int64
-        finishedTime:
-          type: integer
-          description: 'Time when this job finished running: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.'
-          format: int64
-        lastSeenTime:
-          type: integer
-          description: 'Time when this job last registered running: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.'
-          format: int64
-        error:
-          type: string
-          description: If the job failed, this will be a string describing why. When null, the job did not fail.
-        ignoreNullFields:
-          type: boolean
-          description: 'How NULL values are handled on updates: ignore or setNull.'
-        status:
-          $ref: '#/components/schemas/TransformationJobStatus'
-      description: Details for the last finished job of this transformation
-    UpdateItemWithExternalId_TransformationUpdate:
-      required:
+    ConflictMode:
+      type: string
+      description: Behavior when the data already exists.`upsert` - Create or Update,`abort` - Create and fail when already exists,`update` - update and fail if it does not exist,`delete` - delete the matched rows.
+      enum:
+      - abort
+      - delete
       - update
-      - externalId
-      type: object
-      properties:
-        update:
-          $ref: '#/components/schemas/TransformationUpdate'
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-    Items_TransformationRead:
-      type: object
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/TransformationRead'
-      description: Array of objects (Transformation).
-    ItemsWithByIdsFlags_CogniteId:
-      required:
-      - withJobDetails
-      type: object
-      properties:
-        items:
-          type: array
-          items:
-            oneOf:
-            - $ref: '#/components/schemas/TransformationCogniteExternalId'
-            - $ref: '#/components/schemas/TransformationCogniteInternalId'
-          maxItems: 1000
-        ignoreUnknownIds:
-          type: boolean
-          description: Ignore IDs and external IDs that are not found. Defaults to false.
-        withJobDetails:
-          type: boolean
-          description: Whether the transformations will be returned with running job and last created job details.
-      description: All provided IDs and external IDs must be unique.
-    FlatOidcCredentialsUpdate:
-      type: object
-      properties:
-        clientId:
-          type: string
-        clientSecret:
-          type: string
-        scopes:
-          type: string
-        tokenUri:
-          type: string
-        cdfProjectName:
-          type: string
-        audience:
-          type: string
-    TransformationCogniteExternalId:
-      required:
-      - externalId
-      type: object
-      properties:
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-    CogniteIntId:
-      required:
-      - id
-      type: object
-      properties:
-        id:
-          type: integer
-          format: int64
-      description: A server-generated ID for the object.
-    ContainsAny:
-      type: object
-      properties:
-        containsAny:
-          type: array
-          items:
-            type: string
-          description: Filter the transformations having any of these tags.
+      - upsert
     ItemsWithCursor_TransformationRead:
       type: object
       properties:
@@ -1881,73 +1948,6 @@ components:
           type: string
           description: Cursor to get the next page of results (if available).
       description: Array of objects (Transformation).
-    Items_TransformationCreate:
-      type: object
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/TransformationCreate'
-          maxItems: 1000
-    DataModelSource:
-      required:
-      - type
-      - dataModel
-      type: object
-      properties:
-        type:
-          type: string
-          description: The type of the destination resource indicating that the transformation will write to data models
-          enum:
-          - instances
-        dataModel:
-          $ref: '#/components/schemas/DataModelInfo'
-        instanceSpace:
-          type: string
-          description: The space where the instances will be created.
-        autoCreate:
-          $ref: '#/components/schemas/AutoCreateOptions'
-    SetValue_Seq_String:
-      type: object
-      properties:
-        set:
-          type: array
-          items:
-            type: string
-            minLength: 1
-            maxLength: 35
-          description: List of tags for the Transformation.
-          minItems: 1
-          maxItems: 5
-    TransformationAdvancedList:
-      required:
-      - filter
-      type: object
-      properties:
-        filter:
-          $ref: '#/components/schemas/TransformationFilter'
-        limit:
-          type: integer
-          format: int32
-        cursor:
-          type: string
-    TransformationJobStatus:
-      type: string
-      description: Status of the job at the request time.
-      enum:
-      - Completed
-      - Created
-      - Failed
-      - Running
-    TransformationCogniteInternalId:
-      required:
-      - id
-      type: object
-      properties:
-        id:
-          type: integer
-          description: A server-generated ID for the object.
-          format: int32
   securitySchemes:
     oidc-token:
       type: http

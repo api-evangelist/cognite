@@ -235,144 +235,55 @@ paths:
       - filesAcl:READ
 components:
   schemas:
-    Error:
+    DiagramSearchField:
+      type: string
+      example: userDefinedField
+      default: name
+      description: This field determines the string to search for and to identify object entities.
+    DiagramRegion:
+      description: Shape and coordinates of the detected entity in the image.
       type: object
       required:
-      - code
-      - message
-      description: Cognite API error.
+      - shape
+      - vertices
       properties:
-        code:
-          type: integer
-          description: HTTP status code.
-          format: int32
-          example: 401
-        message:
+        shape:
           type: string
-          description: Error message.
-          example: Could not authenticate.
-        missing:
+          description: The geometrical shape of the image region to which a detected entity belongs.
+          enum:
+          - rectangle
+        vertices:
           type: array
-          description: List of lookup objects that do not match any results.
+          description: List of vertices representing the image region to which a detected entity belongs.
           items:
-            type: object
-            additionalProperties: true
-        duplicated:
-          type: array
-          description: List of objects that are not unique.
-          items:
-            type: object
-            additionalProperties: true
-    DiagramConvertResultSchema:
-      description: An array of converted results, returned when the job finished or failed partially.
-      type: array
-      items:
-        type: object
-        oneOf:
-        - allOf:
-          - $ref: '#/components/schemas/AllOfFileId'
-          - properties:
-              results:
-                type: array
-                items:
-                  $ref: '#/components/schemas/DiagramSvgPngResultSchema'
-                maxItems: 50
-          required:
-          - results
-        - allOf:
-          - $ref: '#/components/schemas/AllOfFileId'
-          - properties:
-              errorMessage:
-                type: string
-                description: The error message for a file.
-          required:
-          - errorMessage
+            $ref: '#/components/schemas/Vertex'
+          minItems: 4
+          maxItems: 4
     EpochTimestamp:
       description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
       type: integer
       minimum: 0
       format: int64
       example: 1730204346000
-    DiagramSvgPngResultSchema:
-      type: object
-      oneOf:
-      - properties:
-          page:
-            $ref: '#/components/schemas/Page'
-          svgUrl:
-            type: string
-            example: https://storage.googleapis.com/cluster/1234/PH-ME-P-0004-001.svg
-            description: A signed URL to an interactive SVG version of the engineering diagram (valid for 10 minutes).
-          pngUrl:
-            type: string
-            example: https://storage.googleapis.com/cluster/1234/PH-ME-P-0004-001.png
-            description: A signed URL to a PNG version of the engineering diagram (valid for 10 minutes).
-        required:
-        - page
-        - svgUrl
-        - pngUrl
-      - properties:
-          page:
-            $ref: '#/components/schemas/Page'
-          errorMessage:
-            type: string
-            description: The error message for the page and file.
-        required:
-        - page
-        - errorMessage
-    InstanceSpace:
-      type: string
-      pattern: ^[a-zA-Z][a-zA-Z0-9_-]{0,41}[a-zA-Z0-9]?$
-      minLength: 1
-      maxLength: 43
-    Grayscale:
-      type: boolean
-      example: true
-      default: true
-      description: Return the SVG version in grayscale colors only (reduces the file size).
-    DiagramConvertConfig:
-      type: object
-      properties:
-        grayscale:
-          $ref: '#/components/schemas/Grayscale'
-    PageRange:
-      type: object
-      required:
-      - begin
-      - end
-      description: An inclusive range of up to 50 pages, starting at 1. For example, the first 10 pages are given by begin=1, end=10. Page ranges only apply to PDF files.
-      properties:
-        begin:
-          type: integer
-          description: The first page of the page range.
-          minimum: 1
-          example: 51
-        end:
-          type: integer
-          description: The last page of the page range, must be greater than or equal to begin.
-          minimum: 1
-          example: 100
-    DiagramMinTokens:
+    DiagramFileId:
       type: integer
-      description: Each detected item must match the detected entity on at least this number of tokens. A token is a substring of consecutive letters or digits.
-      default: 2
-    OneOfFileId:
+      example: 1234
+      description: The ID of a file in CDF. The file must have mime_type application/pdf, image/jpeg, image/png or image/tiff.
+      format: int64
+    DiagramInstanceId:
       type: object
       required:
-      - fileId
-      - fileExternalId
-      - fileInstanceId
-      description: An object containing file (external/instance) id. The file can have at most 50 pages.
-      oneOf:
-      - properties:
-          fileId:
-            $ref: '#/components/schemas/DiagramFileId'
-      - properties:
-          fileExternalId:
-            $ref: '#/components/schemas/DiagramFileExternalId'
-      - properties:
-          fileInstanceId:
-            $ref: '#/components/schemas/DiagramInstanceId'
+      - space
+      - externalId
+      example:
+        space: space
+        externalId: externalId
+      description: The instance id of a file in CDF. The file must have mime_type application/pdf, image/jpeg, image/png or image/tiff.
+      properties:
+        space:
+          $ref: '#/components/schemas/InstanceSpace'
+        externalId:
+          $ref: '#/components/schemas/InstanceExternalId'
     DiagramAnnotation:
       description: Annotation representing a detected entity.
       allOf:
@@ -381,11 +292,40 @@ components:
         properties:
           entities:
             $ref: '#/components/schemas/DiagramDetectedEntities'
-    DiagramSearchField:
-      type: string
-      example: userDefinedField
-      default: name
-      description: This field determines the string to search for and to identify object entities.
+    StatusSchema:
+      type: object
+      required:
+      - status
+      - createdTime
+      - startTime
+      - statusTime
+      properties:
+        status:
+          $ref: '#/components/schemas/JobStatus'
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        startTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        statusTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        errorMessage:
+          type: string
+          description: If the job failed, some more information about the error cause.
+          example: null
+          default: null
+    DiagramDetectedEntities:
+      type: array
+      example:
+      - userDefinedField: 21PT1017
+        ignoredField: AA11
+      - userDefinedField:
+        - 21PT1017-A
+        - 21PT1017-B
+      description: A list of entities detected per annotation.
+      items:
+        type: object
+      minItems: 1
+      maxItems: 5
     NewAnnotation:
       type: object
       required:
@@ -412,8 +352,22 @@ components:
           - properties:
               page:
                 $ref: '#/components/schemas/Page'
-    DiagramDetectResultSchema:
-      description: An array of detected results, returned when the job finished or failed partially.
+    DiagramDetectEntities:
+      type: array
+      items:
+        type: object
+        maxProperties: 256
+      minItems: 1
+      maxItems: 500000
+      example:
+      - userDefinedField: 21PT1017
+        ignoredField: AA11
+      - userDefinedField:
+        - 21PT1017-A
+        - 21PT1017-B
+      description: A list of entities to look for. For example, all the assets under a root node. The `searchField` determines the strings that identify the entities.
+    DiagramConvertResultSchema:
+      description: An array of converted results, returned when the job finished or failed partially.
       type: array
       items:
         type: object
@@ -421,149 +375,30 @@ components:
         - allOf:
           - $ref: '#/components/schemas/AllOfFileId'
           - properties:
-              annotations:
+              results:
                 type: array
-                description: Annotations of entities detected by the service
                 items:
-                  $ref: '#/components/schemas/DiagramAnnotation'
+                  $ref: '#/components/schemas/DiagramSvgPngResultSchema'
+                maxItems: 50
           required:
-          - annotations
+          - results
         - allOf:
-          - $ref: '#/components/schemas/AllOfFileIdWithPageRange'
+          - $ref: '#/components/schemas/AllOfFileId'
           - properties:
               errorMessage:
                 type: string
-                description: Error message for the file.
+                description: The error message for a file.
           required:
           - errorMessage
-    DiagramDetectedEntities:
-      type: array
-      example:
-      - userDefinedField: 21PT1017
-        ignoredField: AA11
-      - userDefinedField:
-        - 21PT1017-A
-        - 21PT1017-B
-      description: A list of entities detected per annotation.
-      items:
-        type: object
-      minItems: 1
-      maxItems: 5
-    AllOfFileId:
-      type: object
-      required:
-      - fileId
-      properties:
-        fileId:
-          $ref: '#/components/schemas/DiagramFileId'
-        fileExternalId:
-          $ref: '#/components/schemas/DiagramFileExternalId'
-        fileInstanceId:
-          $ref: '#/components/schemas/DiagramInstanceId'
-    StatusSchema:
-      type: object
-      required:
-      - status
-      - createdTime
-      - startTime
-      - statusTime
-      properties:
-        status:
-          $ref: '#/components/schemas/JobStatus'
-        createdTime:
-          $ref: '#/components/schemas/EpochTimestamp'
-        startTime:
-          $ref: '#/components/schemas/EpochTimestamp'
-        statusTime:
-          $ref: '#/components/schemas/EpochTimestamp'
-        errorMessage:
-          type: string
-          description: If the job failed, some more information about the error cause.
-          example: null
-          default: null
-    PageCount:
-      type: integer
-      description: The total number of pages in the file, returned if page range was provided.
-      example: 51
-    JobId:
-      description: Contextualization job ID.
-      type: integer
-      example: 123
-      format: int64
-    AllOfFileIdWithPageRange:
-      type: object
-      required:
-      - fileId
-      properties:
-        fileId:
-          $ref: '#/components/schemas/DiagramFileId'
-        fileExternalId:
-          $ref: '#/components/schemas/DiagramFileExternalId'
-        fileInstanceId:
-          $ref: '#/components/schemas/DiagramInstanceId'
-        pageRange:
-          $ref: '#/components/schemas/PageRange'
-        pageCount:
-          $ref: '#/components/schemas/PageCount'
-    DiagramFileId:
-      type: integer
-      example: 1234
-      description: The ID of a file in CDF. The file must have mime_type application/pdf, image/jpeg, image/png or image/tiff.
-      format: int64
-    DiagramFileExternalId:
-      type: string
-      example: '1234'
-      description: The external ID of a file in CDF. The file must have mime_type application/pdf, image/jpeg, image/png or image/tiff.
-    BatchJobStatus:
-      description: The status of the job.
-      type: string
-      enum:
-      - Queued
-      - Distributing
-      - Distributed
-      - Running
-      - Collecting
-      - Completed
-      - Failed
-      - Timeout
-    FileReferenceWithPageRange:
-      type: object
-      required:
-      - fileId
-      - fileExternalId
-      - fileInstanceId
-      description: Either file id, external id or instance id, and optionally a page range. At most 50 pages can be queried.
-      oneOf:
-      - properties:
-          fileId:
-            $ref: '#/components/schemas/DiagramFileId'
-      - properties:
-          fileExternalId:
-            $ref: '#/components/schemas/DiagramFileExternalId'
-      - properties:
-          fileInstanceId:
-            $ref: '#/components/schemas/DiagramInstanceId'
-      properties:
-        pageRange:
-          $ref: '#/components/schemas/PageRange'
     DiagramPartialMatch:
       type: boolean
       description: Allow partial (fuzzy) matching of entities in the engineering diagrams. Creates a match only when it is possible to do so unambiguously.
       default: false
-    DiagramInstanceId:
+    DiagramConvertConfig:
       type: object
-      required:
-      - space
-      - externalId
-      example:
-        space: space
-        externalId: externalId
-      description: The instance id of a file in CDF. The file must have mime_type application/pdf, image/jpeg, image/png or image/tiff.
       properties:
-        space:
-          $ref: '#/components/schemas/InstanceSpace'
-        externalId:
-          $ref: '#/components/schemas/InstanceExternalId'
+        grayscale:
+          $ref: '#/components/schemas/Grayscale'
     JobStatus:
       description: The status of the job.
       type: string
@@ -592,11 +427,38 @@ components:
           description: Normalized y coordinate.
           minimum: 0
           maximum: 1
-    Page:
-      type: integer
-      example: 1
-      description: The page of the file where the annotations in `annotations` were detected.
-      minimum: 1
+    AllOfFileIdWithPageRange:
+      type: object
+      required:
+      - fileId
+      properties:
+        fileId:
+          $ref: '#/components/schemas/DiagramFileId'
+        fileExternalId:
+          $ref: '#/components/schemas/DiagramFileExternalId'
+        fileInstanceId:
+          $ref: '#/components/schemas/DiagramInstanceId'
+        pageRange:
+          $ref: '#/components/schemas/PageRange'
+        pageCount:
+          $ref: '#/components/schemas/PageCount'
+    PageRange:
+      type: object
+      required:
+      - begin
+      - end
+      description: An inclusive range of up to 50 pages, starting at 1. For example, the first 10 pages are given by begin=1, end=10. Page ranges only apply to PDF files.
+      properties:
+        begin:
+          type: integer
+          description: The first page of the page range.
+          minimum: 1
+          example: 51
+        end:
+          type: integer
+          description: The last page of the page range, must be greater than or equal to begin.
+          minimum: 1
+          example: 100
     DiagramConvertRequestSchema:
       description: An array of files and annotations to create interactive diagrams.
       type: array
@@ -615,6 +477,130 @@ components:
               items:
                 $ref: '#/components/schemas/DiagramAnnotation'
               maxItems: 1000
+    DiagramFileExternalId:
+      type: string
+      example: '1234'
+      description: The external ID of a file in CDF. The file must have mime_type application/pdf, image/jpeg, image/png or image/tiff.
+    InstanceSpace:
+      type: string
+      pattern: ^[a-zA-Z][a-zA-Z0-9_-]{0,41}[a-zA-Z0-9]?$
+      minLength: 1
+      maxLength: 43
+    OneOfFileId:
+      type: object
+      required:
+      - fileId
+      - fileExternalId
+      - fileInstanceId
+      description: An object containing file (external/instance) id. The file can have at most 50 pages.
+      oneOf:
+      - properties:
+          fileId:
+            $ref: '#/components/schemas/DiagramFileId'
+      - properties:
+          fileExternalId:
+            $ref: '#/components/schemas/DiagramFileExternalId'
+      - properties:
+          fileInstanceId:
+            $ref: '#/components/schemas/DiagramInstanceId'
+    Page:
+      type: integer
+      example: 1
+      description: The page of the file where the annotations in `annotations` were detected.
+      minimum: 1
+    DiagramSvgPngResultSchema:
+      type: object
+      oneOf:
+      - properties:
+          page:
+            $ref: '#/components/schemas/Page'
+          svgUrl:
+            type: string
+            example: https://storage.googleapis.com/cluster/1234/PH-ME-P-0004-001.svg
+            description: A signed URL to an interactive SVG version of the engineering diagram (valid for 10 minutes).
+          pngUrl:
+            type: string
+            example: https://storage.googleapis.com/cluster/1234/PH-ME-P-0004-001.png
+            description: A signed URL to a PNG version of the engineering diagram (valid for 10 minutes).
+        required:
+        - page
+        - svgUrl
+        - pngUrl
+      - properties:
+          page:
+            $ref: '#/components/schemas/Page'
+          errorMessage:
+            type: string
+            description: The error message for the page and file.
+        required:
+        - page
+        - errorMessage
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
+    JobId:
+      description: Contextualization job ID.
+      type: integer
+      example: 123
+      format: int64
+    DiagramMinTokens:
+      type: integer
+      description: Each detected item must match the detected entity on at least this number of tokens. A token is a substring of consecutive letters or digits.
+      default: 2
+    DiagramDetectResultSchema:
+      description: An array of detected results, returned when the job finished or failed partially.
+      type: array
+      items:
+        type: object
+        oneOf:
+        - allOf:
+          - $ref: '#/components/schemas/AllOfFileId'
+          - properties:
+              annotations:
+                type: array
+                description: Annotations of entities detected by the service
+                items:
+                  $ref: '#/components/schemas/DiagramAnnotation'
+          required:
+          - annotations
+        - allOf:
+          - $ref: '#/components/schemas/AllOfFileIdWithPageRange'
+          - properties:
+              errorMessage:
+                type: string
+                description: Error message for the file.
+          required:
+          - errorMessage
+    InstanceExternalId:
+      type: string
+      pattern: ^[a-zA-Z]([a-zA-Z0-9_]{0,253}[a-zA-Z0-9])?$
+      minLength: 1
+      maxLength: 255
     DiagramDetectConfig:
       type: object
       properties:
@@ -624,51 +610,58 @@ components:
           $ref: '#/components/schemas/DiagramPartialMatch'
         minTokens:
           $ref: '#/components/schemas/DiagramMinTokens'
-    InstanceExternalId:
-      type: string
-      pattern: ^[a-zA-Z]([a-zA-Z0-9_]{0,253}[a-zA-Z0-9])?$
-      minLength: 1
-      maxLength: 255
-    DiagramDetectEntities:
-      type: array
-      items:
-        type: object
-        maxProperties: 256
-      minItems: 1
-      maxItems: 500000
-      example:
-      - userDefinedField: 21PT1017
-        ignoredField: AA11
-      - userDefinedField:
-        - 21PT1017-A
-        - 21PT1017-B
-      description: A list of entities to look for. For example, all the assets under a root node. The `searchField` determines the strings that identify the entities.
-    DiagramRegion:
-      description: Shape and coordinates of the detected entity in the image.
+    PageCount:
+      type: integer
+      description: The total number of pages in the file, returned if page range was provided.
+      example: 51
+    Grayscale:
+      type: boolean
+      example: true
+      default: true
+      description: Return the SVG version in grayscale colors only (reduces the file size).
+    FileReferenceWithPageRange:
       type: object
       required:
-      - shape
-      - vertices
+      - fileId
+      - fileExternalId
+      - fileInstanceId
+      description: Either file id, external id or instance id, and optionally a page range. At most 50 pages can be queried.
+      oneOf:
+      - properties:
+          fileId:
+            $ref: '#/components/schemas/DiagramFileId'
+      - properties:
+          fileExternalId:
+            $ref: '#/components/schemas/DiagramFileExternalId'
+      - properties:
+          fileInstanceId:
+            $ref: '#/components/schemas/DiagramInstanceId'
       properties:
-        shape:
-          type: string
-          description: The geometrical shape of the image region to which a detected entity belongs.
-          enum:
-          - rectangle
-        vertices:
-          type: array
-          description: List of vertices representing the image region to which a detected entity belongs.
-          items:
-            $ref: '#/components/schemas/Vertex'
-          minItems: 4
-          maxItems: 4
-  parameters:
-    jobId:
-      in: path
-      name: jobId
-      required: true
-      schema:
-        $ref: '#/components/schemas/JobId'
+        pageRange:
+          $ref: '#/components/schemas/PageRange'
+    BatchJobStatus:
+      description: The status of the job.
+      type: string
+      enum:
+      - Queued
+      - Distributing
+      - Distributed
+      - Running
+      - Collecting
+      - Completed
+      - Failed
+      - Timeout
+    AllOfFileId:
+      type: object
+      required:
+      - fileId
+      properties:
+        fileId:
+          $ref: '#/components/schemas/DiagramFileId'
+        fileExternalId:
+          $ref: '#/components/schemas/DiagramFileExternalId'
+        fileInstanceId:
+          $ref: '#/components/schemas/DiagramInstanceId'
   responses:
     ErrorResponse:
       description: The response for a failed request.
@@ -681,6 +674,13 @@ components:
             properties:
               error:
                 $ref: '#/components/schemas/Error'
+  parameters:
+    jobId:
+      in: path
+      name: jobId
+      required: true
+      schema:
+        $ref: '#/components/schemas/JobId'
   securitySchemes:
     oidc-token:
       type: http

@@ -297,13 +297,6 @@ components:
           $ref: '#/components/schemas/IdentityType'
         lastUpdatedTime:
           $ref: '#/components/schemas/EpochTimestamp'
-    UserProfilesByIdsResponse:
-      type: object
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/UserProfileItem'
     IdentityType:
       description: 'The identity type field indicates the type of principal.
 
@@ -319,35 +312,6 @@ components:
       - USER
       - SERVICE_PRINCIPAL
       - INTERNAL_SERVICE
-    UserProfilesListResponse:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/UserProfileItem'
-        nextCursor:
-          type: string
-          description: Cursor to get the next page of results (if available).
-    UserProfilesNotFoundResponse:
-      required:
-      - error
-      type: object
-      properties:
-        error:
-          required:
-          - code
-          - message
-          type: object
-          properties:
-            code:
-              type: integer
-              description: HTTP status code.
-            message:
-              type: string
-              description: Error message.
     UserProfilesSearchRequest:
       type: object
       properties:
@@ -364,6 +328,45 @@ components:
           minimum: 1
           maximum: 1000
           default: 25
+    UserProfilesErrorResponse:
+      required:
+      - error
+      type: object
+      properties:
+        error:
+          required:
+          - code
+          - message
+          type: object
+          properties:
+            code:
+              type: integer
+              description: HTTP status code.
+            message:
+              type: string
+              description: Error message.
+            missing:
+              type: array
+              items:
+                $ref: '#/components/schemas/UserIdentifier'
+              description: List of lookup objects that do not match any results.
+            duplicated:
+              type: array
+              items:
+                $ref: '#/components/schemas/UserIdentifier'
+              description: List of objects that are not unique.
+    UserProfilesListResponse:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserProfileItem'
+        nextCursor:
+          type: string
+          description: Cursor to get the next page of results (if available).
     UserProfilesByIdsRequest:
       description: Array of user identifiers
       type: object
@@ -372,26 +375,50 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/UserIdentifier'
-    IdentityTypeFilter:
-      description: 'The identity type filter field indicates the type of principal the request should be filtered to show.
+    ServicePrincipal:
+      type: object
+      required:
+      - userIdentifier
+      - displayName
+      - lastUpdatedTime
+      - pictureUrl
+      - identityType
+      properties:
+        userIdentifier:
+          type: string
+          description: 'Uniquely identifies the principal the profile is associated with.
 
-        If no value is specified, the default value is `USER`.
-
-        - `ALL`: All types of principals.
-
-        - `USER`: Human user.
-
-        - `SERVICE_PRINCIPAL`: Service account.
-
-        - `INTERNAL_SERVICE`: Internal CDF service.
-
-        '
-      type: string
-      enum:
-      - ALL
-      - USER
-      - SERVICE_PRINCIPAL
-      - INTERNAL_SERVICE
+            '
+          example: HByt5JcYe1jYgnN5kFSGikthqcFHJjg4kxciGBFUWbBFv4unyt
+        displayName:
+          type: string
+          description: The display name for the service account
+          example: Industrial Ops Acct 5
+        pictureUrl:
+          type: string
+          description: The avatar of the service account
+          format: url
+          example: https://auth.cognite.com/api/v1/orgs/cog-cognite/principals/HByt5JcYe1jYgnN5kFSGikthqcFHJjg4kxciGBFUWbBFv4unyt/picture?_n=1730959200&_e=1731067200&_k=EdCqRojhpCzDNF6JrrpfZgp
+        identityType:
+          title: Principal identity type
+          type: string
+          enum:
+          - SERVICE_PRINCIPAL
+    UserIdentifier:
+      type: object
+      required:
+      - userIdentifier
+      properties:
+        userIdentifier:
+          type: string
+          example: abcd
+    UserProfilesSearchResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserProfileItem'
     EpochTimestamp:
       description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
       type: integer
@@ -447,7 +474,34 @@ components:
           - USER
         lastUpdatedTime:
           $ref: '#/components/schemas/EpochTimestamp'
-    UserProfilesErrorResponse:
+    IdentityTypeFilter:
+      description: 'The identity type filter field indicates the type of principal the request should be filtered to show.
+
+        If no value is specified, the default value is `USER`.
+
+        - `ALL`: All types of principals.
+
+        - `USER`: Human user.
+
+        - `SERVICE_PRINCIPAL`: Service account.
+
+        - `INTERNAL_SERVICE`: Internal CDF service.
+
+        '
+      type: string
+      enum:
+      - ALL
+      - USER
+      - SERVICE_PRINCIPAL
+      - INTERNAL_SERVICE
+    UserProfilesByIdsResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserProfileItem'
+    UserProfilesNotFoundResponse:
       required:
       - error
       type: object
@@ -464,60 +518,6 @@ components:
             message:
               type: string
               description: Error message.
-            missing:
-              type: array
-              items:
-                $ref: '#/components/schemas/UserIdentifier'
-              description: List of lookup objects that do not match any results.
-            duplicated:
-              type: array
-              items:
-                $ref: '#/components/schemas/UserIdentifier'
-              description: List of objects that are not unique.
-    ServicePrincipal:
-      type: object
-      required:
-      - userIdentifier
-      - displayName
-      - lastUpdatedTime
-      - pictureUrl
-      - identityType
-      properties:
-        userIdentifier:
-          type: string
-          description: 'Uniquely identifies the principal the profile is associated with.
-
-            '
-          example: HByt5JcYe1jYgnN5kFSGikthqcFHJjg4kxciGBFUWbBFv4unyt
-        displayName:
-          type: string
-          description: The display name for the service account
-          example: Industrial Ops Acct 5
-        pictureUrl:
-          type: string
-          description: The avatar of the service account
-          format: url
-          example: https://auth.cognite.com/api/v1/orgs/cog-cognite/principals/HByt5JcYe1jYgnN5kFSGikthqcFHJjg4kxciGBFUWbBFv4unyt/picture?_n=1730959200&_e=1731067200&_k=EdCqRojhpCzDNF6JrrpfZgp
-        identityType:
-          title: Principal identity type
-          type: string
-          enum:
-          - SERVICE_PRINCIPAL
-    UserProfilesSearchResponse:
-      type: object
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/UserProfileItem'
-    UserIdentifier:
-      type: object
-      required:
-      - userIdentifier
-      properties:
-        userIdentifier:
-          type: string
-          example: abcd
   responses:
     PrincipalProfileDto:
       description: Principal's profile data

@@ -331,56 +331,65 @@ paths:
                 $ref: '#/components/schemas/Error'
 components:
   schemas:
-    InFilterV3:
+    EqualsFilterV3:
       type: object
-      title: in
+      title: equals
       required:
-      - in
+      - equals
       properties:
-        in:
+        equals:
           required:
           - property
-          - values
-          description: Matches items where the property **exactly** matches one of the given values.
+          - value
+          description: Matches items that contain the exact value in the provided property.
           type: object
           properties:
             property:
               $ref: '#/components/schemas/DMSFilterProperty'
-            values:
-              $ref: '#/components/schemas/FilterValueList'
-    OverlapsFilterV3:
+            value:
+              $ref: '#/components/schemas/FilterValue'
+    InstanceReferenceFilterV3:
       type: object
-      title: overlaps
+      title: instanceReferences
       required:
-      - overlaps
+      - instanceReferences
       properties:
-        overlaps:
-          type: object
-          description: 'Matches items where the range made up of the two properties overlap with the provided range.
-
-            Not available for search queries.'
-          required:
-          - startProperty
-          - endProperty
-          properties:
-            startProperty:
-              $ref: '#/components/schemas/DMSFilterProperty'
-            endProperty:
-              $ref: '#/components/schemas/DMSFilterProperty'
-            gte:
-              $ref: '#/components/schemas/FilterValueRange'
-            gt:
-              $ref: '#/components/schemas/FilterValueRange'
-            lte:
-              $ref: '#/components/schemas/FilterValueRange'
-            lt:
-              $ref: '#/components/schemas/FilterValueRange'
+        instanceReferences:
+          type: array
+          description: Matches instances with any of the specified space/externalId pairs.
+          items:
+            type: object
+            required:
+            - space
+            - externalId
+            properties:
+              space:
+                $ref: '#/components/schemas/SpaceSpecification'
+              externalId:
+                $ref: '#/components/schemas/NodeOrEdgeExternalId'
     EpochTimestamp:
       description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
       type: integer
       minimum: 0
       format: int64
       example: 1730204346000
+    ContainsAnyFilterV3:
+      type: object
+      title: containsAny
+      required:
+      - containsAny
+      properties:
+        containsAny:
+          required:
+          - property
+          - values
+          description: Matches items where the property contains one or more of the given values. Only apply this filter to multivalued properties.
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/DMSFilterProperty'
+            values:
+              $ref: '#/components/schemas/FilterValueList'
     ViewReference:
       type: object
       description: Reference to a view
@@ -406,540 +415,6 @@ components:
           description: Version of the view
           allOf:
           - $ref: '#/components/schemas/DMSVersion'
-    ContainerReference:
-      type: object
-      description: Reference to an existing container
-      required:
-      - type
-      - space
-      - externalId
-      properties:
-        type:
-          type: string
-          enum:
-          - container
-        space:
-          description: Id of the space hosting (containing) the container
-          allOf:
-          - $ref: '#/components/schemas/SpaceSpecification'
-        externalId:
-          description: External-id of the container
-          allOf:
-          - $ref: '#/components/schemas/DMSExternalId'
-    DMSExistsFilter:
-      type: object
-      title: exists
-      required:
-      - exists
-      properties:
-        exists:
-          required:
-          - property
-          description: 'Will match items that have a value in the specified property.
-
-            '
-          type: object
-          properties:
-            property:
-              $ref: '#/components/schemas/DMSFilterProperty'
-    TableExpressionFilterValue:
-      oneOf:
-      - $ref: '#/components/schemas/RawPropertyValueV3'
-      - $ref: '#/components/schemas/ParameterizedPropertyValueV3'
-      - $ref: '#/components/schemas/ReferencedPropertyValueV3'
-    RangeValue:
-      title: rangeBound
-      description: Value you wish to find in the provided property using a range clause.
-      oneOf:
-      - type: string
-        title: string
-      - type: number
-        title: number
-      - type: integer
-        title: integer
-    SpaceSpecification:
-      type: string
-      pattern: ^[a-zA-Z][a-zA-Z0-9_-]{0,41}[a-zA-Z0-9]?$
-      minLength: 1
-      maxLength: 43
-    TableExpressionContainsAnyFilterV3:
-      type: object
-      title: containsAny
-      required:
-      - containsAny
-      properties:
-        containsAny:
-          required:
-          - property
-          - values
-          description: Matches items where the property contains one or more of the given values. Only apply this filter to multivalued properties.
-          type: object
-          properties:
-            property:
-              $ref: '#/components/schemas/DMSFilterProperty'
-            values:
-              $ref: '#/components/schemas/TableExpressionFilterValueList'
-    TargetUnit:
-      type: object
-      description: Describes a target unit for a property.
-      required:
-      - property
-      - unit
-      properties:
-        property:
-          type: string
-        unit:
-          description: The external id of the target unit or unit system to convert to.
-          oneOf:
-          - $ref: '#/components/schemas/UnitReference'
-          - $ref: '#/components/schemas/UnitSystemReference'
-    PropertyIdentifierV3:
-      type: string
-      pattern: ^[a-zA-Z]([a-zA-Z0-9_]{0,253}[a-zA-Z0-9])?$
-      minLength: 1
-      maxLength: 255
-    RangeFilterV3:
-      type: object
-      title: range
-      required:
-      - range
-      properties:
-        range:
-          required:
-          - property
-          description: "Matches items that contain terms within the provided range.\n\nThe range must include both an upper and a lower bound. It is not permitted to specify both inclusive\nand exclusive bounds together.  E.g. `gte` and `gt`.\n\n  `gte`: Greater than or equal to.\n  `gt`: Greater than.\n  `lte`: Less than or equal to.\n  `lt`: Less than.\n"
-          type: object
-          properties:
-            property:
-              $ref: '#/components/schemas/DMSFilterProperty'
-            gte:
-              $ref: '#/components/schemas/FilterValueRange'
-            gt:
-              $ref: '#/components/schemas/FilterValueRange'
-            lte:
-              $ref: '#/components/schemas/FilterValueRange'
-            lt:
-              $ref: '#/components/schemas/FilterValueRange'
-    ReferencedPropertyValueV3:
-      title: property reference
-      description: A property reference value
-      type: object
-      required:
-      - property
-      properties:
-        property:
-          type: array
-          items:
-            type: string
-          minItems: 2
-          maxItems: 4
-    PropertySortV3:
-      type: object
-      required:
-      - property
-      properties:
-        property:
-          $ref: '#/components/schemas/DMSFilterProperty'
-        direction:
-          type: string
-          default: ascending
-          enum:
-          - ascending
-          - descending
-        nullsFirst:
-          type: boolean
-          default: false
-    FilterValueRange:
-      oneOf:
-      - $ref: '#/components/schemas/RangeValue'
-      - $ref: '#/components/schemas/ReferencedPropertyValueV3'
-    TableExpressionFilterValueRange:
-      oneOf:
-      - $ref: '#/components/schemas/RangeValue'
-      - $ref: '#/components/schemas/ParameterizedPropertyValueV3'
-      - $ref: '#/components/schemas/ReferencedPropertyValueV3'
-    limit:
-      type: integer
-      minimum: 1
-      maximum: 1000
-      default: 100
-      description: The maximum number of results to return.
-    UnitReference:
-      type: object
-      description: Target unit reference.
-      required:
-      - externalId
-      properties:
-        externalId:
-          $ref: '#/components/schemas/NodeOrEdgeExternalId'
-    FilterValueList:
-      oneOf:
-      - $ref: '#/components/schemas/RawPropertyValueListV3'
-      - $ref: '#/components/schemas/ReferencedPropertyValueV3'
-    TargetUnits:
-      type: array
-      description: Properties to convert to another unit. The API can only convert to another unit, if a unit has been defined as part of the type on the underlying container being queried.
-      maxItems: 10
-      minItems: 1
-      items:
-        $ref: '#/components/schemas/TargetUnit'
-    TableExpressionFilterValueList:
-      oneOf:
-      - $ref: '#/components/schemas/RawPropertyValueListV3'
-      - $ref: '#/components/schemas/ParameterizedPropertyValueV3'
-      - $ref: '#/components/schemas/ReferencedPropertyValueV3'
-    TriggerView:
-      title: Trigger response
-      type: object
-      properties:
-        externalId:
-          $ref: '#/components/schemas/TriggerExternalId'
-        triggerRule:
-          $ref: '#/components/schemas/TriggerRule'
-        input:
-          $ref: '#/components/schemas/ExecutionInput'
-        metadata:
-          $ref: '#/components/schemas/metadata'
-        workflowExternalId:
-          $ref: '#/components/schemas/WorkflowExternalId'
-        workflowVersion:
-          $ref: '#/components/schemas/Version'
-        createdTime:
-          $ref: '#/components/schemas/EpochTimestamp'
-        lastUpdatedTime:
-          $ref: '#/components/schemas/EpochTimestamp'
-        isPaused:
-          type: boolean
-    TriggerRule:
-      oneOf:
-      - $ref: '#/components/schemas/CronTrigger'
-      - $ref: '#/components/schemas/DataModelingTrigger'
-    DataModelsLeafFilter:
-      description: Leaf filter
-      title: LeafFilter
-      type: object
-      oneOf:
-      - $ref: '#/components/schemas/EqualsFilterV3'
-      - $ref: '#/components/schemas/InFilterV3'
-      - $ref: '#/components/schemas/RangeFilterV3'
-      - $ref: '#/components/schemas/PrefixFilterV3'
-      - $ref: '#/components/schemas/DMSExistsFilter'
-      - $ref: '#/components/schemas/ContainsAnyFilterV3'
-      - $ref: '#/components/schemas/ContainsAllFilterV3'
-      - $ref: '#/components/schemas/MatchAllFilter'
-      - $ref: '#/components/schemas/DataModelsNestedFilter'
-      - $ref: '#/components/schemas/OverlapsFilterV3'
-      - $ref: '#/components/schemas/HasExistingDataFilterV3'
-      - $ref: '#/components/schemas/InstanceReferenceFilterV3'
-    TableExpressionPrefixFilterV3:
-      type: object
-      title: prefix
-      required:
-      - prefix
-      properties:
-        prefix:
-          required:
-          - property
-          - value
-          description: Matches items that have the prefix in the identified property.
-          type: object
-          properties:
-            property:
-              $ref: '#/components/schemas/DMSFilterProperty'
-            value:
-              $ref: '#/components/schemas/TableExpressionFilterValue'
-    TableExpressionEqualsFilterV3:
-      type: object
-      title: equals
-      required:
-      - equals
-      properties:
-        equals:
-          required:
-          - property
-          - value
-          description: Matches items that contain the exact value in the provided property.
-          type: object
-          properties:
-            property:
-              $ref: '#/components/schemas/DMSFilterProperty'
-            value:
-              $ref: '#/components/schemas/TableExpressionFilterValue'
-    DMSVersion:
-      type: string
-      pattern: ^[a-zA-Z0-9]([.a-zA-Z0-9_-]{0,41}[a-zA-Z0-9])?$
-      minLength: 1
-      maxLength: 43
-    TableExpressionRangeFilterV3:
-      type: object
-      title: range
-      required:
-      - range
-      properties:
-        range:
-          required:
-          - property
-          description: "Matches items that contain terms within the provided range.\n\nThe range must include both an upper and a lower bound. It is not permitted to specify both inclusive\nand exclusive bounds together.  E.g. `gte` and `gt`.\n\n  `gte`: Greater than or equal to.\n  `gt`: Greater than.\n  `lte`: Less than or equal to.\n  `lt`: Less than.\n"
-          type: object
-          properties:
-            property:
-              $ref: '#/components/schemas/DMSFilterProperty'
-            gte:
-              $ref: '#/components/schemas/TableExpressionFilterValueRange'
-            gt:
-              $ref: '#/components/schemas/TableExpressionFilterValueRange'
-            lte:
-              $ref: '#/components/schemas/TableExpressionFilterValueRange'
-            lt:
-              $ref: '#/components/schemas/TableExpressionFilterValueRange'
-    ExecutionInput:
-      type: object
-      example:
-        key1: value1
-        key2: value2
-      description: Input data to the workflow. The content of the input data can be used as input to the workflow tasks using references. The input data should be in JSON format, and is limited to 100KB in size.
-    FilterDefinition:
-      type: object
-      description: A filter Domain Specific Language (DSL) used to create advanced filter queries.
-      oneOf:
-      - $ref: '#/components/schemas/DataModelsBoolFilter'
-      - $ref: '#/components/schemas/DataModelsLeafFilter'
-      example:
-        and:
-        - in:
-            property:
-            - tag
-            values:
-            - 10011
-            - 10011
-        - range:
-            property:
-            - weight
-            gte: 0
-    ParameterizedPropertyValueV3:
-      title: parameter
-      description: A parameterized value
-      type: object
-      required:
-      - parameter
-      properties:
-        parameter:
-          type: string
-    CronTrigger:
-      type: object
-      required:
-      - triggerType
-      - cronExpression
-      properties:
-        triggerType:
-          type: string
-          enum:
-          - schedule
-        cronExpression:
-          type: string
-          description: A cron expression (UNIX format) specifying when the trigger should be executed. Use https://crontab.guru/ to create a cron expression. The API may adjust the exact timing of cron job executions to distribute the backend load more evenly. However, it will aim to maintain the overall frequency of executions as specified in the cron expression.
-        timezone:
-          type: string
-          description: Specifies the IANA time zone in which the cron expression is evaluated. Time zones must be valid as listed in https://docs.oracle.com/cd/E72987_01/wcs/tag-ref/MISC/TimeZones.html.
-          default: UTC
-          example: Europe/Oslo
-    WorkflowExternalId:
-      type: string
-      description: Identifier for a workflow. Must be unique for the project. No trailing or leading whitespace and no null characters allowed.
-      maxLength: 255
-    SyncNodeTableExpressionV3:
-      type: object
-      required:
-      - nodes
-      description: The synchronization query to use when we listen for changes to nodes.  The nodes must also match the specified filter.
-      properties:
-        limit:
-          $ref: '#/components/schemas/TableExpressionSyncLimit'
-        skipAlreadyDeleted:
-          type: boolean
-          description: 'If set to ''false'' the API will return instances that have been soft deleted before sync was initiated. Soft deletes that happen after the sync is initiated and a cursor generated, are always included in the result. Soft deleted instances are identified by having ```deletedTime``` set. This flag has no effect with `mode: noBackfill`.'
-          default: true
-        mode:
-          $ref: '#/components/schemas/SyncMode'
-        backfillSort:
-          $ref: '#/components/schemas/BackfillSort'
-        nodes:
-          type: object
-          properties:
-            from:
-              description: Chain your result expression from the specified view, or container.
-              type: string
-            chainTo:
-              $ref: '#/components/schemas/TableExpressionChainToDefinition'
-            through:
-              $ref: '#/components/schemas/NodeTableExpressionThrough'
-            direction:
-              description: The direction to use when traversing direct relations. Only applicable when `through` is specified. If `from` is a set operation result expression then direction must be "inwards".
-              type: string
-              default: inwards
-              enum:
-              - outwards
-              - inwards
-            filter:
-              $ref: '#/components/schemas/TableExpressionFilterDefinition'
-    DataModelsBoolFilter:
-      title: BoolFilter
-      description: 'Build a new query by combining other queries, using boolean operators. We support the `and`, `or`, and
-
-        `not` boolean operators.
-
-        '
-      type: object
-      oneOf:
-      - type: object
-        title: and
-        required:
-        - and
-        properties:
-          and:
-            description: All the sub-clauses in the query must return a matching item.
-            type: array
-            minItems: 1
-            items:
-              $ref: '#/components/schemas/FilterDefinition'
-      - type: object
-        title: or
-        required:
-        - or
-        properties:
-          or:
-            description: One or more of the sub-clauses in the query must return a matching item.
-            type: array
-            minItems: 1
-            items:
-              $ref: '#/components/schemas/FilterDefinition'
-      - type: object
-        title: not
-        required:
-        - not
-        properties:
-          not:
-            title: Filter DSL
-            description: None of the sub-clauses in the query can return a matching item.
-            type: object
-            allOf:
-            - $ref: '#/components/schemas/FilterDefinition'
-    Error:
-      type: object
-      required:
-      - code
-      - message
-      description: Cognite API error.
-      properties:
-        code:
-          type: integer
-          description: HTTP status code.
-          format: int32
-          example: 401
-        message:
-          type: string
-          description: Error message.
-          example: Could not authenticate.
-        missing:
-          type: array
-          description: List of lookup objects that do not match any results.
-          items:
-            type: object
-            additionalProperties: true
-        duplicated:
-          type: array
-          description: List of objects that are not unique.
-          items:
-            type: object
-            additionalProperties: true
-    MatchAllFilter:
-      type: object
-      title: matchAll
-      required:
-      - matchAll
-      properties:
-        matchAll:
-          description: All the listed items must match the clause.
-          type: object
-          maxProperties: 0
-    UnitSystemReference:
-      type: object
-      description: 'Target system to convert data to. Can be used instead of targetUnit to identify the unit to convert to.
-
-        '
-      required:
-      - unitSystemName
-      example: 'Default, SI, Imperial
-
-        '
-      properties:
-        unitSystemName:
-          type: string
-    SourceSelectorV3:
-      type: array
-      maxItems: 10
-      items:
-        type: object
-        required:
-        - source
-        - properties
-        properties:
-          source:
-            $ref: '#/components/schemas/ViewReference'
-          properties:
-            type: array
-            description: Properties to return for the specified view. Use "*" to return all properties.
-            items:
-              type: string
-          targetUnits:
-            $ref: '#/components/schemas/TargetUnits'
-    DMSFilterProperty:
-      title: property
-      description: "A reference to either a DMS base property or a container property.\nFor nodes the DMS base properties are `instanceType`, `version`,\n`space`, `externalId`, `type`, `createdTime`, `lastUpdatedTime`,\nand `deletedTime`. For edges the DMS base properties\nare all of the node base properties with the addition of\n`startNode` and `endNode`.\n\nReferences to DMS base properties are on the form\n`[\"identifier\"]`, `[\"node\", \"identifier\"]` or `[\"edge\", \"identifier\"]` where\n`identifier` is a DMS base property.\n\nContainer properties can be referenced either through a view\n or through the container where it is defined.\n- To reference a property through the container where it\n    is defined the format is\n    `[\"space\", \"externalId\", \"identifier\"]` where `space`,\n    `externalId` is the space and\n    externalId of the container and `identifier` is one of the\n    property identifiers defined in the container.\n- To reference a property through one of the views mapping it the format\n  is `[\"space\", \"externalId/version\", \"identifier\"]`\n  where `space`, `externalId`, `version` is the space, externalId,\n  and version of the view respectively, and `identifier` is one of the\n  property identifiers defined in the view.\n"
-      type: array
-      minItems: 1
-      items:
-        type: string
-    SyncSelectV3:
-      type: object
-      description: Define which view to return properties for, and the properties to return. Up to 10 views can be specified per query.
-      properties:
-        sources:
-          $ref: '#/components/schemas/SourceSelectorV3'
-    TableExpressionContainsAllFilterV3:
-      type: object
-      title: containsAll
-      required:
-      - containsAll
-      properties:
-        containsAll:
-          required:
-          - property
-          - values
-          description: Matches items where the property contains all the given values. Only apply this filter to multivalued properties.
-          type: object
-          properties:
-            property:
-              $ref: '#/components/schemas/DMSFilterProperty'
-            values:
-              $ref: '#/components/schemas/TableExpressionFilterValueList'
-    TableExpressionLeafFilter:
-      description: Leaf filter
-      title: LeafFilter
-      type: object
-      oneOf:
-      - $ref: '#/components/schemas/TableExpressionEqualsFilterV3'
-      - $ref: '#/components/schemas/TableExpressionInFilterV3'
-      - $ref: '#/components/schemas/TableExpressionRangeFilterV3'
-      - $ref: '#/components/schemas/TableExpressionPrefixFilterV3'
-      - $ref: '#/components/schemas/DMSExistsFilter'
-      - $ref: '#/components/schemas/TableExpressionContainsAnyFilterV3'
-      - $ref: '#/components/schemas/TableExpressionContainsAllFilterV3'
-      - $ref: '#/components/schemas/MatchAllFilter'
-      - $ref: '#/components/schemas/DataModelsNestedFilter'
-      - $ref: '#/components/schemas/TableExpressionOverlapsFilterV3'
-      - $ref: '#/components/schemas/HasExistingDataFilterV3'
-      - $ref: '#/components/schemas/InstanceReferenceFilterV3'
     DataModelsNestedFilter:
       type: object
       title: nested
@@ -961,26 +436,152 @@ components:
                 type: string
             filter:
               $ref: '#/components/schemas/FilterDefinition'
-    Version:
-      type: string
-      description: Identifier for a version. Must be unique for the workflow. No trailing or leading whitespace and no null characters allowed.
-      maxLength: 255
-    cursor:
-      type: string
-      example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
-      description: Cursor to use for paging through results. This cursor is returned in the response of a previous request as `nextCursor`. If not specified, start from the first page of results.
+    TargetUnits:
+      type: array
+      description: Properties to convert to another unit. The API can only convert to another unit, if a unit has been defined as part of the type on the underlying container being queried.
+      maxItems: 10
+      minItems: 1
+      items:
+        $ref: '#/components/schemas/TargetUnit'
+    DMSFilterProperty:
+      title: property
+      description: "A reference to either a DMS base property or a container property.\nFor nodes the DMS base properties are `instanceType`, `version`,\n`space`, `externalId`, `type`, `createdTime`, `lastUpdatedTime`,\nand `deletedTime`. For edges the DMS base properties\nare all of the node base properties with the addition of\n`startNode` and `endNode`.\n\nReferences to DMS base properties are on the form\n`[\"identifier\"]`, `[\"node\", \"identifier\"]` or `[\"edge\", \"identifier\"]` where\n`identifier` is a DMS base property.\n\nContainer properties can be referenced either through a view\n or through the container where it is defined.\n- To reference a property through the container where it\n    is defined the format is\n    `[\"space\", \"externalId\", \"identifier\"]` where `space`,\n    `externalId` is the space and\n    externalId of the container and `identifier` is one of the\n    property identifiers defined in the container.\n- To reference a property through one of the views mapping it the format\n  is `[\"space\", \"externalId/version\", \"identifier\"]`\n  where `space`, `externalId`, `version` is the space, externalId,\n  and version of the view respectively, and `identifier` is one of the\n  property identifiers defined in the view.\n"
+      type: array
+      minItems: 1
+      items:
+        type: string
+    ParameterizedPropertyValueV3:
+      title: parameter
+      description: A parameterized value
+      type: object
+      required:
+      - parameter
+      properties:
+        parameter:
+          type: string
+    PropertySortV3:
+      type: object
+      required:
+      - property
+      properties:
+        property:
+          $ref: '#/components/schemas/DMSFilterProperty'
+        direction:
+          type: string
+          default: ascending
+          enum:
+          - ascending
+          - descending
+        nullsFirst:
+          type: boolean
+          default: false
+    UnitSystemReference:
+      type: object
+      description: 'Target system to convert data to. Can be used instead of targetUnit to identify the unit to convert to.
+
+        '
+      required:
+      - unitSystemName
+      example: 'Default, SI, Imperial
+
+        '
+      properties:
+        unitSystemName:
+          type: string
+    TableExpressionFilterDefinition:
+      type: object
+      description: A filter Domain Specific Language (DSL) used to create advanced filter queries.
+      oneOf:
+      - $ref: '#/components/schemas/TableExpressionDataModelsBoolFilter'
+      - $ref: '#/components/schemas/TableExpressionLeafFilter'
+      example:
+        and:
+        - in:
+            property:
+            - tag
+            values:
+            - 10011
+            - 10011
+        - range:
+            property:
+            - weight
+            gte: 0
+    ContainsAllFilterV3:
+      type: object
+      title: containsAll
+      required:
+      - containsAll
+      properties:
+        containsAll:
+          required:
+          - property
+          - values
+          description: Matches items where the property contains all the given values. Only apply this filter to multivalued properties.
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/DMSFilterProperty'
+            values:
+              $ref: '#/components/schemas/FilterValueList'
+    TriggerRule:
+      oneOf:
+      - $ref: '#/components/schemas/CronTrigger'
+      - $ref: '#/components/schemas/DataModelingTrigger'
     SyncTableExpressionV3:
       oneOf:
       - $ref: '#/components/schemas/SyncNodeTableExpressionV3'
       - $ref: '#/components/schemas/SyncEdgeTableExpressionV3'
-    SourceReference:
-      description: Reference to a view, or a container
+    RangeValue:
+      title: rangeBound
+      description: Value you wish to find in the provided property using a range clause.
       oneOf:
-      - $ref: '#/components/schemas/ViewReference'
-      - $ref: '#/components/schemas/ContainerReference'
-      discriminator:
-        propertyName: type
-    TableExpressionInFilterV3:
+      - type: string
+        title: string
+      - type: number
+        title: number
+      - type: integer
+        title: integer
+    TargetUnit:
+      type: object
+      description: Describes a target unit for a property.
+      required:
+      - property
+      - unit
+      properties:
+        property:
+          type: string
+        unit:
+          description: The external id of the target unit or unit system to convert to.
+          oneOf:
+          - $ref: '#/components/schemas/UnitReference'
+          - $ref: '#/components/schemas/UnitSystemReference'
+    TriggerExternalId:
+      type: string
+      description: Identifier for a trigger. Must be unique for the project. No trailing or leading whitespace and no null characters allowed.
+      maxLength: 255
+    Version:
+      type: string
+      description: Identifier for a version. Must be unique for the workflow. No trailing or leading whitespace and no null characters allowed.
+      maxLength: 255
+    CronTrigger:
+      type: object
+      required:
+      - triggerType
+      - cronExpression
+      properties:
+        triggerType:
+          type: string
+          enum:
+          - schedule
+        cronExpression:
+          type: string
+          description: A cron expression (UNIX format) specifying when the trigger should be executed. Use https://crontab.guru/ to create a cron expression. The API may adjust the exact timing of cron job executions to distribute the backend load more evenly. However, it will aim to maintain the overall frequency of executions as specified in the cron expression.
+        timezone:
+          type: string
+          description: Specifies the IANA time zone in which the cron expression is evaluated. Time zones must be valid as listed in https://docs.oracle.com/cd/E72987_01/wcs/tag-ref/MISC/TimeZones.html.
+          default: UTC
+          example: Europe/Oslo
+    InFilterV3:
       type: object
       title: in
       required:
@@ -996,37 +597,81 @@ components:
             property:
               $ref: '#/components/schemas/DMSFilterProperty'
             values:
-              $ref: '#/components/schemas/TableExpressionFilterValueList'
-    TableExpressionOverlapsFilterV3:
+              $ref: '#/components/schemas/FilterValueList'
+    SyncSelectV3:
       type: object
-      title: overlaps
-      required:
-      - overlaps
+      description: Define which view to return properties for, and the properties to return. Up to 10 views can be specified per query.
       properties:
-        overlaps:
-          type: object
-          description: Matches items where the range made up of the two properties overlap with the provided range.
-          required:
-          - startProperty
-          - endProperty
-          properties:
-            startProperty:
-              $ref: '#/components/schemas/DMSFilterProperty'
-            endProperty:
-              $ref: '#/components/schemas/DMSFilterProperty'
-            gte:
-              $ref: '#/components/schemas/TableExpressionFilterValueRange'
-            gt:
-              $ref: '#/components/schemas/TableExpressionFilterValueRange'
-            lte:
-              $ref: '#/components/schemas/TableExpressionFilterValueRange'
-            lt:
-              $ref: '#/components/schemas/TableExpressionFilterValueRange'
-    NodeOrEdgeExternalId:
+        sources:
+          $ref: '#/components/schemas/SourceSelectorV3'
+    SyncMode:
       type: string
-      pattern: ^[^\\x00]{1,256}$
-      minLength: 1
-      maxLength: 256
+      description: 'Specify whether to sync all instances in a single phase (`onePhase` - default) or two phases (`twoPhase`), or to skip the backfill phase `noBackfill`.
+
+        With `onePhase`, all matching instances are streamed until there are no more, after which new instances and soft-deleted instances can be fetched by following the cursor.
+
+        With `twoPhase`, syncing is split into a backfill phase, and a streaming phase. In the backfill phase, only instances that existed at the time of the first sync request are guaranteed to be returned. These can optionally be sorted by specifying `backfillSort` in order to take advantage of cursorable indexes in the backfill phase. When the number of instances returned is smaller than `limit` (including 0), the backfill phase is over. Following the cursor will now return instances created and deleted after the first sync call, but no longer ordered by `backfillSort`.
+
+        With `noBackfill`, existing instances are not returned, but following the cursor will return instances created and deleted after the first sync call.'
+      default: onePhase
+      enum:
+      - onePhase
+      - twoPhase
+      - noBackfill
+    TableExpressionLeafFilter:
+      description: Leaf filter
+      title: LeafFilter
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/TableExpressionEqualsFilterV3'
+      - $ref: '#/components/schemas/TableExpressionInFilterV3'
+      - $ref: '#/components/schemas/TableExpressionRangeFilterV3'
+      - $ref: '#/components/schemas/TableExpressionPrefixFilterV3'
+      - $ref: '#/components/schemas/DMSExistsFilter'
+      - $ref: '#/components/schemas/TableExpressionContainsAnyFilterV3'
+      - $ref: '#/components/schemas/TableExpressionContainsAllFilterV3'
+      - $ref: '#/components/schemas/MatchAllFilter'
+      - $ref: '#/components/schemas/DataModelsNestedFilter'
+      - $ref: '#/components/schemas/TableExpressionOverlapsFilterV3'
+      - $ref: '#/components/schemas/HasExistingDataFilterV3'
+      - $ref: '#/components/schemas/InstanceReferenceFilterV3'
+    TableExpressionSyncLimit:
+      type: integer
+      default: 100
+      minimum: 1
+      maximum: 2000
+      description: Limits the number of instances in the result set generated by this table expression. We recommend to to not use a value lower than 100, as this will result in excessive API calls to fetch the data.
+    ViewPropertyReference:
+      type: object
+      required:
+      - view
+      - identifier
+      deprecated: true
+      properties:
+        view:
+          description: Reference to a view - this is deprecated, use `source` with ViewReference instead
+          allOf:
+          - $ref: '#/components/schemas/ViewReference'
+        identifier:
+          description: The unique identifier, from the view, for the property
+          allOf:
+          - $ref: '#/components/schemas/PropertyIdentifierV3'
+    BackfillSort:
+      type: array
+      description: 'Optionally sort synced instances during the backfill phase of a two-phase sync. The properties sorted on must have a cursorable index on them. Can only be specified with `mode: twoPhase`.'
+      maxItems: 5
+      items:
+        $ref: '#/components/schemas/PropertySortV3'
+    ExecutionInput:
+      type: object
+      example:
+        key1: value1
+        key2: value2
+      description: Input data to the workflow. The content of the input data can be used as input to the workflow tasks using references. The input data should be in JSON format, and is limited to 100KB in size.
+    cursor:
+      type: string
+      example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+      description: Cursor to use for paging through results. This cursor is returned in the response of a previous request as `nextCursor`. If not specified, start from the first page of results.
     SyncEdgeTableExpressionV3:
       type: object
       required:
@@ -1066,155 +711,32 @@ components:
               $ref: '#/components/schemas/TableExpressionFilterDefinition'
             terminationFilter:
               $ref: '#/components/schemas/TableExpressionFilterDefinition'
-    PrefixFilterV3:
+    SpaceSpecification:
+      type: string
+      pattern: ^[a-zA-Z][a-zA-Z0-9_-]{0,41}[a-zA-Z0-9]?$
+      minLength: 1
+      maxLength: 43
+    TableExpressionInFilterV3:
       type: object
-      title: prefix
+      title: in
       required:
-      - prefix
+      - in
       properties:
-        prefix:
-          required:
-          - property
-          - value
-          description: Matches items that have the prefix in the identified property. This filter is only supported for single value text properties.
-          type: object
-          properties:
-            property:
-              $ref: '#/components/schemas/DMSFilterProperty'
-            value:
-              oneOf:
-              - type: string
-              - $ref: '#/components/schemas/ParameterizedPropertyValueV3'
-    ContainsAllFilterV3:
-      type: object
-      title: containsAll
-      required:
-      - containsAll
-      properties:
-        containsAll:
+        in:
           required:
           - property
           - values
-          description: Matches items where the property contains all the given values. Only apply this filter to multivalued properties.
+          description: Matches items where the property **exactly** matches one of the given values.
           type: object
           properties:
             property:
               $ref: '#/components/schemas/DMSFilterProperty'
             values:
-              $ref: '#/components/schemas/FilterValueList'
-    ThroughReference:
-      type: object
-      title: direct reference
-      description: Traverse from another table expression using a direct relation. Only applicable when `from` is specified. The view or container property to use when we traverse direct relations. Has to reference a direct relation property.
-      required:
-      - source
-      - identifier
-      properties:
-        source:
-          $ref: '#/components/schemas/SourceReference'
-        identifier:
-          $ref: '#/components/schemas/PropertyIdentifierV3'
-    EqualsFilterV3:
-      type: object
-      title: equals
-      required:
-      - equals
-      properties:
-        equals:
-          required:
-          - property
-          - value
-          description: Matches items that contain the exact value in the provided property.
-          type: object
-          properties:
-            property:
-              $ref: '#/components/schemas/DMSFilterProperty'
-            value:
-              $ref: '#/components/schemas/FilterValue'
-    BackfillSort:
-      type: array
-      description: 'Optionally sort synced instances during the backfill phase of a two-phase sync. The properties sorted on must have a cursorable index on them. Can only be specified with `mode: twoPhase`.'
-      maxItems: 5
-      items:
-        $ref: '#/components/schemas/PropertySortV3'
-    NodeTableExpressionThrough:
-      oneOf:
-      - $ref: '#/components/schemas/ViewPropertyReference'
-      - $ref: '#/components/schemas/ThroughReference'
-    TableExpressionChainToDefinition:
+              $ref: '#/components/schemas/TableExpressionFilterValueList'
+    nextCursor:
+      description: Cursor to get the next page of results. If not present, no more results are available.
       type: string
-      default: destination
-      enum:
-      - source
-      - destination
-      description: "Default: `\"destination\"`. Applicable when `from` is an edge result expression. Control which side of the edges in `from` to chain to. The behavior depends on the `direction` setting in the `from` result expression:\n  - If `from` follows edges outwards, `direction=\"outwards\"` (default), then `\"source\"` selects `startNode` and `\"destination\"` selects `endNode`.\n  - If `from` follows edges inwards, `direction=\"inwards\"`, then `\"source\"` selects `endNode` and `\"destination\"` selects `startNode`."
-    TableExpressionDataModelsBoolFilter:
-      title: BoolFilter
-      description: 'Build a new query by combining other queries, using boolean operators. We support the `and`, `or`, and
-
-        `not` boolean operators.
-
-        '
-      type: object
-      oneOf:
-      - type: object
-        title: and
-        required:
-        - and
-        properties:
-          and:
-            description: All the sub-clauses in the query must return a matching item.
-            type: array
-            minItems: 1
-            items:
-              $ref: '#/components/schemas/TableExpressionFilterDefinition'
-      - type: object
-        title: or
-        required:
-        - or
-        properties:
-          or:
-            description: One or more of the sub-clauses in the query must return a matching item.
-            type: array
-            minItems: 1
-            items:
-              $ref: '#/components/schemas/TableExpressionFilterDefinition'
-      - type: object
-        title: not
-        required:
-        - not
-        properties:
-          not:
-            title: Filter DSL
-            description: None of the sub-clauses in the query can return a matching item.
-            type: object
-            allOf:
-            - $ref: '#/components/schemas/TableExpressionFilterDefinition'
-    FilterValue:
-      oneOf:
-      - $ref: '#/components/schemas/RawPropertyValueV3'
-      - $ref: '#/components/schemas/ReferencedPropertyValueV3'
-    ContainsAnyFilterV3:
-      type: object
-      title: containsAny
-      required:
-      - containsAny
-      properties:
-        containsAny:
-          required:
-          - property
-          - values
-          description: Matches items where the property contains one or more of the given values. Only apply this filter to multivalued properties.
-          type: object
-          properties:
-            property:
-              $ref: '#/components/schemas/DMSFilterProperty'
-            values:
-              $ref: '#/components/schemas/FilterValueList'
-    TriggerExternalId:
-      type: string
-      description: Identifier for a trigger. Must be unique for the project. No trailing or leading whitespace and no null characters allowed.
-      maxLength: 255
+      example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
     RawPropertyValueV3:
       title: raw value
       description: A value matching the data type of the defined property
@@ -1280,105 +802,70 @@ components:
         maxItems: 1000
         items:
           type: object
-    metadata:
+    HasExistingDataFilterV3:
       type: object
-      maxProperties: 10
-      additionalProperties:
-        type: string
-        maxLength: 255
-      description: 'Custom, application-specific metadata. String key -> String value.
-
-        Keys have a maximum length of 32 characters, values a maximum of 255,
-
-        and there can be a maximum of 10 key-value pairs.
-
-        '
-    DMSExternalId:
+      title: hasData
+      required:
+      - hasData
+      properties:
+        hasData:
+          type: array
+          description: Matches instances that have data in the referenced views or containers.
+          items:
+            $ref: '#/components/schemas/SourceReference'
+    RangeFilterV3:
+      type: object
+      title: range
+      required:
+      - range
+      properties:
+        range:
+          required:
+          - property
+          description: "Matches items that contain terms within the provided range.\n\nThe range must include both an upper and a lower bound. It is not permitted to specify both inclusive\nand exclusive bounds together.  E.g. `gte` and `gt`.\n\n  `gte`: Greater than or equal to.\n  `gt`: Greater than.\n  `lte`: Less than or equal to.\n  `lt`: Less than.\n"
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/DMSFilterProperty'
+            gte:
+              $ref: '#/components/schemas/FilterValueRange'
+            gt:
+              $ref: '#/components/schemas/FilterValueRange'
+            lte:
+              $ref: '#/components/schemas/FilterValueRange'
+            lt:
+              $ref: '#/components/schemas/FilterValueRange'
+    MatchAllFilter:
+      type: object
+      title: matchAll
+      required:
+      - matchAll
+      properties:
+        matchAll:
+          description: All the listed items must match the clause.
+          type: object
+          maxProperties: 0
+    TableExpressionFilterValueList:
+      oneOf:
+      - $ref: '#/components/schemas/RawPropertyValueListV3'
+      - $ref: '#/components/schemas/ParameterizedPropertyValueV3'
+      - $ref: '#/components/schemas/ReferencedPropertyValueV3'
+    FilterValueRange:
+      oneOf:
+      - $ref: '#/components/schemas/RangeValue'
+      - $ref: '#/components/schemas/ReferencedPropertyValueV3'
+    SourceReference:
+      description: Reference to a view, or a container
+      oneOf:
+      - $ref: '#/components/schemas/ViewReference'
+      - $ref: '#/components/schemas/ContainerReference'
+      discriminator:
+        propertyName: type
+    PropertyIdentifierV3:
       type: string
       pattern: ^[a-zA-Z]([a-zA-Z0-9_]{0,253}[a-zA-Z0-9])?$
       minLength: 1
       maxLength: 255
-    TableExpressionFilterDefinition:
-      type: object
-      description: A filter Domain Specific Language (DSL) used to create advanced filter queries.
-      oneOf:
-      - $ref: '#/components/schemas/TableExpressionDataModelsBoolFilter'
-      - $ref: '#/components/schemas/TableExpressionLeafFilter'
-      example:
-        and:
-        - in:
-            property:
-            - tag
-            values:
-            - 10011
-            - 10011
-        - range:
-            property:
-            - weight
-            gte: 0
-    RawPropertyValueListV3:
-      description: A list of values
-      type: array
-      items:
-        description: A value describing the type of the defined property
-        oneOf:
-        - type: string
-        - type: number
-        - type: boolean
-        - type: object
-    ViewPropertyReference:
-      type: object
-      required:
-      - view
-      - identifier
-      deprecated: true
-      properties:
-        view:
-          description: Reference to a view - this is deprecated, use `source` with ViewReference instead
-          allOf:
-          - $ref: '#/components/schemas/ViewReference'
-        identifier:
-          description: The unique identifier, from the view, for the property
-          allOf:
-          - $ref: '#/components/schemas/PropertyIdentifierV3'
-    InstanceReferenceFilterV3:
-      type: object
-      title: instanceReferences
-      required:
-      - instanceReferences
-      properties:
-        instanceReferences:
-          type: array
-          description: Matches instances with any of the specified space/externalId pairs.
-          items:
-            type: object
-            required:
-            - space
-            - externalId
-            properties:
-              space:
-                $ref: '#/components/schemas/SpaceSpecification'
-              externalId:
-                $ref: '#/components/schemas/NodeOrEdgeExternalId'
-    TableExpressionSyncLimit:
-      type: integer
-      default: 100
-      minimum: 1
-      maximum: 2000
-      description: Limits the number of instances in the result set generated by this table expression. We recommend to to not use a value lower than 100, as this will result in excessive API calls to fetch the data.
-    Authentication:
-      type: object
-      properties:
-        nonce:
-          type: string
-          description: The nonce of a sessions token, which can be obtained using client credentials authentication flow. The nonce's session must be a root session, i.e. it must not be a child of another session. See [Sessions API](https://api-docs.cognite.com/20230101/tag/Sessions) documentation for more information.
-          example: hOfy4Zop4N2SPRfl
-      required:
-      - nonce
-    nextCursor:
-      description: Cursor to get the next page of results. If not present, no more results are available.
-      type: string
-      example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
     DataModelingTrigger:
       type: object
       required:
@@ -1421,32 +908,551 @@ components:
           minimum: 10
           maximum: 86400
           description: The maximum time in seconds to wait for the batch to be filled before passing it to a workflow execution.
-    HasExistingDataFilterV3:
-      type: object
-      title: hasData
-      required:
-      - hasData
-      properties:
-        hasData:
-          type: array
-          description: Matches instances that have data in the referenced views or containers.
-          items:
-            $ref: '#/components/schemas/SourceReference'
-    SyncMode:
+    DMSVersion:
       type: string
-      description: 'Specify whether to sync all instances in a single phase (`onePhase` - default) or two phases (`twoPhase`), or to skip the backfill phase `noBackfill`.
+      pattern: ^[a-zA-Z0-9]([.a-zA-Z0-9_-]{0,41}[a-zA-Z0-9])?$
+      minLength: 1
+      maxLength: 43
+    NodeTableExpressionThrough:
+      oneOf:
+      - $ref: '#/components/schemas/ViewPropertyReference'
+      - $ref: '#/components/schemas/ThroughReference'
+    ReferencedPropertyValueV3:
+      title: property reference
+      description: A property reference value
+      type: object
+      required:
+      - property
+      properties:
+        property:
+          type: array
+          items:
+            type: string
+          minItems: 2
+          maxItems: 4
+    ContainerReference:
+      type: object
+      description: Reference to an existing container
+      required:
+      - type
+      - space
+      - externalId
+      properties:
+        type:
+          type: string
+          enum:
+          - container
+        space:
+          description: Id of the space hosting (containing) the container
+          allOf:
+          - $ref: '#/components/schemas/SpaceSpecification'
+        externalId:
+          description: External-id of the container
+          allOf:
+          - $ref: '#/components/schemas/DMSExternalId'
+    DataModelsLeafFilter:
+      description: Leaf filter
+      title: LeafFilter
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/EqualsFilterV3'
+      - $ref: '#/components/schemas/InFilterV3'
+      - $ref: '#/components/schemas/RangeFilterV3'
+      - $ref: '#/components/schemas/PrefixFilterV3'
+      - $ref: '#/components/schemas/DMSExistsFilter'
+      - $ref: '#/components/schemas/ContainsAnyFilterV3'
+      - $ref: '#/components/schemas/ContainsAllFilterV3'
+      - $ref: '#/components/schemas/MatchAllFilter'
+      - $ref: '#/components/schemas/DataModelsNestedFilter'
+      - $ref: '#/components/schemas/OverlapsFilterV3'
+      - $ref: '#/components/schemas/HasExistingDataFilterV3'
+      - $ref: '#/components/schemas/InstanceReferenceFilterV3'
+    DMSExternalId:
+      type: string
+      pattern: ^[a-zA-Z]([a-zA-Z0-9_]{0,253}[a-zA-Z0-9])?$
+      minLength: 1
+      maxLength: 255
+    DMSExistsFilter:
+      type: object
+      title: exists
+      required:
+      - exists
+      properties:
+        exists:
+          required:
+          - property
+          description: 'Will match items that have a value in the specified property.
 
-        With `onePhase`, all matching instances are streamed until there are no more, after which new instances and soft-deleted instances can be fetched by following the cursor.
+            '
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/DMSFilterProperty'
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
+    DataModelsBoolFilter:
+      title: BoolFilter
+      description: 'Build a new query by combining other queries, using boolean operators. We support the `and`, `or`, and
 
-        With `twoPhase`, syncing is split into a backfill phase, and a streaming phase. In the backfill phase, only instances that existed at the time of the first sync request are guaranteed to be returned. These can optionally be sorted by specifying `backfillSort` in order to take advantage of cursorable indexes in the backfill phase. When the number of instances returned is smaller than `limit` (including 0), the backfill phase is over. Following the cursor will now return instances created and deleted after the first sync call, but no longer ordered by `backfillSort`.
+        `not` boolean operators.
 
-        With `noBackfill`, existing instances are not returned, but following the cursor will return instances created and deleted after the first sync call.'
-      default: onePhase
+        '
+      type: object
+      oneOf:
+      - type: object
+        title: and
+        required:
+        - and
+        properties:
+          and:
+            description: All the sub-clauses in the query must return a matching item.
+            type: array
+            minItems: 1
+            items:
+              $ref: '#/components/schemas/FilterDefinition'
+      - type: object
+        title: or
+        required:
+        - or
+        properties:
+          or:
+            description: One or more of the sub-clauses in the query must return a matching item.
+            type: array
+            minItems: 1
+            items:
+              $ref: '#/components/schemas/FilterDefinition'
+      - type: object
+        title: not
+        required:
+        - not
+        properties:
+          not:
+            title: Filter DSL
+            description: None of the sub-clauses in the query can return a matching item.
+            type: object
+            allOf:
+            - $ref: '#/components/schemas/FilterDefinition'
+    Authentication:
+      type: object
+      properties:
+        nonce:
+          type: string
+          description: The nonce of a sessions token, which can be obtained using client credentials authentication flow. The nonce's session must be a root session, i.e. it must not be a child of another session. See [Sessions API](https://api-docs.cognite.com/20230101/tag/Sessions) documentation for more information.
+          example: hOfy4Zop4N2SPRfl
+      required:
+      - nonce
+    TableExpressionContainsAnyFilterV3:
+      type: object
+      title: containsAny
+      required:
+      - containsAny
+      properties:
+        containsAny:
+          required:
+          - property
+          - values
+          description: Matches items where the property contains one or more of the given values. Only apply this filter to multivalued properties.
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/DMSFilterProperty'
+            values:
+              $ref: '#/components/schemas/TableExpressionFilterValueList'
+    OverlapsFilterV3:
+      type: object
+      title: overlaps
+      required:
+      - overlaps
+      properties:
+        overlaps:
+          type: object
+          description: 'Matches items where the range made up of the two properties overlap with the provided range.
+
+            Not available for search queries.'
+          required:
+          - startProperty
+          - endProperty
+          properties:
+            startProperty:
+              $ref: '#/components/schemas/DMSFilterProperty'
+            endProperty:
+              $ref: '#/components/schemas/DMSFilterProperty'
+            gte:
+              $ref: '#/components/schemas/FilterValueRange'
+            gt:
+              $ref: '#/components/schemas/FilterValueRange'
+            lte:
+              $ref: '#/components/schemas/FilterValueRange'
+            lt:
+              $ref: '#/components/schemas/FilterValueRange'
+    FilterValueList:
+      oneOf:
+      - $ref: '#/components/schemas/RawPropertyValueListV3'
+      - $ref: '#/components/schemas/ReferencedPropertyValueV3'
+    FilterDefinition:
+      type: object
+      description: A filter Domain Specific Language (DSL) used to create advanced filter queries.
+      oneOf:
+      - $ref: '#/components/schemas/DataModelsBoolFilter'
+      - $ref: '#/components/schemas/DataModelsLeafFilter'
+      example:
+        and:
+        - in:
+            property:
+            - tag
+            values:
+            - 10011
+            - 10011
+        - range:
+            property:
+            - weight
+            gte: 0
+    TableExpressionFilterValue:
+      oneOf:
+      - $ref: '#/components/schemas/RawPropertyValueV3'
+      - $ref: '#/components/schemas/ParameterizedPropertyValueV3'
+      - $ref: '#/components/schemas/ReferencedPropertyValueV3'
+    FilterValue:
+      oneOf:
+      - $ref: '#/components/schemas/RawPropertyValueV3'
+      - $ref: '#/components/schemas/ReferencedPropertyValueV3'
+    PrefixFilterV3:
+      type: object
+      title: prefix
+      required:
+      - prefix
+      properties:
+        prefix:
+          required:
+          - property
+          - value
+          description: Matches items that have the prefix in the identified property. This filter is only supported for single value text properties.
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/DMSFilterProperty'
+            value:
+              oneOf:
+              - type: string
+              - $ref: '#/components/schemas/ParameterizedPropertyValueV3'
+    TableExpressionPrefixFilterV3:
+      type: object
+      title: prefix
+      required:
+      - prefix
+      properties:
+        prefix:
+          required:
+          - property
+          - value
+          description: Matches items that have the prefix in the identified property.
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/DMSFilterProperty'
+            value:
+              $ref: '#/components/schemas/TableExpressionFilterValue'
+    metadata:
+      type: object
+      maxProperties: 10
+      additionalProperties:
+        type: string
+        maxLength: 255
+      description: 'Custom, application-specific metadata. String key -> String value.
+
+        Keys have a maximum length of 32 characters, values a maximum of 255,
+
+        and there can be a maximum of 10 key-value pairs.
+
+        '
+    TableExpressionContainsAllFilterV3:
+      type: object
+      title: containsAll
+      required:
+      - containsAll
+      properties:
+        containsAll:
+          required:
+          - property
+          - values
+          description: Matches items where the property contains all the given values. Only apply this filter to multivalued properties.
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/DMSFilterProperty'
+            values:
+              $ref: '#/components/schemas/TableExpressionFilterValueList'
+    TableExpressionOverlapsFilterV3:
+      type: object
+      title: overlaps
+      required:
+      - overlaps
+      properties:
+        overlaps:
+          type: object
+          description: Matches items where the range made up of the two properties overlap with the provided range.
+          required:
+          - startProperty
+          - endProperty
+          properties:
+            startProperty:
+              $ref: '#/components/schemas/DMSFilterProperty'
+            endProperty:
+              $ref: '#/components/schemas/DMSFilterProperty'
+            gte:
+              $ref: '#/components/schemas/TableExpressionFilterValueRange'
+            gt:
+              $ref: '#/components/schemas/TableExpressionFilterValueRange'
+            lte:
+              $ref: '#/components/schemas/TableExpressionFilterValueRange'
+            lt:
+              $ref: '#/components/schemas/TableExpressionFilterValueRange'
+    SourceSelectorV3:
+      type: array
+      maxItems: 10
+      items:
+        type: object
+        required:
+        - source
+        - properties
+        properties:
+          source:
+            $ref: '#/components/schemas/ViewReference'
+          properties:
+            type: array
+            description: Properties to return for the specified view. Use "*" to return all properties.
+            items:
+              type: string
+          targetUnits:
+            $ref: '#/components/schemas/TargetUnits'
+    TableExpressionRangeFilterV3:
+      type: object
+      title: range
+      required:
+      - range
+      properties:
+        range:
+          required:
+          - property
+          description: "Matches items that contain terms within the provided range.\n\nThe range must include both an upper and a lower bound. It is not permitted to specify both inclusive\nand exclusive bounds together.  E.g. `gte` and `gt`.\n\n  `gte`: Greater than or equal to.\n  `gt`: Greater than.\n  `lte`: Less than or equal to.\n  `lt`: Less than.\n"
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/DMSFilterProperty'
+            gte:
+              $ref: '#/components/schemas/TableExpressionFilterValueRange'
+            gt:
+              $ref: '#/components/schemas/TableExpressionFilterValueRange'
+            lte:
+              $ref: '#/components/schemas/TableExpressionFilterValueRange'
+            lt:
+              $ref: '#/components/schemas/TableExpressionFilterValueRange'
+    SyncNodeTableExpressionV3:
+      type: object
+      required:
+      - nodes
+      description: The synchronization query to use when we listen for changes to nodes.  The nodes must also match the specified filter.
+      properties:
+        limit:
+          $ref: '#/components/schemas/TableExpressionSyncLimit'
+        skipAlreadyDeleted:
+          type: boolean
+          description: 'If set to ''false'' the API will return instances that have been soft deleted before sync was initiated. Soft deletes that happen after the sync is initiated and a cursor generated, are always included in the result. Soft deleted instances are identified by having ```deletedTime``` set. This flag has no effect with `mode: noBackfill`.'
+          default: true
+        mode:
+          $ref: '#/components/schemas/SyncMode'
+        backfillSort:
+          $ref: '#/components/schemas/BackfillSort'
+        nodes:
+          type: object
+          properties:
+            from:
+              description: Chain your result expression from the specified view, or container.
+              type: string
+            chainTo:
+              $ref: '#/components/schemas/TableExpressionChainToDefinition'
+            through:
+              $ref: '#/components/schemas/NodeTableExpressionThrough'
+            direction:
+              description: The direction to use when traversing direct relations. Only applicable when `through` is specified. If `from` is a set operation result expression then direction must be "inwards".
+              type: string
+              default: inwards
+              enum:
+              - outwards
+              - inwards
+            filter:
+              $ref: '#/components/schemas/TableExpressionFilterDefinition'
+    TableExpressionEqualsFilterV3:
+      type: object
+      title: equals
+      required:
+      - equals
+      properties:
+        equals:
+          required:
+          - property
+          - value
+          description: Matches items that contain the exact value in the provided property.
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/DMSFilterProperty'
+            value:
+              $ref: '#/components/schemas/TableExpressionFilterValue'
+    WorkflowExternalId:
+      type: string
+      description: Identifier for a workflow. Must be unique for the project. No trailing or leading whitespace and no null characters allowed.
+      maxLength: 255
+    limit:
+      type: integer
+      minimum: 1
+      maximum: 1000
+      default: 100
+      description: The maximum number of results to return.
+    NodeOrEdgeExternalId:
+      type: string
+      pattern: ^[^\\x00]{1,256}$
+      minLength: 1
+      maxLength: 256
+    ThroughReference:
+      type: object
+      title: direct reference
+      description: Traverse from another table expression using a direct relation. Only applicable when `from` is specified. The view or container property to use when we traverse direct relations. Has to reference a direct relation property.
+      required:
+      - source
+      - identifier
+      properties:
+        source:
+          $ref: '#/components/schemas/SourceReference'
+        identifier:
+          $ref: '#/components/schemas/PropertyIdentifierV3'
+    RawPropertyValueListV3:
+      description: A list of values
+      type: array
+      items:
+        description: A value describing the type of the defined property
+        oneOf:
+        - type: string
+        - type: number
+        - type: boolean
+        - type: object
+    UnitReference:
+      type: object
+      description: Target unit reference.
+      required:
+      - externalId
+      properties:
+        externalId:
+          $ref: '#/components/schemas/NodeOrEdgeExternalId'
+    TriggerView:
+      title: Trigger response
+      type: object
+      properties:
+        externalId:
+          $ref: '#/components/schemas/TriggerExternalId'
+        triggerRule:
+          $ref: '#/components/schemas/TriggerRule'
+        input:
+          $ref: '#/components/schemas/ExecutionInput'
+        metadata:
+          $ref: '#/components/schemas/metadata'
+        workflowExternalId:
+          $ref: '#/components/schemas/WorkflowExternalId'
+        workflowVersion:
+          $ref: '#/components/schemas/Version'
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        lastUpdatedTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        isPaused:
+          type: boolean
+    TableExpressionDataModelsBoolFilter:
+      title: BoolFilter
+      description: 'Build a new query by combining other queries, using boolean operators. We support the `and`, `or`, and
+
+        `not` boolean operators.
+
+        '
+      type: object
+      oneOf:
+      - type: object
+        title: and
+        required:
+        - and
+        properties:
+          and:
+            description: All the sub-clauses in the query must return a matching item.
+            type: array
+            minItems: 1
+            items:
+              $ref: '#/components/schemas/TableExpressionFilterDefinition'
+      - type: object
+        title: or
+        required:
+        - or
+        properties:
+          or:
+            description: One or more of the sub-clauses in the query must return a matching item.
+            type: array
+            minItems: 1
+            items:
+              $ref: '#/components/schemas/TableExpressionFilterDefinition'
+      - type: object
+        title: not
+        required:
+        - not
+        properties:
+          not:
+            title: Filter DSL
+            description: None of the sub-clauses in the query can return a matching item.
+            type: object
+            allOf:
+            - $ref: '#/components/schemas/TableExpressionFilterDefinition'
+    TableExpressionChainToDefinition:
+      type: string
+      default: destination
       enum:
-      - onePhase
-      - twoPhase
-      - noBackfill
+      - source
+      - destination
+      description: "Default: `\"destination\"`. Applicable when `from` is an edge result expression. Control which side of the edges in `from` to chain to. The behavior depends on the `direction` setting in the `from` result expression:\n  - If `from` follows edges outwards, `direction=\"outwards\"` (default), then `\"source\"` selects `startNode` and `\"destination\"` selects `endNode`.\n  - If `from` follows edges inwards, `direction=\"inwards\"`, then `\"source\"` selects `endNode` and `\"destination\"` selects `startNode`."
+    TableExpressionFilterValueRange:
+      oneOf:
+      - $ref: '#/components/schemas/RangeValue'
+      - $ref: '#/components/schemas/ParameterizedPropertyValueV3'
+      - $ref: '#/components/schemas/ReferencedPropertyValueV3'
   responses:
+    EmptyResponse:
+      description: Empty response.
+      content:
+        application/json:
+          schema:
+            type: object
     ErrorResponse:
       description: The response for a failed request.
       content:
@@ -1458,12 +1464,6 @@ components:
             properties:
               error:
                 $ref: '#/components/schemas/Error'
-    EmptyResponse:
-      description: Empty response.
-      content:
-        application/json:
-          schema:
-            type: object
   securitySchemes:
     oidc-token:
       type: http
