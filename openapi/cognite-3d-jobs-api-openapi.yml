@@ -222,7 +222,24 @@ paths:
       x-operation-id-source: derived
 components:
   schemas:
-    CreateJobResponse:
+    ListJobsWithCursorResponse:
+      allOf:
+      - $ref: '#/components/schemas/JobsList'
+      - $ref: '#/components/schemas/NextCursorData'
+    Job:
+      type: object
+      required:
+      - space
+      - externalId
+      - name
+      properties:
+        space:
+          $ref: '#/components/schemas/SpaceSpecification'
+        externalId:
+          $ref: '#/components/schemas/JobExternalId'
+        name:
+          type: string
+    ResultList:
       type: object
       required:
       - items
@@ -230,52 +247,26 @@ components:
         items:
           type: array
           items:
-            $ref: '#/components/schemas/JobItem'
-    ResultWithType:
-      allOf:
-      - type: object
-        required:
-        - type
-        properties:
-          type:
-            $ref: '#/components/schemas/ResultType'
-      - $ref: '#/components/schemas/InstanceReference'
-    JobExternalId:
-      type: string
-      pattern: ^[^\x00]{1,256}$
-      minLength: 1
-      maxLength: 256
-    ListJobResultsWithCursorResponse:
-      allOf:
-      - $ref: '#/components/schemas/ResultList'
-      - $ref: '#/components/schemas/NextCursorData'
-    ListJobResultRejectionsRequest:
-      allOf:
-      - type: object
-        required:
-        - job
-        - result
-        properties:
-          job:
-            $ref: '#/components/schemas/JobIdentifier'
-          result:
-            $ref: '#/components/schemas/InstanceReference'
-      - $ref: '#/components/schemas/Cursor'
-    RemoveJobResultRejections:
+            $ref: '#/components/schemas/ResultWithType'
+    AddJobResultRejections:
       type: object
       required:
       - job
       - result
-      - remove
+      - add
       properties:
         job:
           $ref: '#/components/schemas/JobIdentifier'
         result:
           $ref: '#/components/schemas/InstanceReference'
-        remove:
+        add:
           type: array
           items:
             type: string
+    UpdateJobResultRejectionsRequest:
+      oneOf:
+      - $ref: '#/components/schemas/AddJobResultRejections'
+      - $ref: '#/components/schemas/RemoveJobResultRejections'
     Cursor:
       type: object
       properties:
@@ -296,6 +287,83 @@ components:
         notice. You should treat it as an opaque string and not attempt to craft your own cursors.
 
         '
+    RemoveJobResultRejections:
+      type: object
+      required:
+      - job
+      - result
+      - remove
+      properties:
+        job:
+          $ref: '#/components/schemas/JobIdentifier'
+        result:
+          $ref: '#/components/schemas/InstanceReference'
+        remove:
+          type: array
+          items:
+            type: string
+    Jobs:
+      oneOf:
+      - $ref: '#/components/schemas/ImageTextDetectionJob'
+    NextCursor:
+      type: string
+      description: Cursor to get the next page of results (if available).
+    ResultType:
+      type: string
+      enum:
+      - CogniteFile
+    InstanceReference:
+      type: object
+      required:
+      - instanceId
+      properties:
+        instanceId:
+          $ref: '#/components/schemas/CogniteInstanceId'
+    ListJobResultsWithCursorResponse:
+      allOf:
+      - $ref: '#/components/schemas/ResultList'
+      - $ref: '#/components/schemas/NextCursorData'
+    ListJobResultsRequest:
+      allOf:
+      - type: object
+        required:
+        - job
+        properties:
+          job:
+            $ref: '#/components/schemas/JobIdentifier'
+      - $ref: '#/components/schemas/Cursor'
+    ResultWithType:
+      allOf:
+      - type: object
+        required:
+        - type
+        properties:
+          type:
+            $ref: '#/components/schemas/ResultType'
+      - $ref: '#/components/schemas/InstanceReference'
+    Create360ContextualizationJobItem:
+      allOf:
+      - $ref: '#/components/schemas/ImageTextDetectionJob'
+      - type: object
+        required:
+        - nonce
+        properties:
+          nonce:
+            title: Nonce
+            type: string
+            description: Session nonce for a recently created CDF Session.
+    ListJobResultRejectionsRequest:
+      allOf:
+      - type: object
+        required:
+        - job
+        - result
+        properties:
+          job:
+            $ref: '#/components/schemas/JobIdentifier'
+          result:
+            $ref: '#/components/schemas/InstanceReference'
+      - $ref: '#/components/schemas/Cursor'
     ImageTextDetectionJob:
       allOf:
       - $ref: '#/components/schemas/Job'
@@ -328,54 +396,49 @@ components:
             type: object
             description: Job configuration for the ImageTextDetection job type. Currently, no additional configuration is supported for this job type.
             properties: {}
-    ListJobResultsRequest:
-      allOf:
-      - type: object
-        required:
-        - job
-        properties:
-          job:
-            $ref: '#/components/schemas/JobIdentifier'
-      - $ref: '#/components/schemas/Cursor'
-    RejectedKey:
-      type: object
-      required:
-      - rejectedKey
-      properties:
-        rejectedKey:
-          type: string
-    Job:
+    JobIdentifier:
       type: object
       required:
       - space
       - externalId
-      - name
       properties:
         space:
           $ref: '#/components/schemas/SpaceSpecification'
         externalId:
           $ref: '#/components/schemas/JobExternalId'
-        name:
-          type: string
-    InstanceReference:
+    Create360ContextualizationJobRequest:
       type: object
       required:
-      - instanceId
+      - items
       properties:
-        instanceId:
-          $ref: '#/components/schemas/CogniteInstanceId'
-    ResultType:
-      type: string
-      enum:
-      - CogniteFile
-    NextCursor:
-      type: string
-      description: Cursor to get the next page of results (if available).
-    UpdateJobResultRejectionsRequest:
-      oneOf:
-      - $ref: '#/components/schemas/AddJobResultRejections'
-      - $ref: '#/components/schemas/RemoveJobResultRejections'
-    ResultList:
+        items:
+          type: array
+          maxItems: 1
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/Create360ContextualizationJobItem'
+    JobItem:
+      allOf:
+      - $ref: '#/components/schemas/Jobs'
+      - type: object
+        required:
+        - status
+        - createdAt
+        properties:
+          status:
+            type: string
+            enum:
+            - Scheduled
+            - Started
+            - Failed
+            - Succeeded
+            - Cancelled
+            description: Status of the job
+          createdAt:
+            type: integer
+            format: int64
+            description: Timestamp when the job was created
+    CreateJobResponse:
       type: object
       required:
       - items
@@ -383,26 +446,22 @@ components:
         items:
           type: array
           items:
-            $ref: '#/components/schemas/ResultWithType'
-    SpaceSpecification:
-      type: string
-      pattern: ^[a-zA-Z][a-zA-Z0-9_-]{0,41}[a-zA-Z0-9]?$
-      minLength: 1
-      maxLength: 43
-    ListJobResultRejectionsWithCursorResponse:
-      allOf:
-      - type: object
-        required:
-        - items
-        properties:
-          items:
-            type: array
-            items:
-              $ref: '#/components/schemas/RejectedKey'
-      - $ref: '#/components/schemas/NextCursorData'
-    ListJobsRequest:
-      allOf:
-      - $ref: '#/components/schemas/Cursor'
+            $ref: '#/components/schemas/JobItem'
+    CogniteInstanceId:
+      description: The ID of an [instance in Cognite Data Models](https://docs.cognite.com/cdf/dm/dm_concepts/dm_spaces_instances#instance).
+      type: object
+      required:
+      - space
+      - externalId
+      properties:
+        space:
+          type: string
+          minLength: 1
+          maxLength: 43
+        externalId:
+          type: string
+          minLength: 1
+          maxLength: 255
     Error:
       type: object
       required:
@@ -431,53 +490,6 @@ components:
           items:
             type: object
             additionalProperties: true
-    DeleteJobsRequest:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/JobIdentifier'
-    ListJobsWithCursorResponse:
-      allOf:
-      - $ref: '#/components/schemas/JobsList'
-      - $ref: '#/components/schemas/NextCursorData'
-    Create360ContextualizationJobRequest:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          maxItems: 1
-          minItems: 1
-          items:
-            $ref: '#/components/schemas/Create360ContextualizationJobItem'
-    Jobs:
-      oneOf:
-      - $ref: '#/components/schemas/ImageTextDetectionJob'
-    NextCursorData:
-      type: object
-      properties:
-        nextCursor:
-          $ref: '#/components/schemas/NextCursor'
-    CogniteInstanceId:
-      description: The ID of an [instance in Cognite Data Models](https://docs.cognite.com/cdf/dm/dm_concepts/dm_spaces_instances#instance).
-      type: object
-      required:
-      - space
-      - externalId
-      properties:
-        space:
-          type: string
-          minLength: 1
-          maxLength: 43
-        externalId:
-          type: string
-          minLength: 1
-          maxLength: 255
     JobsList:
       type: object
       required:
@@ -487,64 +499,58 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/JobItem'
-    AddJobResultRejections:
+    JobExternalId:
+      type: string
+      pattern: ^[^\x00]{1,256}$
+      minLength: 1
+      maxLength: 256
+    ListJobsRequest:
+      allOf:
+      - $ref: '#/components/schemas/Cursor'
+    SpaceSpecification:
+      type: string
+      pattern: ^[a-zA-Z][a-zA-Z0-9_-]{0,41}[a-zA-Z0-9]?$
+      minLength: 1
+      maxLength: 43
+    NextCursorData:
+      type: object
+      properties:
+        nextCursor:
+          $ref: '#/components/schemas/NextCursor'
+    ListJobResultRejectionsWithCursorResponse:
+      allOf:
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
+            items:
+              $ref: '#/components/schemas/RejectedKey'
+      - $ref: '#/components/schemas/NextCursorData'
+    RejectedKey:
       type: object
       required:
-      - job
-      - result
-      - add
+      - rejectedKey
       properties:
-        job:
-          $ref: '#/components/schemas/JobIdentifier'
-        result:
-          $ref: '#/components/schemas/InstanceReference'
-        add:
+        rejectedKey:
+          type: string
+    DeleteJobsRequest:
+      type: object
+      required:
+      - items
+      properties:
+        items:
           type: array
           items:
-            type: string
-    JobItem:
-      allOf:
-      - $ref: '#/components/schemas/Jobs'
-      - type: object
-        required:
-        - status
-        - createdAt
-        properties:
-          status:
-            type: string
-            enum:
-            - Scheduled
-            - Started
-            - Failed
-            - Succeeded
-            - Cancelled
-            description: Status of the job
-          createdAt:
-            type: integer
-            format: int64
-            description: Timestamp when the job was created
-    JobIdentifier:
-      type: object
-      required:
-      - space
-      - externalId
-      properties:
-        space:
-          $ref: '#/components/schemas/SpaceSpecification'
-        externalId:
-          $ref: '#/components/schemas/JobExternalId'
-    Create360ContextualizationJobItem:
-      allOf:
-      - $ref: '#/components/schemas/ImageTextDetectionJob'
-      - type: object
-        required:
-        - nonce
-        properties:
-          nonce:
-            title: Nonce
-            type: string
-            description: Session nonce for a recently created CDF Session.
+            $ref: '#/components/schemas/JobIdentifier'
   responses:
+    EmptyResponse:
+      description: Empty response.
+      content:
+        application/json:
+          schema:
+            type: object
     ErrorResponse:
       description: The response for a failed request.
       content:
@@ -556,12 +562,6 @@ components:
             properties:
               error:
                 $ref: '#/components/schemas/Error'
-    EmptyResponse:
-      description: Empty response.
-      content:
-        application/json:
-          schema:
-            type: object
   securitySchemes:
     oidc-token:
       type: http

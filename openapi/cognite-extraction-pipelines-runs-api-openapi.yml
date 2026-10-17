@@ -157,6 +157,81 @@ paths:
         source: "List<ExtractionPipelineRun> listPipelinesRunsResults = new ArrayList<>(); \nclient.extractionPipelines() \n          .runs() \n          .list() \n          .forEachRemaining(run -> listPipelinesRunsResults.addAll(run)); \n\nclient.extractionPipelines() \n          .runs() \n          .list(Request.create().withFilterParameter(\"statuses\", \"success\")) \n          .forEachRemaining(run -> listPipelinesRunsResults.addAll(run)); \n\n"
 components:
   schemas:
+    ExtPipeRunStatus:
+      type: string
+      enum:
+      - success
+      - failure
+      - seen
+    ItemsResponse_CreateExtPipeRunResponse_:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CreateExtPipeRunResponse'
+    DefaultError:
+      type: object
+      properties:
+        code:
+          required:
+          - 'true'
+          type: integer
+          description: HTTP status code
+          format: int32
+        message:
+          required:
+          - 'true'
+          type: string
+          description: Error message
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+      description: Cognite API error
+    RunsFilter:
+      required:
+      - externalId
+      type: object
+      properties:
+        externalId:
+          maxLength: 255
+          minLength: 1
+          required:
+          - 'true'
+          type: string
+          description: Extraction pipeline external Id provided by client.
+        statuses:
+          type: array
+          description: 'Extraction pipeline statuses list. Expected values: success, failure, seen.'
+          items:
+            $ref: '#/components/schemas/ExtPipeRunStatus'
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestampRange'
+        message:
+          $ref: '#/components/schemas/StringFilter'
+    RunsFilterRequest:
+      required:
+      - filter
+      type: object
+      properties:
+        filter:
+          $ref: '#/components/schemas/RunsFilter'
+        limit:
+          maximum: 1000
+          minimum: 1
+          type: integer
+          description: Limits the number of results to return.
+          format: int32
+          default: 100
+        cursor:
+          type: string
     ExtPipeRunRequest:
       required:
       - externalId
@@ -183,39 +258,35 @@ components:
           format: int64
           nullable: true
       description: Status of the extraction pipeline.
-    RunsFilter:
-      required:
-      - externalId
+    EpochTimestampRange:
+      description: Range between two timestamps (inclusive).
       type: object
       properties:
-        externalId:
-          maxLength: 255
-          minLength: 1
-          required:
-          - 'true'
-          type: string
-          description: Extraction pipeline external Id provided by client.
-        statuses:
-          type: array
-          description: 'Extraction pipeline statuses list. Expected values: success, failure, seen.'
-          items:
-            $ref: '#/components/schemas/ExtPipeRunStatus'
-        createdTime:
-          $ref: '#/components/schemas/EpochTimestampRange'
-        message:
-          $ref: '#/components/schemas/StringFilter'
-    ExtPipeRunStatus:
-      type: string
-      enum:
-      - success
-      - failure
-      - seen
+        max:
+          description: Maximum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+          type: integer
+          minimum: 0
+          format: int64
+        min:
+          description: Minimum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+          type: integer
+          minimum: 0
+          format: int64
     StringFilter:
       type: object
       properties:
         substring:
           type: string
           description: Substring to find strings, that contains it ignoring case.
+    CreateExtPipeRunResponse:
+      allOf:
+      - $ref: '#/components/schemas/ExtPipeRunResponse'
+      - type: object
+        properties:
+          externalId:
+            type: string
+            description: Extraction Pipeline external Id.
+        description: Create Extraction Pipeline Runs response.
     ExtPipeRunResponse:
       required:
       - status
@@ -239,53 +310,6 @@ components:
         createdTime:
           $ref: '#/components/schemas/EpochTimestamp'
       description: Extraction Pipeline Run. Contains extraction pipeline status and message for a moment of time
-    RunsFilterRequest:
-      required:
-      - filter
-      type: object
-      properties:
-        filter:
-          $ref: '#/components/schemas/RunsFilter'
-        limit:
-          maximum: 1000
-          minimum: 1
-          type: integer
-          description: Limits the number of results to return.
-          format: int32
-          default: 100
-        cursor:
-          type: string
-    DefaultError:
-      type: object
-      properties:
-        code:
-          required:
-          - 'true'
-          type: integer
-          description: HTTP status code
-          format: int32
-        message:
-          required:
-          - 'true'
-          type: string
-          description: Error message
-        missing:
-          type: array
-          description: List of lookup objects that do not match any results.
-          items:
-            type: object
-        duplicated:
-          type: array
-          description: List of objects that are not unique.
-          items:
-            type: object
-      description: Cognite API error
-    EpochTimestamp:
-      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-      type: integer
-      minimum: 0
-      format: int64
-      example: 1730204346000
     ItemsRequest_ExtPipeRunRequest_:
       required:
       - items
@@ -297,36 +321,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ExtPipeRunRequest'
-    ItemsResponse_CreateExtPipeRunResponse_:
-      type: object
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/CreateExtPipeRunResponse'
-    EpochTimestampRange:
-      description: Range between two timestamps (inclusive).
-      type: object
-      properties:
-        max:
-          description: Maximum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-          type: integer
-          minimum: 0
-          format: int64
-        min:
-          description: Minimum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-          type: integer
-          minimum: 0
-          format: int64
-    CreateExtPipeRunResponse:
-      allOf:
-      - $ref: '#/components/schemas/ExtPipeRunResponse'
-      - type: object
-        properties:
-          externalId:
-            type: string
-            description: Extraction Pipeline external Id.
-        description: Create Extraction Pipeline Runs response.
     ItemsResponse_ExtPipeRunResponse_:
       type: object
       properties:
@@ -338,7 +332,22 @@ components:
           type: string
           description: The cursor to get the next page of results (if available).
       description: Response with a list of elements.
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
   parameters:
+    Limit:
+      name: limit
+      description: Limits the number of results to be returned. The maximum results returned by the server is 1000 even if you specify a higher limit.
+      in: query
+      schema:
+        type: integer
+        default: 100
+        minimum: 1
+        maximum: 1000
     Cursor:
       name: cursor
       description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
@@ -359,15 +368,6 @@ components:
       schema:
         type: string
         example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
-    Limit:
-      name: limit
-      description: Limits the number of results to be returned. The maximum results returned by the server is 1000 even if you specify a higher limit.
-      in: query
-      schema:
-        type: integer
-        default: 100
-        minimum: 1
-        maximum: 1000
   securitySchemes:
     oidc-token:
       type: http

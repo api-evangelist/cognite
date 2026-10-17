@@ -109,19 +109,22 @@ paths:
       tags:
       - Document AI
 components:
-  responses:
-    ErrorResponse:
-      description: The response for a failed request.
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - error
-            properties:
-              error:
-                $ref: '#/components/schemas/Error'
   schemas:
+    DocumentSummarizationResponseItemInstanceId:
+      additionalProperties: false
+      properties:
+        instanceId:
+          $ref: '#/components/schemas/InstanceIdAI'
+          description: The data modeling instance ID for the document.
+        summary:
+          description: The summary of the document.
+          title: Summary
+          type: string
+      required:
+      - instanceId
+      - summary
+      title: DocumentSummarizationResponseItemInstanceId
+      type: object
     DocumentExternalId:
       additionalProperties: false
       properties:
@@ -133,38 +136,21 @@ components:
       - externalId
       title: DocumentExternalId
       type: object
-    DocumentSummarizationResponseItemExternalId:
+    DocumentSummarizationResponse:
       additionalProperties: false
       properties:
-        externalId:
-          description: The external ID for the document. The value matches the externalId set in the Files API.
-          title: Externalid
-          type: string
-        summary:
-          description: The summary of the document.
-          title: Summary
-          type: string
-      required:
-      - externalId
-      - summary
-      title: DocumentSummarizationResponseItemExternalId
-      type: object
-    Content:
-      additionalProperties: false
-      properties:
-        references:
-          description: The document locations that this part of the answer is sourced from.
+        items:
+          description: A list of documents with summaries.
           items:
-            $ref: '#/components/schemas/ReferenceAI'
-          title: References
+            oneOf:
+            - $ref: '#/components/schemas/DocumentSummarizationResponseItemInternalId'
+            - $ref: '#/components/schemas/DocumentSummarizationResponseItemExternalId'
+            - $ref: '#/components/schemas/DocumentSummarizationResponseItemInstanceId'
+          title: Items
           type: array
-        text:
-          description: A part of the answer from the LLM.
-          title: Text
-          type: string
       required:
-      - text
-      title: Content
+      - items
+      title: DocumentSummarizationResponse
       type: object
     Answer:
       additionalProperties: false
@@ -178,51 +164,6 @@ components:
       required:
       - content
       title: Answer
-      type: object
-    InstanceIdAI:
-      additionalProperties: false
-      properties:
-        externalId:
-          description: The data modeling external ID of the document.
-          pattern: ^[^]{1,256}$
-          title: Externalid
-          type: string
-        space:
-          description: The data modeling space of the document.
-          pattern: ^[a-zA-Z][a-zA-Z0-9_-]{0,41}[a-zA-Z0-9]?$
-          title: Space
-          type: string
-      required:
-      - space
-      - externalId
-      title: InstanceId
-      type: object
-    DocumentsLanguage:
-      enum:
-      - Chinese
-      - Dutch
-      - English
-      - French
-      - German
-      - Italian
-      - Japanese
-      - Korean
-      - Latvian
-      - Norwegian
-      - Portuguese
-      - Spanish
-      - Swedish
-      title: DocumentsLanguage
-      type: string
-    DocumentInstanceId:
-      additionalProperties: false
-      properties:
-        instanceId:
-          $ref: '#/components/schemas/InstanceIdAI'
-          description: The data modeling instance ID for the document.
-      required:
-      - instanceId
-      title: DocumentInstanceId
       type: object
     ReferenceAI:
       additionalProperties: false
@@ -254,60 +195,32 @@ components:
       - locations
       title: Reference
       type: object
-    Error:
-      type: object
-      required:
-      - code
-      - message
-      description: Cognite API error.
-      properties:
-        code:
-          type: integer
-          description: HTTP status code.
-          format: int32
-          example: 401
-        message:
-          type: string
-          description: Error message.
-          example: Could not authenticate.
-        missing:
-          type: array
-          description: List of lookup objects that do not match any results.
-          items:
-            type: object
-            additionalProperties: true
-        duplicated:
-          type: array
-          description: List of objects that are not unique.
-          items:
-            type: object
-            additionalProperties: true
-    DocumentInternalId:
+    DocumentSummarizationRequest:
       additionalProperties: false
       properties:
-        id:
-          description: The file ID for the document.
-          title: Id
-          type: integer
+        ignoreUnknownIds:
+          default: false
+          description: If `true`, the API will not fail if any documents are missing, but summaries for the missing documents will be excluded from the response.
+          title: Ignoreunknownids
+          type: boolean
+        items:
+          description: A list of documents to summarize.
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/DocumentInternalId'
+            - $ref: '#/components/schemas/DocumentExternalId'
+            - $ref: '#/components/schemas/DocumentInstanceId'
+          maxItems: 1
+          minItems: 1
+          title: Items
+          type: array
+        language:
+          $ref: '#/components/schemas/DocumentsLanguage'
+          default: English
+          description: The language in which the answer should be provided.
       required:
-      - id
-      title: DocumentInternalId
-      type: object
-    DocumentSummarizationResponseItemInternalId:
-      additionalProperties: false
-      properties:
-        id:
-          description: The file ID for the document.
-          title: Id
-          type: integer
-        summary:
-          description: The summary of the document.
-          title: Summary
-          type: string
-      required:
-      - id
-      - summary
-      title: DocumentSummarizationResponseItemInternalId
+      - items
+      title: DocumentSummarizationRequest
       type: object
     LocationAI:
       additionalProperties: false
@@ -336,49 +249,34 @@ components:
       - bottom
       title: Location
       type: object
-    DocumentSummarizationResponse:
-      additionalProperties: false
-      properties:
-        items:
-          description: A list of documents with summaries.
-          items:
-            oneOf:
-            - $ref: '#/components/schemas/DocumentSummarizationResponseItemInternalId'
-            - $ref: '#/components/schemas/DocumentSummarizationResponseItemExternalId'
-            - $ref: '#/components/schemas/DocumentSummarizationResponseItemInstanceId'
-          title: Items
-          type: array
-      required:
-      - items
-      title: DocumentSummarizationResponse
+    Error:
       type: object
-    DocumentSummarizationRequest:
-      additionalProperties: false
-      properties:
-        ignoreUnknownIds:
-          default: false
-          description: If `true`, the API will not fail if any documents are missing, but summaries for the missing documents will be excluded from the response.
-          title: Ignoreunknownids
-          type: boolean
-        items:
-          description: A list of documents to summarize.
-          items:
-            oneOf:
-            - $ref: '#/components/schemas/DocumentInternalId'
-            - $ref: '#/components/schemas/DocumentExternalId'
-            - $ref: '#/components/schemas/DocumentInstanceId'
-          maxItems: 1
-          minItems: 1
-          title: Items
-          type: array
-        language:
-          $ref: '#/components/schemas/DocumentsLanguage'
-          default: English
-          description: The language in which the answer should be provided.
       required:
-      - items
-      title: DocumentSummarizationRequest
-      type: object
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
     DocumentQARequest:
       additionalProperties: false
       properties:
@@ -419,21 +317,123 @@ components:
       - fileIds
       title: DocumentQARequest
       type: object
-    DocumentSummarizationResponseItemInstanceId:
+    DocumentSummarizationResponseItemExternalId:
       additionalProperties: false
       properties:
-        instanceId:
-          $ref: '#/components/schemas/InstanceIdAI'
-          description: The data modeling instance ID for the document.
+        externalId:
+          description: The external ID for the document. The value matches the externalId set in the Files API.
+          title: Externalid
+          type: string
         summary:
           description: The summary of the document.
           title: Summary
           type: string
       required:
-      - instanceId
+      - externalId
       - summary
-      title: DocumentSummarizationResponseItemInstanceId
+      title: DocumentSummarizationResponseItemExternalId
       type: object
+    DocumentSummarizationResponseItemInternalId:
+      additionalProperties: false
+      properties:
+        id:
+          description: The file ID for the document.
+          title: Id
+          type: integer
+        summary:
+          description: The summary of the document.
+          title: Summary
+          type: string
+      required:
+      - id
+      - summary
+      title: DocumentSummarizationResponseItemInternalId
+      type: object
+    Content:
+      additionalProperties: false
+      properties:
+        references:
+          description: The document locations that this part of the answer is sourced from.
+          items:
+            $ref: '#/components/schemas/ReferenceAI'
+          title: References
+          type: array
+        text:
+          description: A part of the answer from the LLM.
+          title: Text
+          type: string
+      required:
+      - text
+      title: Content
+      type: object
+    DocumentInternalId:
+      additionalProperties: false
+      properties:
+        id:
+          description: The file ID for the document.
+          title: Id
+          type: integer
+      required:
+      - id
+      title: DocumentInternalId
+      type: object
+    InstanceIdAI:
+      additionalProperties: false
+      properties:
+        externalId:
+          description: The data modeling external ID of the document.
+          pattern: ^[^]{1,256}$
+          title: Externalid
+          type: string
+        space:
+          description: The data modeling space of the document.
+          pattern: ^[a-zA-Z][a-zA-Z0-9_-]{0,41}[a-zA-Z0-9]?$
+          title: Space
+          type: string
+      required:
+      - space
+      - externalId
+      title: InstanceId
+      type: object
+    DocumentInstanceId:
+      additionalProperties: false
+      properties:
+        instanceId:
+          $ref: '#/components/schemas/InstanceIdAI'
+          description: The data modeling instance ID for the document.
+      required:
+      - instanceId
+      title: DocumentInstanceId
+      type: object
+    DocumentsLanguage:
+      enum:
+      - Chinese
+      - Dutch
+      - English
+      - French
+      - German
+      - Italian
+      - Japanese
+      - Korean
+      - Latvian
+      - Norwegian
+      - Portuguese
+      - Spanish
+      - Swedish
+      title: DocumentsLanguage
+      type: string
+  responses:
+    ErrorResponse:
+      description: The response for a failed request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
   securitySchemes:
     oidc-token:
       type: http

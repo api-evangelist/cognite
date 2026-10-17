@@ -682,166 +682,352 @@ paths:
         source: "List<Item> byExternalIds = List.of(Item.newBuilder() \n          .setExternalId(\"10\").build()); \nList<Item> resultByExternalIds = \n          client.events().delete(byExternalIds); \n\nList<Item> byInternalIds = List.of(Item.newBuilder() \n           .setId(10).build()); \nList<Item> resultByInternalIds = \n          client.events().delete(byInternalIds); \n\n"
 components:
   schemas:
-    EventAggregateFilter:
+    ExternalId:
       type: object
-      description: 'A filter DSL (Domain Specific Language) to define aggregate filter queries.
-
-
-        See more information about filtering DSL [here](https://docs.cognite.com/dev/concepts/resource_filtering_dsl/ "filtering DSL").
-
-        '
-      oneOf:
-      - $ref: '#/components/schemas/EventAggregateBoolFilter'
-      - $ref: '#/components/schemas/EventAggregateLeafFilter'
-      example:
-        or:
-        - not:
-            and:
-            - equals:
-                value: 10
-            - in:
-                values:
-                - 11
-                - 12
-            - range:
-                gte: 13
-                lt: 15
-        - and:
-          - equals:
-              value: 42
-    ArrayPatchLong:
-      type: object
-      oneOf:
-      - $ref: '#/components/schemas/ArrayPatchLongSet'
-      - $ref: '#/components/schemas/ArrayPatchLongAddOrRemove'
-      description: Change that will be applied to the array.
-    JsonArrayInt64:
-      type: string
-      format: jsonArray(int64)
-      example: '[1238712837, 238712361376, 23786237623]'
-    EpochTimestamp:
-      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-      type: integer
-      minimum: 0
-      format: int64
-      example: 1730204346000
-    CogniteExternalId:
-      description: The external ID provided by the client. Must be unique for the resource type.
-      type: string
-      maxLength: 255
-      example: my.known.id
-    EventFilterRequest:
-      type: object
-      allOf:
-      - type: object
-        properties:
-          filter:
-            $ref: '#/components/schemas/EventFilter'
-          advancedFilter:
-            $ref: '#/components/schemas/EventAdvancedFilter'
-          limit:
-            description: 'Limits the maximum number of results to be returned by a single request.
-
-              In case there are more results to the request, the ''nextCursor'' attribute will be provided as part of the response.
-
-              Request may contain less results than the request limit.
-
-              '
-            type: integer
-            format: int32
-            minimum: 1
-            maximum: 1000
-            default: 100
-          sort:
-            oneOf:
-            - title: modern
-              description: 'Sort by array of selected properties.
-
-                '
-              type: array
-              maxItems: 2
-              items:
-                $ref: '#/components/schemas/SortProperty'
-              example:
-              - property:
-                - createdTime
-                order: desc
-              - property:
-                - metadata
-                - FooBar
-                nulls: first
-            - title: deprecated
-              deprecated: true
-              type: array
-              maxItems: 2
-              items:
-                type: string
-                description: "Sort by selected field. Syntax: `\"<fieldname>:asc|desc\"`. Default sort order is `asc` with short syntax: `\"<fieldname>\"`.\nFilter accepts the following field names:\n  `dataSetId`,\n  `externalId`,\n  `type`,\n  `subtype`,\n  `startTime`,\n  `endTime`,\n  `createdTime`,\n  `lastUpdatedTime`,\n  `source`,\n  `description`,\n  `metadata`.\nPartitions are done independently of sorting, there is no guarantee on sort order between elements from different partitions."
-              example:
-              - endTime:desc
-      - $ref: '#/components/schemas/Cursor'
-      - $ref: '#/components/schemas/PartitionObjectLimited10'
-    SinglePatchResourceDescription:
-      title: set
-      type: object
-      oneOf:
-      - $ref: '#/components/schemas/SetDescription'
-      - $ref: '#/components/schemas/RemoveField'
-    ExistsFilter:
-      type: object
-      title: exists
       required:
-      - exists
+      - externalId
       properties:
-        exists:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+    ContainsAllFilter:
+      type: object
+      title: containsAll
+      required:
+      - containsAll
+      properties:
+        containsAll:
           required:
           - property
-          description: 'Will match items that have a value in the specified property.
+          - values
+          description: 'Matches items where the property contains all the given values.
+
+            This filter can only be applied to multivalued properties.
 
             '
           type: object
           properties:
             property:
               $ref: '#/components/schemas/FilterProperty'
-    EventAdvancedFilter:
+            values:
+              $ref: '#/components/schemas/Values'
+    SetLongField:
       type: object
-      description: "A filter DSL (Domain Specific Language) to define advanced filter queries.\n\nSee more information about filtering DSL [here](https://docs.cognite.com/dev/concepts/resource_filtering_dsl/ \"filtering DSL\").\n\nSupported properties:\n\n  | Property                        | Type                                    |\n  |---------------------------------|-----------------------------------------|\n  | `[\"assetIds\"]`                  | array of [number]                       |\n  | `[\"createdTime\"]`               | number                                  |\n  | `[\"dataSetId\"]`                 | number                                  |\n  | `[\"endTime\"]`                   | number                                  |\n  | `[\"id\"]`                        | number                                  |\n  | `[\"lastUpdatedTime\"]`           | number                                  |\n  | `[\"startTime\"]`                 | number                                  |\n  | `[\"description\"]`               | string                                  |\n  | `[\"externalId\"]`                | string                                  |\n  | `[\"metadata\"]`                  | string                                  |\n  | `[\"metadata\", \"someCustomKey\"]` | string                                  |\n  | `[\"source\"]`                    | string                                  |\n  | `[\"subtype\"]`                   | string                                  |\n  | `[\"type\"]`                      | string                                  |\n\n  Note: Filtering on the `[\"metadata\"]` property has the following logic:\n  If a value of any metadata keys in an event matches the filter, the event matches the filter."
+      required:
+      - set
+      properties:
+        set:
+          type: integer
+          format: int64
+    DataSetExternalId:
+      type: object
+      title: DataSetExternalId
+      required:
+      - externalId
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+    AggregateResult:
+      type: object
       oneOf:
-      - $ref: '#/components/schemas/EventBoolFilter'
-      - $ref: '#/components/schemas/EventLeafFilter'
-      example:
-        or:
-        - not:
-            and:
-            - equals:
-                property:
-                - metadata
-                - severity
-                value: medium
-            - in:
-                property:
-                - source
-                values:
-                - inspection protocol
-                - incident report
-            - range:
-                property:
-                - dataSetId
-                gte: 1
-                lt: 10
-        - and:
-          - equals:
-              property:
-              - type
-              value: equipment malfunction
-          - equals:
-              property:
-              - subtype
-              value: mechanical failure
-        - search:
+      - $ref: '#/components/schemas/CountAggregateResult'
+      - $ref: '#/components/schemas/ValuesAggregateResult'
+    DataEvent:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Event'
+    IsNull:
+      type: object
+      properties:
+        isNull:
+          type: boolean
+          example: true
+          description: Set to true if you want to search for data with field value not set, false to search for cases where some value is present.
+    PartitionLimited10:
+      description: 'Splits the data set into `N` partitions.
+
+        The attribute is specified as a "M/N" string, where `M` is a natural number in the interval of `[1, N]`.
+
+        You need to follow the cursors within each partition in order to receive all the data.
+
+
+        The maximum number of allowed partitions (`N`) is 10.
+
+
+        Cognite rejects requests if you specify more than 10 partitions.
+
+        When Cognite enforces this behavior, the requests result in a 400 Bad Request status.
+
+        '
+      type: string
+      example: 1/3
+    AggregateStringValues:
+      title: Strings
+      type: object
+      required:
+      - count
+      - values
+      properties:
+        count:
+          description: Number of items in this aggregation bucket.
+          type: integer
+          format: int64
+        values:
+          description: An array of unique string values in the property.
+          type: array
+          minItems: 1
+          maxItems: 1
+          items:
+            type: string
+        value:
+          deprecated: true
+          description: A unique string value in the field.
+          type: string
+    AggregatePrefixFilter:
+      type: object
+      title: prefix
+      required:
+      - prefix
+      properties:
+        prefix:
+          required:
+          - value
+          description: 'Matches aggregate values that contain a specific prefix.
+
+            '
+          type: object
+          properties:
+            value:
+              $ref: '#/components/schemas/StringValue'
+    GenericRangeFilter:
+      type: object
+      title: range
+      required:
+      - range
+      properties:
+        range:
+          required:
+          - property
+          description: 'Matches items that contain terms within the provided range.
+
+            It is not allowed to specify both inclusive and exclusive bounds (such as `gte`, `gt`) together.
+
+            `gte`: Greater than or equal to.
+
+            `gt`: Greater than.
+
+            `lte`: Less than or equal to.
+
+            `lt`: Less than.
+
+            '
+          type: object
+          properties:
             property:
-            - description
-            value: outage
+              $ref: '#/components/schemas/FilterProperty'
+            gte:
+              $ref: '#/components/schemas/RangeValue'
+            gt:
+              $ref: '#/components/schemas/RangeValue'
+            lte:
+              $ref: '#/components/schemas/RangeValue'
+            lt:
+              $ref: '#/components/schemas/RangeValue'
+    DataExternalEvent:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExternalEvent'
+          minItems: 1
+          maxItems: 1000
+    SearchFilter:
+      type: object
+      title: search
+      required:
+      - search
+      properties:
+        search:
+          required:
+          - property
+          - value
+          description: 'Fuzzy search in the specified property. Introduced to provide functional parity with `/search` endpoints.
+
+            '
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/FilterProperty'
+            value:
+              $ref: '#/components/schemas/Value'
+    AggregateProperty:
+      description: "Property you want to aggregate.\nUse a list of strings to specify nested properties.\nThe same way the properties are represented in aggregate responses.\n\n<u>Example:</u>\n\nYou have the object\n```\n{\n  \"metadata\": {\n    \"id\": \"b53\"\n  },\n  \"source\": \"a23\"\n}\n```\n\nTo address \"id\" metadata key use `[\"metadata\", \"id\"]` property.\\\nYou can also aggregate the value(s) for the standalone property `source` with `[\"source\"]`.\n"
+      type: array
+      minItems: 1
+      maxItems: 2
+      items:
+        type: string
+      example:
+      - metadata
+      - key1
+    ContainsAnyFilter:
+      type: object
+      title: containsAny
+      required:
+      - containsAny
+      properties:
+        containsAny:
+          required:
+          - property
+          - values
+          description: 'Matches items where the property contains one or more of the given values.
+
+            This filter can only be applied to multivalued properties.
+
+            '
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/FilterProperty'
+            values:
+              $ref: '#/components/schemas/Values'
+    Value:
+      description: Value you wish to find in the provided property.
+      oneOf:
+      - type: string
+      - type: number
+      - type: integer
+      - type: boolean
+    EventFilter:
+      description: Filter on events filter with exact match
+      type: object
+      properties:
+        startTime:
+          $ref: '#/components/schemas/EpochTimestampRange'
+        endTime:
+          $ref: '#/components/schemas/EndTimeFilter'
+        activeAtTime:
+          $ref: '#/components/schemas/ActiveAtTimeFilter'
+        metadata:
+          $ref: '#/components/schemas/EventMetadata'
+        assetIds:
+          type: array
+          minItems: 1
+          maxItems: 5000
+          uniqueItems: true
+          description: Asset IDs of equipment that this event relates to.
+          items:
+            $ref: '#/components/schemas/CogniteInternalId'
+        assetExternalIds:
+          type: array
+          uniqueItems: true
+          minItems: 1
+          maxItems: 5000
+          description: Asset External IDs of equipment that this event relates to.
+          items:
+            $ref: '#/components/schemas/CogniteExternalId'
+        assetSubtreeIds:
+          type: array
+          uniqueItems: true
+          minItems: 1
+          maxItems: 100
+          description: Only include events that have a related asset in a subtree rooted at any of these assetIds (including the roots given). If the total size of the given subtrees exceeds 100,000 assets, an error will be returned.
+          items:
+            $ref: '#/components/schemas/AssetIdEither'
+        dataSetIds:
+          type: array
+          maxItems: 100
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/DataSetIdEither'
+        source:
+          $ref: '#/components/schemas/EventSource'
+        type:
+          $ref: '#/components/schemas/EventType'
+        subtype:
+          $ref: '#/components/schemas/EventSubType'
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestampRange'
+        lastUpdatedTime:
+          $ref: '#/components/schemas/EpochTimestampRange'
+        externalIdPrefix:
+          $ref: '#/components/schemas/CogniteExternalIdPrefix'
+    ActiveAtTimeFilter:
+      description: Event is considered active from its startTime to endTime inclusive. If startTime is null, event is never active. If endTime is null, event is active from startTime onwards. activeAtTime filter will match all events that are active at some point from min to max, from min, or to max, depending on which of min and max parameters are specified.
+      allOf:
+      - $ref: '#/components/schemas/EpochTimestampRange'
+    DataWithCursorEvent:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Event'
+        nextCursor:
+          type: string
+          description: Cursor to get the next page of results (if available).
+      description: A list of objects along with possible cursors to get the next or previous page of results.
+    EventCardinalityValuesAggregate:
+      allOf:
+      - type: object
+        title: ApproximateCardinalityForValues
+        description: Request values approximate cardinality aggregate on a specific property.
+        required:
+        - aggregate
+        properties:
+          aggregate:
+            description: 'Type of aggregation to apply.
+
+              `cardinalityValues`: Get an approximate number of unique values for the specified property.
+
+              '
+            type: string
+            enum:
+            - cardinalityValues
+          aggregateFilter:
+            $ref: '#/components/schemas/EventAggregateFilter'
+          advancedFilter:
+            $ref: '#/components/schemas/EventAdvancedFilter'
+          filter:
+            $ref: '#/components/schemas/EventFilter'
+      - $ref: '#/components/schemas/EventAggregateProperties'
+    SinglePatchEventSubType:
+      title: SubType
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/SetEventSubType'
+      - $ref: '#/components/schemas/RemoveField'
+    StringValue:
+      title: String
+      description: A unique string value in the field.
+      type: object
+      required:
+      - value
+      properties:
+        value:
+          type: string
+    EventLeafFilter:
+      description: Leaf filter.
+      title: LeafFilter
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/EqualsFilter'
+      - $ref: '#/components/schemas/InFilter'
+      - $ref: '#/components/schemas/GenericRangeFilter'
+      - $ref: '#/components/schemas/PrefixFilter'
+      - $ref: '#/components/schemas/ExistsFilter'
+      - $ref: '#/components/schemas/ContainsAnyFilter'
+      - $ref: '#/components/schemas/ContainsAllFilter'
+      - $ref: '#/components/schemas/SearchFilter'
     ExternalEvent:
       type: object
       properties:
@@ -874,265 +1060,38 @@ components:
         source:
           $ref: '#/components/schemas/EventSource'
       description: An event represents something that happened at a given interval in time, e.g a failure, a work order, etc.
-    SinglePatchEventSubType:
-      title: SubType
-      type: object
-      oneOf:
-      - $ref: '#/components/schemas/SetEventSubType'
-      - $ref: '#/components/schemas/RemoveField'
-    EventChange:
-      type: object
-      oneOf:
-      - $ref: '#/components/schemas/EventChangeById'
-      - $ref: '#/components/schemas/EventChangeByExternalId'
-    ObjectPatchEventAddRemove:
-      title: add/remove
-      type: object
-      properties:
-        add:
-          uniqueItems: true
-          type: object
-          description: Add the key-value pairs. Values for existing keys will be overwritten.
-          additionalProperties:
-            type: string
-            maxLength: 128000
-          x-maxKeyLength: 128
-          x-maxTotalSize: 200000
-          maxProperties: 256
-          example:
-            key1: value1
-            key2: value2
-        remove:
-          uniqueItems: true
-          type: array
-          description: Remove the key-value pairs with the specified keys.
-          example:
-          - value1
-          - value2
-          items:
-            type: string
-    SinglePatchExternalId:
-      title: set
-      type: object
-      oneOf:
-      - $ref: '#/components/schemas/SetExternalId'
-      - $ref: '#/components/schemas/RemoveField'
-      description: Set a new value for the externalId, or remove the value. Must be unique for the resource type.
-    Value:
-      description: Value you wish to find in the provided property.
-      oneOf:
-      - type: string
-      - type: number
-      - type: integer
-      - type: boolean
-    EventBoolFilter:
-      description: 'A query that matches items matching boolean combinations of other queries.
-
-        It''s built using one or more boolean clauses of the following types: `and`, `or`, or `not`
-
-        '
-      title: BoolFilter
-      type: object
-      oneOf:
-      - type: object
-        title: and
-        required:
-        - and
-        properties:
-          and:
-            description: All of the sub-clauses in the query must appear in matching items.
-            type: array
-            minItems: 1
-            items:
-              $ref: '#/components/schemas/EventAdvancedFilter'
-      - type: object
-        title: or
-        required:
-        - or
-        properties:
-          or:
-            description: At least one of the sub-clauses in the query must appear in matching items.
-            type: array
-            minItems: 1
-            items:
-              $ref: '#/components/schemas/EventAdvancedFilter'
-      - type: object
-        title: not
-        required:
-        - not
-        properties:
-          not:
-            title: Filter DSL
-            description: Sub-clauses in the query must not appear in matching items.
-            type: object
-            allOf:
-            - $ref: '#/components/schemas/EventAdvancedFilter'
-    DataSetIdEither:
-      oneOf:
-      - $ref: '#/components/schemas/DataSetInternalId'
-      - $ref: '#/components/schemas/DataSetExternalId'
-    InternalId:
-      type: object
-      required:
-      - id
-      properties:
-        id:
-          $ref: '#/components/schemas/CogniteInternalId'
-    SinglePatchEventSource:
-      title: Source
-      type: object
-      oneOf:
-      - $ref: '#/components/schemas/SetEventSource'
-      - $ref: '#/components/schemas/RemoveField'
-      description: Set a new value for the source, or remove the value.
-    ExternalId:
-      type: object
-      required:
-      - externalId
-      properties:
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-    DataEvent:
+    CountAggregateResult:
+      description: Common aggregate structure to represent aggregate result which have one count for filter resultset (Documents Count, Property Cardinality, etc).
+      title: CountResult
       type: object
       required:
       - items
       properties:
         items:
           type: array
+          minItems: 1
+          maxItems: 1
           items:
-            $ref: '#/components/schemas/Event'
-    AggregateRangeFilter:
-      type: object
-      title: range
-      required:
-      - range
-      properties:
-        range:
-          description: 'Matches items that contain terms within the provided range.
-
-            It''s not allowed to specify both inclusive and exclusive bounds (such as `gte`, `gt`) together.
-
-            `gte`: Greater than or equal to.
-
-            `gt`: Greater than.
-
-            `lte`: Less than or equal to.
-
-            `lt`: Less than.
-
-            '
-          type: object
-          properties:
-            gte:
-              $ref: '#/components/schemas/RangeValue'
-            gt:
-              $ref: '#/components/schemas/RangeValue'
-            lte:
-              $ref: '#/components/schemas/RangeValue'
-            lt:
-              $ref: '#/components/schemas/RangeValue'
-    SearchFilter:
-      type: object
-      title: search
-      required:
-      - search
-      properties:
-        search:
-          required:
-          - property
-          - value
-          description: 'Fuzzy search in the specified property. Introduced to provide functional parity with `/search` endpoints.
-
-            '
-          type: object
-          properties:
-            property:
-              $ref: '#/components/schemas/FilterProperty'
-            value:
-              $ref: '#/components/schemas/Value'
-    DataSetInternalId:
-      type: object
-      title: DataSetInternalId
-      required:
-      - id
-      properties:
-        id:
-          $ref: '#/components/schemas/CogniteInternalId'
-    EventSource:
-      maxLength: 128
-      type: string
-      description: The source of this event.
-    EventCardinalityPropertiesAggregate:
-      allOf:
-      - type: object
-        title: ApproximateCardinalityForProperties
-        description: Request resource properties approximate cardinality aggregate.
-        required:
-        - aggregate
-        properties:
-          aggregate:
-            description: 'Type of aggregation to apply.
-
-              `cardinalityProperties`: Get an approximate number of unique properties.
-
-              '
-            type: string
-            enum:
-            - cardinalityProperties
-          aggregateFilter:
-            $ref: '#/components/schemas/EventAggregateFilter'
-          advancedFilter:
-            $ref: '#/components/schemas/EventAdvancedFilter'
-          filter:
-            $ref: '#/components/schemas/EventFilter'
-          path:
-            description: 'The scope in every document to aggregate properties.
-
-              The only value allowed now is ["metadata"].
-
-              It means to aggregate only metadata properties (aka keys).
-
-              '
-            type: array
-            minItems: 1
-            maxItems: 1
-            items:
-              type: string
-              enum:
-              - metadata
-            default:
-            - metadata
-    SetEventType:
-      type: object
-      title: set
-      required:
-      - set
-      properties:
-        set:
-          $ref: '#/components/schemas/EventType'
-    RangeValue:
-      title: rangeBound
-      description: Value you wish to find in the provided property using a range clause.
-      oneOf:
-      - type: string
-        title: string
-      - type: number
-        title: number
-      - type: integer
-        title: integer
-    AssetInternalId:
+            type: object
+            required:
+            - count
+            properties:
+              count:
+                type: integer
+                description: Number of items in this aggregation group.
+                format: int64
+      example:
+        items:
+        - count: 10
+    RemoveField:
+      title: remove
       type: object
       required:
-      - id
+      - setNull
       properties:
-        id:
-          $ref: '#/components/schemas/CogniteInternalId'
-    ObjectPatchEvent:
-      type: object
-      description: 'Custom, application specific metadata. String key -> String value. Limits of updated event: Maximum length of key is 128 bytes, value 128000 bytes, up to 256 key-value pairs, of total size at most 200000.'
-      oneOf:
-      - $ref: '#/components/schemas/ObjectPatchEventSet'
-      - $ref: '#/components/schemas/ObjectPatchEventAddRemove'
+        setNull:
+          type: boolean
+          example: true
     AggregateIntegerValues:
       title: Integers
       type: object
@@ -1157,389 +1116,37 @@ components:
           description: A unique integer value in the field.
           type: integer
           format: int64
-    EventAggregateLeafFilter:
-      description: 'Aggregate leaf filter.
+    EventAggregateFilter:
+      type: object
+      description: 'A filter DSL (Domain Specific Language) to define aggregate filter queries.
+
+
+        See more information about filtering DSL [here](https://docs.cognite.com/dev/concepts/resource_filtering_dsl/ "filtering DSL").
 
         '
-      title: AggregateLeafFilter
-      type: object
       oneOf:
-      - $ref: '#/components/schemas/AggregateInFilter'
-      - $ref: '#/components/schemas/AggregatePrefixFilter'
-      - $ref: '#/components/schemas/AggregateRangeFilter'
-    AssetExternalId:
-      type: object
-      required:
-      - externalId
-      properties:
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-    429Error:
-      type: object
-      required:
-      - code
-      - message
-      description: Cognite API throttling.
-      properties:
-        code:
-          type: integer
-          description: 429 HTTP status code.
-          format: int32
-          example: 429
-        message:
-          type: string
-          description: "The error message specifies which kind of throttling happened:\n  - Too many concurrent requests for a single project or an identity.\n  - Too high rate of requests for a single project or an identity.\n\nSee more [here](https://docs.cognite.com/dev/concepts/request_throttling/ \"requests throttling\")."
-          example: Project exceeded maximum number='50' of concurrent requests. Please try again later.
-    Values:
-      description: One or more values you wish to find in the provided property.
-      type: array
-      minItems: 1
-      maxItems: 5000
-      items:
-        $ref: '#/components/schemas/Value'
-    EventAggregateBoolFilter:
-      description: 'A query that matches items matching boolean combinations of other queries.
-
-        It is built using one or more boolean clauses of the following types: `and`, `or`, or `not`.
-
-        '
-      title: AggregateBoolFilter
-      type: object
-      oneOf:
-      - type: object
-        title: and
-        required:
-        - and
-        properties:
-          and:
-            description: All of the sub-clauses in the query must appear in matching items.
-            type: array
-            minItems: 1
-            items:
-              $ref: '#/components/schemas/EventAggregateFilter'
-      - type: object
-        title: or
-        required:
-        - or
-        properties:
-          or:
-            description: At least one of the sub-clauses in the query must appear in matching items.
-            type: array
-            minItems: 1
-            items:
-              $ref: '#/components/schemas/EventAggregateFilter'
-      - type: object
-        title: not
-        required:
-        - not
-        properties:
-          not:
-            title: Filter DSL
-            description: Sub-clauses in the query must not appear in matching items.
-            type: object
-            allOf:
-            - $ref: '#/components/schemas/EventAggregateFilter'
-    EventSubType:
-      maxLength: 64
-      type: string
-      description: SubType of the event, e.g 'electrical'.
-    ObjectPatchEventSet:
-      title: set
-      type: object
-      required:
-      - set
-      properties:
-        set:
-          uniqueItems: true
-          type: object
-          description: Set the key-value pairs. All existing key-value pairs will be removed.
-          additionalProperties:
-            type: string
-            maxLength: 128000
-          x-maxKeyLength: 128
-          x-maxTotalSize: 200000
-          maxProperties: 256
-          example:
-            key1: value1
-            key2: value2
-    CountAggregateResult:
-      description: Common aggregate structure to represent aggregate result which have one count for filter resultset (Documents Count, Property Cardinality, etc).
-      title: CountResult
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          minItems: 1
-          maxItems: 1
-          items:
-            type: object
-            required:
-            - count
-            properties:
-              count:
-                type: integer
-                description: Number of items in this aggregation group.
-                format: int64
+      - $ref: '#/components/schemas/EventAggregateBoolFilter'
+      - $ref: '#/components/schemas/EventAggregateLeafFilter'
       example:
-        items:
-        - count: 10
-    AggregatePropertyValues:
-      title: Properties
-      description: 'A single bucket to represent `uniqueProperties` aggregate result.
-
-        '
-      type: object
-      required:
-      - count
-      - values
-      properties:
-        count:
-          description: Number of items in this aggregation bucket.
-          type: integer
-          format: int64
-        values:
-          description: 'An array of unique properties for UniqueProperties aggregate.
-
-            '
-          type: array
-          minItems: 1
-          maxItems: 1
-          items:
-            type: object
-            required:
-            - property
-            properties:
-              property:
-                $ref: '#/components/schemas/AggregateProperty'
-            example:
-              property:
-              - metadata
-              - key1
-        value:
-          deprecated: true
-          description: 'A unique property for UniqueProperties aggregate.
-
-            '
-          type: object
-          required:
-          - property
-          properties:
-            property:
-              $ref: '#/components/schemas/AggregateProperty'
-    StringValue:
-      title: String
-      description: A unique string value in the field.
-      type: object
-      required:
-      - value
-      properties:
-        value:
-          type: string
-    ResourceDescription:
-      type: string
-      description: The description of the resource type.
-      maxLength: 500
-    EventWithCursorResponse:
-      type: object
-      allOf:
-      - $ref: '#/components/schemas/DataWithCursorEvent'
-    AggregateStringValues:
-      title: Strings
-      type: object
-      required:
-      - count
-      - values
-      properties:
-        count:
-          description: Number of items in this aggregation bucket.
-          type: integer
-          format: int64
-        values:
-          description: An array of unique string values in the property.
-          type: array
-          minItems: 1
-          maxItems: 1
-          items:
-            type: string
-        value:
-          deprecated: true
-          description: A unique string value in the field.
-          type: string
-    DataWithCursorEvent:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/Event'
-        nextCursor:
-          type: string
-          description: Cursor to get the next page of results (if available).
-      description: A list of objects along with possible cursors to get the next or previous page of results.
+        or:
+        - not:
+            and:
+            - equals:
+                value: 10
+            - in:
+                values:
+                - 11
+                - 12
+            - range:
+                gte: 13
+                lt: 15
+        - and:
+          - equals:
+              value: 42
     EventResponse:
       type: object
       allOf:
       - $ref: '#/components/schemas/DataEvent'
-    EitherId:
-      type: object
-      oneOf:
-      - $ref: '#/components/schemas/InternalId'
-      - $ref: '#/components/schemas/ExternalId'
-    EventCardinalityValuesAggregate:
-      allOf:
-      - type: object
-        title: ApproximateCardinalityForValues
-        description: Request values approximate cardinality aggregate on a specific property.
-        required:
-        - aggregate
-        properties:
-          aggregate:
-            description: 'Type of aggregation to apply.
-
-              `cardinalityValues`: Get an approximate number of unique values for the specified property.
-
-              '
-            type: string
-            enum:
-            - cardinalityValues
-          aggregateFilter:
-            $ref: '#/components/schemas/EventAggregateFilter'
-          advancedFilter:
-            $ref: '#/components/schemas/EventAdvancedFilter'
-          filter:
-            $ref: '#/components/schemas/EventFilter'
-      - $ref: '#/components/schemas/EventAggregateProperties'
-    IgnoreUnknownIdsField:
-      type: object
-      properties:
-        ignoreUnknownIds:
-          description: Ignore IDs and external IDs that are not found
-          type: boolean
-          default: false
-    PartitionObjectLimited10:
-      type: object
-      properties:
-        partition:
-          $ref: '#/components/schemas/PartitionLimited10'
-    EventCountAggregate:
-      type: object
-      title: EventCount
-      description: Request aggregate to count the number of Events matching the filters. Default aggregate for the endpoint.
-      properties:
-        aggregate:
-          description: 'Type of aggregation to apply.
-
-            `count`: Get an approximate number of Events matching the filters.'
-          type: string
-          enum:
-          - count
-        advancedFilter:
-          $ref: '#/components/schemas/EventAdvancedFilter'
-        filter:
-          $ref: '#/components/schemas/EventFilter'
-    EpochTimestampRange:
-      description: Range between two timestamps (inclusive).
-      type: object
-      properties:
-        max:
-          description: Maximum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-          type: integer
-          minimum: 0
-          format: int64
-        min:
-          description: Minimum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-          type: integer
-          minimum: 0
-          format: int64
-    EventSearchRequest:
-      description: Filter on events filter with exact match
-      type: object
-      properties:
-        filter:
-          $ref: '#/components/schemas/EventFilter'
-        search:
-          $ref: '#/components/schemas/EventSearch'
-        limit:
-          description: <- Limits the maximum number of results to be returned by single request. Request may contain less results than request limit.
-          type: integer
-          format: int32
-          minimum: 1
-          maximum: 1000
-          default: 100
-    ArrayPatchLongSet:
-      title: set
-      type: object
-      required:
-      - set
-      properties:
-        set:
-          uniqueItems: true
-          type: array
-          items:
-            type: integer
-            format: int64
-    SetEventSubType:
-      type: object
-      title: set
-      required:
-      - set
-      properties:
-        set:
-          $ref: '#/components/schemas/EventSubType'
-    EventDescription:
-      maxLength: 500
-      type: string
-      description: Textual description of the event.
-    JsonArrayString:
-      type: string
-      format: jsonArray(string)
-    EventChangeByExternalId:
-      allOf:
-      - $ref: '#/components/schemas/EventPatch'
-      - type: object
-        required:
-        - externalId
-        properties:
-          externalId:
-            $ref: '#/components/schemas/CogniteExternalId'
-    InternalEvent:
-      type: object
-      properties:
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-        dataSetId:
-          description: The id of the dataset this event belongs to.
-          allOf:
-          - $ref: '#/components/schemas/CogniteInternalId'
-        startTime:
-          $ref: '#/components/schemas/EpochTimestamp'
-        endTime:
-          $ref: '#/components/schemas/EpochTimestamp'
-        type:
-          $ref: '#/components/schemas/EventType'
-        subtype:
-          $ref: '#/components/schemas/EventSubType'
-        description:
-          maxLength: 500
-          type: string
-          description: Textual description of the event.
-        metadata:
-          $ref: '#/components/schemas/EventMetadata'
-        assetIds:
-          type: array
-          uniqueItems: true
-          description: Asset IDs of equipment that this event relates to.
-          items:
-            $ref: '#/components/schemas/CogniteInternalId'
-        source:
-          maxLength: 128
-          type: string
-          description: The source of this event.
-      description: An event represents something that happened at a given interval in time, for example, a failure, a work order, etc.
     EventAggregateProperties:
       type: object
       required:
@@ -1595,19 +1202,36 @@ components:
                 - dataSetId
               filter:
                 $ref: '#/components/schemas/EventAggregateFilter'
-    ContainsAllFilter:
+    CogniteExternalIdPrefix:
+      description: Filter by this (case-sensitive) prefix for the external ID.
+      type: string
+      maxLength: 255
+      example: my.known.prefix
+    AssetInternalId:
       type: object
-      title: containsAll
       required:
-      - containsAll
+      - id
       properties:
-        containsAll:
+        id:
+          $ref: '#/components/schemas/CogniteInternalId'
+    SinglePatchExternalId:
+      title: set
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/SetExternalId'
+      - $ref: '#/components/schemas/RemoveField'
+      description: Set a new value for the externalId, or remove the value. Must be unique for the resource type.
+    InFilter:
+      type: object
+      title: in
+      required:
+      - in
+      properties:
+        in:
           required:
           - property
           - values
-          description: 'Matches items where the property contains all the given values.
-
-            This filter can only be applied to multivalued properties.
+          description: 'Matches items where the given property is **exactly** equal to one of the given values. This filter can only be applied to single-valued properties.
 
             '
           type: object
@@ -1616,92 +1240,329 @@ components:
               $ref: '#/components/schemas/FilterProperty'
             values:
               $ref: '#/components/schemas/Values'
-    SetLongField:
+    EventBoolFilter:
+      description: 'A query that matches items matching boolean combinations of other queries.
+
+        It''s built using one or more boolean clauses of the following types: `and`, `or`, or `not`
+
+        '
+      title: BoolFilter
+      type: object
+      oneOf:
+      - type: object
+        title: and
+        required:
+        - and
+        properties:
+          and:
+            description: All of the sub-clauses in the query must appear in matching items.
+            type: array
+            minItems: 1
+            items:
+              $ref: '#/components/schemas/EventAdvancedFilter'
+      - type: object
+        title: or
+        required:
+        - or
+        properties:
+          or:
+            description: At least one of the sub-clauses in the query must appear in matching items.
+            type: array
+            minItems: 1
+            items:
+              $ref: '#/components/schemas/EventAdvancedFilter'
+      - type: object
+        title: not
+        required:
+        - not
+        properties:
+          not:
+            title: Filter DSL
+            description: Sub-clauses in the query must not appear in matching items.
+            type: object
+            allOf:
+            - $ref: '#/components/schemas/EventAdvancedFilter'
+    SetEventSource:
+      type: object
+      title: set
+      required:
+      - set
+      properties:
+        set:
+          $ref: '#/components/schemas/EventSource'
+    DataSetInternalId:
+      type: object
+      title: DataSetInternalId
+      required:
+      - id
+      properties:
+        id:
+          $ref: '#/components/schemas/CogniteInternalId'
+    FilterProperty:
+      description: "Property you want to filter. Use a list of strings to specify nested properties.\n\n<u>Example:</u>\n\nYou have the object\n```\n{\n  \"room\": {\n    \"id\": \"b53\"\n  },\n  \"roomId\": \"a23\"\n}\n```\n\nUse `[\"room\", \"id\"]` to return the value in the nested `id` property, which is a part of the `room` object.\n\nYou can also read the value(s) in the standalone property `roomId` with `[\"roomId\"]`.\n"
+      type: array
+      minItems: 1
+      maxItems: 3
+      items:
+        type: string
+    SetDescription:
+      type: object
+      title: set
+      required:
+      - set
+      properties:
+        set:
+          $ref: '#/components/schemas/ResourceDescription'
+    EventChange:
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/EventChangeById'
+      - $ref: '#/components/schemas/EventChangeByExternalId'
+    EventDescription:
+      maxLength: 500
+      type: string
+      description: Textual description of the event.
+    PartitionObjectLimited10:
+      type: object
+      properties:
+        partition:
+          $ref: '#/components/schemas/PartitionLimited10'
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
+    ArrayPatchLong:
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/ArrayPatchLongSet'
+      - $ref: '#/components/schemas/ArrayPatchLongAddOrRemove'
+      description: Change that will be applied to the array.
+    JsonArrayString:
+      type: string
+      format: jsonArray(string)
+    EventDataIds:
+      type: object
+      allOf:
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
+            items:
+              $ref: '#/components/schemas/EitherId'
+            maxItems: 1000
+            minItems: 1
+      - $ref: '#/components/schemas/IgnoreUnknownIdsField'
+    InternalEvent:
+      type: object
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        dataSetId:
+          description: The id of the dataset this event belongs to.
+          allOf:
+          - $ref: '#/components/schemas/CogniteInternalId'
+        startTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        endTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        type:
+          $ref: '#/components/schemas/EventType'
+        subtype:
+          $ref: '#/components/schemas/EventSubType'
+        description:
+          maxLength: 500
+          type: string
+          description: Textual description of the event.
+        metadata:
+          $ref: '#/components/schemas/EventMetadata'
+        assetIds:
+          type: array
+          uniqueItems: true
+          description: Asset IDs of equipment that this event relates to.
+          items:
+            $ref: '#/components/schemas/CogniteInternalId'
+        source:
+          maxLength: 128
+          type: string
+          description: The source of this event.
+      description: An event represents something that happened at a given interval in time, for example, a failure, a work order, etc.
+    EqualsFilter:
+      type: object
+      title: equals
+      required:
+      - equals
+      properties:
+        equals:
+          required:
+          - property
+          - value
+          description: 'Matches items where the given property is **exactly** equal to the given value.
+
+            '
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/FilterProperty'
+            value:
+              $ref: '#/components/schemas/Value'
+    SinglePatchEventSource:
+      title: Source
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/SetEventSource'
+      - $ref: '#/components/schemas/RemoveField'
+      description: Set a new value for the source, or remove the value.
+    ExistsFilter:
+      type: object
+      title: exists
+      required:
+      - exists
+      properties:
+        exists:
+          required:
+          - property
+          description: 'Will match items that have a value in the specified property.
+
+            '
+          type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/FilterProperty'
+    UniqueValues:
+      allOf:
+      - type: object
+        description: Request unique value buckets aggregate on a specific Event property. Each bucket is defined by `values` array and has the number of the `values` occurrences.
+        required:
+        - aggregate
+        properties:
+          aggregate:
+            description: 'Type of aggregation to apply.
+
+              `uniqueValues`: Get unique values (up to max 1000) in the specified property ordered by the frequency.
+
+              Note: When aggregate on the `["metadata"]` property, a value may occur multiple times in one Event for different metadata keys.
+
+              Each occurrence is counted.
+
+              '
+            type: string
+            enum:
+            - uniqueValues
+          aggregateFilter:
+            $ref: '#/components/schemas/EventAggregateFilter'
+          advancedFilter:
+            $ref: '#/components/schemas/EventAdvancedFilter'
+          filter:
+            $ref: '#/components/schemas/EventFilter'
+      - oneOf:
+        - allOf:
+          - $ref: '#/components/schemas/EventAggregateProperties'
+          - title: WithProperties
+        - allOf:
+          - $ref: '#/components/schemas/LegacyAggregationFields'
+          - title: WithFields
+          - deprecated: true
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    ObjectPatchEventSet:
+      title: set
       type: object
       required:
       - set
       properties:
         set:
-          type: integer
-          format: int64
-    SinglePatchEventType:
-      title: Type
+          uniqueItems: true
+          type: object
+          description: Set the key-value pairs. All existing key-value pairs will be removed.
+          additionalProperties:
+            type: string
+            maxLength: 128000
+          x-maxKeyLength: 128
+          x-maxTotalSize: 200000
+          maxProperties: 256
+          example:
+            key1: value1
+            key2: value2
+    EventSearchRequest:
+      description: Filter on events filter with exact match
       type: object
-      oneOf:
-      - $ref: '#/components/schemas/SetEventType'
-      - $ref: '#/components/schemas/RemoveField'
-    EventType:
-      maxLength: 64
-      type: string
-      description: Type of the event, e.g 'failure'.
-    EventLeafFilter:
-      description: Leaf filter.
-      title: LeafFilter
-      type: object
-      oneOf:
-      - $ref: '#/components/schemas/EqualsFilter'
-      - $ref: '#/components/schemas/InFilter'
-      - $ref: '#/components/schemas/GenericRangeFilter'
-      - $ref: '#/components/schemas/PrefixFilter'
-      - $ref: '#/components/schemas/ExistsFilter'
-      - $ref: '#/components/schemas/ContainsAnyFilter'
-      - $ref: '#/components/schemas/ContainsAllFilter'
-      - $ref: '#/components/schemas/SearchFilter'
-    ContainsAnyFilter:
-      type: object
-      title: containsAny
-      required:
-      - containsAny
       properties:
-        containsAny:
+        filter:
+          $ref: '#/components/schemas/EventFilter'
+        search:
+          $ref: '#/components/schemas/EventSearch'
+        limit:
+          description: <- Limits the maximum number of results to be returned by single request. Request may contain less results than request limit.
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 1000
+          default: 100
+    ArrayPatchLongSet:
+      title: set
+      type: object
+      required:
+      - set
+      properties:
+        set:
+          uniqueItems: true
+          type: array
+          items:
+            type: integer
+            format: int64
+    IgnoreUnknownIdsField:
+      type: object
+      properties:
+        ignoreUnknownIds:
+          description: Ignore IDs and external IDs that are not found
+          type: boolean
+          default: false
+    AggregateInFilter:
+      type: object
+      title: in
+      required:
+      - in
+      properties:
+        in:
           required:
-          - property
           - values
-          description: 'Matches items where the property contains one or more of the given values.
-
-            This filter can only be applied to multivalued properties.
+          description: 'Matches items where the given property is **exactly** equal to one of the given values. This filter can only be applied to single-valued properties.
 
             '
           type: object
           properties:
-            property:
-              $ref: '#/components/schemas/FilterProperty'
             values:
               $ref: '#/components/schemas/Values'
-    GenericRangeFilter:
-      type: object
-      title: range
-      required:
-      - range
-      properties:
-        range:
-          required:
-          - property
-          description: 'Matches items that contain terms within the provided range.
-
-            It is not allowed to specify both inclusive and exclusive bounds (such as `gte`, `gt`) together.
-
-            `gte`: Greater than or equal to.
-
-            `gt`: Greater than.
-
-            `lte`: Less than or equal to.
-
-            `lt`: Less than.
-
-            '
-          type: object
-          properties:
-            property:
-              $ref: '#/components/schemas/FilterProperty'
-            gte:
-              $ref: '#/components/schemas/RangeValue'
-            gt:
-              $ref: '#/components/schemas/RangeValue'
-            lte:
-              $ref: '#/components/schemas/RangeValue'
-            lt:
-              $ref: '#/components/schemas/RangeValue'
     Cursor:
       type: object
       properties:
@@ -1722,19 +1583,303 @@ components:
         notice. You should treat it as an opaque string and not attempt to craft your own cursors.
 
         '
-    CogniteExternalIdPrefix:
-      description: Filter by this (case-sensitive) prefix for the external ID.
+    EventSearch:
+      type: object
+      properties:
+        description:
+          type: string
+          maxLength: 500
+          description: text to search in description field across events
+    SetEventSubType:
+      type: object
+      title: set
+      required:
+      - set
+      properties:
+        set:
+          $ref: '#/components/schemas/EventSubType'
+    ArrayPatchLongAddOrRemove:
+      title: add/remove
+      type: object
+      properties:
+        add:
+          uniqueItems: true
+          type: array
+          items:
+            type: integer
+            format: int64
+        remove:
+          uniqueItems: true
+          type: array
+          items:
+            type: integer
+            format: int64
+    CogniteExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
       type: string
       maxLength: 255
-      example: my.known.prefix
-    SinglePatchLong:
+      example: my.known.id
+    Values:
+      description: One or more values you wish to find in the provided property.
+      type: array
+      minItems: 1
+      maxItems: 5000
+      items:
+        $ref: '#/components/schemas/Value'
+    EventSubType:
+      maxLength: 64
+      type: string
+      description: SubType of the event, e.g 'electrical'.
+    SetEventType:
+      type: object
       title: set
+      required:
+      - set
+      properties:
+        set:
+          $ref: '#/components/schemas/EventType'
+    DataSetIdEither:
+      oneOf:
+      - $ref: '#/components/schemas/DataSetInternalId'
+      - $ref: '#/components/schemas/DataSetExternalId'
+    EventAggregateBoolFilter:
+      description: 'A query that matches items matching boolean combinations of other queries.
+
+        It is built using one or more boolean clauses of the following types: `and`, `or`, or `not`.
+
+        '
+      title: AggregateBoolFilter
       type: object
       oneOf:
-      - $ref: '#/components/schemas/SetLongField'
+      - type: object
+        title: and
+        required:
+        - and
+        properties:
+          and:
+            description: All of the sub-clauses in the query must appear in matching items.
+            type: array
+            minItems: 1
+            items:
+              $ref: '#/components/schemas/EventAggregateFilter'
+      - type: object
+        title: or
+        required:
+        - or
+        properties:
+          or:
+            description: At least one of the sub-clauses in the query must appear in matching items.
+            type: array
+            minItems: 1
+            items:
+              $ref: '#/components/schemas/EventAggregateFilter'
+      - type: object
+        title: not
+        required:
+        - not
+        properties:
+          not:
+            title: Filter DSL
+            description: Sub-clauses in the query must not appear in matching items.
+            type: object
+            allOf:
+            - $ref: '#/components/schemas/EventAggregateFilter'
+    RangeValue:
+      title: rangeBound
+      description: Value you wish to find in the provided property using a range clause.
+      oneOf:
+      - type: string
+        title: string
+      - type: number
+        title: number
+      - type: integer
+        title: integer
+    ResourceDescription:
+      type: string
+      description: The description of the resource type.
+      maxLength: 500
+    EventCardinalityPropertiesAggregate:
+      allOf:
+      - type: object
+        title: ApproximateCardinalityForProperties
+        description: Request resource properties approximate cardinality aggregate.
+        required:
+        - aggregate
+        properties:
+          aggregate:
+            description: 'Type of aggregation to apply.
+
+              `cardinalityProperties`: Get an approximate number of unique properties.
+
+              '
+            type: string
+            enum:
+            - cardinalityProperties
+          aggregateFilter:
+            $ref: '#/components/schemas/EventAggregateFilter'
+          advancedFilter:
+            $ref: '#/components/schemas/EventAdvancedFilter'
+          filter:
+            $ref: '#/components/schemas/EventFilter'
+          path:
+            description: 'The scope in every document to aggregate properties.
+
+              The only value allowed now is ["metadata"].
+
+              It means to aggregate only metadata properties (aka keys).
+
+              '
+            type: array
+            minItems: 1
+            maxItems: 1
+            items:
+              type: string
+              enum:
+              - metadata
+            default:
+            - metadata
+    EventWithPropertyCountAggregate:
+      allOf:
+      - type: object
+        title: EventWithPropertyCount
+        description: Request aggregate to count the number of Events with a specific property (property is not null) and matching the filters.
+        properties:
+          aggregate:
+            description: 'Type of aggregation to apply.
+
+              `count`: Get an approximate number of Events with a specific property (property is not null) and matching the filters.'
+            type: string
+            enum:
+            - count
+          advancedFilter:
+            $ref: '#/components/schemas/EventAdvancedFilter'
+          filter:
+            $ref: '#/components/schemas/EventFilter'
+      - $ref: '#/components/schemas/EventAggregateProperties'
+    SinglePatchEventType:
+      title: Type
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/SetEventType'
       - $ref: '#/components/schemas/RemoveField'
-      description: Set a new value for the long, or remove the value.
-    AggregatePrefixFilter:
+    DataEventChange:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventChange'
+          minItems: 1
+          maxItems: 1000
+    CogniteInternalId:
+      description: A server-generated ID for the object.
+      type: integer
+      minimum: 1
+      maximum: 9007199254740991
+      format: int64
+    EventChangeByExternalId:
+      allOf:
+      - $ref: '#/components/schemas/EventPatch'
+      - type: object
+        required:
+        - externalId
+        properties:
+          externalId:
+            $ref: '#/components/schemas/CogniteExternalId'
+    AggregateRangeFilter:
+      type: object
+      title: range
+      required:
+      - range
+      properties:
+        range:
+          description: 'Matches items that contain terms within the provided range.
+
+            It''s not allowed to specify both inclusive and exclusive bounds (such as `gte`, `gt`) together.
+
+            `gte`: Greater than or equal to.
+
+            `gt`: Greater than.
+
+            `lte`: Less than or equal to.
+
+            `lt`: Less than.
+
+            '
+          type: object
+          properties:
+            gte:
+              $ref: '#/components/schemas/RangeValue'
+            gt:
+              $ref: '#/components/schemas/RangeValue'
+            lte:
+              $ref: '#/components/schemas/RangeValue'
+            lt:
+              $ref: '#/components/schemas/RangeValue'
+    ValuesAggregateResult:
+      description: Common aggregate structure to represent aggregate result which have count buckets for filter resultset (Unique Property Values, Not Null Document Properties, etc).
+      title: BucketsResult
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items:
+            type: object
+            oneOf:
+            - $ref: '#/components/schemas/AggregateStringValues'
+            - $ref: '#/components/schemas/AggregateIntegerValues'
+            - $ref: '#/components/schemas/AggregatePropertyValues'
+      example:
+        items:
+        - count: 5
+          values:
+          - value_1
+        - count: 10
+          values:
+          - value_2
+    ObjectPatchEventAddRemove:
+      title: add/remove
+      type: object
+      properties:
+        add:
+          uniqueItems: true
+          type: object
+          description: Add the key-value pairs. Values for existing keys will be overwritten.
+          additionalProperties:
+            type: string
+            maxLength: 128000
+          x-maxKeyLength: 128
+          x-maxTotalSize: 200000
+          maxProperties: 256
+          example:
+            key1: value1
+            key2: value2
+        remove:
+          uniqueItems: true
+          type: array
+          description: Remove the key-value pairs with the specified keys.
+          example:
+          - value1
+          - value2
+          items:
+            type: string
+    EventAggregateRequest:
+      description: Aggregation request of events. Filters behave the same way as for the `filter` endpoint. Default aggregation is `count`.
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/EventCountAggregate'
+      - $ref: '#/components/schemas/EventWithPropertyCountAggregate'
+      - $ref: '#/components/schemas/EventCardinalityValuesAggregate'
+      - $ref: '#/components/schemas/EventCardinalityPropertiesAggregate'
+      - $ref: '#/components/schemas/UniqueValues'
+      - $ref: '#/components/schemas/EventUniquePropertiesAggregate'
+    PrefixFilter:
       type: object
       title: prefix
       required:
@@ -1742,12 +1887,15 @@ components:
       properties:
         prefix:
           required:
+          - property
           - value
-          description: 'Matches aggregate values that contain a specific prefix.
+          description: 'Matches items that contain a specific prefix in the provided property.
 
             '
           type: object
           properties:
+            property:
+              $ref: '#/components/schemas/FilterProperty'
             value:
               $ref: '#/components/schemas/StringValue'
     LegacyAggregationFields:
@@ -1768,22 +1916,281 @@ components:
           maxItems: 1
           items:
             type: string
-    ArrayPatchLongAddOrRemove:
-      title: add/remove
+    EventWithCursorResponse:
       type: object
+      allOf:
+      - $ref: '#/components/schemas/DataWithCursorEvent'
+    EventAggregateLeafFilter:
+      description: 'Aggregate leaf filter.
+
+        '
+      title: AggregateLeafFilter
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/AggregateInFilter'
+      - $ref: '#/components/schemas/AggregatePrefixFilter'
+      - $ref: '#/components/schemas/AggregateRangeFilter'
+    EventCountAggregate:
+      type: object
+      title: EventCount
+      description: Request aggregate to count the number of Events matching the filters. Default aggregate for the endpoint.
       properties:
-        add:
-          uniqueItems: true
-          type: array
-          items:
+        aggregate:
+          description: 'Type of aggregation to apply.
+
+            `count`: Get an approximate number of Events matching the filters.'
+          type: string
+          enum:
+          - count
+        advancedFilter:
+          $ref: '#/components/schemas/EventAdvancedFilter'
+        filter:
+          $ref: '#/components/schemas/EventFilter'
+    SetExternalId:
+      type: object
+      title: set
+      required:
+      - set
+      properties:
+        set:
+          $ref: '#/components/schemas/CogniteExternalId'
+    EventChangeById:
+      allOf:
+      - $ref: '#/components/schemas/EventPatch'
+      - type: object
+        required:
+        - id
+        properties:
+          id:
+            $ref: '#/components/schemas/CogniteInternalId'
+    AssetIdEither:
+      oneOf:
+      - $ref: '#/components/schemas/AssetInternalId'
+      - $ref: '#/components/schemas/AssetExternalId'
+    EndTimeFilter:
+      description: Either range between two timestamps or isNull filter condition.
+      oneOf:
+      - $ref: '#/components/schemas/EpochTimestampRange'
+      - $ref: '#/components/schemas/IsNull'
+    EventAdvancedFilter:
+      type: object
+      description: "A filter DSL (Domain Specific Language) to define advanced filter queries.\n\nSee more information about filtering DSL [here](https://docs.cognite.com/dev/concepts/resource_filtering_dsl/ \"filtering DSL\").\n\nSupported properties:\n\n  | Property                        | Type                                    |\n  |---------------------------------|-----------------------------------------|\n  | `[\"assetIds\"]`                  | array of [number]                       |\n  | `[\"createdTime\"]`               | number                                  |\n  | `[\"dataSetId\"]`                 | number                                  |\n  | `[\"endTime\"]`                   | number                                  |\n  | `[\"id\"]`                        | number                                  |\n  | `[\"lastUpdatedTime\"]`           | number                                  |\n  | `[\"startTime\"]`                 | number                                  |\n  | `[\"description\"]`               | string                                  |\n  | `[\"externalId\"]`                | string                                  |\n  | `[\"metadata\"]`                  | string                                  |\n  | `[\"metadata\", \"someCustomKey\"]` | string                                  |\n  | `[\"source\"]`                    | string                                  |\n  | `[\"subtype\"]`                   | string                                  |\n  | `[\"type\"]`                      | string                                  |\n\n  Note: Filtering on the `[\"metadata\"]` property has the following logic:\n  If a value of any metadata keys in an event matches the filter, the event matches the filter."
+      oneOf:
+      - $ref: '#/components/schemas/EventBoolFilter'
+      - $ref: '#/components/schemas/EventLeafFilter'
+      example:
+        or:
+        - not:
+            and:
+            - equals:
+                property:
+                - metadata
+                - severity
+                value: medium
+            - in:
+                property:
+                - source
+                values:
+                - inspection protocol
+                - incident report
+            - range:
+                property:
+                - dataSetId
+                gte: 1
+                lt: 10
+        - and:
+          - equals:
+              property:
+              - type
+              value: equipment malfunction
+          - equals:
+              property:
+              - subtype
+              value: mechanical failure
+        - search:
+            property:
+            - description
+            value: outage
+    429Error:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API throttling.
+      properties:
+        code:
+          type: integer
+          description: 429 HTTP status code.
+          format: int32
+          example: 429
+        message:
+          type: string
+          description: "The error message specifies which kind of throttling happened:\n  - Too many concurrent requests for a single project or an identity.\n  - Too high rate of requests for a single project or an identity.\n\nSee more [here](https://docs.cognite.com/dev/concepts/request_throttling/ \"requests throttling\")."
+          example: Project exceeded maximum number='50' of concurrent requests. Please try again later.
+    EventMetadata:
+      type: object
+      description: 'Custom, application specific metadata. String key -> String value. Limits: Maximum length of key is 128 bytes, value 128000 bytes, up to 256 key-value pairs, of total size at most 200000.'
+      additionalProperties:
+        type: string
+        maxLength: 128000
+      x-maxKeyLength: 128
+      x-maxTotalSize: 200000
+      maxProperties: 256
+    InternalId:
+      type: object
+      required:
+      - id
+      properties:
+        id:
+          $ref: '#/components/schemas/CogniteInternalId'
+    Event:
+      allOf:
+      - $ref: '#/components/schemas/InternalEvent'
+      - $ref: '#/components/schemas/InternalId'
+      - type: object
+        required:
+        - createdTime
+        - lastUpdatedTime
+        properties:
+          lastUpdatedTime:
+            $ref: '#/components/schemas/EpochTimestamp'
+          createdTime:
+            $ref: '#/components/schemas/EpochTimestamp'
+    EventSource:
+      maxLength: 128
+      type: string
+      description: The source of this event.
+    EventUniquePropertiesAggregate:
+      allOf:
+      - type: object
+        title: UniqueProperties
+        description: Request unique non null property buckets aggregate.
+        required:
+        - aggregate
+        properties:
+          aggregate:
+            description: 'Type of aggregation to apply.
+
+              `uniqueProperties`: Get unique properties (up to max 1000) in the specified document path (default path is ["metadata"] - metadata keys only).
+
+              Ordered by frequency.
+
+              '
+            type: string
+            enum:
+            - uniqueProperties
+          aggregateFilter:
+            $ref: '#/components/schemas/EventAggregateFilter'
+          advancedFilter:
+            $ref: '#/components/schemas/EventAdvancedFilter'
+          filter:
+            $ref: '#/components/schemas/EventFilter'
+          path:
+            description: 'The scope in every document to aggregate properties.
+
+              The only value allowed now is ["metadata"].
+
+              It means to aggregate only metadata properties (aka keys).
+
+              '
+            type: array
+            minItems: 1
+            maxItems: 1
+            items:
+              type: string
+              enum:
+              - metadata
+            default:
+            - metadata
+    EventPatch:
+      type: object
+      description: Changes will be applied to event.
+      required:
+      - update
+      properties:
+        update:
+          type: object
+          properties:
+            externalId:
+              $ref: '#/components/schemas/SinglePatchExternalId'
+            dataSetId:
+              $ref: '#/components/schemas/SinglePatchLong'
+            startTime:
+              $ref: '#/components/schemas/SinglePatchLong'
+            endTime:
+              $ref: '#/components/schemas/SinglePatchLong'
+            description:
+              $ref: '#/components/schemas/SinglePatchResourceDescription'
+            metadata:
+              description: 'Custom, application specific metadata. String key -> String value. Limits: Maximum length of key is 32 bytes, value 512 bytes, up to 16 key-value pairs.'
+              allOf:
+              - $ref: '#/components/schemas/ObjectPatchEvent'
+            assetIds:
+              $ref: '#/components/schemas/ArrayPatchLong'
+            source:
+              $ref: '#/components/schemas/SinglePatchEventSource'
+            type:
+              $ref: '#/components/schemas/SinglePatchEventType'
+            subtype:
+              $ref: '#/components/schemas/SinglePatchEventSubType'
+    AssetExternalId:
+      type: object
+      required:
+      - externalId
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+    EventFilterRequest:
+      type: object
+      allOf:
+      - type: object
+        properties:
+          filter:
+            $ref: '#/components/schemas/EventFilter'
+          advancedFilter:
+            $ref: '#/components/schemas/EventAdvancedFilter'
+          limit:
+            description: 'Limits the maximum number of results to be returned by a single request.
+
+              In case there are more results to the request, the ''nextCursor'' attribute will be provided as part of the response.
+
+              Request may contain less results than the request limit.
+
+              '
             type: integer
-            format: int64
-        remove:
-          uniqueItems: true
-          type: array
-          items:
-            type: integer
-            format: int64
+            format: int32
+            minimum: 1
+            maximum: 1000
+            default: 100
+          sort:
+            oneOf:
+            - title: modern
+              description: 'Sort by array of selected properties.
+
+                '
+              type: array
+              maxItems: 2
+              items:
+                $ref: '#/components/schemas/SortProperty'
+              example:
+              - property:
+                - createdTime
+                order: desc
+              - property:
+                - metadata
+                - FooBar
+                nulls: first
+            - title: deprecated
+              deprecated: true
+              type: array
+              maxItems: 2
+              items:
+                type: string
+                description: "Sort by selected field. Syntax: `\"<fieldname>:asc|desc\"`. Default sort order is `asc` with short syntax: `\"<fieldname>\"`.\nFilter accepts the following field names:\n  `dataSetId`,\n  `externalId`,\n  `type`,\n  `subtype`,\n  `startTime`,\n  `endTime`,\n  `createdTime`,\n  `lastUpdatedTime`,\n  `source`,\n  `description`,\n  `metadata`.\nPartitions are done independently of sorting, there is no guarantee on sort order between elements from different partitions."
+              example:
+              - endTime:desc
+      - $ref: '#/components/schemas/Cursor'
+      - $ref: '#/components/schemas/PartitionObjectLimited10'
     SortProperty:
       type: object
       required:
@@ -1844,530 +2251,114 @@ components:
           - last
           - auto
           default: auto
-    Error:
+    EventType:
+      maxLength: 64
+      type: string
+      description: Type of the event, e.g 'failure'.
+    JsonArrayInt64:
+      type: string
+      format: jsonArray(int64)
+      example: '[1238712837, 238712361376, 23786237623]'
+    SinglePatchLong:
+      title: set
       type: object
-      required:
-      - code
-      - message
-      description: Cognite API error.
-      properties:
-        code:
-          type: integer
-          description: HTTP status code.
-          format: int32
-          example: 401
-        message:
-          type: string
-          description: Error message.
-          example: Could not authenticate.
-        missing:
-          type: array
-          description: List of lookup objects that do not match any results.
-          items:
-            type: object
-            additionalProperties: true
-        duplicated:
-          type: array
-          description: List of objects that are not unique.
-          items:
-            type: object
-            additionalProperties: true
-    Event:
-      allOf:
-      - $ref: '#/components/schemas/InternalEvent'
+      oneOf:
+      - $ref: '#/components/schemas/SetLongField'
+      - $ref: '#/components/schemas/RemoveField'
+      description: Set a new value for the long, or remove the value.
+    SinglePatchResourceDescription:
+      title: set
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/SetDescription'
+      - $ref: '#/components/schemas/RemoveField'
+    EitherId:
+      type: object
+      oneOf:
       - $ref: '#/components/schemas/InternalId'
-      - type: object
-        required:
-        - createdTime
-        - lastUpdatedTime
-        properties:
-          lastUpdatedTime:
-            $ref: '#/components/schemas/EpochTimestamp'
-          createdTime:
-            $ref: '#/components/schemas/EpochTimestamp'
-    DataSetExternalId:
-      type: object
-      title: DataSetExternalId
-      required:
-      - externalId
-      properties:
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-    EventFilter:
-      description: Filter on events filter with exact match
+      - $ref: '#/components/schemas/ExternalId'
+    EpochTimestampRange:
+      description: Range between two timestamps (inclusive).
       type: object
       properties:
-        startTime:
-          $ref: '#/components/schemas/EpochTimestampRange'
-        endTime:
-          $ref: '#/components/schemas/EndTimeFilter'
-        activeAtTime:
-          $ref: '#/components/schemas/ActiveAtTimeFilter'
-        metadata:
-          $ref: '#/components/schemas/EventMetadata'
-        assetIds:
-          type: array
-          minItems: 1
-          maxItems: 5000
-          uniqueItems: true
-          description: Asset IDs of equipment that this event relates to.
-          items:
-            $ref: '#/components/schemas/CogniteInternalId'
-        assetExternalIds:
-          type: array
-          uniqueItems: true
-          minItems: 1
-          maxItems: 5000
-          description: Asset External IDs of equipment that this event relates to.
-          items:
-            $ref: '#/components/schemas/CogniteExternalId'
-        assetSubtreeIds:
-          type: array
-          uniqueItems: true
-          minItems: 1
-          maxItems: 100
-          description: Only include events that have a related asset in a subtree rooted at any of these assetIds (including the roots given). If the total size of the given subtrees exceeds 100,000 assets, an error will be returned.
-          items:
-            $ref: '#/components/schemas/AssetIdEither'
-        dataSetIds:
-          type: array
-          maxItems: 100
-          uniqueItems: true
-          items:
-            $ref: '#/components/schemas/DataSetIdEither'
-        source:
-          $ref: '#/components/schemas/EventSource'
-        type:
-          $ref: '#/components/schemas/EventType'
-        subtype:
-          $ref: '#/components/schemas/EventSubType'
-        createdTime:
-          $ref: '#/components/schemas/EpochTimestampRange'
-        lastUpdatedTime:
-          $ref: '#/components/schemas/EpochTimestampRange'
-        externalIdPrefix:
-          $ref: '#/components/schemas/CogniteExternalIdPrefix'
-    EventDataIds:
+        max:
+          description: Maximum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+          type: integer
+          minimum: 0
+          format: int64
+        min:
+          description: Minimum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+          type: integer
+          minimum: 0
+          format: int64
+    ObjectPatchEvent:
       type: object
-      allOf:
-      - type: object
-        required:
-        - items
-        properties:
-          items:
-            type: array
-            items:
-              $ref: '#/components/schemas/EitherId'
-            maxItems: 1000
-            minItems: 1
-      - $ref: '#/components/schemas/IgnoreUnknownIdsField'
-    SetEventSource:
-      type: object
-      title: set
-      required:
-      - set
-      properties:
-        set:
-          $ref: '#/components/schemas/EventSource'
-    AssetIdEither:
+      description: 'Custom, application specific metadata. String key -> String value. Limits of updated event: Maximum length of key is 128 bytes, value 128000 bytes, up to 256 key-value pairs, of total size at most 200000.'
       oneOf:
-      - $ref: '#/components/schemas/AssetInternalId'
-      - $ref: '#/components/schemas/AssetExternalId'
-    InFilter:
-      type: object
-      title: in
-      required:
-      - in
-      properties:
-        in:
-          required:
-          - property
-          - values
-          description: 'Matches items where the given property is **exactly** equal to one of the given values. This filter can only be applied to single-valued properties.
-
-            '
-          type: object
-          properties:
-            property:
-              $ref: '#/components/schemas/FilterProperty'
-            values:
-              $ref: '#/components/schemas/Values'
-    ActiveAtTimeFilter:
-      description: Event is considered active from its startTime to endTime inclusive. If startTime is null, event is never active. If endTime is null, event is active from startTime onwards. activeAtTime filter will match all events that are active at some point from min to max, from min, or to max, depending on which of min and max parameters are specified.
-      allOf:
-      - $ref: '#/components/schemas/EpochTimestampRange'
-    DataExternalEvent:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/ExternalEvent'
-          minItems: 1
-          maxItems: 1000
-    PrefixFilter:
-      type: object
-      title: prefix
-      required:
-      - prefix
-      properties:
-        prefix:
-          required:
-          - property
-          - value
-          description: 'Matches items that contain a specific prefix in the provided property.
-
-            '
-          type: object
-          properties:
-            property:
-              $ref: '#/components/schemas/FilterProperty'
-            value:
-              $ref: '#/components/schemas/StringValue'
-    AggregateProperty:
-      description: "Property you want to aggregate.\nUse a list of strings to specify nested properties.\nThe same way the properties are represented in aggregate responses.\n\n<u>Example:</u>\n\nYou have the object\n```\n{\n  \"metadata\": {\n    \"id\": \"b53\"\n  },\n  \"source\": \"a23\"\n}\n```\n\nTo address \"id\" metadata key use `[\"metadata\", \"id\"]` property.\\\nYou can also aggregate the value(s) for the standalone property `source` with `[\"source\"]`.\n"
-      type: array
-      minItems: 1
-      maxItems: 2
-      items:
-        type: string
-      example:
-      - metadata
-      - key1
-    SetExternalId:
-      type: object
-      title: set
-      required:
-      - set
-      properties:
-        set:
-          $ref: '#/components/schemas/CogniteExternalId'
-    ValuesAggregateResult:
-      description: Common aggregate structure to represent aggregate result which have count buckets for filter resultset (Unique Property Values, Not Null Document Properties, etc).
-      title: BucketsResult
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          minItems: 1
-          maxItems: 1000
-          items:
-            type: object
-            oneOf:
-            - $ref: '#/components/schemas/AggregateStringValues'
-            - $ref: '#/components/schemas/AggregateIntegerValues'
-            - $ref: '#/components/schemas/AggregatePropertyValues'
-      example:
-        items:
-        - count: 5
-          values:
-          - value_1
-        - count: 10
-          values:
-          - value_2
-    CogniteInternalId:
-      description: A server-generated ID for the object.
-      type: integer
-      minimum: 1
-      maximum: 9007199254740991
-      format: int64
-    EventPatch:
-      type: object
-      description: Changes will be applied to event.
-      required:
-      - update
-      properties:
-        update:
-          type: object
-          properties:
-            externalId:
-              $ref: '#/components/schemas/SinglePatchExternalId'
-            dataSetId:
-              $ref: '#/components/schemas/SinglePatchLong'
-            startTime:
-              $ref: '#/components/schemas/SinglePatchLong'
-            endTime:
-              $ref: '#/components/schemas/SinglePatchLong'
-            description:
-              $ref: '#/components/schemas/SinglePatchResourceDescription'
-            metadata:
-              description: 'Custom, application specific metadata. String key -> String value. Limits: Maximum length of key is 32 bytes, value 512 bytes, up to 16 key-value pairs.'
-              allOf:
-              - $ref: '#/components/schemas/ObjectPatchEvent'
-            assetIds:
-              $ref: '#/components/schemas/ArrayPatchLong'
-            source:
-              $ref: '#/components/schemas/SinglePatchEventSource'
-            type:
-              $ref: '#/components/schemas/SinglePatchEventType'
-            subtype:
-              $ref: '#/components/schemas/SinglePatchEventSubType'
-    IsNull:
-      type: object
-      properties:
-        isNull:
-          type: boolean
-          example: true
-          description: Set to true if you want to search for data with field value not set, false to search for cases where some value is present.
-    EqualsFilter:
-      type: object
-      title: equals
-      required:
-      - equals
-      properties:
-        equals:
-          required:
-          - property
-          - value
-          description: 'Matches items where the given property is **exactly** equal to the given value.
-
-            '
-          type: object
-          properties:
-            property:
-              $ref: '#/components/schemas/FilterProperty'
-            value:
-              $ref: '#/components/schemas/Value'
-    EventMetadata:
-      type: object
-      description: 'Custom, application specific metadata. String key -> String value. Limits: Maximum length of key is 128 bytes, value 128000 bytes, up to 256 key-value pairs, of total size at most 200000.'
-      additionalProperties:
-        type: string
-        maxLength: 128000
-      x-maxKeyLength: 128
-      x-maxTotalSize: 200000
-      maxProperties: 256
-    EventAggregateRequest:
-      description: Aggregation request of events. Filters behave the same way as for the `filter` endpoint. Default aggregation is `count`.
-      type: object
-      oneOf:
-      - $ref: '#/components/schemas/EventCountAggregate'
-      - $ref: '#/components/schemas/EventWithPropertyCountAggregate'
-      - $ref: '#/components/schemas/EventCardinalityValuesAggregate'
-      - $ref: '#/components/schemas/EventCardinalityPropertiesAggregate'
-      - $ref: '#/components/schemas/UniqueValues'
-      - $ref: '#/components/schemas/EventUniquePropertiesAggregate'
-    EventChangeById:
-      allOf:
-      - $ref: '#/components/schemas/EventPatch'
-      - type: object
-        required:
-        - id
-        properties:
-          id:
-            $ref: '#/components/schemas/CogniteInternalId'
-    PartitionLimited10:
-      description: 'Splits the data set into `N` partitions.
-
-        The attribute is specified as a "M/N" string, where `M` is a natural number in the interval of `[1, N]`.
-
-        You need to follow the cursors within each partition in order to receive all the data.
-
-
-        The maximum number of allowed partitions (`N`) is 10.
-
-
-        Cognite rejects requests if you specify more than 10 partitions.
-
-        When Cognite enforces this behavior, the requests result in a 400 Bad Request status.
+      - $ref: '#/components/schemas/ObjectPatchEventSet'
+      - $ref: '#/components/schemas/ObjectPatchEventAddRemove'
+    AggregatePropertyValues:
+      title: Properties
+      description: 'A single bucket to represent `uniqueProperties` aggregate result.
 
         '
-      type: string
-      example: 1/3
-    FilterProperty:
-      description: "Property you want to filter. Use a list of strings to specify nested properties.\n\n<u>Example:</u>\n\nYou have the object\n```\n{\n  \"room\": {\n    \"id\": \"b53\"\n  },\n  \"roomId\": \"a23\"\n}\n```\n\nUse `[\"room\", \"id\"]` to return the value in the nested `id` property, which is a part of the `room` object.\n\nYou can also read the value(s) in the standalone property `roomId` with `[\"roomId\"]`.\n"
-      type: array
-      minItems: 1
-      maxItems: 3
-      items:
-        type: string
-    RemoveField:
-      title: remove
       type: object
       required:
-      - setNull
+      - count
+      - values
       properties:
-        setNull:
-          type: boolean
-          example: true
-    EventUniquePropertiesAggregate:
-      allOf:
-      - type: object
-        title: UniqueProperties
-        description: Request unique non null property buckets aggregate.
-        required:
-        - aggregate
-        properties:
-          aggregate:
-            description: 'Type of aggregation to apply.
+        count:
+          description: Number of items in this aggregation bucket.
+          type: integer
+          format: int64
+        values:
+          description: 'An array of unique properties for UniqueProperties aggregate.
 
-              `uniqueProperties`: Get unique properties (up to max 1000) in the specified document path (default path is ["metadata"] - metadata keys only).
-
-              Ordered by frequency.
-
-              '
-            type: string
-            enum:
-            - uniqueProperties
-          aggregateFilter:
-            $ref: '#/components/schemas/EventAggregateFilter'
-          advancedFilter:
-            $ref: '#/components/schemas/EventAdvancedFilter'
-          filter:
-            $ref: '#/components/schemas/EventFilter'
-          path:
-            description: 'The scope in every document to aggregate properties.
-
-              The only value allowed now is ["metadata"].
-
-              It means to aggregate only metadata properties (aka keys).
-
-              '
-            type: array
-            minItems: 1
-            maxItems: 1
-            items:
-              type: string
-              enum:
+            '
+          type: array
+          minItems: 1
+          maxItems: 1
+          items:
+            type: object
+            required:
+            - property
+            properties:
+              property:
+                $ref: '#/components/schemas/AggregateProperty'
+            example:
+              property:
               - metadata
-            default:
-            - metadata
-    EventWithPropertyCountAggregate:
-      allOf:
-      - type: object
-        title: EventWithPropertyCount
-        description: Request aggregate to count the number of Events with a specific property (property is not null) and matching the filters.
-        properties:
-          aggregate:
-            description: 'Type of aggregation to apply.
-
-              `count`: Get an approximate number of Events with a specific property (property is not null) and matching the filters.'
-            type: string
-            enum:
-            - count
-          advancedFilter:
-            $ref: '#/components/schemas/EventAdvancedFilter'
-          filter:
-            $ref: '#/components/schemas/EventFilter'
-      - $ref: '#/components/schemas/EventAggregateProperties'
-    UniqueValues:
-      allOf:
-      - type: object
-        description: Request unique value buckets aggregate on a specific Event property. Each bucket is defined by `values` array and has the number of the `values` occurrences.
-        required:
-        - aggregate
-        properties:
-          aggregate:
-            description: 'Type of aggregation to apply.
-
-              `uniqueValues`: Get unique values (up to max 1000) in the specified property ordered by the frequency.
-
-              Note: When aggregate on the `["metadata"]` property, a value may occur multiple times in one Event for different metadata keys.
-
-              Each occurrence is counted.
-
-              '
-            type: string
-            enum:
-            - uniqueValues
-          aggregateFilter:
-            $ref: '#/components/schemas/EventAggregateFilter'
-          advancedFilter:
-            $ref: '#/components/schemas/EventAdvancedFilter'
-          filter:
-            $ref: '#/components/schemas/EventFilter'
-      - oneOf:
-        - allOf:
-          - $ref: '#/components/schemas/EventAggregateProperties'
-          - title: WithProperties
-        - allOf:
-          - $ref: '#/components/schemas/LegacyAggregationFields'
-          - title: WithFields
-          - deprecated: true
-    AggregateInFilter:
-      type: object
-      title: in
-      required:
-      - in
-      properties:
-        in:
-          required:
-          - values
-          description: 'Matches items where the given property is **exactly** equal to one of the given values. This filter can only be applied to single-valued properties.
+              - key1
+        value:
+          deprecated: true
+          description: 'A unique property for UniqueProperties aggregate.
 
             '
           type: object
+          required:
+          - property
           properties:
-            values:
-              $ref: '#/components/schemas/Values'
-    EventSearch:
-      type: object
-      properties:
-        description:
-          type: string
-          maxLength: 500
-          description: text to search in description field across events
-    DataEventChange:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/EventChange'
-          minItems: 1
-          maxItems: 1000
-    AggregateResult:
-      type: object
-      oneOf:
-      - $ref: '#/components/schemas/CountAggregateResult'
-      - $ref: '#/components/schemas/ValuesAggregateResult'
-    EndTimeFilter:
-      description: Either range between two timestamps or isNull filter condition.
-      oneOf:
-      - $ref: '#/components/schemas/EpochTimestampRange'
-      - $ref: '#/components/schemas/IsNull'
-    SetDescription:
-      type: object
-      title: set
-      required:
-      - set
-      properties:
-        set:
-          $ref: '#/components/schemas/ResourceDescription'
+            property:
+              $ref: '#/components/schemas/AggregateProperty'
   responses:
-    EventResponse:
-      description: response with list of events
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Event'
     EventDataResponse:
       description: Paged response with list of events
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/EventResponse'
-    400ErrorResponse:
-      description: The response for a bad request.
+    EventResponse:
+      description: response with list of events
       content:
         application/json:
           schema:
-            type: object
-            required:
-            - error
-            properties:
-              error:
-                $ref: '#/components/schemas/Error'
-          example:
-            error:
-              code: 400
-              message: '`null` values aren''t allowed.'
+            $ref: '#/components/schemas/Event'
+    AggregateResponse:
+      description: Response with a list of aggregation results.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/AggregateResult'
     EmptyResponse:
       description: Empty response.
       content:
@@ -2389,12 +2380,21 @@ components:
             error:
               code: 429
               message: Project exceeded maximum number='50' of concurrent requests. Please try again later.
-    AggregateResponse:
-      description: Response with a list of aggregation results.
+    400ErrorResponse:
+      description: The response for a bad request.
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/AggregateResult'
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: 400
+              message: '`null` values aren''t allowed.'
     EventDataWithCursorResponse:
       description: Paged response with list of events
       content:
@@ -2402,6 +2402,33 @@ components:
           schema:
             $ref: '#/components/schemas/EventWithCursorResponse'
   parameters:
+    IncludeMetadata:
+      name: includeMetadata
+      in: query
+      description: Whether the metadata field should be returned or not.
+      schema:
+        type: boolean
+        default: true
+    Cursor:
+      name: cursor
+      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
+
+        property, it means that there may be more results, and you should pass that value as the
+
+        `cursor` parameter in the next request.
+
+
+        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
+
+        decoded. Its internal structure is not a part of the public API, and may change without
+
+        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
+
+        '
+      in: query
+      schema:
+        type: string
+        example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
     partitionLimited10:
       in: query
       name: partition
@@ -2433,33 +2460,6 @@ components:
         default: 100
         minimum: 1
         maximum: 1000
-    IncludeMetadata:
-      name: includeMetadata
-      in: query
-      description: Whether the metadata field should be returned or not.
-      schema:
-        type: boolean
-        default: true
-    Cursor:
-      name: cursor
-      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
-
-        property, it means that there may be more results, and you should pass that value as the
-
-        `cursor` parameter in the next request.
-
-
-        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
-
-        decoded. Its internal structure is not a part of the public API, and may change without
-
-        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
-
-        '
-      in: query
-      schema:
-        type: string
-        example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
   securitySchemes:
     oidc-token:
       type: http

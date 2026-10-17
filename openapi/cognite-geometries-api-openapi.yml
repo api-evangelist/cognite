@@ -158,30 +158,65 @@ paths:
           $ref: '#/components/responses/ErrorResponse'
 components:
   schemas:
-    GeometryDto:
+    GeometryUpdateDraft:
       type: object
-      required:
-      - createdTime
-      - externalId
-      - lastUpdatedTime
-      - paths
-      - symbolId
       properties:
-        createdTime:
-          $ref: '#/components/schemas/EpochTimestamp'
-        externalId:
-          description: The external ID of the geometry
-          $ref: '#/components/schemas/CogniteExternalId'
-        lastUpdatedTime:
-          $ref: '#/components/schemas/EpochTimestamp'
         paths:
           type: array
-          description: List of paths of this geometry
           items:
             $ref: '#/components/schemas/Path'
-        symbolId:
-          description: The external ID of a symbol the geometry belongs to
-          $ref: '#/components/schemas/CogniteExternalId'
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
+    Path:
+      description: SVG path in a custom format
+      type: object
+      required:
+      - id
+      - d
+      properties:
+        id:
+          type: string
+        d:
+          description: The d attribute of an SVG path
+          type: string
+        styleId:
+          description: The id of the style used for this path
+          type: string
+    NextCursorV3:
+      description: The cursor value used to return (paginate to) the next page of results, when more data is available.
+      type: string
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 401
+        message:
+          type: string
+          description: Error message.
+          example: Could not authenticate.
+        missing:
+          type: array
+          description: List of lookup objects that do not match any results.
+          items:
+            type: object
+            additionalProperties: true
+        duplicated:
+          type: array
+          description: List of objects that are not unique.
+          items:
+            type: object
+            additionalProperties: true
     GeometryUpdateItem:
       type: object
       required:
@@ -194,6 +229,36 @@ components:
         update:
           description: The properties to be updated
           $ref: '#/components/schemas/GeometryUpdateDraft'
+    UpdateGeometriesRequest:
+      type: object
+      required:
+      - items
+      description: List of geometries to update
+      minItems: 1
+      maxItems: 100
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            type: object
+            $ref: '#/components/schemas/GeometryUpdateItem'
+    CreateGeometriesRequest:
+      type: object
+      required:
+      - items
+      description: List of geometries to create
+      minItems: 1
+      maxItems: 100
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            type: object
+            $ref: '#/components/schemas/GeometryCreateDraft'
     GeometryCreateDraft:
       type: object
       required:
@@ -227,140 +292,36 @@ components:
             properties:
               externalId:
                 $ref: '#/components/schemas/CogniteExternalId'
-    GeometryUpdateDraft:
+    GeometryDto:
       type: object
+      required:
+      - createdTime
+      - externalId
+      - lastUpdatedTime
+      - paths
+      - symbolId
       properties:
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        externalId:
+          description: The external ID of the geometry
+          $ref: '#/components/schemas/CogniteExternalId'
+        lastUpdatedTime:
+          $ref: '#/components/schemas/EpochTimestamp'
         paths:
           type: array
+          description: List of paths of this geometry
           items:
             $ref: '#/components/schemas/Path'
-    EpochTimestamp:
-      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-      type: integer
-      minimum: 0
-      format: int64
-      example: 1730204346000
-    UpdateGeometriesRequest:
-      type: object
-      required:
-      - items
-      description: List of geometries to update
-      minItems: 1
-      maxItems: 100
-      properties:
-        items:
-          type: array
-          minItems: 1
-          maxItems: 100
-          items:
-            type: object
-            $ref: '#/components/schemas/GeometryUpdateItem'
-    Path:
-      description: SVG path in a custom format
-      type: object
-      required:
-      - id
-      - d
-      properties:
-        id:
-          type: string
-        d:
-          description: The d attribute of an SVG path
-          type: string
-        styleId:
-          description: The id of the style used for this path
-          type: string
+        symbolId:
+          description: The external ID of a symbol the geometry belongs to
+          $ref: '#/components/schemas/CogniteExternalId'
     CogniteExternalId:
       description: The external ID provided by the client. Must be unique for the resource type.
       type: string
       maxLength: 255
       example: my.known.id
-    CreateGeometriesRequest:
-      type: object
-      required:
-      - items
-      description: List of geometries to create
-      minItems: 1
-      maxItems: 100
-      properties:
-        items:
-          type: array
-          minItems: 1
-          maxItems: 100
-          items:
-            type: object
-            $ref: '#/components/schemas/GeometryCreateDraft'
-    Error:
-      type: object
-      required:
-      - code
-      - message
-      description: Cognite API error.
-      properties:
-        code:
-          type: integer
-          description: HTTP status code.
-          format: int32
-          example: 401
-        message:
-          type: string
-          description: Error message.
-          example: Could not authenticate.
-        missing:
-          type: array
-          description: List of lookup objects that do not match any results.
-          items:
-            type: object
-            additionalProperties: true
-        duplicated:
-          type: array
-          description: List of objects that are not unique.
-          items:
-            type: object
-            additionalProperties: true
-    NextCursorV3:
-      description: The cursor value used to return (paginate to) the next page of results, when more data is available.
-      type: string
   responses:
-    ErrorResponse:
-      description: The response for a failed request.
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - error
-            properties:
-              error:
-                $ref: '#/components/schemas/Error'
-    GeometriesListResponse:
-      description: List of geometries
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - items
-            properties:
-              items:
-                type: array
-                items:
-                  $ref: '#/components/schemas/GeometryDto'
-    ExternalIdsResponse:
-      description: List of external IDs returned in a response
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - items
-            properties:
-              items:
-                type: array
-                minItems: 1
-                maxItems: 100
-                items:
-                  $ref: '#/components/schemas/CogniteExternalId'
     GeometriesListWithCursorResponse:
       description: List of geometries with next cursor
       content:
@@ -376,6 +337,45 @@ components:
                   $ref: '#/components/schemas/GeometryDto'
               nextCursor:
                 $ref: '#/components/schemas/NextCursorV3'
+    ExternalIdsResponse:
+      description: List of external IDs returned in a response
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            properties:
+              items:
+                type: array
+                minItems: 1
+                maxItems: 100
+                items:
+                  $ref: '#/components/schemas/CogniteExternalId'
+    GeometriesListResponse:
+      description: List of geometries
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            properties:
+              items:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GeometryDto'
+    ErrorResponse:
+      description: The response for a failed request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
   parameters:
     symbolId:
       name: symbolId

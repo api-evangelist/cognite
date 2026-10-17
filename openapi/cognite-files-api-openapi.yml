@@ -1273,150 +1273,61 @@ paths:
       x-cdm-capability:
       - dataModelInstancesAcl:WRITE
 components:
-  responses:
-    FileMetadataWithCursorResponse:
-      description: The response for a successful files/list operation
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/DataWithCursor'
-    UploadFileMetadataResponse:
-      description: The response for a successful files operation
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/UploadFileMetadata'
-    EmptyResponse:
-      description: Empty response.
-      content:
-        application/json:
-          schema:
-            type: object
-    FilesAggregateResponse:
-      description: Response with files aggregates.
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/DataFilesAggregate'
-    DataWithLinks:
-      description: The response for a successful files/downloadlink operation.
-      content:
-        application/json:
-          schema:
-            type: object
-            properties:
-              items:
-                type: array
-                items:
-                  allOf:
-                  - $ref: '#/components/schemas/FileLink'
-                  - $ref: '#/components/schemas/FileIdEither'
-    ErrorResponse:
-      description: The response for a failed request.
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - error
-            properties:
-              error:
-                $ref: '#/components/schemas/Error'
-    FileMetadataResponse:
-      description: The response for a successful GET files/id operation
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/FilesMetadata'
-    MultiPartUploadFileMetadataResponse:
-      description: The response for a successful request to initiate upload of multiple parts for a file.
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/DataMultiPartUploadFileMetadata'
-    FileResponse:
-      description: The response for a successful files/byids, files/search or files/update operation
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/DataFileMetadata'
   schemas:
-    ArrayPatchLong:
-      type: object
-      oneOf:
-      - $ref: '#/components/schemas/ArrayPatchLongSet'
-      - $ref: '#/components/schemas/ArrayPatchLongAddOrRemove'
-      description: Change that will be applied to the array.
-    JsonArrayInt64:
-      type: string
-      format: jsonArray(int64)
-      example: '[1238712837, 238712361376, 23786237623]'
-    DataFileMetadata:
-      type: object
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/FilesMetadata'
-    EpochTimestamp:
-      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-      type: integer
-      minimum: 0
-      format: int64
-      example: 1730204346000
-    DataSetId:
-      description: The dataSet Id for the item.
-      type: integer
-      minimum: 1
-      maximum: 9007199254740991
-      format: int64
-    CogniteExternalId:
-      description: The external ID provided by the client. Must be unique for the resource type.
-      type: string
-      maxLength: 255
-      example: my.known.id
-    LabelContainsAnyFilter:
+    SetLongField:
       type: object
       required:
-      - containsAny
+      - set
       properties:
-        containsAny:
-          description: The resource item contains at least one of the listed labels.
-          type: array
-          minItems: 1
-          maxItems: 10
-          items:
-            $ref: '#/components/schemas/Label'
-    LabelContainsAllFilter:
+        set:
+          type: integer
+          format: int64
+    RootAssetIds:
+      type: array
+      minItems: 1
+      maxItems: 100
+      uniqueItems: true
+      description: Only include files that have a related asset in a tree rooted at any of these root assetIds.
+      example:
+      - id: 123456789
+      - externalId: system 99 external Id 1234
+      items:
+        $ref: '#/components/schemas/AssetIdEither'
+    ObjectPatchSet:
+      title: set
       type: object
       required:
-      - containsAll
+      - set
       properties:
-        containsAll:
-          description: The resource item contains at least all the listed labels.
-          type: array
-          minItems: 1
-          maxItems: 10
-          items:
-            $ref: '#/components/schemas/Label'
-    FileDataUploadIds:
+        set:
+          uniqueItems: true
+          type: object
+          description: Set the key-value pairs. All existing key-value pairs will be removed.
+          additionalProperties:
+            type: string
+          example:
+            key1: value1
+            key2: value2
+    DataSetExternalId:
       type: object
+      title: DataSetExternalId
       required:
-      - items
+      - externalId
       properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/FileExternalIdEither'
-          minItems: 1
-          maxItems: 1
-    DataMultiPartUploadFileMetadata:
-      type: object
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/MultiPartUploadFileMetadata'
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+    MultiLineStringCoordinates:
+      description: 'List of lines where each line (LineString) is defined as a list of two or more points.
+
+        Each point is defined as a pair of two numbers in an array, representing coordinates of a point in 2D space.
+
+
+        Example: `[[[30, 10], [10, 30]], [[35, 10], [10, 30], [40, 40]]]`
+
+        '
+      type: array
+      items:
+        $ref: '#/components/schemas/LineStringCoordinates'
     Label:
       type: object
       title: Label
@@ -1428,31 +1339,14 @@ components:
           description: An external ID to a predefined label definition.
           allOf:
           - $ref: '#/components/schemas/CogniteExternalId'
-    AssetSubtreeIds:
+    LabelList:
       type: array
-      minItems: 1
-      maxItems: 100
+      description: A list of the labels associated with this resource item.
+      minItems: 0
+      maxItems: 10
       uniqueItems: true
-      description: Only include files that have a related asset in a subtree rooted at any of these assetIds (including the roots given). If the total size of the given subtrees exceeds 100,000 assets, an error will be returned.
-      example:
-      - id: 123456789
-      - externalId: system 99 external Id 1234
       items:
-        $ref: '#/components/schemas/AssetIdEither'
-    UploadFileMetadata:
-      allOf:
-      - $ref: '#/components/schemas/FilesMetadata'
-      - type: object
-        required:
-        - uploadUrl
-        properties:
-          uploadUrl:
-            description: The URL where the file contents should be uploaded.
-            type: string
-    FileSource:
-      maxLength: 128
-      type: string
-      description: The source of the file.
+        $ref: '#/components/schemas/Label'
     Point:
       type: object
       required:
@@ -1465,83 +1359,138 @@ components:
           - Point
         coordinates:
           $ref: '#/components/schemas/PointCoordinates'
-    InstanceSpace:
-      type: string
-      pattern: ^[a-zA-Z][a-zA-Z0-9_-]{0,41}[a-zA-Z0-9]?$
-      minLength: 1
-      maxLength: 43
-    LabelsAddRemove:
-      type: object
-      properties:
-        add:
-          type: array
-          description: A list of the labels to add to a resource.
-          minItems: 0
-          maxItems: 10
-          uniqueItems: true
-          items:
-            $ref: '#/components/schemas/Label'
-        remove:
-          type: array
-          description: A list of the labels to remove from a resource.
-          minItems: 0
-          maxItems: 10
-          uniqueItems: true
-          items:
-            $ref: '#/components/schemas/Label'
-    FileExternalIdEither:
-      oneOf:
-      - $ref: '#/components/schemas/FileExternalId'
-      - $ref: '#/components/schemas/FileInstanceId'
-    FileInstanceId:
+    FilesAggregate:
+      description: Aggregation results for files
       type: object
       required:
-      - instanceId
+      - count
       properties:
-        instanceId:
-          $ref: '#/components/schemas/InstanceId'
+        count:
+          type: integer
+          description: Number of filtered items included in aggregation
+          format: int64
+          minimum: 0
+    SinglePatchGeoLocation:
+      title: set
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/SetGeoLocation'
+      - $ref: '#/components/schemas/RemoveField'
+      description: Set a new value for the geoLocation, or remove the value.
+    PartitionLimited10:
+      description: 'Splits the data set into `N` partitions.
+
+        The attribute is specified as a "M/N" string, where `M` is a natural number in the interval of `[1, N]`.
+
+        You need to follow the cursors within each partition in order to receive all the data.
+
+
+        The maximum number of allowed partitions (`N`) is 10.
+
+
+        Cognite rejects requests if you specify more than 10 partitions.
+
+        When Cognite enforces this behavior, the requests result in a 400 Bad Request status.
+
+        '
+      type: string
+      example: 1/3
+    InstanceId:
+      type: object
+      required:
+      - space
+      - externalId
+      properties:
+        space:
+          $ref: '#/components/schemas/InstanceSpace'
+        externalId:
+          $ref: '#/components/schemas/InstanceExternalId'
+    FileLinkIds:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FileIdEither'
+          maxItems: 100
+          minItems: 1
     FileSelectById:
       type: object
       title: Select by Id
       properties:
         id:
           $ref: '#/components/schemas/CogniteInternalId'
-    FileName:
-      type: string
-      description: Name of the file.
-      maxLength: 256
-    FileInternalId:
-      type: object
-      properties:
-        id:
-          $ref: '#/components/schemas/CogniteInternalId'
-    DataSetIdEither:
+    FileSelectEither:
       oneOf:
-      - $ref: '#/components/schemas/DataSetInternalId'
-      - $ref: '#/components/schemas/DataSetExternalId'
-    FileChangeUpdate:
+      - $ref: '#/components/schemas/FileSelectById'
+      - $ref: '#/components/schemas/FileSelectByExternalId'
+      - $ref: '#/components/schemas/FileSelectByInstanceId'
+    LabelsPatch:
+      description: 'Updates the resource''s assigned labels.
+
+
+        Labels can be added, removed or replaced (set). Adding an already attached label is an idempotent operation. Removing a label with no matching externalId is silently ignored.'
       oneOf:
-      - $ref: '#/components/schemas/FileChangeUpdateById'
-      - $ref: '#/components/schemas/FileChangeUpdateByExternalId'
-      - $ref: '#/components/schemas/FileChangeUpdateByInstanceId'
-    FileSelectByInstanceId:
-      type: object
-      title: Select by InstanceId
-      properties:
-        instanceId:
-          $ref: '#/components/schemas/InstanceId'
-    DataSetInternalId:
-      type: object
-      title: DataSetInternalId
-      required:
-      - id
-      properties:
-        id:
-          $ref: '#/components/schemas/CogniteInternalId'
-    FileChangeUpdateByInstanceId:
+      - $ref: '#/components/schemas/LabelsAddRemove'
+      - $ref: '#/components/schemas/LabelsSet'
+    CompleteMultiPartUpload:
       allOf:
+      - $ref: '#/components/schemas/FileIdEither'
+      - type: object
+        required:
+        - uploadId
+        properties:
+          uploadId:
+            type: string
+            description: A server-generated identifier returned by 'files/initmultipartupload', used by 'files/completemultipartupload' for validation purposes.
+    GeoLocation:
+      description: Geographic metadata.
+      required:
+      - type
+      - geometry
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+          - Feature
+          description: One of the GeoJSON types. Currently only the 'Feature' type is supported.
+        geometry:
+          $ref: '#/components/schemas/GeoLocationGeometry'
+        properties:
+          type: object
+          description: Additional properties in a String key -> Object value format.
+    FileSource:
+      maxLength: 128
+      type: string
+      description: The source of the file.
+    FileLimit:
+      type: object
+      properties:
+        limit:
+          description: <- Maximum number of items that the client want to get back.
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 1000
+          default: 100
+    FileExternalIdEither:
+      oneOf:
+      - $ref: '#/components/schemas/FileExternalId'
       - $ref: '#/components/schemas/FileInstanceId'
-      - $ref: '#/components/schemas/DMSFileChange'
+    DataFileChange:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items:
+            $ref: '#/components/schemas/FileChangeUpdate'
     ExternalFilesMetadata:
       type: object
       required:
@@ -1586,11 +1535,64 @@ components:
           $ref: '#/components/schemas/LabelList'
         geoLocation:
           $ref: '#/components/schemas/GeoLocation'
-    FileLink:
+    RemoveField:
+      title: remove
+      type: object
+      required:
+      - setNull
+      properties:
+        setNull:
+          type: boolean
+          example: true
+    MultiPartUploadFileMetadata:
+      allOf:
+      - $ref: '#/components/schemas/FilesMetadata'
+      - type: object
+        required:
+        - uploadId
+        - uploadUrls
+        properties:
+          uploadId:
+            description: Identifier for this multipart upload. To be used in 'files/completemultipartupload' request, in the 'uploadId' URL parameter. This data string is used by the files API for file validation purposes.
+            type: string
+          uploadUrls:
+            description: Upload URL for each part of the file. Clients must make sure that the file parts are uploaded in the same order as the order in the list of uploadUrls. The PUT requests to upload each file part can however be done in parallel.
+            type: array
+            example:
+            - uploadURL_for_part_1
+            - uploadURL_for_part_2
+            - uploadURL_for_part_3
+            items:
+              type: string
+    AssetExternalIds:
+      type: array
+      minItems: 1
+      maxItems: 100
+      uniqueItems: true
+      description: Only include files that reference these specific asset external IDs.
+      example:
+      - externalId1
+      - externalId2
+      - externalId3
+      items:
+        $ref: '#/components/schemas/CogniteExternalId'
+    InstanceExternalId:
+      type: string
+      pattern: ^[a-zA-Z]([a-zA-Z0-9_]{0,253}[a-zA-Z0-9])?$
+      minLength: 1
+      maxLength: 255
+    DataMultiPartUploadFileMetadata:
       type: object
       properties:
-        downloadUrl:
-          type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MultiPartUploadFileMetadata'
+    CogniteExternalIdPrefix:
+      description: Filter by this (case-sensitive) prefix for the external ID.
+      type: string
+      maxLength: 255
+      example: my.known.prefix
     AssetInternalId:
       type: object
       required:
@@ -1598,116 +1600,20 @@ components:
       properties:
         id:
           $ref: '#/components/schemas/CogniteInternalId'
-    AssetExternalId:
+    SetStringField:
       type: object
+      title: set
       required:
-      - externalId
+      - set
       properties:
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-    MultiLineString:
-      type: object
-      required:
-      - type
-      - coordinates
-      properties:
-        type:
+        set:
           type: string
-          enum:
-          - MultiLineString
-        coordinates:
-          $ref: '#/components/schemas/MultiLineStringCoordinates'
-    GeoLocation:
-      description: Geographic metadata.
-      required:
-      - type
-      - geometry
-      type: object
-      properties:
-        type:
-          type: string
-          enum:
-          - Feature
-          description: One of the GeoJSON types. Currently only the 'Feature' type is supported.
-        geometry:
-          $ref: '#/components/schemas/GeoLocationGeometry'
-        properties:
-          type: object
-          description: Additional properties in a String key -> Object value format.
-    RootAssetIds:
-      type: array
-      minItems: 1
-      maxItems: 100
-      uniqueItems: true
-      description: Only include files that have a related asset in a tree rooted at any of these root assetIds.
-      example:
-      - id: 123456789
-      - externalId: system 99 external Id 1234
-      items:
-        $ref: '#/components/schemas/AssetIdEither'
-    LabelList:
-      type: array
-      description: A list of the labels associated with this resource item.
-      minItems: 0
-      maxItems: 10
-      uniqueItems: true
-      items:
-        $ref: '#/components/schemas/Label'
-    LineString:
-      type: object
-      required:
-      - type
-      - coordinates
-      properties:
-        type:
-          type: string
-          enum:
-          - LineString
-        coordinates:
-          $ref: '#/components/schemas/LineStringCoordinates'
-    DataWithCursor:
-      type: object
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/FilesMetadata'
-        nextCursor:
-          type: string
-          description: Cursor to get the next page of results (if available).
-      description: A list of objects along with possible cursors to get the next page of results
     FileFilterRequest:
       allOf:
       - $ref: '#/components/schemas/FileFilter'
       - $ref: '#/components/schemas/PartitionObjectLimited10'
       - $ref: '#/components/schemas/FileLimit'
       - $ref: '#/components/schemas/Cursor'
-    FileIdEither:
-      oneOf:
-      - $ref: '#/components/schemas/FileInternalId'
-      - $ref: '#/components/schemas/FileExternalId'
-      - $ref: '#/components/schemas/FileInstanceId'
-    PolygonCoordinates:
-      description: 'List of one or more linear rings representing a shape.
-
-
-        A linear ring is the boundary of a surface or the boundary of a hole in a surface. It is defined as a list consisting of 4 or more Points, where the first and last Point is equivalent.
-
-
-        Each Point is defined as an array of 2 numbers, representing coordinates of a point in 2D space.
-
-
-        Example: `[[[35, 10], [45, 45], [15, 40], [10, 20], [35, 10]], [[20, 30], [35, 35], [30, 20], [20, 30]]]`
-
-        '
-      type: array
-      minItems: 2
-      items:
-        $ref: '#/components/schemas/LineStringCoordinates'
-    FileDeleteByIdEither:
-      oneOf:
-      - $ref: '#/components/schemas/FileInternalId'
-      - $ref: '#/components/schemas/FileExternalId'
     FileFilter:
       description: Filter on files with exact match
       type: object
@@ -1769,6 +1675,13 @@ components:
               $ref: '#/components/schemas/LabelFilter'
             geoLocation:
               $ref: '#/components/schemas/GeoLocationFilter'
+    FileInstanceId:
+      type: object
+      required:
+      - instanceId
+      properties:
+        instanceId:
+          $ref: '#/components/schemas/InstanceId'
     GeoLocationFilter:
       description: Only include files matching the specified geographic relation.
       type: object
@@ -1794,321 +1707,50 @@ components:
           - $ref: '#/components/schemas/MultiPolygon'
           discriminator:
             propertyName: type
-    DataSetIdEithers:
-      type: array
-      items:
-        $ref: '#/components/schemas/DataSetIdEither'
-    FileChangeUpdateById:
+    DataSetInternalId:
+      type: object
+      title: DataSetInternalId
+      required:
+      - id
+      properties:
+        id:
+          $ref: '#/components/schemas/CogniteInternalId'
+    DataWithCursor:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilesMetadata'
+        nextCursor:
+          type: string
+          description: Cursor to get the next page of results (if available).
+      description: A list of objects along with possible cursors to get the next page of results
+    FileDataIdsWithIgnoreUnknownIds:
+      type: object
       allOf:
       - type: object
         required:
-        - id
+        - items
         properties:
-          id:
-            $ref: '#/components/schemas/CogniteInternalId'
-      - $ref: '#/components/schemas/FileChange'
-    IgnoreUnknownIdsField:
+          items:
+            type: array
+            items:
+              $ref: '#/components/schemas/FileSelectEither'
+            minItems: 1
+            maxItems: 1000
+      - $ref: '#/components/schemas/IgnoreUnknownIdsField'
+    FileLink:
       type: object
       properties:
-        ignoreUnknownIds:
-          description: Ignore IDs and external IDs that are not found
-          type: boolean
-          default: false
+        downloadUrl:
+          type: string
     PartitionObjectLimited10:
       type: object
       properties:
         partition:
           $ref: '#/components/schemas/PartitionLimited10'
-    FilesMetadata:
-      allOf:
-      - $ref: '#/components/schemas/ExternalFilesMetadata'
-      - type: object
-        required:
-        - id
-        - uploaded
-        - createdTime
-        - lastUpdatedTime
-        properties:
-          id:
-            $ref: '#/components/schemas/CogniteInternalId'
-          uploaded:
-            type: boolean
-            description: Whether or not the actual file is uploaded. This field is returned only by the API, it has no effect in a post body.
-            example: true
-          uploadedTime:
-            $ref: '#/components/schemas/EpochTimestamp'
-          createdTime:
-            $ref: '#/components/schemas/EpochTimestamp'
-          lastUpdatedTime:
-            $ref: '#/components/schemas/EpochTimestamp'
-          instanceId:
-            $ref: '#/components/schemas/InstanceId'
-    MultiPolygonCoordinates:
-      description: 'List of multiple polygons.
-
-
-        Each polygon is defined as a list of one or more linear rings representing a shape.
-
-
-        A linear ring is the boundary of a surface or the boundary of a hole in a surface. It is defined as a list consisting of 4 or more Points, where the first and last Point is equivalent.
-
-
-        Each Point is defined as an array of 2 numbers, representing coordinates of a point in 2D space.
-
-
-        Example: `[[[[30, 20], [45, 40], [10, 40], [30, 20]]], [[[15, 5], [40, 10], [10, 20], [5, 10], [15, 5]]]]`
-
-        '
-      type: array
-      items:
-        $ref: '#/components/schemas/PolygonCoordinates'
-    MultiPointCoordinates:
-      description: 'List of Points. Each Point is defined as an array of 2 numbers, representing coordinates of a point in 2D space.
-
-
-        Example: `[[35, 10], [45, 45]]`
-
-        '
-      type: array
-      items:
-        $ref: '#/components/schemas/PointCoordinates'
-    EpochTimestampRange:
-      description: Range between two timestamps (inclusive).
-      type: object
-      properties:
-        max:
-          description: Maximum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-          type: integer
-          minimum: 0
-          format: int64
-        min:
-          description: Minimum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-          type: integer
-          minimum: 0
-          format: int64
-    MultiPartUploadFileMetadata:
-      allOf:
-      - $ref: '#/components/schemas/FilesMetadata'
-      - type: object
-        required:
-        - uploadId
-        - uploadUrls
-        properties:
-          uploadId:
-            description: Identifier for this multipart upload. To be used in 'files/completemultipartupload' request, in the 'uploadId' URL parameter. This data string is used by the files API for file validation purposes.
-            type: string
-          uploadUrls:
-            description: Upload URL for each part of the file. Clients must make sure that the file parts are uploaded in the same order as the order in the list of uploadUrls. The PUT requests to upload each file part can however be done in parallel.
-            type: array
-            example:
-            - uploadURL_for_part_1
-            - uploadURL_for_part_2
-            - uploadURL_for_part_3
-            items:
-              type: string
-    ArrayPatchLongSet:
-      title: set
-      type: object
-      required:
-      - set
-      properties:
-        set:
-          uniqueItems: true
-          type: array
-          items:
-            type: integer
-            format: int64
-    LineStringCoordinates:
-      description: 'Coordinates of a line described by a list of two or more points.
-
-        Each point is defined as a pair of two numbers in an array, representing coordinates of a point in 2D space.
-
-
-        Example: `[[30, 10], [10, 30], [40, 40]]`
-
-        '
-      type: array
-      minItems: 2
-      items:
-        $ref: '#/components/schemas/PointCoordinates'
-    AssetIds:
-      type: array
-      minItems: 1
-      maxItems: 100
-      uniqueItems: true
-      description: Only include files that reference these specific asset IDs.
-      example:
-      - 363848954441724
-      - 793045462540095
-      - 1261042166839739
-      items:
-        $ref: '#/components/schemas/CogniteInternalId'
-    FileChangeUpdateByExternalId:
-      allOf:
-      - type: object
-        required:
-        - externalId
-        properties:
-          externalId:
-            $ref: '#/components/schemas/CogniteExternalId'
-      - $ref: '#/components/schemas/FileChange'
-    JsonArrayString:
-      type: string
-      format: jsonArray(string)
-    LabelFilter:
-      description: Return only the resource matching the specified label constraints.
-      oneOf:
-      - $ref: '#/components/schemas/LabelContainsAnyFilter'
-      - $ref: '#/components/schemas/LabelContainsAllFilter'
-    MultiLineStringCoordinates:
-      description: 'List of lines where each line (LineString) is defined as a list of two or more points.
-
-        Each point is defined as a pair of two numbers in an array, representing coordinates of a point in 2D space.
-
-
-        Example: `[[[30, 10], [10, 30]], [[35, 10], [10, 30], [40, 40]]]`
-
-        '
-      type: array
-      items:
-        $ref: '#/components/schemas/LineStringCoordinates'
-    PointCoordinates:
-      description: 'Coordinates of a point in 2D space, described as an array of 2 numbers.
-
-
-        Example: `[4.306640625, 60.205710352530346]`
-
-        '
-      type: array
-      minItems: 2
-      maxItems: 2
-      items:
-        type: number
-    FilesMetadataField:
-      type: object
-      description: 'Custom, application specific metadata. String key -> String value. Limits: Maximum length of key is 128 bytes, value 10240 bytes, up to 256 key-value pairs, of total size at most 10240.'
-      additionalProperties:
-        type: string
-    SetLongField:
-      type: object
-      required:
-      - set
-      properties:
-        set:
-          type: integer
-          format: int64
-    DataFilesAggregate:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/FilesAggregate'
-    Cursor:
-      type: object
-      properties:
-        cursor:
-          type: string
-          example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
-      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
-
-        property, it means that there may be more results, and you should pass that value as the
-
-        `cursor` parameter in the next request.
-
-
-        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
-
-        decoded. Its internal structure is not a part of the public API, and may change without
-
-        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
-
-        '
-    FileLimit:
-      type: object
-      properties:
-        limit:
-          description: <- Maximum number of items that the client want to get back.
-          type: integer
-          format: int32
-          minimum: 1
-          maximum: 1000
-          default: 100
-    FilesSearchFilter:
-      description: Filter on files with exact match
-      allOf:
-      - $ref: '#/components/schemas/FileFilter'
-      - type: object
-        properties:
-          search:
-            type: object
-            properties:
-              name:
-                $ref: '#/components/schemas/FileName'
-    SinglePatchGeoLocation:
-      title: set
-      type: object
-      oneOf:
-      - $ref: '#/components/schemas/SetGeoLocation'
-      - $ref: '#/components/schemas/RemoveField'
-      description: Set a new value for the geoLocation, or remove the value.
-    FileDirectory:
-      type: string
-      description: Directory containing the file. Must be an absolute, unix-style path.
-      maxLength: 512
-    DataFileChange:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          minItems: 1
-          maxItems: 1000
-          items:
-            $ref: '#/components/schemas/FileChangeUpdate'
-    CogniteExternalIdPrefix:
-      description: Filter by this (case-sensitive) prefix for the external ID.
-      type: string
-      maxLength: 255
-      example: my.known.prefix
-    SinglePatchLong:
-      title: set
-      type: object
-      oneOf:
-      - $ref: '#/components/schemas/SetLongField'
-      - $ref: '#/components/schemas/RemoveField'
-      description: Set a new value for the long, or remove the value.
-    ObjectPatch:
-      type: object
-      description: Custom, application specific metadata. String key -> String value.
-      oneOf:
-      - $ref: '#/components/schemas/ObjectPatchSet'
-      - $ref: '#/components/schemas/ObjectPatchAddRemove'
-    ArrayPatchLongAddOrRemove:
-      title: add/remove
-      type: object
-      properties:
-        add:
-          uniqueItems: true
-          type: array
-          items:
-            type: integer
-            format: int64
-        remove:
-          uniqueItems: true
-          type: array
-          items:
-            type: integer
-            format: int64
-    FileSelectEither:
-      oneOf:
-      - $ref: '#/components/schemas/FileSelectById'
-      - $ref: '#/components/schemas/FileSelectByExternalId'
-      - $ref: '#/components/schemas/FileSelectByInstanceId'
-    Polygon:
+    MultiPolygon:
       type: object
       required:
       - type
@@ -2117,9 +1759,9 @@ components:
         type:
           type: string
           enum:
-          - Polygon
+          - MultiPolygon
         coordinates:
-          $ref: '#/components/schemas/PolygonCoordinates'
+          $ref: '#/components/schemas/MultiPolygonCoordinates'
     Error:
       type: object
       required:
@@ -2148,22 +1790,72 @@ components:
           items:
             type: object
             additionalProperties: true
-    SetStringField:
+    ArrayPatchLong:
       type: object
-      title: set
-      required:
-      - set
-      properties:
-        set:
-          type: string
-    DataSetExternalId:
+      oneOf:
+      - $ref: '#/components/schemas/ArrayPatchLongSet'
+      - $ref: '#/components/schemas/ArrayPatchLongAddOrRemove'
+      description: Change that will be applied to the array.
+    JsonArrayString:
+      type: string
+      format: jsonArray(string)
+    LineStringCoordinates:
+      description: 'Coordinates of a line described by a list of two or more points.
+
+        Each point is defined as a pair of two numbers in an array, representing coordinates of a point in 2D space.
+
+
+        Example: `[[30, 10], [10, 30], [40, 40]]`
+
+        '
+      type: array
+      minItems: 2
+      items:
+        $ref: '#/components/schemas/PointCoordinates'
+    FileIdEither:
+      oneOf:
+      - $ref: '#/components/schemas/FileInternalId'
+      - $ref: '#/components/schemas/FileExternalId'
+      - $ref: '#/components/schemas/FileInstanceId'
+    FileDeleteByIds:
       type: object
-      title: DataSetExternalId
-      required:
-      - externalId
-      properties:
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
+      allOf:
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
+            items:
+              $ref: '#/components/schemas/FileDeleteByIdEither'
+            maxItems: 1000
+            minItems: 1
+      - $ref: '#/components/schemas/IgnoreUnknownIdsField'
+    MultiPolygonCoordinates:
+      description: 'List of multiple polygons.
+
+
+        Each polygon is defined as a list of one or more linear rings representing a shape.
+
+
+        A linear ring is the boundary of a surface or the boundary of a hole in a surface. It is defined as a list consisting of 4 or more Points, where the first and last Point is equivalent.
+
+
+        Each Point is defined as an array of 2 numbers, representing coordinates of a point in 2D space.
+
+
+        Example: `[[[[30, 20], [45, 40], [10, 40], [30, 20]]], [[[15, 5], [40, 10], [10, 20], [5, 10], [15, 5]]]]`
+
+        '
+      type: array
+      items:
+        $ref: '#/components/schemas/PolygonCoordinates'
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
     GeoLocationGeometry:
       type: object
       required:
@@ -2178,6 +1870,244 @@ components:
       - $ref: '#/components/schemas/MultiPolygon'
       discriminator:
         propertyName: type
+    ArrayPatchLongSet:
+      title: set
+      type: object
+      required:
+      - set
+      properties:
+        set:
+          uniqueItems: true
+          type: array
+          items:
+            type: integer
+            format: int64
+    MimeType:
+      maxLength: 256
+      type: string
+      example: image/jpeg
+      description: File type. E.g. text/plain, application/pdf, ..
+    IgnoreUnknownIdsField:
+      type: object
+      properties:
+        ignoreUnknownIds:
+          description: Ignore IDs and external IDs that are not found
+          type: boolean
+          default: false
+    FileExternalId:
+      type: object
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+    Cursor:
+      type: object
+      properties:
+        cursor:
+          type: string
+          example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
+      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
+
+        property, it means that there may be more results, and you should pass that value as the
+
+        `cursor` parameter in the next request.
+
+
+        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
+
+        decoded. Its internal structure is not a part of the public API, and may change without
+
+        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
+
+        '
+    LabelsSet:
+      type: object
+      properties:
+        set:
+          type: array
+          description: A list of the labels to replace (set) to a resource.
+          minItems: 0
+          maxItems: 10
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/Label'
+    MultiPoint:
+      type: object
+      required:
+      - type
+      - coordinates
+      properties:
+        type:
+          type: string
+          enum:
+          - MultiPoint
+        coordinates:
+          $ref: '#/components/schemas/MultiPointCoordinates'
+    LineString:
+      type: object
+      required:
+      - type
+      - coordinates
+      properties:
+        type:
+          type: string
+          enum:
+          - LineString
+        coordinates:
+          $ref: '#/components/schemas/LineStringCoordinates'
+    ArrayPatchLongAddOrRemove:
+      title: add/remove
+      type: object
+      properties:
+        add:
+          uniqueItems: true
+          type: array
+          items:
+            type: integer
+            format: int64
+        remove:
+          uniqueItems: true
+          type: array
+          items:
+            type: integer
+            format: int64
+    FileDataUploadIds:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FileExternalIdEither'
+          minItems: 1
+          maxItems: 1
+    PolygonCoordinates:
+      description: 'List of one or more linear rings representing a shape.
+
+
+        A linear ring is the boundary of a surface or the boundary of a hole in a surface. It is defined as a list consisting of 4 or more Points, where the first and last Point is equivalent.
+
+
+        Each Point is defined as an array of 2 numbers, representing coordinates of a point in 2D space.
+
+
+        Example: `[[[35, 10], [45, 45], [15, 40], [10, 20], [35, 10]], [[20, 30], [35, 35], [30, 20], [20, 30]]]`
+
+        '
+      type: array
+      minItems: 2
+      items:
+        $ref: '#/components/schemas/LineStringCoordinates'
+    CogniteExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
+      type: string
+      maxLength: 255
+      example: my.known.id
+    FileDirectory:
+      type: string
+      description: Directory containing the file. Must be an absolute, unix-style path.
+      maxLength: 512
+    MultiPointCoordinates:
+      description: 'List of Points. Each Point is defined as an array of 2 numbers, representing coordinates of a point in 2D space.
+
+
+        Example: `[[35, 10], [45, 45]]`
+
+        '
+      type: array
+      items:
+        $ref: '#/components/schemas/PointCoordinates'
+    DataSetIdEither:
+      oneOf:
+      - $ref: '#/components/schemas/DataSetInternalId'
+      - $ref: '#/components/schemas/DataSetExternalId'
+    FileChangeUpdate:
+      oneOf:
+      - $ref: '#/components/schemas/FileChangeUpdateById'
+      - $ref: '#/components/schemas/FileChangeUpdateByExternalId'
+      - $ref: '#/components/schemas/FileChangeUpdateByInstanceId'
+    SinglePatchString:
+      title: set
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/SetStringField'
+      - $ref: '#/components/schemas/RemoveField'
+      description: Set a new value for the string, or remove the value.
+    DataSetId:
+      description: The dataSet Id for the item.
+      type: integer
+      minimum: 1
+      maximum: 9007199254740991
+      format: int64
+    FilesMetadata:
+      allOf:
+      - $ref: '#/components/schemas/ExternalFilesMetadata'
+      - type: object
+        required:
+        - id
+        - uploaded
+        - createdTime
+        - lastUpdatedTime
+        properties:
+          id:
+            $ref: '#/components/schemas/CogniteInternalId'
+          uploaded:
+            type: boolean
+            description: Whether or not the actual file is uploaded. This field is returned only by the API, it has no effect in a post body.
+            example: true
+          uploadedTime:
+            $ref: '#/components/schemas/EpochTimestamp'
+          createdTime:
+            $ref: '#/components/schemas/EpochTimestamp'
+          lastUpdatedTime:
+            $ref: '#/components/schemas/EpochTimestamp'
+          instanceId:
+            $ref: '#/components/schemas/InstanceId'
+    LabelContainsAnyFilter:
+      type: object
+      required:
+      - containsAny
+      properties:
+        containsAny:
+          description: The resource item contains at least one of the listed labels.
+          type: array
+          minItems: 1
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/Label'
+    CogniteInternalId:
+      description: A server-generated ID for the object.
+      type: integer
+      minimum: 1
+      maximum: 9007199254740991
+      format: int64
+    ObjectPatch:
+      type: object
+      description: Custom, application specific metadata. String key -> String value.
+      oneOf:
+      - $ref: '#/components/schemas/ObjectPatchSet'
+      - $ref: '#/components/schemas/ObjectPatchAddRemove'
+    DataSetIdEithers:
+      type: array
+      items:
+        $ref: '#/components/schemas/DataSetIdEither'
+    SetGeoLocation:
+      title: set
+      type: object
+      required:
+      - set
+      properties:
+        set:
+          $ref: '#/components/schemas/GeoLocation'
+    FileChangeUpdateById:
+      allOf:
+      - type: object
+        required:
+        - id
+        properties:
+          id:
+            $ref: '#/components/schemas/CogniteInternalId'
+      - $ref: '#/components/schemas/FileChange'
     DMSFileChange:
       type: object
       description: Changes will be applied to file.
@@ -2203,24 +2133,41 @@ components:
               $ref: '#/components/schemas/LabelsPatch'
             geoLocation:
               $ref: '#/components/schemas/SinglePatchGeoLocation'
-    FileLinkIds:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/FileIdEither'
-          maxItems: 100
-          minItems: 1
-    SinglePatchString:
-      title: set
-      type: object
+    FilesSearchFilter:
+      description: Filter on files with exact match
+      allOf:
+      - $ref: '#/components/schemas/FileFilter'
+      - type: object
+        properties:
+          search:
+            type: object
+            properties:
+              name:
+                $ref: '#/components/schemas/FileName'
+    AssetSubtreeIds:
+      type: array
+      minItems: 1
+      maxItems: 100
+      uniqueItems: true
+      description: Only include files that have a related asset in a subtree rooted at any of these assetIds (including the roots given). If the total size of the given subtrees exceeds 100,000 assets, an error will be returned.
+      example:
+      - id: 123456789
+      - externalId: system 99 external Id 1234
+      items:
+        $ref: '#/components/schemas/AssetIdEither'
+    AssetIdEither:
       oneOf:
-      - $ref: '#/components/schemas/SetStringField'
-      - $ref: '#/components/schemas/RemoveField'
-      description: Set a new value for the string, or remove the value.
+      - $ref: '#/components/schemas/AssetInternalId'
+      - $ref: '#/components/schemas/AssetExternalId'
+    FileName:
+      type: string
+      description: Name of the file.
+      maxLength: 256
+    FilesMetadataField:
+      type: object
+      description: 'Custom, application specific metadata. String key -> String value. Limits: Maximum length of key is 128 bytes, value 10240 bytes, up to 256 key-value pairs, of total size at most 10240.'
+      additionalProperties:
+        type: string
     ObjectPatchAddRemove:
       title: add/remove
       type: object
@@ -2243,22 +2190,35 @@ components:
           - value2
           items:
             type: string
-    LabelsSet:
+    InstanceSpace:
+      type: string
+      pattern: ^[a-zA-Z][a-zA-Z0-9_-]{0,41}[a-zA-Z0-9]?$
+      minLength: 1
+      maxLength: 43
+    FileChangeUpdateByInstanceId:
+      allOf:
+      - $ref: '#/components/schemas/FileInstanceId'
+      - $ref: '#/components/schemas/DMSFileChange'
+    LabelsAddRemove:
       type: object
       properties:
-        set:
+        add:
           type: array
-          description: A list of the labels to replace (set) to a resource.
+          description: A list of the labels to add to a resource.
           minItems: 0
           maxItems: 10
           uniqueItems: true
           items:
             $ref: '#/components/schemas/Label'
-    AssetIdEither:
-      oneOf:
-      - $ref: '#/components/schemas/AssetInternalId'
-      - $ref: '#/components/schemas/AssetExternalId'
-    MultiPolygon:
+        remove:
+          type: array
+          description: A list of the labels to remove from a resource.
+          minItems: 0
+          maxItems: 10
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/Label'
+    Polygon:
       type: object
       required:
       - type
@@ -2267,37 +2227,105 @@ components:
         type:
           type: string
           enum:
-          - MultiPolygon
+          - Polygon
         coordinates:
-          $ref: '#/components/schemas/MultiPolygonCoordinates'
-    InstanceId:
+          $ref: '#/components/schemas/PolygonCoordinates'
+    LabelContainsAllFilter:
       type: object
       required:
-      - space
+      - containsAll
+      properties:
+        containsAll:
+          description: The resource item contains at least all the listed labels.
+          type: array
+          minItems: 1
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/Label'
+    AssetExternalId:
+      type: object
+      required:
       - externalId
       properties:
-        space:
-          $ref: '#/components/schemas/InstanceSpace'
         externalId:
-          $ref: '#/components/schemas/InstanceExternalId'
-    MultiPoint:
+          $ref: '#/components/schemas/CogniteExternalId'
+    UploadFileMetadata:
+      allOf:
+      - $ref: '#/components/schemas/FilesMetadata'
+      - type: object
+        required:
+        - uploadUrl
+        properties:
+          uploadUrl:
+            description: The URL where the file contents should be uploaded.
+            type: string
+    FileChangeUpdateByExternalId:
+      allOf:
+      - type: object
+        required:
+        - externalId
+        properties:
+          externalId:
+            $ref: '#/components/schemas/CogniteExternalId'
+      - $ref: '#/components/schemas/FileChange'
+    DataFileMetadata:
       type: object
-      required:
-      - type
-      - coordinates
       properties:
-        type:
-          type: string
-          enum:
-          - MultiPoint
-        coordinates:
-          $ref: '#/components/schemas/MultiPointCoordinates'
-    CogniteInternalId:
-      description: A server-generated ID for the object.
-      type: integer
-      minimum: 1
-      maximum: 9007199254740991
-      format: int64
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilesMetadata'
+    FileSelectByExternalId:
+      type: object
+      title: Select by ExternalId
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+    JsonArrayInt64:
+      type: string
+      format: jsonArray(int64)
+      example: '[1238712837, 238712361376, 23786237623]'
+    FileSelectByInstanceId:
+      type: object
+      title: Select by InstanceId
+      properties:
+        instanceId:
+          $ref: '#/components/schemas/InstanceId'
+    SinglePatchLong:
+      title: set
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/SetLongField'
+      - $ref: '#/components/schemas/RemoveField'
+      description: Set a new value for the long, or remove the value.
+    PointCoordinates:
+      description: 'Coordinates of a point in 2D space, described as an array of 2 numbers.
+
+
+        Example: `[4.306640625, 60.205710352530346]`
+
+        '
+      type: array
+      minItems: 2
+      maxItems: 2
+      items:
+        type: number
+    FileDeleteByIdEither:
+      oneOf:
+      - $ref: '#/components/schemas/FileInternalId'
+      - $ref: '#/components/schemas/FileExternalId'
+    AssetIds:
+      type: array
+      minItems: 1
+      maxItems: 100
+      uniqueItems: true
+      description: Only include files that reference these specific asset IDs.
+      example:
+      - 363848954441724
+      - 793045462540095
+      - 1261042166839739
+      items:
+        $ref: '#/components/schemas/CogniteInternalId'
     FileChange:
       type: object
       description: Changes will be applied to file.
@@ -2337,147 +2365,139 @@ components:
               $ref: '#/components/schemas/LabelsPatch'
             geoLocation:
               $ref: '#/components/schemas/SinglePatchGeoLocation'
-    AssetExternalIds:
-      type: array
-      minItems: 1
-      maxItems: 100
-      uniqueItems: true
-      description: Only include files that reference these specific asset external IDs.
-      example:
-      - externalId1
-      - externalId2
-      - externalId3
-      items:
-        $ref: '#/components/schemas/CogniteExternalId'
-    PartitionLimited10:
-      description: 'Splits the data set into `N` partitions.
+    FileInternalId:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/CogniteInternalId'
+    MultiLineString:
+      type: object
+      required:
+      - type
+      - coordinates
+      properties:
+        type:
+          type: string
+          enum:
+          - MultiLineString
+        coordinates:
+          $ref: '#/components/schemas/MultiLineStringCoordinates'
+    EpochTimestampRange:
+      description: Range between two timestamps (inclusive).
+      type: object
+      properties:
+        max:
+          description: Maximum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+          type: integer
+          minimum: 0
+          format: int64
+        min:
+          description: Minimum timestamp (inclusive). The timestamp is represented as number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+          type: integer
+          minimum: 0
+          format: int64
+    DataFilesAggregate:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilesAggregate'
+    LabelFilter:
+      description: Return only the resource matching the specified label constraints.
+      oneOf:
+      - $ref: '#/components/schemas/LabelContainsAnyFilter'
+      - $ref: '#/components/schemas/LabelContainsAllFilter'
+  responses:
+    MultiPartUploadFileMetadataResponse:
+      description: The response for a successful request to initiate upload of multiple parts for a file.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/DataMultiPartUploadFileMetadata'
+    FileMetadataWithCursorResponse:
+      description: The response for a successful files/list operation
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/DataWithCursor'
+    UploadFileMetadataResponse:
+      description: The response for a successful files operation
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/UploadFileMetadata'
+    FilesAggregateResponse:
+      description: Response with files aggregates.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/DataFilesAggregate'
+    EmptyResponse:
+      description: Empty response.
+      content:
+        application/json:
+          schema:
+            type: object
+    FileResponse:
+      description: The response for a successful files/byids, files/search or files/update operation
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/DataFileMetadata'
+    DataWithLinks:
+      description: The response for a successful files/downloadlink operation.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              items:
+                type: array
+                items:
+                  allOf:
+                  - $ref: '#/components/schemas/FileLink'
+                  - $ref: '#/components/schemas/FileIdEither'
+    FileMetadataResponse:
+      description: The response for a successful GET files/id operation
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/FilesMetadata'
+    ErrorResponse:
+      description: The response for a failed request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+  parameters:
+    Cursor:
+      name: cursor
+      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
 
-        The attribute is specified as a "M/N" string, where `M` is a natural number in the interval of `[1, N]`.
+        property, it means that there may be more results, and you should pass that value as the
 
-        You need to follow the cursors within each partition in order to receive all the data.
-
-
-        The maximum number of allowed partitions (`N`) is 10.
+        `cursor` parameter in the next request.
 
 
-        Cognite rejects requests if you specify more than 10 partitions.
+        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
 
-        When Cognite enforces this behavior, the requests result in a 400 Bad Request status.
+        decoded. Its internal structure is not a part of the public API, and may change without
+
+        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
 
         '
-      type: string
-      example: 1/3
-    FilesAggregate:
-      description: Aggregation results for files
-      type: object
-      required:
-      - count
-      properties:
-        count:
-          type: integer
-          description: Number of filtered items included in aggregation
-          format: int64
-          minimum: 0
-    ObjectPatchSet:
-      title: set
-      type: object
-      required:
-      - set
-      properties:
-        set:
-          uniqueItems: true
-          type: object
-          description: Set the key-value pairs. All existing key-value pairs will be removed.
-          additionalProperties:
-            type: string
-          example:
-            key1: value1
-            key2: value2
-    RemoveField:
-      title: remove
-      type: object
-      required:
-      - setNull
-      properties:
-        setNull:
-          type: boolean
-          example: true
-    MimeType:
-      maxLength: 256
-      type: string
-      example: image/jpeg
-      description: File type. E.g. text/plain, application/pdf, ..
-    FileSelectByExternalId:
-      type: object
-      title: Select by ExternalId
-      properties:
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-    FileDataIdsWithIgnoreUnknownIds:
-      type: object
-      allOf:
-      - type: object
-        required:
-        - items
-        properties:
-          items:
-            type: array
-            items:
-              $ref: '#/components/schemas/FileSelectEither'
-            minItems: 1
-            maxItems: 1000
-      - $ref: '#/components/schemas/IgnoreUnknownIdsField'
-    InstanceExternalId:
-      type: string
-      pattern: ^[a-zA-Z]([a-zA-Z0-9_]{0,253}[a-zA-Z0-9])?$
-      minLength: 1
-      maxLength: 255
-    FileDeleteByIds:
-      type: object
-      allOf:
-      - type: object
-        required:
-        - items
-        properties:
-          items:
-            type: array
-            items:
-              $ref: '#/components/schemas/FileDeleteByIdEither'
-            maxItems: 1000
-            minItems: 1
-      - $ref: '#/components/schemas/IgnoreUnknownIdsField'
-    SetGeoLocation:
-      title: set
-      type: object
-      required:
-      - set
-      properties:
-        set:
-          $ref: '#/components/schemas/GeoLocation'
-    LabelsPatch:
-      description: 'Updates the resource''s assigned labels.
-
-
-        Labels can be added, removed or replaced (set). Adding an already attached label is an idempotent operation. Removing a label with no matching externalId is silently ignored.'
-      oneOf:
-      - $ref: '#/components/schemas/LabelsAddRemove'
-      - $ref: '#/components/schemas/LabelsSet'
-    FileExternalId:
-      type: object
-      properties:
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-    CompleteMultiPartUpload:
-      allOf:
-      - $ref: '#/components/schemas/FileIdEither'
-      - type: object
-        required:
-        - uploadId
-        properties:
-          uploadId:
-            type: string
-            description: A server-generated identifier returned by 'files/initmultipartupload', used by 'files/completemultipartupload' for validation purposes.
-  parameters:
+      in: query
+      schema:
+        type: string
+        example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
     partitionLimited10:
       in: query
       name: partition
@@ -2500,6 +2520,11 @@ components:
       schema:
         type: string
         example: 1/3
+    Name:
+      name: name
+      in: query
+      schema:
+        $ref: '#/components/schemas/FileName'
     Limit:
       name: limit
       description: Limits the number of results to be returned. The maximum results returned by the server is 1000 even if you specify a higher limit.
@@ -2509,31 +2534,6 @@ components:
         default: 100
         minimum: 1
         maximum: 1000
-    Cursor:
-      name: cursor
-      description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
-
-        property, it means that there may be more results, and you should pass that value as the
-
-        `cursor` parameter in the next request.
-
-
-        Note that the cursor may or may not be encrypted, but either way, it is not intended to be
-
-        decoded. Its internal structure is not a part of the public API, and may change without
-
-        notice. You should treat it as an opaque string and not attempt to craft your own cursors.
-
-        '
-      in: query
-      schema:
-        type: string
-        example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
-    Name:
-      name: name
-      in: query
-      schema:
-        $ref: '#/components/schemas/FileName'
   securitySchemes:
     oidc-token:
       type: http

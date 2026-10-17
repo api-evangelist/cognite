@@ -158,6 +158,22 @@ paths:
           $ref: '#/components/responses/ErrorResponse'
 components:
   schemas:
+    SymbolCreateDraft:
+      type: object
+      required:
+      - assetTypeId
+      - externalId
+      - libraryId
+      properties:
+        assetTypeId:
+          description: The DMS identifier of the asset type that the symbol represents
+          $ref: '#/components/schemas/DmsId'
+        externalId:
+          description: The external ID of the symbol
+          $ref: '#/components/schemas/CogniteExternalId'
+        libraryId:
+          description: The external ID of a library the symbol belongs to
+          $ref: '#/components/schemas/CogniteExternalId'
     SymbolDto:
       type: object
       required:
@@ -179,22 +195,18 @@ components:
         libraryId:
           description: The external ID of a library the symbol belongs to
           $ref: '#/components/schemas/CogniteExternalId'
-    ExternalIdsRequest:
+    SymbolUpdateItem:
       type: object
       required:
-      - items
+      - externalId
+      - update
       properties:
-        items:
-          type: array
-          minItems: 1
-          maxItems: 100
-          items:
-            type: object
-            required:
-            - externalId
-            properties:
-              externalId:
-                $ref: '#/components/schemas/CogniteExternalId'
+        externalId:
+          description: The external ID of the symbol
+          $ref: '#/components/schemas/CogniteExternalId'
+        update:
+          description: The properties to be updated
+          $ref: '#/components/schemas/SymbolUpdateDraft'
     UpdateSymbolsRequest:
       type: object
       required:
@@ -210,27 +222,20 @@ components:
           items:
             type: object
             $ref: '#/components/schemas/SymbolUpdateItem'
-    SymbolCreateDraft:
+    DmsId:
+      description: A DMS Identifier using the space and externalId
       type: object
       required:
-      - assetTypeId
+      - space
       - externalId
-      - libraryId
       properties:
-        assetTypeId:
-          description: The DMS identifier of the asset type that the symbol represents
-          $ref: '#/components/schemas/DmsId'
+        space:
+          type: string
         externalId:
-          description: The external ID of the symbol
           $ref: '#/components/schemas/CogniteExternalId'
-        libraryId:
-          description: The external ID of a library the symbol belongs to
-          $ref: '#/components/schemas/CogniteExternalId'
-    SymbolUpdateDraft:
-      type: object
-      properties:
-        assetTypeId:
-          $ref: '#/components/schemas/DmsId'
+    NextCursorV3:
+      description: The cursor value used to return (paginate to) the next page of results, when more data is available.
+      type: string
     Error:
       type: object
       required:
@@ -259,43 +264,17 @@ components:
           items:
             type: object
             additionalProperties: true
-    SymbolUpdateItem:
-      type: object
-      required:
-      - externalId
-      - update
-      properties:
-        externalId:
-          description: The external ID of the symbol
-          $ref: '#/components/schemas/CogniteExternalId'
-        update:
-          description: The properties to be updated
-          $ref: '#/components/schemas/SymbolUpdateDraft'
     EpochTimestamp:
       description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
       type: integer
       minimum: 0
       format: int64
       example: 1730204346000
-    DmsId:
-      description: A DMS Identifier using the space and externalId
+    SymbolUpdateDraft:
       type: object
-      required:
-      - space
-      - externalId
       properties:
-        space:
-          type: string
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-    CogniteExternalId:
-      description: The external ID provided by the client. Must be unique for the resource type.
-      type: string
-      maxLength: 255
-      example: my.known.id
-    NextCursorV3:
-      description: The cursor value used to return (paginate to) the next page of results, when more data is available.
-      type: string
+        assetTypeId:
+          $ref: '#/components/schemas/DmsId'
     CreateSymbolsRequest:
       type: object
       required:
@@ -311,46 +290,28 @@ components:
           items:
             type: object
             $ref: '#/components/schemas/SymbolCreateDraft'
+    ExternalIdsRequest:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            type: object
+            required:
+            - externalId
+            properties:
+              externalId:
+                $ref: '#/components/schemas/CogniteExternalId'
+    CogniteExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
+      type: string
+      maxLength: 255
+      example: my.known.id
   responses:
-    SymbolsListWithCursorResponse:
-      description: List of symbols with next cursor
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - items
-            properties:
-              items:
-                type: array
-                items:
-                  $ref: '#/components/schemas/SymbolDto'
-              nextCursor:
-                $ref: '#/components/schemas/NextCursorV3'
-    ErrorResponse:
-      description: The response for a failed request.
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - error
-            properties:
-              error:
-                $ref: '#/components/schemas/Error'
-    SymbolsListResponse:
-      description: List of symbols
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - items
-            properties:
-              items:
-                type: array
-                items:
-                  $ref: '#/components/schemas/SymbolDto'
     ExternalIdsResponse:
       description: List of external IDs returned in a response
       content:
@@ -366,7 +327,52 @@ components:
                 maxItems: 100
                 items:
                   $ref: '#/components/schemas/CogniteExternalId'
+    ErrorResponse:
+      description: The response for a failed request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+    SymbolsListWithCursorResponse:
+      description: List of symbols with next cursor
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            properties:
+              items:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SymbolDto'
+              nextCursor:
+                $ref: '#/components/schemas/NextCursorV3'
+    SymbolsListResponse:
+      description: List of symbols
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - items
+            properties:
+              items:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SymbolDto'
   parameters:
+    libraryIdQuery:
+      name: libraryId
+      description: Retrieve items related to this library
+      in: query
+      schema:
+        $ref: '#/components/schemas/CogniteExternalId'
     Cursor:
       name: cursor
       description: 'Cursor for paging through results. In general, if a response contains a `nextCursor`
@@ -387,12 +393,6 @@ components:
       schema:
         type: string
         example: 4zj0Vy2fo0NtNMb229mI9r1V3YG5NBL752kQz1cKtwo
-    libraryIdQuery:
-      name: libraryId
-      description: Retrieve items related to this library
-      in: query
-      schema:
-        $ref: '#/components/schemas/CogniteExternalId'
   securitySchemes:
     oidc-token:
       type: http

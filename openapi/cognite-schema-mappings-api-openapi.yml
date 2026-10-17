@@ -163,51 +163,6 @@ paths:
       summary: Delete Mappings
 components:
   schemas:
-    WritebackExternalIdWrapper:
-      additionalProperties: false
-      properties:
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-      required:
-      - externalId
-      title: WritebackExternalIdWrapper
-      type: object
-    SchemaMapping:
-      additionalProperties: false
-      properties:
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-        expression:
-          type: string
-          description: Custom transform expression written in the Cognite mapping language.
-          maxLength: 2000
-          example: "\n{\n \"SAPFieldA\": substring(input.CDFFieldA,0,40), \n \"SAPFieldB\": input.CDFFieldB, \n}\n"
-        createdTime:
-          $ref: '#/components/schemas/EpochTimestamp'
-        lastUpdatedTime:
-          $ref: '#/components/schemas/EpochTimestamp'
-      required:
-      - externalId
-      - expression
-      - lastUpdatedTime
-      - createdTime
-      title: SchemaMapping
-      type: object
-    CustomMapping:
-      type: object
-      properties:
-        expression:
-          type: string
-          description: Custom transform expression written in the Cognite transformation language.
-          maxLength: 2000
-      required:
-      - expression
-    EpochTimestamp:
-      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
-      type: integer
-      minimum: 0
-      format: int64
-      example: 1730204346000
     CsvConfig:
       additionalProperties: false
       type: object
@@ -239,26 +194,6 @@ components:
             title: CSV_Header
       required:
       - type
-    CogniteExternalId:
-      description: The external ID provided by the client. Must be unique for the resource type.
-      type: string
-      maxLength: 255
-      example: my.known.id
-    InputConfig:
-      type: object
-      description: Optionally set input mapping input type. This defaults to json if left out. Any input type is converted to JSON before being passed to the mapping expression.
-      discriminator:
-        mapping:
-          protobuf: '#/components/schemas/ProtobufConfig'
-          csv: '#/components/schemas/CsvConfig'
-          xml: '#/components/schemas/XmlConfig'
-          json: '#/components/schemas/JsonConfig'
-        propertyName: type
-      oneOf:
-      - $ref: '#/components/schemas/ProtobufConfig'
-      - $ref: '#/components/schemas/CsvConfig'
-      - $ref: '#/components/schemas/XmlConfig'
-      - $ref: '#/components/schemas/JsonConfig'
     JsonConfig:
       additionalProperties: false
       type: object
@@ -273,6 +208,15 @@ components:
           title: Type
       required:
       - type
+    WritebackExternalIdWrapper:
+      additionalProperties: false
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+      required:
+      - externalId
+      title: WritebackExternalIdWrapper
+      type: object
     WritebackItemsWithIgnoreUnknownIds_ExternalId_:
       additionalProperties: false
       properties:
@@ -291,67 +235,6 @@ components:
       - items
       title: ItemsWithIgnoreUnknownIds_ExternalId
       type: object
-    Items_Mapping_:
-      additionalProperties: false
-      properties:
-        items:
-          items:
-            $ref: '#/components/schemas/Mapping'
-          title: Items
-          type: array
-          maxItems: 100
-          minItems: 0
-      required:
-      - items
-      title: MappingList
-      type: object
-    XmlConfig:
-      additionalProperties: false
-      type: object
-      title: XML
-      description: 'Transform the input from an XML file to a JSON object.
-
-        '
-      properties:
-        type:
-          type: string
-          enum:
-          - xml
-          description: Input type
-          title: Type
-      required:
-      - type
-    CreateSchemaMapping:
-      additionalProperties: false
-      properties:
-        externalId:
-          $ref: '#/components/schemas/CogniteExternalId'
-        expression:
-          type: string
-          description: Custom transform expression written in the Cognite mapping language.
-          maxLength: 2000
-          example: "\n{\n \"SAPFieldA\": substring(input.CDFFieldA,0,40), \n \"SAPFieldB\": input.CDFFieldB, \n}\n"
-      required:
-      - externalId
-      - expression
-      title: Create SchemaMapping
-      type: object
-    WritebackValidationErrorContent:
-      type: object
-      required:
-      - code
-      - message
-      description: Cognite API error.
-      properties:
-        code:
-          type: integer
-          description: HTTP status code.
-          format: int32
-          example: 422
-        message:
-          type: string
-          description: Error message.
-          example: 'Extra inputs are not permitted: type'
     ItemsWithCursor_SchemaMapping_:
       additionalProperties: false
       properties:
@@ -370,6 +253,117 @@ components:
       - items
       title: MappingList
       type: object
+    WritebackValidationErrorContent:
+      type: object
+      required:
+      - code
+      - message
+      description: Cognite API error.
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+          format: int32
+          example: 422
+        message:
+          type: string
+          description: Error message.
+          example: 'Extra inputs are not permitted: type'
+    CogniteExternalId:
+      description: The external ID provided by the client. Must be unique for the resource type.
+      type: string
+      maxLength: 255
+      example: my.known.id
+    Mapping:
+      additionalProperties: false
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        mapping:
+          $ref: '#/components/schemas/CustomMapping'
+        input:
+          $ref: '#/components/schemas/InputConfig'
+        published:
+          title: Published
+          type: boolean
+          description: Whether this mapping is published and should be available to be used in jobs.
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        lastUpdatedTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+      required:
+      - externalId
+      - mapping
+      - published
+      - lastUpdatedTime
+      - createdTime
+      - input
+      title: Mapping
+      type: object
+    SchemaMapping:
+      additionalProperties: false
+      properties:
+        externalId:
+          $ref: '#/components/schemas/CogniteExternalId'
+        expression:
+          type: string
+          description: Custom transform expression written in the Cognite mapping language.
+          maxLength: 2000
+          example: "\n{\n \"SAPFieldA\": substring(input.CDFFieldA,0,40), \n \"SAPFieldB\": input.CDFFieldB, \n}\n"
+        createdTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+        lastUpdatedTime:
+          $ref: '#/components/schemas/EpochTimestamp'
+      required:
+      - externalId
+      - expression
+      - lastUpdatedTime
+      - createdTime
+      title: SchemaMapping
+      type: object
+    ProtoFile:
+      additionalProperties: false
+      description: Description of a protobuf file used for loading input to the mapping.
+      properties:
+        fileName:
+          type: string
+          title: File Name
+          format: '[a-zA-Z0-9_-]+\.proto'
+          maxLength: 128
+          description: Name of protobuf file. Must contain only letters, numbers, underscores, and hyphens, and must end with '.proto'.
+      required:
+      - fileName
+    XmlConfig:
+      additionalProperties: false
+      type: object
+      title: XML
+      description: 'Transform the input from an XML file to a JSON object.
+
+        '
+      properties:
+        type:
+          type: string
+          enum:
+          - xml
+          description: Input type
+          title: Type
+      required:
+      - type
+    InputConfig:
+      type: object
+      description: Optionally set input mapping input type. This defaults to json if left out. Any input type is converted to JSON before being passed to the mapping expression.
+      discriminator:
+        mapping:
+          protobuf: '#/components/schemas/ProtobufConfig'
+          csv: '#/components/schemas/CsvConfig'
+          xml: '#/components/schemas/XmlConfig'
+          json: '#/components/schemas/JsonConfig'
+        propertyName: type
+      oneOf:
+      - $ref: '#/components/schemas/ProtobufConfig'
+      - $ref: '#/components/schemas/CsvConfig'
+      - $ref: '#/components/schemas/XmlConfig'
+      - $ref: '#/components/schemas/JsonConfig'
     ProtobufConfig:
       additionalProperties: false
       description: List of protobuf files used to define input to the mapping. This will be compiled to a collection of definitions which will be used to convert the input to JSON.
@@ -396,46 +390,6 @@ components:
       - messageName
       - files
       - type
-    ProtoFile:
-      additionalProperties: false
-      description: Description of a protobuf file used for loading input to the mapping.
-      properties:
-        fileName:
-          type: string
-          title: File Name
-          format: '[a-zA-Z0-9_-]+\.proto'
-          maxLength: 128
-          description: Name of protobuf file. Must contain only letters, numbers, underscores, and hyphens, and must end with '.proto'.
-      required:
-      - fileName
-    Items_CreateSchemaMapping_:
-      additionalProperties: false
-      properties:
-        items:
-          items:
-            $ref: '#/components/schemas/CreateSchemaMapping'
-          title: Items
-          type: array
-          minLength: 1
-          maxLength: 100
-      required:
-      - items
-      title: CreateSchemaMapping list
-      type: object
-    Items_SchemaMapping_:
-      additionalProperties: false
-      properties:
-        items:
-          items:
-            $ref: '#/components/schemas/SchemaMapping'
-          title: Items
-          type: array
-          maxItems: 100
-          minItems: 0
-      required:
-      - items
-      title: InstanceList
-      type: object
     Error:
       type: object
       required:
@@ -464,32 +418,78 @@ components:
           items:
             type: object
             additionalProperties: true
-    Mapping:
+    CreateSchemaMapping:
       additionalProperties: false
       properties:
         externalId:
           $ref: '#/components/schemas/CogniteExternalId'
-        mapping:
-          $ref: '#/components/schemas/CustomMapping'
-        input:
-          $ref: '#/components/schemas/InputConfig'
-        published:
-          title: Published
-          type: boolean
-          description: Whether this mapping is published and should be available to be used in jobs.
-        createdTime:
-          $ref: '#/components/schemas/EpochTimestamp'
-        lastUpdatedTime:
-          $ref: '#/components/schemas/EpochTimestamp'
+        expression:
+          type: string
+          description: Custom transform expression written in the Cognite mapping language.
+          maxLength: 2000
+          example: "\n{\n \"SAPFieldA\": substring(input.CDFFieldA,0,40), \n \"SAPFieldB\": input.CDFFieldB, \n}\n"
       required:
       - externalId
-      - mapping
-      - published
-      - lastUpdatedTime
-      - createdTime
-      - input
-      title: Mapping
+      - expression
+      title: Create SchemaMapping
       type: object
+    CustomMapping:
+      type: object
+      properties:
+        expression:
+          type: string
+          description: Custom transform expression written in the Cognite transformation language.
+          maxLength: 2000
+      required:
+      - expression
+    Items_SchemaMapping_:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/SchemaMapping'
+          title: Items
+          type: array
+          maxItems: 100
+          minItems: 0
+      required:
+      - items
+      title: InstanceList
+      type: object
+    Items_Mapping_:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/Mapping'
+          title: Items
+          type: array
+          maxItems: 100
+          minItems: 0
+      required:
+      - items
+      title: MappingList
+      type: object
+    Items_CreateSchemaMapping_:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/CreateSchemaMapping'
+          title: Items
+          type: array
+          minLength: 1
+          maxLength: 100
+      required:
+      - items
+      title: CreateSchemaMapping list
+      type: object
+    EpochTimestamp:
+      description: The number of milliseconds since 00:00:00 Thursday, 1 January 1970, Coordinated Universal Time (UTC), minus leap seconds.
+      type: integer
+      minimum: 0
+      format: int64
+      example: 1730204346000
   responses:
     EmptyResponse:
       description: Empty response.
@@ -497,17 +497,6 @@ components:
         application/json:
           schema:
             type: object
-    WritebackValidationError:
-      description: Validation Error
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - error
-            properties:
-              error:
-                $ref: '#/components/schemas/WritebackValidationErrorContent'
     400ErrorResponse:
       description: The response for a bad request.
       content:
@@ -523,6 +512,17 @@ components:
             error:
               code: 400
               message: '`null` values aren''t allowed.'
+    WritebackValidationError:
+      description: Validation Error
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            properties:
+              error:
+                $ref: '#/components/schemas/WritebackValidationErrorContent'
   parameters:
     Cursor:
       name: cursor
